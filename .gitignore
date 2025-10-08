@@ -1,0 +1,31 @@
+# Bazel output
+bazel-*
+
+# Compile commands for clangd
+compile_commands.json
+
+# External dependencies symlink
+external
+
+# Editor and caches
+.vscode/
+.idea/
+.cache/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+
+# CUDA
+*.cu.o
+*.ptx
+*.cubin

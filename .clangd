@@ -1,0 +1,12 @@
+CompileFlags:
+  Add:
+    - "-std=c++23"
+  CompilationDatabase: .
+
+Diagnostics:
+  UnusedIncludes: Strict
+  MissingIncludes: Strict
+
+Index:
+  Background: Build
+

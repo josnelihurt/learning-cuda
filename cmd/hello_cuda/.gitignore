@@ -1,0 +1,10 @@
+# CUDA compiled binaries
+hello_cuda
+*.o
+*.so
+*.a
+
+# Temporary files
+*.tmp
+*.temp
+

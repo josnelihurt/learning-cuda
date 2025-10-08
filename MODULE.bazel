@@ -1,0 +1,58 @@
+module(
+    name = "cuda_learning",
+    version = "1.0.0",
+)
+
+# CUDA rules from bazel-contrib (v0.2.5)
+bazel_dep(name = "rules_cuda", version = "0.2.1")
+
+# Override to use the latest release (v0.2.5)
+archive_override(
+    module_name = "rules_cuda",
+    urls = ["https://github.com/bazel-contrib/rules_cuda/releases/download/v0.2.5/rules_cuda-v0.2.5.tar.gz"],
+    strip_prefix = "rules_cuda-v0.2.5",
+    integrity = "sha256-/o09jtUrm0M/iQIbA+PEKKguEO2QxygIzEmI0fS50bM=",
+)
+
+# Lyra CLI parser library (header-only)
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "lyra",
+    urls = ["https://github.com/bfgroup/Lyra/archive/refs/tags/1.6.1.tar.gz"],
+    strip_prefix = "Lyra-1.6.1",
+    sha256 = "a93f247ed89eba11ca36eb24c4f8ba7be636bf24e74aaaa8e1066e0954bec7e3",
+    build_file_content = """
+cc_library(
+    name = "lyra",
+    hdrs = glob(["include/**/*.hpp"]),
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+)
+""",
+)
+
+# spdlog logging library
+http_archive(
+    name = "spdlog",
+    urls = ["https://github.com/gabime/spdlog/archive/refs/tags/v1.12.0.tar.gz"],
+    strip_prefix = "spdlog-1.12.0",
+    sha256 = "4dccf2d10f410c1e2feaff89966bfc49a1abb29ef6f08246335b110e001e09a9",
+    build_file_content = """
+cc_library(
+    name = "spdlog",
+    hdrs = glob(["include/**/*.h"]),
+    srcs = glob(["src/*.cpp"]),
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+    defines = ["SPDLOG_COMPILED_LIB"],
+)
+""",
+)
+
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    commit = "4f28899228fb3ad0126897876f147ca15026151e",  # Último commit estable
+)

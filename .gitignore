@@ -10,6 +10,7 @@ external
 # Editor and caches
 .vscode/
 .idea/
+.cursor/
 .cache/
 *.swp
 *.swo

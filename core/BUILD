@@ -14,3 +14,13 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "logger_test",
+    srcs = ["logger_test.cpp"],
+    deps = [
+        ":logger",
+        "@googletest//:gtest_main",
+        "@spdlog//:spdlog",
+    ],
+)
+

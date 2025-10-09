@@ -12,3 +12,13 @@ cc_library(
         "@spdlog//:spdlog",
     ],
 )
+
+cc_test(
+    name = "config_test",
+    srcs = ["config_manager_test.cpp"],
+    deps = [
+        ":config",
+        "//core:result",
+        "@googletest//:gtest_main",
+    ],
+)

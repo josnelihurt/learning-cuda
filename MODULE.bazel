@@ -14,6 +14,9 @@ archive_override(
     integrity = "sha256-/o09jtUrm0M/iQIbA+PEKKguEO2QxygIzEmI0fS50bM=",
 )
 
+# Google Test for unit testing
+bazel_dep(name = "googletest", version = "1.15.2")
+
 # Lyra CLI parser library (header-only)
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 

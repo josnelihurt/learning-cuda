@@ -1,0 +1,40 @@
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
+# Export templates for use as data
+exports_files(["web/templates/index.html"])
+
+# Package server binary and data files for Docker
+pkg_tar(
+    name = "server_layer",
+    srcs = ["//webserver/cmd/server:server"],
+    package_dir = "/app",
+)
+
+pkg_tar(
+    name = "data_layer",
+    srcs = [
+        "//data:lena.png",
+        "web/templates/index.html",
+    ],
+    package_dir = "/app",
+)
+
+# Docker image configuration
+oci_image(
+    name = "server_image",
+    base = "@distroless_base",
+    entrypoint = ["/app/server_/server"],
+    tars = [
+        ":server_layer",
+        ":data_layer",
+    ],
+    workdir = "/app",
+)
+
+# Load image into Docker daemon with 'bazel run'
+oci_load(
+    name = "server_load",
+    image = ":server_image",
+    repo_tags = ["cuda-webserver:latest"],
+)

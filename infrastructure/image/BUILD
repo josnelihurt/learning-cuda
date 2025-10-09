@@ -17,3 +17,19 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "image_adapters_test",
+    srcs = [
+        "image_loader_test.cpp",
+        "image_writer_test.cpp",
+    ],
+    data = [
+        "//data:lena.png",
+    ],
+    deps = [
+        ":image_adapters",
+        "//domain/interfaces:interfaces",
+        "@googletest//:gtest_main",
+    ],
+)
+

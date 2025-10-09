@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include "lib/cuda/simple_kernel.h"
+#include "infrastructure/cuda/simple_kernel.h"
 
-namespace jrb::lib::cuda {
+namespace jrb::infrastructure::cuda {
 
 __global__ void helloFromGPU() {
     printf("Hello World from GPU! Thread ID: %d, Block ID: %d\n", 
@@ -17,4 +17,4 @@ void launch_hello_kernel() {
     printf("Program completed successfully!\n");
 }
 
-}  // namespace jrb::lib::cuda
+}  // namespace jrb::infrastructure::cuda

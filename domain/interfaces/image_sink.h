@@ -1,6 +1,6 @@
 #pragma once
 
-namespace jrb::interfaces {
+namespace jrb::domain::interfaces {
 
 // Interface for writing image data
 class IImageSink {
@@ -14,4 +14,4 @@ class IImageSink {
                     int channels) = 0;
 };
 
-}  // namespace jrb::interfaces
+}  // namespace jrb::domain::interfaces

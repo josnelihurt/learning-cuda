@@ -2,7 +2,7 @@
 
 #include "core/result.h"
 
-namespace jrb::app {
+namespace jrb::application::commands {
 
 class ICommand {
 public:
@@ -10,5 +10,5 @@ public:
     virtual core::Result<void> execute() = 0;
 };
 
-}  // namespace jrb::app
+}  // namespace jrb::application::commands
 

@@ -2,11 +2,11 @@
 
 #include <string>
 #include <memory>
-#include "interfaces/image_source.h"
+#include "domain/interfaces/image_source.h"
 
-namespace jrb::lib::image {
+namespace jrb::infrastructure::image {
 
-class ImageLoader : public interfaces::IImageSource {
+class ImageLoader : public domain::interfaces::IImageSource {
  public:
   ImageLoader();
   explicit ImageLoader(const char* path);
@@ -35,4 +35,4 @@ class ImageLoader : public interfaces::IImageSource {
   int channels_;
 };
 
-}  // namespace jrb::lib::image
+}  // namespace jrb::infrastructure::image

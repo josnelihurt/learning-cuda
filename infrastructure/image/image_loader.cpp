@@ -1,4 +1,4 @@
-#include "lib/image/image_loader.h"
+#include "infrastructure/image/image_loader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
@@ -6,7 +6,7 @@
 #include <spdlog/spdlog.h>
 #include <cstring>
 
-namespace jrb::lib::image {
+namespace jrb::infrastructure::image {
 
 ImageLoader::ImageLoader() 
     : data_(nullptr), width_(0), height_(0), channels_(0) {
@@ -75,4 +75,4 @@ ImageLoader& ImageLoader::operator=(ImageLoader&& other) noexcept {
   return *this;
 }
 
-}  // namespace jrb::lib::image
+}  // namespace jrb::infrastructure::image

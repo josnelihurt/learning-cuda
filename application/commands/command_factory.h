@@ -1,12 +1,12 @@
 #pragma once
 
-#include "app/command_interface.h"
+#include "application/commands/command_interface.h"
 #include "infrastructure/config/models/program_config.h"
 #include <memory>
 #include <functional>
 #include <map>
 
-namespace jrb::app {
+namespace jrb::application::commands {
 
 class CommandFactory {
 public:
@@ -34,4 +34,4 @@ private:
     > creators_;
 };
 
-}  // namespace jrb::app
+}  // namespace jrb::application::commands

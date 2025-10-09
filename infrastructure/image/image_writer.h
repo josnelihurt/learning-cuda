@@ -1,10 +1,10 @@
 #pragma once
 
-#include "interfaces/image_sink.h"
+#include "domain/interfaces/image_sink.h"
 
-namespace jrb::lib::image {
+namespace jrb::infrastructure::image {
 
-class ImageWriter : public interfaces::IImageSink {
+class ImageWriter : public domain::interfaces::IImageSink {
  public:
   ImageWriter() = default;
   ~ImageWriter() override = default;
@@ -19,4 +19,4 @@ class ImageWriter : public interfaces::IImageSink {
             int channels) override;
 };
 
-}  // namespace jrb::lib::image
+}  // namespace jrb::infrastructure::image

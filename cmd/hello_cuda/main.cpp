@@ -1,13 +1,11 @@
 #include "core/logger.h"
 #include "infrastructure/config/config_manager.h"
-#include "app/command_factory.h"
+#include "application/commands/command_factory.h"
 #include <spdlog/spdlog.h>
 #include <span>
 
-using namespace jrb;
-
+namespace jrb {
 int main(int argc, const char** argv) {
-    // Initialize logger
     core::initialize_logger();
     
     std::span<const char*> args(argv, argc);
@@ -22,7 +20,7 @@ int main(int argc, const char** argv) {
     
     const auto& config = config_result.value.value();
     
-    app::CommandFactory factory;
+    application::commands::CommandFactory factory;
     auto command = factory.create(config.program_type, config);
     
     if (!command) {
@@ -30,11 +28,18 @@ int main(int argc, const char** argv) {
         return 1;
     }
     
-    // Execute command
     auto result = command->execute();
     if (!result) {
         spdlog::error("Command execution failed: {}", result.message);
     }
     
     return result.exit_code;
+
+}  // namespace jrb
+
+}  // namespace jrb
+
+// entry point for bazel
+int main(int argc, const char** argv) {
+    return jrb::main(argc, argv);
 }

@@ -8,27 +8,21 @@ cc_library(
 )
 
 cc_library(
-    name = "simple_kernel_command",
-    srcs = ["simple_kernel_command.cpp"],
-    hdrs = ["simple_kernel_command.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":command_interface",
-        "//core:logger",
-        "//lib:lib",
-        "@spdlog//:spdlog",
+    name = "commands",
+    srcs = [
+        "simple_kernel_command.cpp",
+        "grayscale_processor_command.cpp",
     ],
-)
-
-cc_library(
-    name = "grayscale_processor_command",
-    srcs = ["grayscale_processor_command.cpp"],
-    hdrs = ["grayscale_processor_command.h"],
+    hdrs = [
+        "simple_kernel_command.h",
+        "grayscale_processor_command.h",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":command_interface",
+        "//domain/interfaces:interfaces",
+        "//domain/interfaces:processors",
         "//core:logger",
-        "//lib:lib",
         "@spdlog//:spdlog",
     ],
 )
@@ -40,8 +34,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":command_interface",
-        ":simple_kernel_command",
-        ":grayscale_processor_command",
+        ":commands",
+        "//infrastructure/cuda:cuda_processors",
+        "//infrastructure/image:image_adapters",
         "//infrastructure/config:config",
     ],
 )

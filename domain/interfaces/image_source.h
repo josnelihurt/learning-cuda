@@ -1,6 +1,6 @@
 #pragma once
 
-namespace jrb::interfaces {
+namespace jrb::domain::interfaces {
 
 class IImageSource {
  public:
@@ -13,4 +13,4 @@ class IImageSource {
   virtual bool is_valid() const = 0;
 };
 
-}  // namespace jrb::interfaces
+}  // namespace jrb::domain::interfaces

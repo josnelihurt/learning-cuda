@@ -1,9 +1,9 @@
-#include "lib/cuda/grayscale_processor.h"
+#include "infrastructure/cuda/grayscale_processor.h"
 #include <cuda_runtime.h>
 #include <spdlog/spdlog.h>
 #include <memory>
 
-namespace jrb::lib::cuda {
+namespace jrb::infrastructure::cuda {
 
 __device__ unsigned char calculate_luminosity(unsigned char r, unsigned char g, unsigned char b) {
   return static_cast<unsigned char>(0.299f * r + 0.587f * g + 0.114f * b);
@@ -110,9 +110,9 @@ void GrayscaleProcessor::convert_to_grayscale_cuda(const unsigned char* input,
   cudaFree(d_output);
 }
 
-bool GrayscaleProcessor::process(interfaces::IImageSource& source, 
-                                interfaces::IImageSink& sink,
-                                const char* output_path) {
+bool GrayscaleProcessor::process(domain::interfaces::IImageSource& source, 
+                                domain::interfaces::IImageSink& sink,
+                                const std::string& output_path) {
   if (!source.is_valid()) {
     spdlog::error("Invalid image source");
     return false;
@@ -132,7 +132,7 @@ bool GrayscaleProcessor::process(interfaces::IImageSource& source,
   
   spdlog::info("  Output: {}x{} (1 channel)", width, height);
   
-  return sink.write(output_path, output_data.get(), width, height, 1);
+  return sink.write(output_path.c_str(), output_data.get(), width, height, 1);
 }
 
-}  // namespace jrb::lib::cuda
+}  // namespace jrb::infrastructure::cuda

@@ -4,7 +4,7 @@ cc_binary(
     deps = [
         "//core:logger",
         "//infrastructure/config:config",
-        "//app:command_factory",
+        "//application/commands:command_factory",
         "@spdlog//:spdlog",
     ],
     data = ["//data:lena.png"],

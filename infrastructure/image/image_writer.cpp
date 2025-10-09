@@ -1,11 +1,11 @@
-#include "lib/image/image_writer.h"
+#include "infrastructure/image/image_writer.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "third_party/stb/stb_image_write.h"
 
 #include <spdlog/spdlog.h>
 
-namespace jrb::lib::image {
+namespace jrb::infrastructure::image {
 
 bool ImageWriter::write(const char* filepath,
                        const unsigned char* data,
@@ -31,4 +31,4 @@ bool ImageWriter::write(const char* filepath,
   return true;
 }
 
-}  // namespace jrb::lib::image
+}  // namespace jrb::infrastructure::image

@@ -10,7 +10,7 @@ cc_library(
     hdrs = ["logger.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "@spdlog//:spdlog",
+        "@spdlog",
     ],
 )
 
@@ -20,7 +20,6 @@ cc_test(
     deps = [
         ":logger",
         "@googletest//:gtest_main",
-        "@spdlog//:spdlog",
+        "@spdlog",
     ],
 )
-

@@ -1,0 +1,11 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "domain",
+    srcs = [
+        "image.go",
+        "processor.go",
+    ],
+    importpath = "github.com/jrb/cuda-learning/webserver/internal/domain",
+    visibility = ["//webserver:__subpackages__"],
+)

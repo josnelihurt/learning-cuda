@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "http",
+    srcs = ["handler.go"],
+    importpath = "github.com/jrb/cuda-learning/webserver/internal/interfaces/http",
+    visibility = ["//webserver:__subpackages__"],
+    deps = [
+        "//webserver/internal/application",
+        "//webserver/internal/domain",
+        "@com_github_gorilla_websocket//:go_default_library",
+    ],
+)

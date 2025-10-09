@@ -8,8 +8,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//cpp_accelerator/core:result",
-        "@lyra//:lyra",
-        "@spdlog//:spdlog",
+        "@lyra",
+        "@spdlog",
     ],
 )
 

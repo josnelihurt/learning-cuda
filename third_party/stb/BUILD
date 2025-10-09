@@ -9,4 +9,3 @@ cc_library(
     hdrs = ["stb_image_write.h"],
     visibility = ["//visibility:public"],
 )
-

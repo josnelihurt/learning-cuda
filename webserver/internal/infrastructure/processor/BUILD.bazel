@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "processor",
+    srcs = ["cpp_connector.go"],
+    importpath = "github.com/jrb/cuda-learning/webserver/internal/infrastructure/processor",
+    visibility = ["//webserver:__subpackages__"],
+    deps = ["//webserver/internal/domain"],
+)

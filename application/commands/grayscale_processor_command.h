@@ -9,7 +9,7 @@
 
 namespace jrb::application::commands {
 
-class GrayscaleProcessorCommand : public ICommand {
+class GrayscaleProcessorCommand final: public ICommand {
 public:
     GrayscaleProcessorCommand(
         std::unique_ptr<domain::interfaces::IImageProcessor> processor,

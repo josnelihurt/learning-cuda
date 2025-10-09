@@ -7,7 +7,7 @@
 
 namespace jrb::infrastructure::cuda {
 
-class GrayscaleProcessor : public domain::interfaces::IImageProcessor {
+class GrayscaleProcessor final: public domain::interfaces::IImageProcessor {
  public:
   GrayscaleProcessor() = default;
   ~GrayscaleProcessor() override = default;

@@ -4,7 +4,7 @@
 
 namespace jrb::infrastructure::cuda {
 
-class SimpleKernelProcessor : public domain::interfaces::IImageProcessor {
+class SimpleKernelProcessor final: public domain::interfaces::IImageProcessor {
  public:
   SimpleKernelProcessor() = default;
   ~SimpleKernelProcessor() override = default;

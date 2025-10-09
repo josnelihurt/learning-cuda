@@ -5,6 +5,7 @@
 
 namespace jrb::infrastructure::cuda {
 
+// Calculate the luminosity of a pixel ITU-R BT.601 standard
 __device__ unsigned char calculate_luminosity(unsigned char r, unsigned char g, unsigned char b) {
   return static_cast<unsigned char>(0.299f * r + 0.587f * g + 0.114f * b);
 }
@@ -69,13 +70,6 @@ void print_kernel_launch_info(dim3 grid_size, dim3 block_size) {
   spdlog::debug("  Total threads: {}", grid_size.x * block_size.x * grid_size.y * block_size.y);
 }
 
-void check_cuda_error() {
-  cudaError_t error = cudaGetLastError();
-  if (error != cudaSuccess) {
-    spdlog::error("CUDA kernel error: {}", cudaGetErrorString(error));
-  }
-}
-
 void GrayscaleProcessor::convert_to_grayscale_cuda(const unsigned char* input,
                                                    unsigned char* output,
                                                    int width,
@@ -102,8 +96,10 @@ void GrayscaleProcessor::convert_to_grayscale_cuda(const unsigned char* input,
   );
   
   cudaDeviceSynchronize();
-  check_cuda_error();
-  
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    spdlog::error("CUDA kernel error: {}", cudaGetErrorString(error));
+  }  
   cudaMemcpy(output, d_output, output_size, cudaMemcpyDeviceToHost);
   
   cudaFree(d_input);

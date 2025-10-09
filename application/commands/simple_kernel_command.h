@@ -6,7 +6,7 @@
 
 namespace jrb::application::commands {
 
-class SimpleKernelCommand : public ICommand {
+class SimpleKernelCommand final: public ICommand {
 public:
     explicit SimpleKernelCommand(std::unique_ptr<domain::interfaces::IImageProcessor> processor);
     ~SimpleKernelCommand() override = default;

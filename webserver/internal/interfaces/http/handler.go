@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jrb/cuda-learning/webserver/internal/application"
@@ -25,10 +26,11 @@ var upgrader = websocket.Upgrader{
 }
 
 type Handler struct {
-	useCase     *application.ProcessImageUseCase
-	tmpl        *template.Template
-	devMode     bool
-	webRootPath string
+	useCase      *application.ProcessImageUseCase
+	tmpl         *template.Template
+	devMode      bool
+	webRootPath  string
+	frameCounter int
 }
 
 func NewHandler(useCase *application.ProcessImageUseCase, devMode bool, webRootPath string) *Handler {
@@ -101,8 +103,6 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		Format: "png",
 	}
 
-	log.Printf("Processing image with filter '%s': %dx%d, %d bytes", filter, width, height, len(domainImg.Data))
-
 	// Process with selected filter
 	processedImg, err := h.useCase.Execute(domainImg, filter)
 	if err != nil {
@@ -115,7 +115,6 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	if filter == domain.FilterNone {
 		// Original image in RGBA format
-		log.Printf("Returning original image: %dx%d, RGBA", processedImg.Width, processedImg.Height)
 		resultImg := image.NewRGBA(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		resultImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, resultImg); err != nil {
@@ -125,8 +124,6 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Grayscale image
-		log.Printf("Processed image: %dx%d, grayscale, %d bytes", 
-			processedImg.Width, processedImg.Height, len(processedImg.Data))
 		grayImg := image.NewGray(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		grayImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, grayImg); err != nil {
@@ -231,6 +228,7 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
+	startTime := time.Now()
 	result := &FrameResultMessage{
 		Type:    "frame_result",
 		Success: false,
@@ -285,15 +283,13 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 	}
 
 	// Process with CUDA
+	h.frameCounter++
 	processedImg, err := h.useCase.Execute(domainImg, filter)
 	if err != nil {
 		result.Error = "CUDA processing failed"
 		log.Printf("Processing error: %v", err)
 		return result
 	}
-
-	log.Printf("Frame processed: %dx%d, filter: %s, data len: %d", 
-		processedImg.Width, processedImg.Height, filter, len(processedImg.Data))
 
 	// Encode result based on filter
 	var buf bytes.Buffer
@@ -302,40 +298,29 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		resultImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, resultImg); err != nil {
 			result.Error = "Failed to encode result"
-			log.Printf("PNG encode error (RGBA): %v", err)
 			return result
 		}
 	} else {
 		grayImg := image.NewGray(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		grayImg.Pix = processedImg.Data
-		
-		// Debug: Check if data is all zeros
-		nonZero := 0
-		checkLen := 100
-		if len(processedImg.Data) < checkLen {
-			checkLen = len(processedImg.Data)
-		}
-		for i := 0; i < checkLen; i++ {
-			if processedImg.Data[i] != 0 {
-				nonZero++
-			}
-		}
-		log.Printf("Grayscale data check - first %d bytes, non-zero: %d", checkLen, nonZero)
-		
 		if err := png.Encode(&buf, grayImg); err != nil {
 			result.Error = "Failed to encode result"
-			log.Printf("PNG encode error (Gray): %v", err)
 			return result
 		}
 	}
-	
-	log.Printf("Encoded PNG size: %d bytes", buf.Len())
 
 	// Success
 	result.Success = true
 	result.Image.Data = base64.StdEncoding.EncodeToString(buf.Bytes())
 	result.Image.Width = processedImg.Width
 	result.Image.Height = processedImg.Height
+
+	// Log performance every 30 frames
+	elapsed := time.Since(startTime)
+	if h.frameCounter%30 == 0 {
+		log.Printf("Frame processing: %v (%dx%d, filter: %s, size: %d bytes)", 
+			elapsed, processedImg.Width, processedImg.Height, frameMsg.Filter, len(buf.Bytes()))
+	}
 
 	return result
 }

@@ -68,6 +68,18 @@
                         <option value="grayscale" {{if eq .SelectedFilter "grayscale"}}selected{{end}}>Grayscale (CUDA)</option>
                     </select>
                 </div>
+                
+                <div class="control-group">
+                    <label>
+                        <span class="icon">📐</span>
+                        Resolution
+                    </label>
+                    <select id="resolutionSelect">
+                        <option value="quarter">Quarter (160x120) - Fast</option>
+                        <option value="half">Half (320x240) - Balanced</option>
+                        <option value="full" selected>Full (640x480) - Quality</option>
+                    </select>
+                </div>
             </div>
         </div>
     </section>
@@ -92,6 +104,6 @@
         </div>
     </footer>
 
-    <script src="/static/js/app.js?v=6"></script>
+    <script src="/static/js/app.js?v=10"></script>
 </body>
 </html>

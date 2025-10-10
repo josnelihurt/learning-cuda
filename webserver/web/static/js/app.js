@@ -20,7 +20,13 @@ const cameraPreview = document.getElementById('cameraPreview');
 const captureCanvas = document.getElementById('captureCanvas');
 const inputSelect = document.getElementById('inputSelect');
 const filterSelect = document.getElementById('filterSelect');
+const resolutionSelect = document.getElementById('resolutionSelect');
 const cameraStatus = document.getElementById('cameraStatus');
+
+// Listen for resolution changes
+if (resolutionSelect) {
+    resolutionSelect.addEventListener('change', updateResolution);
+}
 
 // Switch between Lena and Webcam input
 async function switchInputSource() {
@@ -184,9 +190,43 @@ function stopCamera() {
 let isProcessing = false;
 let frameCount = 0;
 
+// Processing resolution (adjustable via UI)
+let PROCESS_WIDTH = 640;
+let PROCESS_HEIGHT = 480;
+const JPEG_QUALITY = 0.7; // 0.0 - 1.0 (lower = faster, smaller)
+
+// Resolution presets
+const RESOLUTIONS = {
+    quarter: { width: 160, height: 120 },
+    half: { width: 320, height: 240 },
+    full: { width: 640, height: 480 }
+};
+
+function updateResolution() {
+    const resolution = resolutionSelect.value;
+    const preset = RESOLUTIONS[resolution];
+    
+    PROCESS_WIDTH = preset.width;
+    PROCESS_HEIGHT = preset.height;
+    
+    console.log(`Resolution changed to: ${PROCESS_WIDTH}x${PROCESS_HEIGHT}`);
+    
+    // If streaming, restart with new resolution
+    if (frameInterval) {
+        stopFrameCapture();
+        startFrameCapture();
+    }
+}
+
 function startFrameCapture() {
     const canvas = captureCanvas;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    // Set canvas to processing resolution
+    canvas.width = PROCESS_WIDTH;
+    canvas.height = PROCESS_HEIGHT;
+    
+    console.log(`Starting capture at ${PROCESS_WIDTH}x${PROCESS_HEIGHT}`);
     
     // Capture and send frames at specified FPS
     frameInterval = setInterval(() => {
@@ -195,25 +235,23 @@ function startFrameCapture() {
         
         frameCount++;
         
-        // Set canvas size to match video
-        canvas.width = cameraPreview.videoWidth;
-        canvas.height = cameraPreview.videoHeight;
+        // Draw scaled video frame to canvas
+        ctx.drawImage(cameraPreview, 0, 0, PROCESS_WIDTH, PROCESS_HEIGHT);
         
-        // Draw current video frame to canvas
-        ctx.drawImage(cameraPreview, 0, 0);
-        
-        // Convert to base64 PNG
-        const dataUrl = canvas.toDataURL('image/png');
+        // Convert to JPEG for faster encoding and smaller size
+        const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
         const base64data = dataUrl.split(',')[1];
-        
-        // Debug: Log capture info
-        if (frameCount % 30 === 1) {
-            console.log(`Capturing frame ${frameCount}: ${canvas.width}x${canvas.height}, data size: ${base64data.length} chars`);
-        }
         
         sendFrame(base64data, canvas.width, canvas.height);
         
     }, 1000 / FPS);
+}
+
+function stopFrameCapture() {
+    if (frameInterval) {
+        clearInterval(frameInterval);
+        frameInterval = null;
+    }
 }
 
 function sendFrame(base64Data, width, height) {
@@ -253,12 +291,9 @@ function connectWebSocket() {
 
     ws.onmessage = function(event) {
         isProcessing = false; // Always reset processing flag
-        
-        console.log('WebSocket received:', event.data.substring(0, 100) + '...');
-        
+                
         try {
             const data = JSON.parse(event.data);
-            console.log('Parsed data type:', data.type, 'success:', data.success);
             
             if (data.type === 'frame_result') {
                 if (data.success) {
@@ -266,8 +301,6 @@ function connectWebSocket() {
                     const newSrc = `data:image/png;base64,${data.image.data}`;
                     heroImage.src = newSrc;
                     heroImage.style.display = 'block';
-                    
-                    console.log(`✓ Frame ${frameCount} - Image updated, size: ${data.image.data.length} bytes`);
                 } else {
                     console.error('Frame processing error:', data.error);
                     cameraStatus.textContent = `⚠ Error: ${data.error}`;

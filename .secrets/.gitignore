@@ -1,0 +1,13 @@
+# Ignore all certificate and key files
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# But keep example files
+!*.example
+!README.md
+!.gitignore
+

@@ -33,3 +33,14 @@ Thumbs.db
 
 # Temporary/ignore directory
 .ignore/
+
+# SSL/TLS certificates (kept in .secrets/)
+*.pem
+*.key
+*.crt
+*.cer
+
+# Caddy
+caddy.log
+data/
+.caddy/

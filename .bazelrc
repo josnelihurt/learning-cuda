@@ -4,3 +4,11 @@ build --host_cxxopt=-std=c++23
 
 # CUDA compatibility
 build --cxxopt=-Wno-unknown-cuda-version
+
+# Suppress specific warnings from external dependencies
+build --cxxopt=-Wno-missing-requires
+build --cxxopt=-Wno-deprecated-declarations
+build --cxxopt=-Wno-sign-compare
+build --host_cxxopt=-Wno-missing-requires
+build --host_cxxopt=-Wno-deprecated-declarations
+build --host_cxxopt=-Wno-sign-compare

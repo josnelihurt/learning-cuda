@@ -1,8 +1,12 @@
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
-# Export templates for use as data
-exports_files(["web/templates/index.html"])
+# Export templates and static files for use as data
+exports_files([
+    "web/templates/index.html",
+    "web/static/css/main.css",
+    "web/static/js/app.js",
+])
 
 # Package server binary and data files for Docker
 pkg_tar(

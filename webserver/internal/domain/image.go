@@ -12,6 +12,7 @@ type Image struct {
 type FilterType string
 
 const (
+	FilterNone      FilterType = "none"
 	FilterGrayscale FilterType = "grayscale"
 )
 

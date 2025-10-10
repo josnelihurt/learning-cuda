@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package cuda_learning;
+
+option go_package = "github.com/jrb/cuda-learning/proto";
+
+// Request: Go passes raw image buffer
+message ProcessImageRequest {
+  bytes image_data = 1;      // Raw pixel data (RGBA or agreed format)
+  int32 width = 2;
+  int32 height = 3;
+  int32 channels = 5;        // 3=RGB, 4=RGBA
+  FilterType filter = 10;
+}
+
+// Enum for filter types
+enum FilterType {
+  FILTER_TYPE_UNSPECIFIED = 0;
+  FILTER_TYPE_NONE = 1;
+  FILTER_TYPE_GRAYSCALE = 2;
+  // Future: FILTER_TYPE_BLUR = 5, FILTER_TYPE_EDGE_DETECT = 10, etc.
+}
+
+// Response: C++ returns processed image buffer
+message ProcessImageResponse {
+  int32 code = 1;            // 0=success, non-zero=error (gRPC style)
+  string message = 2;        // Status message or error description
+  bytes image_data = 5;      // Processed pixel data
+  int32 width = 10;
+  int32 height = 11;
+  int32 channels = 12;
+}
+
+// Lifecycle management
+message InitRequest {
+  int32 cuda_device_id = 1;  // Default 0
+  // Future: memory_pool_size = 5, enable_profiling = 10, etc.
+}
+
+message InitResponse {
+  int32 code = 1;            // 0=success, non-zero=error
+  string message = 2;        // Status or error message
+}
+

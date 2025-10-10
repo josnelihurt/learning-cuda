@@ -30,3 +30,6 @@ Thumbs.db
 *.cu.o
 *.ptx
 *.cubin
+
+# Temporary/ignore directory
+.ignore/

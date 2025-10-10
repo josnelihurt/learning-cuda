@@ -17,6 +17,8 @@ go_binary(
     data = [
         "//data:lena.png",
         "//webserver:web/templates/index.html",
+        "//webserver:web/static/css/main.css",
+        "//webserver:web/static/js/app.js",
     ],
     embed = [":server_lib"],
     visibility = ["//visibility:public"],

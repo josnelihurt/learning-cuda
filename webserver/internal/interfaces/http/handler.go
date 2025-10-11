@@ -249,8 +249,6 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	log.Println("WebSocket connection established")
-
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {

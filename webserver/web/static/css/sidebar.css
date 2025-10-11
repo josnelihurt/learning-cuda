@@ -1,0 +1,37 @@
+/* Sidebar - Fixed Controls Panel */
+
+.sidebar {
+    grid-area: sidebar;
+    background: var(--background-secondary);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.sidebar-content {
+    padding: var(--spacing-lg);
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .sidebar-content {
+        padding: var(--spacing-md);
+    }
+}
+

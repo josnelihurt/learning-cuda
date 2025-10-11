@@ -1,0 +1,109 @@
+/* Control Components - Segmented Controls, Selects */
+
+/* Control Sections */
+.control-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.control-section:not(.filters-section) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+}
+
+.control-label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    margin-bottom: 0;
+}
+
+.filters-section .control-label {
+    margin-bottom: var(--spacing-sm);
+}
+
+.hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: var(--spacing-xs);
+}
+
+/* Segmented Control */
+.segmented-control {
+    display: flex;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--background);
+    min-width: 160px;
+}
+
+.segment {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--background);
+    border: none;
+    border-right: 1px solid var(--border-color);
+    color: var(--text-light);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.segment:last-child {
+    border-right: none;
+}
+
+.segment:hover:not(.active) {
+    background: var(--primary-bg-light);
+    color: var(--primary-color);
+}
+
+.segment.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.segment-icon {
+    font-size: 16px;
+}
+
+/* Compact Select */
+.compact-select {
+    min-width: 160px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--border-color);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--background);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.compact-select:hover {
+    border-color: var(--primary-color);
+}
+
+.compact-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-bg-light);
+}
+

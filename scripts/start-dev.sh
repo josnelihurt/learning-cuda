@@ -53,6 +53,12 @@ fi
 
 echo "🚀 Starting CUDA Image Processor Development Environment"
 echo ""
+
+# Generate version file with current git hash
+echo "📦 Generating version file..."
+./scripts/generate-version.sh
+
+echo ""
 echo "Starting services:"
 echo "  - Go Server on http://localhost:8080"
 echo "  - Caddy HTTPS Proxy on https://localhost:8443"

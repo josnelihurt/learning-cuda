@@ -1,0 +1,81 @@
+/* Stats Footer - Fixed Metrics Bar */
+
+.stats-bar {
+    grid-area: stats;
+    background: #2a2a2a;
+    color: white;
+    border-top: 2px solid #404040;
+    padding: 0 var(--spacing-lg);
+    z-index: var(--z-stats);
+}
+
+.stats-container {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--spacing-xl);
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 14px;
+}
+
+.stat-icon {
+    font-size: 16px;
+}
+
+.stat-label {
+    color: #b0b0b0;
+    font-weight: 500;
+}
+
+.stat-item strong {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.ws-indicator {
+    font-size: 12px;
+    transition: color var(--transition-fast);
+}
+
+.ws-indicator.connected {
+    color: #66ff66;
+}
+
+.ws-indicator.disconnected {
+    color: #ff6666;
+}
+
+.ws-indicator.connecting {
+    color: #ffaa00;
+    animation: pulse 2s infinite;
+}
+
+#wsStatus {
+    transition: color var(--transition-fast);
+    font-weight: 600;
+}
+
+.ws-indicator.connected ~ #wsStatus {
+    color: #66ff66;
+}
+
+.ws-indicator.disconnected ~ #wsStatus {
+    color: #ff6666;
+}
+
+.ws-indicator.connecting ~ #wsStatus {
+    color: #ffaa00;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+

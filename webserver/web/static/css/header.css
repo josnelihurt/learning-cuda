@@ -1,0 +1,118 @@
+/* Header - Fixed Navigation */
+
+.navbar {
+    grid-area: header;
+    background: var(--background);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    z-index: var(--z-header);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.navbar-container {
+    height: 100%;
+    padding: 0 var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 24px;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.navbar-brand:hover {
+    color: var(--primary-color);
+}
+
+.navbar-brand .accent {
+    color: var(--primary-color);
+}
+
+.info-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    background: var(--background);
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.info-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.navbar-credit {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.navbar-credit a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.navbar-credit a:hover {
+    color: var(--primary-light);
+}
+
+/* Info Tooltip */
+.info-tooltip {
+    position: absolute;
+    top: calc(var(--header-height) + 10px);
+    left: 20px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-lg);
+    max-width: 350px;
+    z-index: var(--z-tooltip);
+    animation: fadeIn var(--transition-normal);
+}
+
+.info-tooltip p {
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.info-tooltip p:last-child {
+    margin-bottom: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .navbar-container {
+        padding: 0 var(--spacing-md);
+    }
+    
+    .navbar-brand {
+        font-size: 20px;
+    }
+}
+

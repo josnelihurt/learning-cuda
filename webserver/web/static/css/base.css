@@ -1,0 +1,16 @@
+/* Base Styles - Reset and Typography */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Lato, "Helvetica Neue", Helvetica, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    background: var(--background);
+}
+

@@ -44,3 +44,6 @@ Thumbs.db
 caddy.log
 data/
 .caddy/
+
+# Auto-generated version file
+webserver/web/static/js/version.js

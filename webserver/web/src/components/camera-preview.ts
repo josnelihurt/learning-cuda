@@ -1,13 +1,35 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property, query, state } from 'lit/decorators.js';
 
-class CameraPreview extends LitElement {
-    static properties = {
-        width: { type: Number },
-        height: { type: Number },
-        fps: { type: Number },
-        quality: { type: Number },
-        heroSrc: { type: String, attribute: false }
-    };
+interface StatsManager {
+    updateCameraStatus(status: string, type: 'success' | 'error' | 'warning' | 'inactive'): void;
+}
+
+interface ToastManager {
+    error(title: string, message: string): void;
+}
+
+type FrameCallback = (base64data: string, width: number, height: number, timestamp: number) => void;
+
+@customElement('camera-preview')
+export class CameraPreview extends LitElement {
+    @property({ type: Number }) width = 640;
+    @property({ type: Number }) height = 480;
+    @property({ type: Number }) fps = 15;
+    @property({ type: Number }) quality = 0.7;
+    @property({ type: String, attribute: false }) heroSrc = '';
+
+    @query('video') private videoElement!: HTMLVideoElement;
+    @query('canvas') private canvasElement!: HTMLCanvasElement;
+
+    @state() private isProcessing = false;
+
+    private statsManager: StatsManager | null = null;
+    private toastManager: ToastManager | null = null;
+    private stream: MediaStream | null = null;
+    private frameInterval: number | null = null;
+    private lastFrameTime = 0;
+    private onFrameCallback: FrameCallback | null = null;
 
     static styles = css`
         :host {
@@ -25,23 +47,6 @@ class CameraPreview extends LitElement {
         }
     `;
 
-    constructor() {
-        super();
-        this.statsManager = null;
-        this.toastManager = null;
-        this.stream = null;
-        this.frameInterval = null;
-        this.isProcessing = false;
-        this.lastFrameTime = 0;
-        this.onFrameCallback = null;
-        
-        this.width = 640;
-        this.height = 480;
-        this.fps = 15;
-        this.quality = 0.7;
-        this.heroSrc = '';
-    }
-
     render() {
         return html`
             <slot name="hero-image"></slot>
@@ -50,31 +55,24 @@ class CameraPreview extends LitElement {
         `;
     }
 
-    firstUpdated() {
-        this.videoElement = this.shadowRoot.querySelector('video');
-        this.canvasElement = this.shadowRoot.querySelector('canvas');
-    }
-
-    setManagers(statsManager, toastManager) {
+    setManagers(statsManager: StatsManager, toastManager: ToastManager): void {
         this.statsManager = statsManager;
         this.toastManager = toastManager;
     }
 
-    setResolution(width, height) {
+    setResolution(width: number, height: number): void {
         this.width = width;
         this.height = height;
         
         if (this.frameInterval) {
             this.stopCapture();
-            this.startCapture(this.onFrameCallback);
+            this.startCapture(this.onFrameCallback!);
         }
     }
 
-    async start() {
+    async start(): Promise<boolean> {
         try {
-            if (this.statsManager) {
-                this.statsManager.updateCameraStatus('Requesting access...', 'warning');
-            }
+            this.statsManager?.updateCameraStatus('Requesting access...', 'warning');
             
             if (!navigator.mediaDevices?.getUserMedia) {
                 throw new Error('Camera API not available. Use HTTPS.');
@@ -89,15 +87,13 @@ class CameraPreview extends LitElement {
             });
             
             this.videoElement.srcObject = this.stream;
-            await new Promise(resolve => this.videoElement.onloadedmetadata = resolve);
+            await new Promise<void>(resolve => this.videoElement.onloadedmetadata = () => resolve());
             await this.videoElement.play();
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise<void>(resolve => setTimeout(resolve, 500));
             
             console.log(`Camera ready: ${this.videoElement.videoWidth}x${this.videoElement.videoHeight}`);
             
-            if (this.statsManager) {
-                this.statsManager.updateCameraStatus('Active', 'success');
-            }
+            this.statsManager?.updateCameraStatus('Active', 'success');
             
             this.dispatchEvent(new CustomEvent('camera-started', {
                 bubbles: true,
@@ -111,22 +107,22 @@ class CameraPreview extends LitElement {
             let errorTitle = 'Camera Error';
             let errorMsg = '';
             
-            if (error.name === 'NotAllowedError') {
-                errorTitle = 'Permission Denied';
-                errorMsg = 'Please allow camera access in your browser settings';
-            } else if (error.name === 'NotFoundError') {
-                errorTitle = 'No Camera Found';
-                errorMsg = 'No camera device detected on this system';
-            } else if (error.name === 'NotReadableError') {
-                errorTitle = 'Camera In Use';
-                errorMsg = 'Camera is being used by another application. Please close it and try again';
-            } else if (error.message) {
-                errorMsg = error.message;
+            if (error instanceof Error) {
+                if (error.name === 'NotAllowedError') {
+                    errorTitle = 'Permission Denied';
+                    errorMsg = 'Please allow camera access in your browser settings';
+                } else if (error.name === 'NotFoundError') {
+                    errorTitle = 'No Camera Found';
+                    errorMsg = 'No camera device detected on this system';
+                } else if (error.name === 'NotReadableError') {
+                    errorTitle = 'Camera In Use';
+                    errorMsg = 'Camera is being used by another application. Please close it and try again';
+                } else if (error.message) {
+                    errorMsg = error.message;
+                }
             }
             
-            if (this.toastManager) {
-                this.toastManager.error(errorTitle, errorMsg);
-            }
+            this.toastManager?.error(errorTitle, errorMsg);
             
             if (this.statsManager) {
                 const shortMsg = errorTitle.replace(' Error', '').substring(0, 20);
@@ -143,7 +139,7 @@ class CameraPreview extends LitElement {
         }
     }
 
-    stop() {
+    stop(): void {
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = null;
@@ -151,27 +147,26 @@ class CameraPreview extends LitElement {
         
         this.stopCapture();
         
-        if (this.videoElement && this.videoElement.srcObject) {
+        if (this.videoElement?.srcObject) {
             this.videoElement.srcObject = null;
         }
         
-        if (this.statsManager) {
-            this.statsManager.updateCameraStatus('Inactive', 'inactive');
-        }
+        this.statsManager?.updateCameraStatus('Inactive', 'inactive');
     }
 
-    startCapture(onFrameCallback) {
+    startCapture(onFrameCallback: FrameCallback): void {
         if (!this.canvasElement) return;
         
         this.onFrameCallback = onFrameCallback;
         const ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return;
         
         this.canvasElement.width = this.width;
         this.canvasElement.height = this.height;
         
         console.log(`Starting capture at ${this.width}x${this.height}`);
         
-        this.frameInterval = setInterval(() => {
+        this.frameInterval = window.setInterval(() => {
             if (!this.videoElement.videoWidth || this.isProcessing) return;
             
             this.lastFrameTime = performance.now();
@@ -192,21 +187,25 @@ class CameraPreview extends LitElement {
         }, 1000 / this.fps);
     }
 
-    stopCapture() {
-        if (this.frameInterval) {
+    stopCapture(): void {
+        if (this.frameInterval !== null) {
             clearInterval(this.frameInterval);
             this.frameInterval = null;
         }
     }
 
-    setProcessing(isProcessing) {
+    setProcessing(isProcessing: boolean): void {
         this.isProcessing = isProcessing;
     }
 
-    getLastFrameTime() {
+    getLastFrameTime(): number {
         return this.lastFrameTime;
     }
 }
 
-customElements.define('camera-preview', CameraPreview);
+declare global {
+    interface HTMLElementTagNameMap {
+        'camera-preview': CameraPreview;
+    }
+}
 

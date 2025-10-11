@@ -1,0 +1,18 @@
+{
+  "name": "cuda-image-processor-web",
+  "version": "1.0.0",
+  "description": "Frontend for CUDA Image Processor with Lit Web Components",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf static/js/dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "lit": "^3.1.0"
+  }
+}
+

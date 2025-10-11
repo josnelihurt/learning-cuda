@@ -133,9 +133,9 @@
     <!-- Main Content -->
     <main class="main-content">
         <div class="image-container">
-            <img id="heroImage" src="data:image/png;base64,{{.ImageData}}" alt="Processed Image">
-            <camera-preview></camera-preview>
-            <canvas id="captureCanvas" style="display: none;"></canvas>
+            <camera-preview>
+                <img id="heroImage" slot="hero-image" src="data:image/png;base64,{{.ImageData}}" alt="Processed Image">
+            </camera-preview>
         </div>
     </main>
 
@@ -179,7 +179,7 @@
     <script src="/static/js/modules/websocket.js"></script>
     <script src="/static/js/modules/filters.js"></script>
     <script src="/static/js/modules/ui.js"></script>
-    <script type="module" src="/static/js/components/camera-preview.js"></script>
+    <script type="module" src="/static/js/dist/components/camera-preview.js"></script>
     <script src="/static/js/app.js?v=12"></script>
 </body>
 </html>

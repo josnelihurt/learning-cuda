@@ -69,9 +69,10 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-# Start Go server in background
-echo "▶️  Starting Go server..."
-bazel-bin/webserver/cmd/server/server_/server &
+# Start Go server in background with dev mode (hot reload frontend)
+echo "▶️  Starting Go server (dev mode with hot reload)..."
+WEBROOT_PATH="$PROJECT_ROOT/webserver/web"
+bazel-bin/webserver/cmd/server/server_/server -dev -webroot="$WEBROOT_PATH" &
 GO_PID=$!
 sleep 2
 
@@ -102,10 +103,15 @@ echo "  HTTPS: https://localhost:8443"
 echo "  HTTP:  http://localhost:8000 (redirects to HTTPS)"
 echo "  Direct: http://localhost:8080 (Go server)"
 echo ""
-echo "💡 Note: Using port 8443 (no root required)"
+echo "💡 Notes:"
+echo "  - Using port 8443 (no root required)"
+echo "  - Dev mode enabled: Frontend changes reload automatically"
+echo "  - Web root: $WEBROOT_PATH"
 echo ""
 echo "📝 Logs:"
 echo "  Caddy: ./caddy.log"
+echo ""
+echo "🔥 Hot Reload: Edit HTML/CSS/JS and refresh browser to see changes"
 echo ""
 echo "Press Ctrl+C to stop all services..."
 echo ""

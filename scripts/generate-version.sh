@@ -21,8 +21,7 @@ const APP_VERSION = '$GIT_HASH';
 const APP_BRANCH = '$GIT_BRANCH';
 const BUILD_TIME = '$BUILD_TIME';
 
-console.log(\`📦 Build Info: \${APP_VERSION} (\${APP_BRANCH}) - \${BUILD_TIME}\`);
+console.log(\`Build: \${APP_VERSION} (\${APP_BRANCH}) - \${BUILD_TIME}\`);
 EOF
 
-echo "✅ Generated version.js: $GIT_HASH ($GIT_BRANCH)"
-
+echo "Generated version.js: $GIT_HASH ($GIT_BRANCH)"

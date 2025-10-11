@@ -1,127 +1,106 @@
 #!/bin/bash
 # Start development environment with HTTPS support
+#
+# Usage:
+#   ./scripts/start-dev.sh           # Start with existing binaries
+#   ./scripts/start-dev.sh --build   # Rebuild and start
+#   ./scripts/start-dev.sh -b        # Same as --build
+
+set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_ROOT"
 
+# Parse arguments
+BUILD_FIRST=false
+if [[ "$1" == "--build" ]] || [[ "$1" == "-b" ]]; then
+    BUILD_FIRST=true
+fi
+
 # Check if certificates exist
 if [ ! -f ".secrets/localhost+2.pem" ] || [ ! -f ".secrets/localhost+2-key.pem" ]; then
-    echo "⚠️  SSL certificates not found!"
-    echo ""
-    echo "Run setup first:"
-    echo "  ./scripts/setup-ssl.sh"
-    echo ""
+    echo "Error: SSL certificates not found"
+    echo "Run: ./scripts/setup-ssl.sh"
     exit 1
 fi
 
 # Check if Caddy is installed
 if ! command -v caddy &> /dev/null; then
-    echo "⚠️  Caddy is not installed!"
-    echo ""
-    echo "Install Caddy:"
-    echo "  Ubuntu/Debian:"
-    echo "    sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https"
-    echo "    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg"
-    echo "    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list"
-    echo "    sudo apt update"
-    echo "    sudo apt install caddy"
-    echo ""
-    echo "  Or download from: https://caddyserver.com/download"
-    echo ""
+    echo "Error: Caddy not installed"
+    echo "Install from: https://caddyserver.com/download"
     exit 1
 fi
 
 # Check if another Caddy instance is running
 if pgrep -x "caddy" > /dev/null; then
-    echo "⚠️  Another Caddy instance is already running!"
-    echo ""
-    echo "To stop it, run:"
-    echo "  sudo pkill caddy"
-    echo ""
-    echo "Or stop the system service:"
-    echo "  sudo systemctl stop caddy"
-    echo "  sudo systemctl disable caddy"
-    echo ""
-    read -p "Do you want to continue anyway? (y/N): " -n 1 -r
+    echo "Warning: Caddy already running"
+    read -p "Stop it with 'pkill caddy' or continue anyway? [y/N]: " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         exit 1
     fi
 fi
 
-echo "🚀 Starting CUDA Image Processor Development Environment"
+echo "Starting CUDA Image Processor"
 echo ""
 
-# Generate version file with current git hash
-echo "📦 Generating version file..."
+# Build if requested
+if [ "$BUILD_FIRST" = true ]; then
+    echo "Building project..."
+    bazel build //webserver/cmd/server:server //cpp_accelerator/ports/cgo:cgo_api
+    echo "Build complete"
+    echo ""
+fi
+
+# Generate version file
+echo "Generating version..."
 ./scripts/generate-version.sh
-
-echo ""
-echo "Starting services:"
-echo "  - Go Server on http://localhost:8080"
-echo "  - Caddy HTTPS Proxy on https://localhost:8443"
 echo ""
 
 # Function to cleanup on exit
 cleanup() {
     echo ""
-    echo "🛑 Stopping services..."
+    echo "Stopping services..."
     kill $GO_PID $CADDY_PID 2>/dev/null
     wait $GO_PID $CADDY_PID 2>/dev/null
-    echo "✅ Services stopped"
 }
 
 trap cleanup EXIT INT TERM
 
-# Start Go server in background with dev mode (hot reload frontend)
-echo "▶️  Starting Go server (dev mode with hot reload)..."
+# Start Go server
+echo "Starting Go server (dev mode)..."
 WEBROOT_PATH="$PROJECT_ROOT/webserver/web"
 bazel-bin/webserver/cmd/server/server_/server -dev -webroot="$WEBROOT_PATH" &
 GO_PID=$!
 sleep 2
 
-# Check if Go server started successfully
 if ! kill -0 $GO_PID 2>/dev/null; then
-    echo "❌ Failed to start Go server"
+    echo "Error: Go server failed to start"
     exit 1
 fi
 
-# Start Caddy in background (with adapter to avoid admin API port conflicts)
-echo "▶️  Starting Caddy HTTPS proxy..."
+# Start Caddy
+echo "Starting Caddy..."
 caddy run --config Caddyfile --adapter caddyfile 2>&1 | sed 's/^/[Caddy] /' &
 CADDY_PID=$!
 sleep 2
 
-# Check if Caddy started successfully
 if ! kill -0 $CADDY_PID 2>/dev/null; then
-    echo "❌ Failed to start Caddy"
+    echo "Error: Caddy failed to start"
     kill $GO_PID 2>/dev/null
     exit 1
 fi
 
 echo ""
-echo "✅ All services running!"
-echo ""
-echo "📍 URLs:"
+echo "Services running:"
 echo "  HTTPS: https://localhost:8443"
-echo "  HTTP:  http://localhost:8000 (redirects to HTTPS)"
-echo "  Direct: http://localhost:8080 (Go server)"
+echo "  HTTP:  http://localhost:8000 (redirects)"
+echo "  Direct: http://localhost:8080"
 echo ""
-echo "💡 Notes:"
-echo "  - Using port 8443 (no root required)"
-echo "  - Dev mode enabled: Frontend changes reload automatically"
-echo "  - Web root: $WEBROOT_PATH"
-echo ""
-echo "📝 Logs:"
-echo "  Caddy: ./caddy.log"
-echo ""
-echo "🔥 Hot Reload: Edit HTML/CSS/JS and refresh browser to see changes"
-echo ""
-echo "Press Ctrl+C to stop all services..."
+echo "Press Ctrl+C to stop"
 echo ""
 
 # Wait for processes
 wait $GO_PID $CADDY_PID
-

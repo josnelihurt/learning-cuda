@@ -1,25 +1,19 @@
 #!/bin/bash
-# Kill all services (Go server, Caddy, etc.)
+# Kill all services (Go server, Caddy)
 
-echo "🛑 Killing all services..."
+set -e
+
+echo "Stopping services..."
 
 # Kill Go server
-pkill -f "server_/server" && echo "✓ Go server killed" || echo "✗ No Go server running"
+pkill -f "server_/server" 2>/dev/null && echo "Go server stopped" || echo "Go server not running"
 
-# Kill Caddy (may need sudo for system instance)
+# Kill Caddy
 if pgrep -x "caddy" > /dev/null; then
-    echo "Found Caddy process(es):"
-    ps aux | grep caddy | grep -v grep
-    echo ""
-    echo "Attempting to kill Caddy..."
-    pkill -x caddy && echo "✓ Caddy killed" || {
-        echo "⚠️  Failed to kill Caddy. You may need sudo:"
-        echo "  sudo pkill caddy"
+    pkill -x caddy 2>/dev/null && echo "Caddy stopped" || {
+        echo "Warning: Failed to kill Caddy. Try: sudo pkill caddy"
+        exit 1
     }
 else
-    echo "✗ No Caddy running"
+    echo "Caddy not running"
 fi
-
-echo ""
-echo "✅ Done!"
-

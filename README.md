@@ -134,12 +134,8 @@ Right now only grayscale but the pipeline supports chaining filters. You can dra
 
 ## Roadmap
 
-- Blur filter (Gaussian)
-- Edge detection (Sobel)
-- Try OpenCL as alternative to CUDA
-- Better GPU unavailable handling
-- ~~Docker container~~ ✓
+Evolving this into a full CUDA learning platform. See `/docs/backlog/` for detailed plans.
 
 ## Notes
 
-Weekend project that grew. Code quality varies. CGO was harder than CUDA.
+Started as a weekend project to learn CUDA. Now it's a full learning platform covering GPU programming, video processing, neural networks, and production infrastructure. Code quality varies. CGO was harder than CUDA.

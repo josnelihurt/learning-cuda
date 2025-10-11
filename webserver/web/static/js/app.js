@@ -1,6 +1,8 @@
 console.log(`CUDA Image Processor Dashboard v${APP_VERSION} - Loaded`);
 
-// Application singleton
+import { WebSocketService } from './dist/services/websocket-service.js';
+import { UIService } from './dist/services/ui-service.js';
+
 const app = {
     toastManager: null,
     statsManager: null,
@@ -39,8 +41,8 @@ const app = {
             });
         }
         
-        this.uiManager = new UIManager(this.statsManager, this.cameraManager, this.filterManager, this.toastManager);
-        this.wsManager = new WebSocketManager(this.statsManager, this.cameraManager, this.toastManager);
+        this.uiManager = new UIService(this.statsManager, this.cameraManager, this.filterManager, this.toastManager);
+        this.wsManager = new WebSocketService(this.statsManager, this.cameraManager, this.toastManager);
         
         // Connect WebSocket
         this.wsManager.connect();
@@ -87,7 +89,9 @@ async function switchToStreaming() {
     const success = await app.cameraManager.start();
     if (success) {
         app.cameraManager.startCapture((base64Data, width, height, timestamp) => {
-            app.wsManager.sendFrame(base64Data, width, height);
+            const filters = app.filterManager.getSelectedFilters();
+            const grayscaleType = app.filterManager.getGrayscaleType();
+            app.wsManager.sendFrame(base64Data, width, height, filters, app.selectedAccelerator, grayscaleType);
         });
     } else {
         // Revert to static on camera failure

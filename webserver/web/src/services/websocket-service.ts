@@ -1,17 +1,43 @@
-/**
- * WebSocketManager - Handles WebSocket connection and messaging
- */
-class WebSocketManager {
-    constructor(statsManager, cameraManager, toastManager) {
-        this.statsManager = statsManager;
-        this.cameraManager = cameraManager;
-        this.toastManager = toastManager;
-        this.ws = null;
-        this.reconnectTimeout = 3000;
-        this.onFrameResultCallback = null;
-    }
-    
-    connect() {
+import type { StatsPanel } from '../components/stats-panel';
+import type { CameraPreview } from '../components/camera-preview';
+import type { ToastContainer } from '../components/toast-container';
+
+interface FrameMessage {
+    type: 'frame';
+    filters: string[];
+    accelerator: string;
+    grayscale_type: string;
+    image: {
+        data: string;
+        width: number;
+        height: number;
+        channels: number;
+    };
+}
+
+interface FrameResult {
+    type: 'frame_result';
+    success: boolean;
+    error?: string;
+    image: {
+        data: string;
+    };
+}
+
+type FrameResultCallback = (data: FrameResult) => void;
+
+export class WebSocketService {
+    private ws: WebSocket | null = null;
+    private reconnectTimeout = 3000;
+    private onFrameResultCallback: FrameResultCallback | null = null;
+
+    constructor(
+        private statsManager: StatsPanel,
+        private cameraManager: CameraPreview,
+        private toastManager: ToastContainer
+    ) {}
+
+    connect(): void {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         this.ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
@@ -23,26 +49,23 @@ class WebSocketManager {
         this.ws.onmessage = (event) => {
             const receiveTime = performance.now();
             this.cameraManager.setProcessing(false);
-            
+
             try {
-                const data = JSON.parse(event.data);
-                
+                const data = JSON.parse(event.data) as FrameResult;
+
                 if (data.type === 'frame_result') {
                     if (data.success) {
-                        // Calculate processing time
                         const sendTime = this.cameraManager.getLastFrameTime();
                         const processingTime = receiveTime - sendTime;
-                        
-                        // Update stats
+
                         this.statsManager.updateProcessingStats(processingTime);
-                        
-                        // Callback for UI update
+
                         if (this.onFrameResultCallback) {
                             this.onFrameResultCallback(data);
                         }
                     } else {
                         console.error('Frame processing error:', data.error);
-                        this.toastManager.error('Processing Error', data.error);
+                        this.toastManager.error('Processing Error', data.error || 'Unknown error');
                         this.statsManager.updateCameraStatus('Processing failed', 'error');
                     }
                 }
@@ -54,7 +77,7 @@ class WebSocketManager {
         this.ws.onerror = (error) => {
             console.error('WebSocket error:', error);
             this.toastManager.warning('WebSocket Error', 'Connection error, attempting to reconnect...');
-            this.statsManager.updateWebSocketStatus('error', 'Connection error');
+            this.statsManager.updateWebSocketStatus('disconnected', 'Connection error');
             this.cameraManager.setProcessing(false);
         };
 
@@ -64,34 +87,34 @@ class WebSocketManager {
             setTimeout(() => this.connect(), this.reconnectTimeout);
         };
     }
-    
-    sendFrame(base64Data, width, height) {
+
+    sendFrame(base64Data: string, width: number, height: number, filters: string[], accelerator: string, grayscaleType: string): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-        
+
         this.cameraManager.setProcessing(true);
-        
-        const message = {
+
+        const message: FrameMessage = {
             type: 'frame',
-            filters: window.app.filterManager.getSelectedFilters(),
-            accelerator: window.app.selectedAccelerator,
-            grayscale_type: window.app.filterManager.getGrayscaleType(),
+            filters,
+            accelerator,
+            grayscale_type: grayscaleType,
             image: {
                 data: base64Data,
-                width: width,
-                height: height,
+                width,
+                height,
                 channels: 4
             }
         };
-        
+
         this.ws.send(JSON.stringify(message));
     }
-    
-    onFrameResult(callback) {
+
+    onFrameResult(callback: FrameResultCallback): void {
         this.onFrameResultCallback = callback;
     }
-    
-    isConnected() {
-        return this.ws && this.ws.readyState === WebSocket.OPEN;
+
+    isConnected(): boolean {
+        return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
     }
 }
 

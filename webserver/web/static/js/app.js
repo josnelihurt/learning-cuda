@@ -15,12 +15,18 @@ const app = {
     
     async init() {
         console.log('Initializing dashboard...');
+        await customElements.whenDefined('camera-preview');
         
         // Initialize managers
-        this.toastManager = new ToastManager({ duration: 7000 }); // 7 seconds, configurable
+        this.toastManager = new ToastManager({ duration: 7000 });
         this.statsManager = new StatsManager();
-        this.cameraManager = new CameraManager(this.statsManager, this.toastManager);
         this.filterManager = new FilterManager();
+        
+        this.cameraManager = document.querySelector('camera-preview');
+        if (this.cameraManager) {
+            this.cameraManager.setManagers(this.statsManager, this.toastManager);
+        }
+        
         this.uiManager = new UIManager(this.statsManager, this.cameraManager, this.filterManager, this.toastManager);
         this.wsManager = new WebSocketManager(this.statsManager, this.cameraManager, this.toastManager);
         

@@ -392,7 +392,7 @@ func (h *Handler) HandleProcessImage(w http.ResponseWriter, r *http.Request) {
 		Format: "png",
 	}
 
-	processedImg, err := h.useCase.Execute(img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorGPU, domain.GrayscaleBT601)
+	_, err := h.useCase.Execute(img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorGPU, domain.GrayscaleBT601)
 	if err != nil {
 		http.Error(w, "process failed", http.StatusInternalServerError)
 		return

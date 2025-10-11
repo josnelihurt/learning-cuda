@@ -134,7 +134,7 @@
     <main class="main-content">
         <div class="image-container">
             <img id="heroImage" src="data:image/png;base64,{{.ImageData}}" alt="Processed Image">
-            <video id="cameraPreview" style="position: absolute; opacity: 0; pointer-events: none;" autoplay playsinline muted></video>
+            <camera-preview></camera-preview>
             <canvas id="captureCanvas" style="display: none;"></canvas>
         </div>
     </main>
@@ -163,6 +163,15 @@
         </div>
     </footer>
 
+    <script type="importmap">
+    {
+        "imports": {
+            "lit": "https://cdn.jsdelivr.net/gh/lit/dist@3/core/lit-core.min.js",
+            "lit/decorators.js": "https://cdn.jsdelivr.net/gh/lit/dist@3/decorators/decorators.js"
+        }
+    }
+    </script>
+    
     <script src="/static/js/version.js"></script>
     <script src="/static/js/modules/toast.js"></script>
     <script src="/static/js/modules/stats.js"></script>
@@ -170,6 +179,7 @@
     <script src="/static/js/modules/websocket.js"></script>
     <script src="/static/js/modules/filters.js"></script>
     <script src="/static/js/modules/ui.js"></script>
+    <script type="module" src="/static/js/components/camera-preview.js"></script>
     <script src="/static/js/app.js?v=12"></script>
 </body>
 </html>

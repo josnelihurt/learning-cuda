@@ -12,12 +12,50 @@ Built with Go because I wanted to try CGO, and C++ for the actual processing. Pr
 
 ## Setup
 
+### Development Mode
+
 ```bash
 ./scripts/setup-ssl.sh
 ./scripts/start-dev.sh --build  # Dev mode (hot reload)
 # or
 ./scripts/start-dev.sh --build --prod  # Production bundle
 ```
+
+### Docker Deployment
+
+Production deployment with GPU acceleration using Docker Compose and Traefik:
+
+```bash
+# Validate environment (checks SSL certs, Docker, NVIDIA Container Toolkit, GPU)
+./scripts/validate-docker-env.sh
+
+# Build and run
+docker-compose up --build
+
+# Or run in detached mode
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f app
+
+# Stop containers
+docker-compose down
+```
+
+Access the application:
+- **Application**: https://localhost
+- **Traefik Dashboard**: http://localhost:8081
+
+Requirements:
+- Docker with NVIDIA Container Toolkit installed
+- NVIDIA GPU with drivers
+- SSL certificates in `.secrets/` directory (run `./scripts/setup-ssl.sh`)
+
+The Docker setup uses:
+- Multi-stage build (frontend → backend → runtime)
+- NVIDIA CUDA 12.5 runtime
+- Traefik for HTTPS termination
+- Full GPU passthrough to container
 
 ## Tech
 
@@ -100,7 +138,7 @@ Right now only grayscale but the pipeline supports chaining filters. You can dra
 - Edge detection (Sobel)
 - Try OpenCL as alternative to CUDA
 - Better GPU unavailable handling
-- Docker container
+- ~~Docker container~~ ✓
 
 ## Notes
 

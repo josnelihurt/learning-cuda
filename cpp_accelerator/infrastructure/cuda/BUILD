@@ -12,6 +12,10 @@ cuda_library(
         "simple_kernel.h",
         "simple_kernel_processor.h",
     ],
+    copts = [
+        "--expt-relaxed-constexpr",
+        "-Xcompiler=-Wno-error",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//cpp_accelerator/domain/interfaces",

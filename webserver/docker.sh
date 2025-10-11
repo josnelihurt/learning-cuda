@@ -1,39 +1,38 @@
 #!/bin/bash
-# Helper script for Docker operations
 
 set -e
 
 case "$1" in
   build)
-    echo "🔨 Building Docker image..."
+    echo "Building Docker image..."
     bazel build //webserver:server_image
-    echo "✅ Image built successfully!"
+    echo "Build complete"
     ;;
     
   load)
-    echo "📦 Loading image into Docker..."
+    echo "Loading image into Docker..."
     bazel run //webserver:server_load
-    echo "✅ Image loaded as cuda-webserver:latest"
+    echo "Image loaded as cuda-webserver:latest"
     ;;
     
   run)
-    echo "🚀 Running container on port 8080..."
+    echo "Running container on port 8080..."
     docker run -p 8080:8080 cuda-webserver:latest
     ;;
     
   run-bg)
-    echo "🚀 Running container in background..."
+    echo "Starting container in background..."
     CONTAINER_ID=$(docker run -d -p 8080:8080 cuda-webserver:latest)
-    echo "✅ Container started: $CONTAINER_ID"
-    echo "📷 Open http://localhost:8080 in your browser"
-    echo "🛑 Stop with: docker stop $CONTAINER_ID"
+    echo "Container started: $CONTAINER_ID"
+    echo "Access at http://localhost:8080"
+    echo "Stop with: docker stop $CONTAINER_ID"
     ;;
     
   all)
-    echo "🔄 Build and load image..."
+    echo "Building and loading image..."
     bazel build //webserver:server_image
     bazel run //webserver:server_load
-    echo "✅ Ready! Run with: ./webserver/docker.sh run"
+    echo "Ready. Run with: ./webserver/docker.sh run"
     ;;
     
   *)
@@ -48,4 +47,3 @@ case "$1" in
     exit 1
     ;;
 esac
-

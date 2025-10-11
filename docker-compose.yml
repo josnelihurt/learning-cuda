@@ -1,0 +1,77 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cuda-image-processor
+    restart: unless-stopped
+    
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility]
+    
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+    
+    expose:
+      - "8080"
+    
+    networks:
+      - traefik
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cuda-app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.cuda-app.entrypoints=websecure"
+      - "traefik.http.routers.cuda-app.tls=true"
+      - "traefik.http.services.cuda-app.loadbalancer.server.port=8080"
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.filename=/config/traefik-config.yml"
+      - "--providers.file.watch=true"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+    
+    ports:
+      - "443:443"
+      - "8081:8080"
+    
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./.secrets:/certs:ro"
+      - "./traefik-config.yml:/config/traefik-config.yml:ro"
+    
+    networks:
+      - traefik
+    
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  traefik:
+    driver: bridge
+

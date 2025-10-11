@@ -1,0 +1,29 @@
+tls:
+  certificates:
+    - certFile: /certs/localhost+2.pem
+      keyFile: /certs/localhost+2-key.pem
+
+  options:
+    default:
+      minVersion: VersionTLS12
+      sniStrict: false
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+
+http:
+  routers:
+    app:
+      rule: "PathPrefix(`/`)"
+      service: app-service
+      entryPoints:
+        - websecure
+      tls: {}
+
+  services:
+    app-service:
+      loadBalancer:
+        servers:
+          - url: "http://app:8080"

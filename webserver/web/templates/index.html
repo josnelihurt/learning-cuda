@@ -60,12 +60,43 @@
 
                 <div class="control-group">
                     <label>
-                        <span class="icon">⚡</span>
-                        CUDA Filter
+                        <span class="icon">🎯</span>
+                        Accelerator
                     </label>
-                    <select id="filterSelect" onchange="applyFilter()">
-                        <option value="none" {{if eq .SelectedFilter "none"}}selected{{end}}>None (Original)</option>
-                        <option value="grayscale" {{if eq .SelectedFilter "grayscale"}}selected{{end}}>Grayscale (CUDA)</option>
+                    <div class="toggle-group">
+                        <button id="toggleGPU" class="toggle-btn active" onclick="setAccelerator('gpu')">
+                            <span class="toggle-icon">⚡</span> GPU
+                        </button>
+                        <button id="toggleCPU" class="toggle-btn" onclick="setAccelerator('cpu')">
+                            <span class="toggle-icon">🖥️</span> CPU
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <span class="icon">🎨</span>
+                        Filters (apply in order)
+                    </label>
+                    <div class="filter-checkboxes">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="filterGrayscale" value="grayscale" onchange="updateFilters()">
+                            <span>Grayscale</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="control-group" id="grayscaleParams" style="display: none;">
+                    <label>
+                        <span class="icon">⚙️</span>
+                        Grayscale Algorithm
+                    </label>
+                    <select id="grayscaleTypeSelect" onchange="applyFilter()">
+                        <option value="bt601" selected>ITU-R BT.601 (SDTV)</option>
+                        <option value="bt709">ITU-R BT.709 (HDTV)</option>
+                        <option value="average">Average</option>
+                        <option value="lightness">Lightness</option>
+                        <option value="luminosity">Luminosity</option>
                     </select>
                 </div>
                 

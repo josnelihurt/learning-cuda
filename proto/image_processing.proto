@@ -10,7 +10,9 @@ message ProcessImageRequest {
   int32 width = 2;
   int32 height = 3;
   int32 channels = 5;        // 3=RGB, 4=RGBA
-  FilterType filter = 10;
+  repeated FilterType filters = 10;  // Array of filters to apply sequentially
+  AcceleratorType accelerator = 11;  // GPU or CPU processing
+  GrayscaleType grayscale_type = 12; // Grayscale algorithm selection
 }
 
 // Enum for filter types
@@ -19,6 +21,23 @@ enum FilterType {
   FILTER_TYPE_NONE = 1;
   FILTER_TYPE_GRAYSCALE = 2;
   // Future: FILTER_TYPE_BLUR = 5, FILTER_TYPE_EDGE_DETECT = 10, etc.
+}
+
+// Enum for accelerator types
+enum AcceleratorType {
+  ACCELERATOR_TYPE_UNSPECIFIED = 0;
+  ACCELERATOR_TYPE_GPU = 1;
+  ACCELERATOR_TYPE_CPU = 2;
+}
+
+// Enum for grayscale conversion algorithms
+enum GrayscaleType {
+  GRAYSCALE_TYPE_UNSPECIFIED = 0;
+  GRAYSCALE_TYPE_BT601 = 1;      // ITU-R BT.601 (SDTV): Y = 0.299R + 0.587G + 0.114B
+  GRAYSCALE_TYPE_BT709 = 2;      // ITU-R BT.709 (HDTV): Y = 0.2126R + 0.7152G + 0.0722B
+  GRAYSCALE_TYPE_AVERAGE = 3;    // Simple average: Y = (R + G + B) / 3
+  GRAYSCALE_TYPE_LIGHTNESS = 4;  // Lightness: Y = (max(R,G,B) + min(R,G,B)) / 2
+  GRAYSCALE_TYPE_LUMINOSITY = 5; // Luminosity: Y = 0.21R + 0.72G + 0.07B (similar to BT709)
 }
 
 // Response: C++ returns processed image buffer

@@ -6,7 +6,7 @@
 #include "cpp_accelerator/domain/interfaces/image_source.h"
 #include "cpp_accelerator/domain/interfaces/processors/i_image_processor.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::infrastructure::cpu {
 
 enum class GrayscaleAlgorithm {
     BT601,      // ITU-R BT.601 (SDTV): Y = 0.299R + 0.587G + 0.114B
@@ -16,13 +16,10 @@ enum class GrayscaleAlgorithm {
     Luminosity  // Luminosity: Y = 0.21R + 0.72G + 0.07B
 };
 
-class GrayscaleProcessor final : public domain::interfaces::IImageProcessor {
+class CpuGrayscaleProcessor : public domain::interfaces::IImageProcessor {
    public:
-    explicit GrayscaleProcessor(GrayscaleAlgorithm algorithm = GrayscaleAlgorithm::BT601);
-    ~GrayscaleProcessor() override = default;
-
-    GrayscaleProcessor(const GrayscaleProcessor&) = delete;
-    GrayscaleProcessor& operator=(const GrayscaleProcessor&) = delete;
+    explicit CpuGrayscaleProcessor(GrayscaleAlgorithm algorithm = GrayscaleAlgorithm::BT601);
+    ~CpuGrayscaleProcessor() override = default;
 
     bool process(domain::interfaces::IImageSource& source, domain::interfaces::IImageSink& sink,
                  const std::string& output_path) override;
@@ -33,10 +30,13 @@ class GrayscaleProcessor final : public domain::interfaces::IImageProcessor {
     }
 
    private:
-    void convert_to_grayscale_cuda(const unsigned char* input, unsigned char* output, int width,
-                                   int height, int channels);
+    void convert_to_grayscale_cpu(const unsigned char* input, unsigned char* output, int width,
+                                  int height, int channels);
+
+    unsigned char calculate_grayscale_value(unsigned char r, unsigned char g,
+                                            unsigned char b) const;
 
     GrayscaleAlgorithm algorithm_;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::infrastructure::cpu

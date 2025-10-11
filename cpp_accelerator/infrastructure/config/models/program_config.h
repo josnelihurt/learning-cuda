@@ -1,13 +1,14 @@
 #pragma once
 
-#include <string>
 #include <cstdint>
+#include <string>
 
 namespace jrb::infrastructure::config::models {
 
 enum class ProgramType : std::uint8_t {
-    Simple,
-    Grayscale
+    Passthrough,       // Renamed from Simple - no-op command
+    CudaImageFilters,  // Renamed from Grayscale - GPU-accelerated filters
+    CpuImageFilters    // New - CPU-based filters
 };
 
 struct ProgramConfig {

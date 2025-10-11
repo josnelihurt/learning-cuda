@@ -10,12 +10,14 @@ cc_library(
 cc_library(
     name = "commands",
     srcs = [
-        "grayscale_processor_command.cpp",
-        "simple_kernel_command.cpp",
+        "passthrough_command.cpp",
+        "cuda_image_filters_command.cpp",
+        "cpu_image_filters_command.cpp",
     ],
     hdrs = [
-        "grayscale_processor_command.h",
-        "simple_kernel_command.h",
+        "passthrough_command.h",
+        "cuda_image_filters_command.h",
+        "cpu_image_filters_command.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -37,6 +39,7 @@ cc_library(
         ":commands",
         "//cpp_accelerator/infrastructure/config",
         "//cpp_accelerator/infrastructure/cuda:cuda_processors",
+        "//cpp_accelerator/infrastructure/cpu:grayscale_processor",
         "//cpp_accelerator/infrastructure/image:image_adapters",
     ],
 )
@@ -45,8 +48,6 @@ cc_test(
     name = "commands_test",
     srcs = [
         "command_factory_test.cpp",
-        "grayscale_processor_command_test.cpp",
-        "simple_kernel_command_test.cpp",
     ],
     data = [
         "//data:lena.png",

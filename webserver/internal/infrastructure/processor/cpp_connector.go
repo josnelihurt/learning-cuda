@@ -77,29 +77,63 @@ func init() {
 	fmt.Printf("CUDA initialized: %s\n", initResp.Message)
 }
 
-// ProcessImage processes an image using C++ CUDA kernels
-func (c *CppConnector) ProcessImage(img *domain.Image, filter domain.FilterType) (*domain.Image, error) {
-	// Handle "none" filter - return original image without processing
-	if filter == domain.FilterNone {
+// ProcessImage processes an image using C++ CUDA or CPU kernels
+func (c *CppConnector) ProcessImage(img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
+	// Handle "none" filter or empty filters - return original image without processing
+	if len(filters) == 0 || (len(filters) == 1 && filters[0] == domain.FilterNone) {
 		return img, nil
 	}
 	
-	// Map filter type
-	var protoFilter pb.FilterType
-	switch filter {
-	case domain.FilterGrayscale:
-		protoFilter = pb.FilterType_FILTER_TYPE_GRAYSCALE
+	// Map filter types to protobuf
+	var protoFilters []pb.FilterType
+	for _, filter := range filters {
+		switch filter {
+		case domain.FilterNone:
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_NONE)
+		case domain.FilterGrayscale:
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_GRAYSCALE)
+		default:
+			return nil, fmt.Errorf("unsupported filter type: %s", filter)
+		}
+	}
+	
+	// Map accelerator type to protobuf
+	var protoAccelerator pb.AcceleratorType
+	switch accelerator {
+	case domain.AcceleratorGPU:
+		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_GPU
+	case domain.AcceleratorCPU:
+		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CPU
 	default:
-		return nil, fmt.Errorf("unsupported filter type: %s", filter)
+		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_GPU // Default to GPU
+	}
+	
+	// Map grayscale type to protobuf
+	var protoGrayscaleType pb.GrayscaleType
+	switch grayscaleType {
+	case domain.GrayscaleBT601:
+		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT601
+	case domain.GrayscaleBT709:
+		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT709
+	case domain.GrayscaleAverage:
+		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_AVERAGE
+	case domain.GrayscaleLightness:
+		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_LIGHTNESS
+	case domain.GrayscaleLuminosity:
+		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY
+	default:
+		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT601 // Default to BT601
 	}
 
 	// Create process request
 	procReq := &pb.ProcessImageRequest{
-		ImageData: img.Data,
-		Width:     int32(img.Width),
-		Height:    int32(img.Height),
-		Channels:  int32(4), // Assuming RGBA format
-		Filter:    protoFilter,
+		ImageData:     img.Data,
+		Width:         int32(img.Width),
+		Height:        int32(img.Height),
+		Channels:      int32(4), // Assuming RGBA format
+		Filters:       protoFilters,
+		Accelerator:   protoAccelerator,
+		GrayscaleType: protoGrayscaleType,
 	}
 
 	// Marshal to bytes

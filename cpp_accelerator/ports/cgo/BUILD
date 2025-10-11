@@ -17,6 +17,7 @@ cc_library(
     deps = [
         ":image_buffer_adapter",
         "//cpp_accelerator/infrastructure/cuda:cuda_processors",
+        "//cpp_accelerator/infrastructure/cpu:grayscale_processor",
         "//proto:image_processing_cc_proto",
         "@spdlog",
     ],

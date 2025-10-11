@@ -16,8 +16,8 @@ func NewProcessImageUseCase(processor domain.ImageProcessor) *ProcessImageUseCas
 	}
 }
 
-// Execute processes an image with the specified filter
-func (uc *ProcessImageUseCase) Execute(img *domain.Image, filter domain.FilterType) (*domain.Image, error) {
-	return uc.processor.ProcessImage(img, filter)
+// Execute processes an image with the specified filters, accelerator, and grayscale type
+func (uc *ProcessImageUseCase) Execute(img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
+	return uc.processor.ProcessImage(img, filters, accelerator, grayscaleType)
 }
 

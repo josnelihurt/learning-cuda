@@ -19,13 +19,76 @@ const heroImage = document.getElementById('heroImage');
 const cameraPreview = document.getElementById('cameraPreview');
 const captureCanvas = document.getElementById('captureCanvas');
 const inputSelect = document.getElementById('inputSelect');
-const filterSelect = document.getElementById('filterSelect');
 const resolutionSelect = document.getElementById('resolutionSelect');
 const cameraStatus = document.getElementById('cameraStatus');
+const toggleGPU = document.getElementById('toggleGPU');
+const toggleCPU = document.getElementById('toggleCPU');
+const filterGrayscale = document.getElementById('filterGrayscale');
+const grayscaleParams = document.getElementById('grayscaleParams');
+const grayscaleTypeSelect = document.getElementById('grayscaleTypeSelect');
+
+// Application state
+let selectedAccelerator = 'gpu'; // default to GPU
 
 // Listen for resolution changes
 if (resolutionSelect) {
     resolutionSelect.addEventListener('change', updateResolution);
+}
+
+// Accelerator toggle functions
+function setAccelerator(type) {
+    selectedAccelerator = type;
+    
+    if (type === 'gpu') {
+        toggleGPU.classList.add('active');
+        toggleCPU.classList.remove('active');
+    } else {
+        toggleCPU.classList.add('active');
+        toggleGPU.classList.remove('active');
+    }
+    
+    // Apply filter with new accelerator
+    if (currentState === AppState.STATIC) {
+        applyFilter();
+    }
+}
+
+// Update filters and show/hide parameters
+function updateFilters() {
+    const isGrayscaleChecked = filterGrayscale.checked;
+    
+    // Show/hide grayscale parameters
+    if (isGrayscaleChecked) {
+        grayscaleParams.style.display = 'block';
+    } else {
+        grayscaleParams.style.display = 'none';
+    }
+    
+    // Apply filters if in static mode
+    if (currentState === AppState.STATIC) {
+        applyFilter();
+    }
+}
+
+// Get currently selected filters as array
+function getSelectedFilters() {
+    const filters = [];
+    
+    if (filterGrayscale.checked) {
+        filters.push('grayscale');
+    }
+    
+    // If no filters selected, default to none
+    if (filters.length === 0) {
+        filters.push('none');
+    }
+    
+    return filters;
+}
+
+// Get current grayscale type
+function getGrayscaleType() {
+    return grayscaleTypeSelect.value;
 }
 
 // Switch between Lena and Webcam input
@@ -38,7 +101,7 @@ async function switchInputSource() {
         cameraStatus.style.display = 'block';
         heroImage.style.display = 'block';
         cameraPreview.style.display = 'none'; // Hide raw video, show processed
-        filterSelect.disabled = false; // Allow filter changes during streaming
+        // Allow filter changes during streaming
         
         // Start camera automatically
         await startCamera();
@@ -49,7 +112,6 @@ async function switchInputSource() {
         cameraStatus.style.display = 'none';
         heroImage.style.display = 'block';
         cameraPreview.style.display = 'none';
-        filterSelect.disabled = false;
     }
 }
 
@@ -57,15 +119,18 @@ async function switchInputSource() {
 async function applyFilter() {
     if (currentState === AppState.STREAMING) return;
     
-    const filter = filterSelect.value;
+    const filters = getSelectedFilters();
+    const filterParam = filters.includes('grayscale') ? 'grayscale' : 'none';
+    const grayscaleType = getGrayscaleType();
     
     // Show loading state
     heroImage.style.opacity = '0.5';
     heroImage.style.transition = 'opacity 0.3s ease';
     
     try {
-        // Fetch new image with selected filter
-        const response = await fetch(`/?filter=${filter}`);
+        // Fetch new image with selected filters and parameters
+        const url = `/?filter=${filterParam}&accelerator=${selectedAccelerator}&grayscale_type=${grayscaleType}`;
+        const response = await fetch(url);
         const html = await response.text();
         
         // Extract base64 image from response
@@ -78,9 +143,11 @@ async function applyFilter() {
         }
         
         // Update URL without reload
-        const url = new URL(window.location);
-        url.searchParams.set('filter', filter);
-        window.history.pushState({}, '', url);
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('filter', filterParam);
+        newUrl.searchParams.set('accelerator', selectedAccelerator);
+        newUrl.searchParams.set('grayscale_type', grayscaleType);
+        window.history.pushState({}, '', newUrl);
         
     } catch (error) {
         console.error('Error applying filter:', error);
@@ -258,11 +325,14 @@ function sendFrame(base64Data, width, height) {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     
     isProcessing = true;
-    const filter = filterSelect.value;
+    const filters = getSelectedFilters();
+    const grayscaleType = getGrayscaleType();
     
     const message = {
         type: 'frame',
-        filter: filter,
+        filters: filters,
+        accelerator: selectedAccelerator,
+        grayscale_type: grayscaleType,
         image: {
             data: base64Data,
             width: width,
@@ -275,7 +345,7 @@ function sendFrame(base64Data, width, height) {
     
     // Update status with frame count
     if (frameCount % 30 === 0) { // Update every 30 frames (~2 seconds)
-        cameraStatus.textContent = `✓ Camera active - ${frameCount} frames processed`;
+        cameraStatus.textContent = `✓ Camera active - ${frameCount} frames processed (${selectedAccelerator.toUpperCase()})`;
     }
 }
 

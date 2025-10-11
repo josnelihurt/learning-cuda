@@ -49,20 +49,61 @@ func NewHandler(useCase *application.ProcessImageUseCase, devMode bool, webRootP
 }
 
 func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	// Get filter from query parameter, default to "none"
+	// Get filters from query parameter (comma-separated), default to "none"
 	filterParam := r.URL.Query().Get("filter")
 	if filterParam == "" {
 		filterParam = "none"
 	}
 	
-	var filter domain.FilterType
+	// Get accelerator type, default to "gpu"
+	acceleratorParam := r.URL.Query().Get("accelerator")
+	if acceleratorParam == "" {
+		acceleratorParam = "gpu"
+	}
+	
+	// Get grayscale type, default to "bt601"
+	grayscaleParam := r.URL.Query().Get("grayscale_type")
+	if grayscaleParam == "" {
+		grayscaleParam = "bt601"
+	}
+	
+	// Parse filters (for now, single filter support from query param)
+	var filters []domain.FilterType
 	switch filterParam {
 	case "none":
-		filter = domain.FilterNone
+		filters = []domain.FilterType{domain.FilterNone}
 	case "grayscale":
-		filter = domain.FilterGrayscale
+		filters = []domain.FilterType{domain.FilterGrayscale}
 	default:
-		filter = domain.FilterNone
+		filters = []domain.FilterType{domain.FilterNone}
+	}
+	
+	// Parse accelerator type
+	var accelerator domain.AcceleratorType
+	switch acceleratorParam {
+	case "gpu":
+		accelerator = domain.AcceleratorGPU
+	case "cpu":
+		accelerator = domain.AcceleratorCPU
+	default:
+		accelerator = domain.AcceleratorGPU
+	}
+	
+	// Parse grayscale type
+	var grayscaleType domain.GrayscaleType
+	switch grayscaleParam {
+	case "bt601":
+		grayscaleType = domain.GrayscaleBT601
+	case "bt709":
+		grayscaleType = domain.GrayscaleBT709
+	case "average":
+		grayscaleType = domain.GrayscaleAverage
+	case "lightness":
+		grayscaleType = domain.GrayscaleLightness
+	case "luminosity":
+		grayscaleType = domain.GrayscaleLuminosity
+	default:
+		grayscaleType = domain.GrayscaleBT601
 	}
 
 	// Load lena.png
@@ -103,8 +144,8 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		Format: "png",
 	}
 
-	// Process with selected filter
-	processedImg, err := h.useCase.Execute(domainImg, filter)
+	// Process with selected filters
+	processedImg, err := h.useCase.Execute(domainImg, filters, accelerator, grayscaleType)
 	if err != nil {
 		log.Printf("Error processing image: %v", err)
 		http.Error(w, "Error processing image", http.StatusInternalServerError)
@@ -113,7 +154,15 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 
 	// Encode result to PNG based on filter type
 	var buf bytes.Buffer
-	if filter == domain.FilterNone {
+	hasGrayscale := false
+	for _, f := range filters {
+		if f == domain.FilterGrayscale {
+			hasGrayscale = true
+			break
+		}
+	}
+	
+	if !hasGrayscale {
 		// Original image in RGBA format
 		resultImg := image.NewRGBA(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		resultImg.Pix = processedImg.Data
@@ -137,11 +186,15 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	base64Image := base64.StdEncoding.EncodeToString(buf.Bytes())
 
 	data := struct {
-		ImageData      string
-		SelectedFilter string
+		ImageData         string
+		SelectedFilter    string
+		SelectedAccel     string
+		SelectedGrayscale string
 	}{
-		ImageData:      base64Image,
-		SelectedFilter: filterParam,
+		ImageData:         base64Image,
+		SelectedFilter:    filterParam,
+		SelectedAccel:     acceleratorParam,
+		SelectedGrayscale: grayscaleParam,
 	}
 
 	// In dev mode, reload template on each request
@@ -165,9 +218,11 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 
 // WebSocket message types
 type FrameMessage struct {
-	Type   string `json:"type"`
-	Filter string `json:"filter"`
-	Image  struct {
+	Type          string   `json:"type"`
+	Filters       []string `json:"filters"`       // Array of filter names
+	Accelerator   string   `json:"accelerator"`   // "gpu" or "cpu"
+	GrayscaleType string   `json:"grayscale_type"` // grayscale algorithm
+	Image         struct {
 		Data     string `json:"data"` // base64 encoded PNG
 		Width    int    `json:"width"`
 		Height   int    `json:"height"`
@@ -271,29 +326,70 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		Format: "png",
 	}
 
-	// Map filter
-	var filter domain.FilterType
-	switch frameMsg.Filter {
-	case "none":
-		filter = domain.FilterNone
-	case "grayscale":
-		filter = domain.FilterGrayscale
+	// Map filters
+	var filters []domain.FilterType
+	for _, filterStr := range frameMsg.Filters {
+		switch filterStr {
+		case "none":
+			filters = append(filters, domain.FilterNone)
+		case "grayscale":
+			filters = append(filters, domain.FilterGrayscale)
+		}
+	}
+	
+	// Default to none if empty
+	if len(filters) == 0 {
+		filters = []domain.FilterType{domain.FilterNone}
+	}
+	
+	// Map accelerator type
+	var accelerator domain.AcceleratorType
+	switch frameMsg.Accelerator {
+	case "cpu":
+		accelerator = domain.AcceleratorCPU
+	case "gpu":
+		accelerator = domain.AcceleratorGPU
 	default:
-		filter = domain.FilterNone
+		accelerator = domain.AcceleratorGPU
+	}
+	
+	// Map grayscale type
+	var grayscaleType domain.GrayscaleType
+	switch frameMsg.GrayscaleType {
+	case "bt601":
+		grayscaleType = domain.GrayscaleBT601
+	case "bt709":
+		grayscaleType = domain.GrayscaleBT709
+	case "average":
+		grayscaleType = domain.GrayscaleAverage
+	case "lightness":
+		grayscaleType = domain.GrayscaleLightness
+	case "luminosity":
+		grayscaleType = domain.GrayscaleLuminosity
+	default:
+		grayscaleType = domain.GrayscaleBT601
 	}
 
-	// Process with CUDA
+	// Process with CUDA/CPU
 	h.frameCounter++
-	processedImg, err := h.useCase.Execute(domainImg, filter)
+	processedImg, err := h.useCase.Execute(domainImg, filters, accelerator, grayscaleType)
 	if err != nil {
-		result.Error = "CUDA processing failed"
+		result.Error = "Processing failed"
 		log.Printf("Processing error: %v", err)
 		return result
 	}
 
-	// Encode result based on filter
+	// Encode result based on filters
+	hasGrayscale := false
+	for _, f := range filters {
+		if f == domain.FilterGrayscale {
+			hasGrayscale = true
+			break
+		}
+	}
+	
 	var buf bytes.Buffer
-	if filter == domain.FilterNone {
+	if !hasGrayscale {
 		resultImg := image.NewRGBA(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		resultImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, resultImg); err != nil {
@@ -318,8 +414,8 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 	// Log performance every 30 frames
 	elapsed := time.Since(startTime)
 	if h.frameCounter%30 == 0 {
-		log.Printf("Frame processing: %v (%dx%d, filter: %s, size: %d bytes)", 
-			elapsed, processedImg.Width, processedImg.Height, frameMsg.Filter, len(buf.Bytes()))
+		log.Printf("Frame processing: %v (%dx%d, filters: %v, accelerator: %s, size: %d bytes)", 
+			elapsed, processedImg.Width, processedImg.Height, frameMsg.Filters, frameMsg.Accelerator, len(buf.Bytes()))
 	}
 
 	return result
@@ -340,7 +436,7 @@ func (h *Handler) HandleProcessImage(w http.ResponseWriter, r *http.Request) {
 		Format: "png",
 	}
 
-	processedImg, err := h.useCase.Execute(img, domain.FilterGrayscale)
+	processedImg, err := h.useCase.Execute(img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorGPU, domain.GrayscaleBT601)
 	if err != nil {
 		log.Printf("Error processing image: %v", err)
 		http.Error(w, "Error processing image", http.StatusInternalServerError)

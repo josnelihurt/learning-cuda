@@ -67,66 +67,7 @@
                 </select>
             </div>
 
-            <!-- Filters Section -->
-            <div class="control-section filters-section">
-                <label class="control-label">Filters <span class="hint">(drag to reorder)</span></label>
-                
-                <div id="filtersList" class="filters-list">
-                    <!-- Grayscale Filter -->
-                    <div class="filter-card" draggable="true" data-filter="grayscale">
-                        <div class="filter-header" onclick="toggleFilterCard(this)">
-                            <span class="drag-handle">⋮⋮</span>
-                            <input type="checkbox" id="filterGrayscale" onchange="updateFilters()" />
-                            <label for="filterGrayscale">Grayscale</label>
-                            <span class="chevron">▶</span>
-                        </div>
-                        <div class="filter-body">
-                            <label class="radio-label control-sublabel">Algorithm</label>
-                            <div class="radio-group">
-                                <label class="radio-option">
-                                    <input type="radio" name="grayscale-algo" value="bt601" checked onchange="applyFilter()" />
-                                    <span>ITU-R BT.601 (SDTV)</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="grayscale-algo" value="bt709" onchange="applyFilter()" />
-                                    <span>ITU-R BT.709 (HDTV)</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="grayscale-algo" value="average" onchange="applyFilter()" />
-                                    <span>Average</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="grayscale-algo" value="lightness" onchange="applyFilter()" />
-                                    <span>Lightness</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="grayscale-algo" value="luminosity" onchange="applyFilter()" />
-                                    <span>Luminosity</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Future Filters (Disabled) -->
-                    <div class="filter-card disabled" draggable="false">
-                        <div class="filter-header">
-                            <span class="drag-handle disabled">⋮⋮</span>
-                            <input type="checkbox" id="filterBlur" disabled />
-                            <label for="filterBlur">Blur <span class="badge">Soon</span></label>
-                            <span class="chevron">▶</span>
-                        </div>
-                    </div>
-
-                    <div class="filter-card disabled" draggable="false">
-                        <div class="filter-header">
-                            <span class="drag-handle disabled">⋮⋮</span>
-                            <input type="checkbox" id="filterEdge" disabled />
-                            <label for="filterEdge">Edge Detect <span class="badge">Soon</span></label>
-                            <span class="chevron">▶</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <filter-panel></filter-panel>
         </div>
     </aside>
 
@@ -160,11 +101,11 @@
     
     <script src="/static/js/version.js"></script>
     <script src="/static/js/modules/websocket.js"></script>
-    <script src="/static/js/modules/filters.js"></script>
     <script src="/static/js/modules/ui.js"></script>
     <script type="module" src="/static/js/dist/components/camera-preview.js"></script>
     <script type="module" src="/static/js/dist/components/toast-container.js"></script>
     <script type="module" src="/static/js/dist/components/stats-panel.js"></script>
+    <script type="module" src="/static/js/dist/components/filter-panel.js"></script>
     <script src="/static/js/app.js?v=12"></script>
 </body>
 </html>

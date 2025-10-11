@@ -18,16 +18,25 @@ const app = {
         await customElements.whenDefined('camera-preview');
         await customElements.whenDefined('toast-container');
         await customElements.whenDefined('stats-panel');
+        await customElements.whenDefined('filter-panel');
         
         this.toastManager = document.querySelector('toast-container');
         this.toastManager.configure({ duration: 7000 });
         
         this.statsManager = document.querySelector('stats-panel');
-        this.filterManager = new FilterManager();
+        this.filterManager = document.querySelector('filter-panel');
         
         this.cameraManager = document.querySelector('camera-preview');
         if (this.cameraManager) {
             this.cameraManager.setManagers(this.statsManager, this.toastManager);
+        }
+        
+        if (this.filterManager) {
+            this.filterManager.addEventListener('filter-change', () => {
+                if (this.currentState === 'static') {
+                    this.uiManager.applyFilter();
+                }
+            });
         }
         
         this.uiManager = new UIManager(this.statsManager, this.cameraManager, this.filterManager, this.toastManager);
@@ -95,24 +104,6 @@ function switchToStatic() {
     
     // Reload static image with current filters
     app.uiManager.applyFilter();
-}
-
-function toggleFilterCard(header) {
-    app.filterManager.toggleCard(header);
-}
-
-function updateFilters() {
-    app.filterManager.updateFiltersUI();
-    
-    if (app.currentState === 'static') {
-        app.uiManager.applyFilter();
-    }
-}
-
-function applyFilter() {
-    if (app.currentState === 'static') {
-        app.uiManager.applyFilter();
-    }
 }
 
 function updateResolution() {

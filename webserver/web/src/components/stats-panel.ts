@@ -123,6 +123,21 @@ export class StatsPanel extends LitElement {
         .ws-status.connecting {
             color: #ffaa00;
         }
+
+        @media (max-width: 768px) {
+            .stats-container {
+                gap: var(--spacing-sm, 12px);
+                font-size: 12px;
+            }
+
+            .stat-item {
+                gap: 4px;
+            }
+
+            .stat-label {
+                display: none;
+            }
+        }
     `;
 
     render() {

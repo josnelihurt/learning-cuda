@@ -33,11 +33,29 @@ if ! command -v caddy &> /dev/null; then
     exit 1
 fi
 
+# Check if another Caddy instance is running
+if pgrep -x "caddy" > /dev/null; then
+    echo "⚠️  Another Caddy instance is already running!"
+    echo ""
+    echo "To stop it, run:"
+    echo "  sudo pkill caddy"
+    echo ""
+    echo "Or stop the system service:"
+    echo "  sudo systemctl stop caddy"
+    echo "  sudo systemctl disable caddy"
+    echo ""
+    read -p "Do you want to continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
 echo "🚀 Starting CUDA Image Processor Development Environment"
 echo ""
 echo "Starting services:"
 echo "  - Go Server on http://localhost:8080"
-echo "  - Caddy HTTPS Proxy on https://localhost:443"
+echo "  - Caddy HTTPS Proxy on https://localhost:8443"
 echo ""
 
 # Function to cleanup on exit
@@ -63,9 +81,9 @@ if ! kill -0 $GO_PID 2>/dev/null; then
     exit 1
 fi
 
-# Start Caddy in background
+# Start Caddy in background (with adapter to avoid admin API port conflicts)
 echo "▶️  Starting Caddy HTTPS proxy..."
-caddy run --config Caddyfile 2>&1 | sed 's/^/[Caddy] /' &
+caddy run --config Caddyfile --adapter caddyfile 2>&1 | sed 's/^/[Caddy] /' &
 CADDY_PID=$!
 sleep 2
 
@@ -80,9 +98,11 @@ echo ""
 echo "✅ All services running!"
 echo ""
 echo "📍 URLs:"
-echo "  HTTPS: https://localhost"
-echo "  HTTP:  http://localhost (redirects to HTTPS)"
+echo "  HTTPS: https://localhost:8443"
+echo "  HTTP:  http://localhost:8000 (redirects to HTTPS)"
 echo "  Direct: http://localhost:8080 (Go server)"
+echo ""
+echo "💡 Note: Using port 8443 (no root required)"
 echo ""
 echo "📝 Logs:"
 echo "  Caddy: ./caddy.log"

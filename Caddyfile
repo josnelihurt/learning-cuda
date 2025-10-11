@@ -1,23 +1,28 @@
 # Caddy reverse proxy configuration for CUDA Image Processor
 # Provides HTTPS for local development
+# Using port 8443 (no root required)
 
-# HTTPS endpoint
-localhost:443 {
-    # Use local certificates (generated with mkcert or openssl)
-    tls .secrets/localhost+2.pem .secrets/localhost+2-key.pem
-    
-    # Reverse proxy to Go server
-    reverse_proxy localhost:8080
-    
-    # Enable logging for debugging
-    log {
-        output file ./caddy.log
-        level INFO
-    }
+{
+	# Disable automatic HTTPS redirects (prevents trying to bind to port 80)
+	auto_https disable_redirects
 }
 
-# HTTP to HTTPS redirect
-localhost:80 {
-    redir https://localhost{uri} permanent
+# HTTPS endpoint on port 8443 (no root permissions needed)
+localhost:8443 {
+	# Use local certificates (generated with mkcert or openssl)
+	tls .secrets/localhost+2.pem .secrets/localhost+2-key.pem
+
+	# Reverse proxy to Go server
+	reverse_proxy localhost:8080
+
+	# Enable logging for debugging
+	log {
+		output file ./caddy.log
+		level INFO
+	}
 }
 
+# Optional: HTTP on port 8000 (also no root) redirects to HTTPS
+http://localhost:8000 {
+	redir https://localhost:8443{uri} permanent
+}

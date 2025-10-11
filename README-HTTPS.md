@@ -47,9 +47,11 @@ caddy run
 
 ### 4. Access the Application
 
-- **HTTPS (recommended):** https://localhost
-- **HTTP (redirects to HTTPS):** http://localhost  
+- **HTTPS (recommended):** https://localhost:8443
+- **HTTP (redirects to HTTPS):** http://localhost:8000
 - **Direct Go server:** http://localhost:8080
+
+**Note:** Using port 8443 for HTTPS (doesn't require root permissions)
 
 ## Why HTTPS?
 
@@ -78,7 +80,7 @@ mkcert localhost 127.0.0.1 ::1
 ## Architecture
 
 ```
-Browser (https://localhost:443)
+Browser (https://localhost:8443)
           ↓
     Caddy (reverse proxy)
           ↓
@@ -86,6 +88,8 @@ Browser (https://localhost:443)
           ↓
     C++/CUDA Processing
 ```
+
+**Why port 8443?** Ports below 1024 (like 443) require root privileges on Linux. Port 8443 is a standard alternative HTTPS port that doesn't require special permissions.
 
 ## Files
 
@@ -96,10 +100,17 @@ Browser (https://localhost:443)
 
 ## Troubleshooting
 
-**Port 443 already in use:**
+**Port 8443 already in use:**
 ```bash
-sudo lsof -i :443
-sudo systemctl stop caddy  # if running as service
+lsof -i :8443
+pkill caddy  # if you have another Caddy running
+```
+
+**Want to use standard port 443?**
+Give Caddy permission to bind to privileged ports:
+```bash
+sudo setcap cap_net_bind_service=+ep $(which caddy)
+# Then update Caddyfile to use port 443
 ```
 
 **Certificate errors:**

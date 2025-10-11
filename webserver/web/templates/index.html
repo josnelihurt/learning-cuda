@@ -5,136 +5,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CUDA Image Processor - Josnelihurt</title>
     <link href='https://fonts.googleapis.com/css?family=Lato:400,600,700,300' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="/static/css/variables.css">
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar">
+    <!-- Fixed Header -->
+    <header class="navbar">
         <div class="navbar-container">
-            <a href="/" class="navbar-brand">
-                <span class="accent">CUDA</span> Image Processor
-            </a>
+            <div class="navbar-left">
+                <a href="/" class="navbar-brand">
+                    <span class="accent">CUDA</span> Image Processor
+                </a>
+                <button class="info-btn" id="infoBtn" title="About this app">
+                    <span>ℹ️</span>
+                </button>
+            </div>
             <div class="navbar-credit">
                 by <a href="https://josnelihurt.me" target="_blank">josnelihurt</a>
             </div>
         </div>
-    </nav>
+        
+        <!-- Info Tooltip -->
+        <div class="info-tooltip" id="infoTooltip" style="display: none;">
+            <p><strong>GPU-Accelerated Image Processing</strong></p>
+            <p>Real-time CUDA kernels in your browser</p>
+            <p>Built with C++, CUDA, Go, Protocol Buffers & CGO</p>
+        </div>
+    </header>
 
-    <!-- Hero Section - Two Column Layout -->
-    <section class="hero-section">
-        <div class="container">
-            <div class="hero-grid">
-                <!-- Left: Image/Video -->
-                <div class="hero-image">
-                    <img id="heroImage" src="data:image/png;base64,{{.ImageData}}" alt="Processed Image">
-                    <video id="cameraPreview" style="position: absolute; opacity: 0; pointer-events: none;" autoplay playsinline muted></video>
-                    <canvas id="captureCanvas" style="display: none;"></canvas>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-content">
+            <!-- Input Source -->
+            <div class="control-section">
+                <label class="control-label">Input Source</label>
+                <div class="segmented-control">
+                    <button class="segment active" data-value="lena" onclick="setInputSource('lena')">Lena</button>
+                    <button class="segment" data-value="webcam" onclick="setInputSource('webcam')">Camera</button>
                 </div>
+            </div>
+
+            <!-- Accelerator -->
+            <div class="control-section">
+                <label class="control-label">Accelerator</label>
+                <div class="segmented-control">
+                    <button class="segment active" data-value="gpu" onclick="setAccelerator('gpu')">
+                        <span class="segment-icon">⚡</span> GPU
+                    </button>
+                    <button class="segment" data-value="cpu" onclick="setAccelerator('cpu')">
+                        <span class="segment-icon">🖥️</span> CPU
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resolution -->
+            <div class="control-section">
+                <label class="control-label">Resolution</label>
+                <select id="resolutionSelect" class="compact-select" onchange="updateResolution()">
+                    <option value="quarter">Quarter (160x120)</option>
+                    <option value="half">Half (320x240)</option>
+                    <option value="full" selected>Full (640x480)</option>
+                </select>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="control-section filters-section">
+                <label class="control-label">Filters <span class="hint">(drag to reorder)</span></label>
                 
-                <!-- Right: Content -->
-                <div class="hero-content">
-                    <h1>GPU-Accelerated Image Processing</h1>
-                    <h2>Real-time CUDA kernels in your browser</h2>
-                    
-                    <!-- Camera Status -->
-                    <div id="cameraStatus" style="display: none; margin-top: 20px; font-size: 14px; color: #939393;"></div>
+                <div id="filtersList" class="filters-list">
+                    <!-- Grayscale Filter -->
+                    <div class="filter-card" draggable="true" data-filter="grayscale">
+                        <div class="filter-header" onclick="toggleFilterCard(this)">
+                            <span class="drag-handle">⋮⋮</span>
+                            <input type="checkbox" id="filterGrayscale" onchange="updateFilters()" />
+                            <label for="filterGrayscale">Grayscale</label>
+                            <span class="chevron">▼</span>
+                        </div>
+                        <div class="filter-body expanded">
+                            <label class="radio-label control-sublabel">Algorithm</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="grayscale-algo" value="bt601" checked onchange="applyFilter()" />
+                                    <span>ITU-R BT.601 (SDTV)</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="grayscale-algo" value="bt709" onchange="applyFilter()" />
+                                    <span>ITU-R BT.709 (HDTV)</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="grayscale-algo" value="average" onchange="applyFilter()" />
+                                    <span>Average</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="grayscale-algo" value="lightness" onchange="applyFilter()" />
+                                    <span>Lightness</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="grayscale-algo" value="luminosity" onchange="applyFilter()" />
+                                    <span>Luminosity</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Future Filters (Disabled) -->
+                    <div class="filter-card disabled" draggable="false">
+                        <div class="filter-header">
+                            <span class="drag-handle disabled">⋮⋮</span>
+                            <input type="checkbox" id="filterBlur" disabled />
+                            <label for="filterBlur">Blur <span class="badge">Soon</span></label>
+                            <span class="chevron">▶</span>
+                        </div>
+                    </div>
+
+                    <div class="filter-card disabled" draggable="false">
+                        <div class="filter-header">
+                            <span class="drag-handle disabled">⋮⋮</span>
+                            <input type="checkbox" id="filterEdge" disabled />
+                            <label for="filterEdge">Edge Detect <span class="badge">Soon</span></label>
+                            <span class="chevron">▶</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </section>
+    </aside>
 
-    <!-- Controls Section -->
-    <section class="controls-section">
-        <div class="container">
-            <div class="controls-grid">
-                <div class="control-group">
-                    <label>
-                        <span class="icon">📷</span>
-                        Image Input
-                    </label>
-                    <select id="inputSelect" onchange="switchInputSource()">
-                        <option value="lena">Lena (static test image)</option>
-                        <option value="webcam">Webcam (live stream)</option>
-                    </select>
-                </div>
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="image-container">
+            <img id="heroImage" src="data:image/png;base64,{{.ImageData}}" alt="Processed Image">
+            <video id="cameraPreview" style="position: absolute; opacity: 0; pointer-events: none;" autoplay playsinline muted></video>
+            <canvas id="captureCanvas" style="display: none;"></canvas>
+        </div>
+    </main>
 
-                <div class="control-group">
-                    <label>
-                        <span class="icon">🎯</span>
-                        Accelerator
-                    </label>
-                    <div class="toggle-group">
-                        <button id="toggleGPU" class="toggle-btn active" onclick="setAccelerator('gpu')">
-                            <span class="toggle-icon">⚡</span> GPU
-                        </button>
-                        <button id="toggleCPU" class="toggle-btn" onclick="setAccelerator('cpu')">
-                            <span class="toggle-icon">🖥️</span> CPU
-                        </button>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>
-                        <span class="icon">🎨</span>
-                        Filters (apply in order)
-                    </label>
-                    <div class="filter-checkboxes">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="filterGrayscale" value="grayscale" onchange="updateFilters()">
-                            <span>Grayscale</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="control-group" id="grayscaleParams" style="display: none;">
-                    <label>
-                        <span class="icon">⚙️</span>
-                        Grayscale Algorithm
-                    </label>
-                    <select id="grayscaleTypeSelect" onchange="applyFilter()">
-                        <option value="bt601" selected>ITU-R BT.601 (SDTV)</option>
-                        <option value="bt709">ITU-R BT.709 (HDTV)</option>
-                        <option value="average">Average</option>
-                        <option value="lightness">Lightness</option>
-                        <option value="luminosity">Luminosity</option>
-                    </select>
-                </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="icon">📐</span>
-                        Resolution
-                    </label>
-                    <select id="resolutionSelect">
-                        <option value="quarter">Quarter (160x120) - Fast</option>
-                        <option value="half">Half (320x240) - Balanced</option>
-                        <option value="full" selected>Full (640x480) - Quality</option>
-                    </select>
-                </div>
+    <!-- Stats Footer -->
+    <footer class="stats-bar">
+        <div class="stats-container">
+            <div class="stat-item">
+                <span class="stat-icon">📊</span>
+                <span class="stat-label">FPS:</span>
+                <strong id="statFPS">--</strong>
             </div>
-        </div>
-    </section>
-
-
-    <!-- Status Bar -->
-    <div class="status-bar" id="statusBar">
-        <div class="status-content">
-            <div class="status-icon" id="statusIcon"></div>
-            <span id="statusText">Connecting to WebSocket...</span>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <p>
-                CUDA Image Processor &mdash; 
-                Built with C++, CUDA, Go, Protocol Buffers &amp; CGO<br>
-                &copy; 2025 <a href="https://josnelihurt.me" target="_blank">Josnelihurt Rodriguez Barajas</a>
-            </p>
+            <div class="stat-item">
+                <span class="stat-icon">⚡</span>
+                <span class="stat-label">Time:</span>
+                <strong id="statTime">--ms</strong>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🎬</span>
+                <span class="stat-label">Frames:</span>
+                <strong id="statFrames">0</strong>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">📷</span>
+                <span id="statCamera">Inactive</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🔌</span>
+                <span class="ws-indicator" id="wsIndicator">○</span>
+                <span id="wsStatus">Connecting...</span>
+            </div>
         </div>
     </footer>
 
-    <script src="/static/js/app.js?v=10"></script>
+    <script src="/static/js/app.js?v=11"></script>
 </body>
 </html>

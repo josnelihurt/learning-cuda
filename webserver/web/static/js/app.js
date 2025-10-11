@@ -1,4 +1,4 @@
-console.log('🚀 CUDA Image Processor JS v2.1 - Loaded');
+console.log('🚀 CUDA Image Processor Dashboard v3.0 - Loaded');
 
 // Application State
 const AppState = {
@@ -10,112 +10,176 @@ let currentState = AppState.STATIC;
 let ws = null;
 let cameraStream = null;
 let frameInterval = null;
-const FPS = 15; // Frames per second for streaming
+const FPS = 15;
+
+// Stats tracking
+let frameCount = 0;
+let fpsHistory = [];
+let lastFrameTime = 0;
+let processingTimes = [];
+
+// Filter order (for drag & drop)
+let filterOrder = ['grayscale'];
 
 // DOM Elements
-const statusBar = document.getElementById('statusBar');
-const statusText = document.getElementById('statusText');
 const heroImage = document.getElementById('heroImage');
 const cameraPreview = document.getElementById('cameraPreview');
 const captureCanvas = document.getElementById('captureCanvas');
-const inputSelect = document.getElementById('inputSelect');
 const resolutionSelect = document.getElementById('resolutionSelect');
-const cameraStatus = document.getElementById('cameraStatus');
-const toggleGPU = document.getElementById('toggleGPU');
-const toggleCPU = document.getElementById('toggleCPU');
 const filterGrayscale = document.getElementById('filterGrayscale');
-const grayscaleParams = document.getElementById('grayscaleParams');
-const grayscaleTypeSelect = document.getElementById('grayscaleTypeSelect');
+const infoBtn = document.getElementById('infoBtn');
+const infoTooltip = document.getElementById('infoTooltip');
+
+// Stats DOM elements
+const statFPS = document.getElementById('statFPS');
+const statTime = document.getElementById('statTime');
+const statFrames = document.getElementById('statFrames');
+const statCamera = document.getElementById('statCamera');
+const wsIndicator = document.getElementById('wsIndicator');
+const wsStatus = document.getElementById('wsStatus');
 
 // Application state
-let selectedAccelerator = 'gpu'; // default to GPU
+let selectedInputSource = 'lena';
+let selectedAccelerator = 'gpu';
 
-// Listen for resolution changes
-if (resolutionSelect) {
-    resolutionSelect.addEventListener('change', updateResolution);
+// Resolution presets
+const RESOLUTIONS = {
+    quarter: { width: 160, height: 120 },
+    half: { width: 320, height: 240 },
+    full: { width: 640, height: 480 }
+};
+
+let PROCESS_WIDTH = 640;
+let PROCESS_HEIGHT = 480;
+const JPEG_QUALITY = 0.7;
+
+/* ============================================
+   INFO TOOLTIP
+   ============================================ */
+
+if (infoBtn && infoTooltip) {
+    infoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        infoTooltip.style.display = infoTooltip.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    document.addEventListener('click', (e) => {
+        if (!infoBtn.contains(e.target) && !infoTooltip.contains(e.target)) {
+            infoTooltip.style.display = 'none';
+        }
+    });
 }
 
-// Accelerator toggle functions
+/* ============================================
+   SEGMENTED CONTROLS
+   ============================================ */
+
+function setInputSource(source) {
+    selectedInputSource = source;
+    
+    // Update UI
+    document.querySelectorAll('.segmented-control .segment').forEach(btn => {
+        if (btn.closest('.control-section').querySelector('.control-label').textContent.includes('Input')) {
+            btn.classList.toggle('active', btn.dataset.value === source);
+        }
+    });
+    
+    // Switch mode
+    if (source === 'webcam') {
+        switchToStreaming();
+    } else {
+        switchToStatic();
+    }
+}
+
 function setAccelerator(type) {
     selectedAccelerator = type;
     
-    if (type === 'gpu') {
-        toggleGPU.classList.add('active');
-        toggleCPU.classList.remove('active');
-    } else {
-        toggleCPU.classList.add('active');
-        toggleGPU.classList.remove('active');
-    }
+    // Update UI
+    document.querySelectorAll('.segmented-control .segment').forEach(btn => {
+        if (btn.closest('.control-section').querySelector('.control-label').textContent.includes('Accelerator')) {
+            btn.classList.toggle('active', btn.dataset.value === type);
+        }
+    });
     
-    // Apply filter with new accelerator
+    // Apply filter if in static mode
     if (currentState === AppState.STATIC) {
         applyFilter();
     }
 }
 
-// Update filters and show/hide parameters
-function updateFilters() {
-    const isGrayscaleChecked = filterGrayscale.checked;
+/* ============================================
+   INPUT SOURCE SWITCHING
+   ============================================ */
+
+async function switchToStreaming() {
+    currentState = AppState.STREAMING;
+    heroImage.style.display = 'block';
+    cameraPreview.style.display = 'none';
     
-    // Show/hide grayscale parameters
-    if (isGrayscaleChecked) {
-        grayscaleParams.style.display = 'block';
+    updateCameraStatus('Starting...', 'warning');
+    await startCamera();
+}
+
+async function switchToStatic() {
+    currentState = AppState.STATIC;
+    stopCamera();
+    heroImage.style.display = 'block';
+    cameraPreview.style.display = 'none';
+    updateCameraStatus('Inactive', 'inactive');
+    
+    // Reload static image with current filters
+    applyFilter();
+}
+
+/* ============================================
+   FILTER MANAGEMENT
+   ============================================ */
+
+function toggleFilterCard(header) {
+    const card = header.parentElement;
+    const body = card.querySelector('.filter-body');
+    const chevron = header.querySelector('.chevron');
+    
+    if (card.classList.contains('disabled')) return;
+    
+    const isExpanded = body.classList.contains('expanded');
+    
+    if (isExpanded) {
+        body.classList.remove('expanded');
+        header.classList.add('collapsed');
     } else {
-        grayscaleParams.style.display = 'none';
+        body.classList.add('expanded');
+        header.classList.remove('collapsed');
     }
-    
+}
+
+function updateFilters() {
     // Apply filters if in static mode
     if (currentState === AppState.STATIC) {
         applyFilter();
     }
 }
 
-// Get currently selected filters as array
 function getSelectedFilters() {
     const filters = [];
     
-    if (filterGrayscale.checked) {
+    if (filterGrayscale && filterGrayscale.checked) {
         filters.push('grayscale');
     }
     
-    // If no filters selected, default to none
-    if (filters.length === 0) {
-        filters.push('none');
-    }
-    
-    return filters;
+    return filters.length > 0 ? filters : ['none'];
 }
 
-// Get current grayscale type
 function getGrayscaleType() {
-    return grayscaleTypeSelect.value;
+    const selected = document.querySelector('input[name="grayscale-algo"]:checked');
+    return selected ? selected.value : 'bt601';
 }
 
-// Switch between Lena and Webcam input
-async function switchInputSource() {
-    const source = inputSelect.value;
-    
-    if (source === 'webcam') {
-        // Switch to streaming mode
-        currentState = AppState.STREAMING;
-        cameraStatus.style.display = 'block';
-        heroImage.style.display = 'block';
-        cameraPreview.style.display = 'none'; // Hide raw video, show processed
-        // Allow filter changes during streaming
-        
-        // Start camera automatically
-        await startCamera();
-    } else {
-        // Switch to static mode
-        currentState = AppState.STATIC;
-        stopCamera();
-        cameraStatus.style.display = 'none';
-        heroImage.style.display = 'block';
-        cameraPreview.style.display = 'none';
-    }
-}
+/* ============================================
+   FILTER APPLICATION
+   ============================================ */
 
-// Apply filter in static mode (AJAX without reload)
 async function applyFilter() {
     if (currentState === AppState.STREAMING) return;
     
@@ -123,17 +187,13 @@ async function applyFilter() {
     const filterParam = filters.includes('grayscale') ? 'grayscale' : 'none';
     const grayscaleType = getGrayscaleType();
     
-    // Show loading state
-    heroImage.style.opacity = '0.5';
-    heroImage.style.transition = 'opacity 0.3s ease';
+    heroImage.classList.add('loading');
     
     try {
-        // Fetch new image with selected filters and parameters
         const url = `/?filter=${filterParam}&accelerator=${selectedAccelerator}&grayscale_type=${grayscaleType}`;
         const response = await fetch(url);
         const html = await response.text();
         
-        // Extract base64 image from response
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const newImage = doc.querySelector('#heroImage');
@@ -142,7 +202,6 @@ async function applyFilter() {
             heroImage.src = newImage.src;
         }
         
-        // Update URL without reload
         const newUrl = new URL(window.location);
         newUrl.searchParams.set('filter', filterParam);
         newUrl.searchParams.set('accelerator', selectedAccelerator);
@@ -151,86 +210,62 @@ async function applyFilter() {
         
     } catch (error) {
         console.error('Error applying filter:', error);
-        updateStatus('Error processing image', 'error');
+        updateWSStatus('error', 'Error processing image');
     } finally {
-        heroImage.style.opacity = '1';
+        heroImage.classList.remove('loading');
     }
 }
 
-// Camera Management
+/* ============================================
+   CAMERA MANAGEMENT
+   ============================================ */
+
 async function startCamera() {
     try {
-        cameraStatus.textContent = 'Requesting camera access...';
-        cameraStatus.style.color = '#939393';
+        updateCameraStatus('Requesting access...', 'warning');
         
-        // Debug: Log available APIs
-        console.log('navigator.mediaDevices:', navigator.mediaDevices);
-        console.log('Location:', window.location.href);
-        console.log('isSecureContext:', window.isSecureContext);
-        
-        // Check if getUserMedia is available with better detection
-        const getUserMedia = navigator.mediaDevices?.getUserMedia ||
-                            navigator.getUserMedia ||
-                            navigator.webkitGetUserMedia ||
-                            navigator.mozGetUserMedia;
-        
-        if (!getUserMedia) {
-            throw new Error(`Camera API not available. Protocol: ${window.location.protocol}, Host: ${window.location.hostname}. Try accessing via http://localhost:8080`);
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('Camera API not available. Use HTTPS: https://localhost:8443');
         }
         
-        // Request camera access (use modern API if available)
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            cameraStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
-                    facingMode: 'user'
-                }
-            });
-        } else {
-            throw new Error('Modern camera API not available');
-        }
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: 'user'
+            }
+        });
         
         cameraPreview.srcObject = cameraStream;
         
-        // Wait for video to be ready
         await new Promise((resolve) => {
             cameraPreview.onloadedmetadata = resolve;
         });
         
-        // CRITICAL: Wait for video to actually play and have frames
         await cameraPreview.play();
-        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms for frames
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        console.log(`Video ready: ${cameraPreview.videoWidth}x${cameraPreview.videoHeight}`);
+        console.log(`Camera ready: ${cameraPreview.videoWidth}x${cameraPreview.videoHeight}`);
         
-        cameraStatus.textContent = '✓ Camera active - Processing frames at 15 FPS';
-        cameraStatus.style.color = '#ffa400';
-        
-        // Start frame capture and streaming
+        updateCameraStatus('Active', 'success');
         startFrameCapture();
         
     } catch (error) {
         console.error('Camera access error:', error);
-        let errorMsg = '✗ Camera access failed';
+        let errorMsg = 'Failed';
         
-        // Provide specific error messages
         if (error.name === 'NotAllowedError') {
-            errorMsg = '✗ Camera permission denied. Please allow camera access and try again.';
+            errorMsg = 'Permission denied';
         } else if (error.name === 'NotFoundError') {
-            errorMsg = '✗ No camera found on this device.';
+            errorMsg = 'No camera found';
         } else if (error.name === 'NotReadableError') {
-            errorMsg = '✗ Camera is already in use by another application.';
+            errorMsg = 'Camera in use';
         } else if (error.message) {
-            errorMsg = `✗ ${error.message}`;
+            errorMsg = error.message.substring(0, 30);
         }
         
-        cameraStatus.textContent = errorMsg;
-        cameraStatus.style.color = '#d32f2f';
-        
-        // Revert to Lena mode
-        inputSelect.value = 'lena';
-        await switchInputSource();
+        updateCameraStatus(errorMsg, 'error');
+        setInputSource('lena');
     }
 }
 
@@ -248,26 +283,7 @@ function stopCamera() {
     if (cameraPreview.srcObject) {
         cameraPreview.srcObject = null;
     }
-    
-    cameraStatus.textContent = '';
-    cameraStatus.style.color = '#939393';
 }
-
-// Frame Capture and Streaming
-let isProcessing = false;
-let frameCount = 0;
-
-// Processing resolution (adjustable via UI)
-let PROCESS_WIDTH = 640;
-let PROCESS_HEIGHT = 480;
-const JPEG_QUALITY = 0.7; // 0.0 - 1.0 (lower = faster, smaller)
-
-// Resolution presets
-const RESOLUTIONS = {
-    quarter: { width: 160, height: 120 },
-    half: { width: 320, height: 240 },
-    full: { width: 640, height: 480 }
-};
 
 function updateResolution() {
     const resolution = resolutionSelect.value;
@@ -276,36 +292,36 @@ function updateResolution() {
     PROCESS_WIDTH = preset.width;
     PROCESS_HEIGHT = preset.height;
     
-    console.log(`Resolution changed to: ${PROCESS_WIDTH}x${PROCESS_HEIGHT}`);
+    console.log(`Resolution: ${PROCESS_WIDTH}x${PROCESS_HEIGHT}`);
     
-    // If streaming, restart with new resolution
     if (frameInterval) {
         stopFrameCapture();
         startFrameCapture();
     }
 }
 
+/* ============================================
+   FRAME CAPTURE & STREAMING
+   ============================================ */
+
+let isProcessing = false;
+
 function startFrameCapture() {
     const canvas = captureCanvas;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     
-    // Set canvas to processing resolution
     canvas.width = PROCESS_WIDTH;
     canvas.height = PROCESS_HEIGHT;
     
     console.log(`Starting capture at ${PROCESS_WIDTH}x${PROCESS_HEIGHT}`);
     
-    // Capture and send frames at specified FPS
     frameInterval = setInterval(() => {
-        if (!cameraPreview.videoWidth) return; // Video not ready
-        if (isProcessing) return; // Skip frame if still processing previous
+        if (!cameraPreview.videoWidth) return;
+        if (isProcessing) return;
         
         frameCount++;
         
-        // Draw scaled video frame to canvas
         ctx.drawImage(cameraPreview, 0, 0, PROCESS_WIDTH, PROCESS_HEIGHT);
-        
-        // Convert to JPEG for faster encoding and smaller size
         const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
         const base64data = dataUrl.split(',')[1];
         
@@ -325,6 +341,8 @@ function sendFrame(base64Data, width, height) {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     
     isProcessing = true;
+    const sendTime = performance.now();
+    
     const filters = getSelectedFilters();
     const grayscaleType = getGrayscaleType();
     
@@ -337,44 +355,48 @@ function sendFrame(base64Data, width, height) {
             data: base64Data,
             width: width,
             height: height,
-            channels: 4 // RGBA
-        }
+            channels: 4
+        },
+        timestamp: sendTime
     };
     
     ws.send(JSON.stringify(message));
-    
-    // Update status with frame count
-    if (frameCount % 30 === 0) { // Update every 30 frames (~2 seconds)
-        cameraStatus.textContent = `✓ Camera active - ${frameCount} frames processed (${selectedAccelerator.toUpperCase()})`;
-    }
 }
 
-// WebSocket connection management
+/* ============================================
+   WEBSOCKET
+   ============================================ */
+
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
     ws.onopen = function() {
-        updateStatus('Connected - Real-time processing ready', 'connected');
+        updateWSStatus('connected', 'Connected');
         console.log('WebSocket connected');
     };
 
     ws.onmessage = function(event) {
-        isProcessing = false; // Always reset processing flag
+        const receiveTime = performance.now();
+        isProcessing = false;
                 
         try {
             const data = JSON.parse(event.data);
             
             if (data.type === 'frame_result') {
                 if (data.success) {
-                    // Update hero image with processed frame
                     const newSrc = `data:image/png;base64,${data.image.data}`;
                     heroImage.src = newSrc;
                     heroImage.style.display = 'block';
+                    
+                    // Calculate processing time
+                    if (data.timestamp) {
+                        const processingTime = receiveTime - data.timestamp;
+                        updateStats(processingTime);
+                    }
                 } else {
                     console.error('Frame processing error:', data.error);
-                    cameraStatus.textContent = `⚠ Error: ${data.error}`;
-                    cameraStatus.style.color = '#ff9100';
+                    updateCameraStatus(`Error: ${data.error}`, 'error');
                 }
             }
         } catch (error) {
@@ -384,27 +406,270 @@ function connectWebSocket() {
 
     ws.onerror = function(error) {
         console.error('WebSocket error:', error);
-        updateStatus('Connection error - Retrying...', 'error');
-        isProcessing = false; // Reset processing on error
+        updateWSStatus('error', 'Connection error');
+        isProcessing = false;
     };
 
     ws.onclose = function() {
         console.log('WebSocket closed - Reconnecting...');
-        updateStatus('Reconnecting...', '');
+        updateWSStatus('connecting', 'Reconnecting...');
         setTimeout(connectWebSocket, 3000);
     };
 }
 
-// Status bar helper
-function updateStatus(message, className) {
-    statusText.textContent = message;
-    statusBar.classList.remove('connected', 'error');
-    if (className) {
-        statusBar.classList.add(className);
+/* ============================================
+   STATS TRACKING
+   ============================================ */
+
+function updateStats(processingTime) {
+    // Update frame count
+    statFrames.textContent = frameCount;
+    
+    // Calculate FPS (sliding window of last 10 frames)
+    const now = performance.now();
+    if (lastFrameTime > 0) {
+        const frameDuration = now - lastFrameTime;
+        const instantFPS = 1000 / frameDuration;
+        
+        fpsHistory.push(instantFPS);
+        if (fpsHistory.length > 10) fpsHistory.shift();
+        
+        const avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+        statFPS.textContent = avgFPS.toFixed(1);
+    }
+    lastFrameTime = now;
+    
+    // Update processing time (average of last 10)
+    processingTimes.push(processingTime);
+    if (processingTimes.length > 10) processingTimes.shift();
+    
+    const avgTime = processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
+    statTime.textContent = avgTime.toFixed(0) + 'ms';
+}
+
+function updateCameraStatus(status, type) {
+    statCamera.textContent = status;
+    statCamera.className = '';
+    
+    if (type === 'success') {
+        statCamera.style.color = 'var(--success)';
+    } else if (type === 'error') {
+        statCamera.style.color = 'var(--error)';
+    } else if (type === 'warning') {
+        statCamera.style.color = 'var(--warning)';
+    } else {
+        statCamera.style.color = '#939393';
     }
 }
 
-// Initialize on page load
+function updateWSStatus(status, text) {
+    wsIndicator.className = 'ws-indicator ' + status;
+    wsStatus.textContent = text;
+}
+
+/* ============================================
+   DRAG & DROP - Filter Reordering
+   ============================================ */
+
+let draggedElement = null;
+let draggedIndex = null;
+
+function initDragAndDrop() {
+    const filtersList = document.getElementById('filtersList');
+    const cards = filtersList.querySelectorAll('.filter-card:not(.disabled)');
+    
+    cards.forEach((card, index) => {
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+        card.addEventListener('dragover', handleDragOver);
+        card.addEventListener('drop', handleDrop);
+        card.addEventListener('dragenter', handleDragEnter);
+        card.addEventListener('dragleave', handleDragLeave);
+    });
+}
+
+function handleDragStart(e) {
+    draggedElement = this;
+    draggedIndex = Array.from(this.parentNode.children).indexOf(this);
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    
+    // Remove drag-over class from all cards
+    document.querySelectorAll('.filter-card').forEach(card => {
+        card.classList.remove('drag-over');
+    });
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    if (this !== draggedElement && !this.classList.contains('disabled')) {
+        this.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (draggedElement !== this && !this.classList.contains('disabled')) {
+        const dropIndex = Array.from(this.parentNode.children).indexOf(this);
+        
+        // Reorder DOM elements
+        if (draggedIndex < dropIndex) {
+            this.parentNode.insertBefore(draggedElement, this.nextSibling);
+        } else {
+            this.parentNode.insertBefore(draggedElement, this);
+        }
+        
+        // Update filter order
+        updateFilterOrder();
+        console.log('Filter order:', filterOrder);
+    }
+    
+    return false;
+}
+
+function updateFilterOrder() {
+    const filtersList = document.getElementById('filtersList');
+    const cards = filtersList.querySelectorAll('.filter-card:not(.disabled)');
+    filterOrder = Array.from(cards).map(card => card.dataset.filter);
+}
+
+/* ============================================
+   APPLY FILTER
+   ============================================ */
+
+async function applyFilter() {
+    if (currentState === AppState.STREAMING) return;
+    
+    const filters = getSelectedFilters();
+    const filterParam = filters.includes('grayscale') ? 'grayscale' : 'none';
+    const grayscaleType = getGrayscaleType();
+    
+    const startTime = performance.now();
+    heroImage.classList.add('loading');
+    
+    try {
+        const url = `/?filter=${filterParam}&accelerator=${selectedAccelerator}&grayscale_type=${grayscaleType}`;
+        const response = await fetch(url);
+        const html = await response.text();
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newImage = doc.querySelector('#heroImage');
+        
+        if (newImage) {
+            heroImage.src = newImage.src;
+        }
+        
+        const processingTime = performance.now() - startTime;
+        statTime.textContent = processingTime.toFixed(0) + 'ms';
+        
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('filter', filterParam);
+        newUrl.searchParams.set('accelerator', selectedAccelerator);
+        newUrl.searchParams.set('grayscale_type', grayscaleType);
+        window.history.pushState({}, '', newUrl);
+        
+    } catch (error) {
+        console.error('Error applying filter:', error);
+        updateWSStatus('error', 'Error processing');
+    } finally {
+        heroImage.classList.remove('loading');
+    }
+}
+
+/* ============================================
+   CAMERA FUNCTIONALITY
+   ============================================ */
+
+async function startCamera() {
+    try {
+        const getUserMedia = navigator.mediaDevices?.getUserMedia;
+        
+        if (!getUserMedia) {
+            throw new Error('Camera API not available. Use HTTPS.');
+        }
+        
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user'
+                }
+            });
+        } else {
+            throw new Error('Modern camera API not available');
+        }
+        
+        cameraPreview.srcObject = cameraStream;
+        
+        await new Promise((resolve) => {
+            cameraPreview.onloadedmetadata = resolve;
+        });
+        
+        await cameraPreview.play();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        console.log(`Camera ready: ${cameraPreview.videoWidth}x${cameraPreview.videoHeight}`);
+        
+        updateCameraStatus('Active', 'success');
+        startFrameCapture();
+        
+    } catch (error) {
+        console.error('Camera error:', error);
+        let errorMsg = 'Failed';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMsg = 'Permission denied';
+        } else if (error.name === 'NotFoundError') {
+            errorMsg = 'No camera found';
+        } else if (error.name === 'NotReadableError') {
+            errorMsg = 'Camera in use';
+        } else if (error.message) {
+            errorMsg = error.message.substring(0, 25);
+        }
+        
+        updateCameraStatus(errorMsg, 'error');
+        setInputSource('lena');
+    }
+}
+
+/* ============================================
+   INITIALIZATION
+   ============================================ */
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing CUDA Image Processor Dashboard...');
+    
+    // Connect WebSocket
     connectWebSocket();
+    
+    // Initialize drag and drop
+    initDragAndDrop();
+    
+    // Reset stats
+    statFPS.textContent = '--';
+    statTime.textContent = '--ms';
+    statFrames.textContent = '0';
+    updateCameraStatus('Inactive', 'inactive');
+    
+    console.log('✅ Dashboard initialized');
 });

@@ -1,0 +1,62 @@
+/* Design Tokens - CUDA Image Processor */
+
+:root {
+    /* Layout Dimensions */
+    --sidebar-width: 300px;
+    --header-height: 65px;
+    --stats-height: 70px;
+    
+    /* Colors - Brand */
+    --primary-color: #ffa400;
+    --primary-hover: #ff9100;
+    --primary-light: #ffd485;
+    --primary-bg-light: #fff8ed;
+    
+    /* Colors - UI */
+    --background: #FFF;
+    --background-secondary: #F9F9F9;
+    --background-tertiary: #f0f0f0;
+    
+    --text-primary: #333;
+    --text-secondary: #939393;
+    --text-light: #666;
+    
+    --border-color: #f0f0f0;
+    --border-color-hover: #ffa400;
+    
+    /* Colors - Status */
+    --success: #4caf50;
+    --error: #d32f2f;
+    --warning: #ff9100;
+    --info: #2196f3;
+    
+    /* Spacing */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 20px;
+    --spacing-lg: 30px;
+    --spacing-xl: 40px;
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    
+    /* Shadows */
+    --shadow-sm: 0px 2px 8px 0px rgba(50, 50, 50, 0.08);
+    --shadow-md: 0px 2px 12px 0px rgba(50, 50, 50, 0.15);
+    --shadow-lg: 0px 4px 20px 0px rgba(50, 50, 50, 0.2);
+    
+    /* Transitions */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+    
+    /* Z-index Layers */
+    --z-header: 1000;
+    --z-sidebar: 900;
+    --z-stats: 1000;
+    --z-tooltip: 2000;
+    --z-modal: 3000;
+}
+

@@ -12,13 +12,12 @@ Built with Go because I wanted to try CGO, and C++ for the actual processing. Pr
 
 ## Setup
 
-Need HTTPS for camera access (browser thing):
 ```bash
 ./scripts/setup-ssl.sh
-./scripts/start-dev.sh --build
+./scripts/start-dev.sh --build  # Dev mode (hot reload)
+# or
+./scripts/start-dev.sh --build --prod  # Production bundle
 ```
-
-Then go to `https://localhost:8443`
 
 ## Tech
 
@@ -28,7 +27,7 @@ Then go to `https://localhost:8443`
 - Bazel because... honestly not sure why I picked Bazel but it's fine
 - Caddy for HTTPS (needed for getUserMedia API)
 
-Frontend is just vanilla JS. Didn't want to deal with React or whatever.
+Frontend: Lit Web Components + TypeScript with Vite bundler. No React, just native web components.
 
 ## Grayscale algorithms
 
@@ -89,23 +88,20 @@ Stats bar shows FPS and processing time per frame. Logs every 30 frames.
 
 Right now only grayscale but the pipeline supports chaining filters. You can drag and drop to reorder them. Might add blur or edge detection later if I feel like it.
 
-## Issues
+## Known issues
 
-- Sometimes Caddy doesn't stop cleanly, have to `pkill` it
-- Camera permission on Linux needs your user in `video` group
-- SSL cert warnings if you didn't run setup script
-- Toast notifications are kinda big but I like them
+- Caddy sometimes doesn't stop cleanly, use `pkill caddy`
+- Camera needs user in `video` group on Linux
+- SSL cert warnings if you skip setup script
 
-## Todo maybe
+## Roadmap
 
-- [ ] Blur filter
-- [ ] Edge detection (Sobel?)
-- [ ] Maybe try OpenCL instead of CUDA
-- [ ] Better error handling when GPU isn't available
-- [ ] Docker setup
+- Blur filter (Gaussian)
+- Edge detection (Sobel)
+- Try OpenCL as alternative to CUDA
+- Better GPU unavailable handling
+- Docker container
 
 ## Notes
 
-This started as a weekend project to learn CUDA and turned into... this. Code quality is mixed - some parts are clean, others not so much. Feel free to use it if you want but no guarantees.
-
-The CGO part was actually harder than the CUDA part tbh.
+Weekend project that grew. Code quality varies. CGO was harder than CUDA.

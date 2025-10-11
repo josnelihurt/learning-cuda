@@ -1,17 +1,21 @@
-console.log(`CUDA Image Processor Dashboard v${APP_VERSION} - Loaded`);
+import './components/camera-preview';
+import './components/toast-container';
+import './components/stats-panel';
+import './components/filter-panel';
+import { WebSocketService } from './services/websocket-service';
+import { UIService } from './services/ui-service';
 
-import { WebSocketService } from './dist/services/websocket-service.js';
-import { UIService } from './dist/services/ui-service.js';
+console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 
 const app = {
-    toastManager: null,
-    statsManager: null,
-    cameraManager: null,
-    wsManager: null,
-    filterManager: null,
-    uiManager: null,
+    toastManager: null as any,
+    statsManager: null as any,
+    cameraManager: null as any,
+    wsManager: null as any,
+    filterManager: null as any,
+    uiManager: null as any,
     
-    currentState: 'static',
+    currentState: 'static' as 'static' | 'streaming',
     selectedAccelerator: 'gpu',
     selectedInputSource: 'lena',
     
@@ -44,15 +48,15 @@ const app = {
         this.uiManager = new UIService(this.statsManager, this.cameraManager, this.filterManager, this.toastManager);
         this.wsManager = new WebSocketService(this.statsManager, this.cameraManager, this.toastManager);
         
-        // Connect WebSocket
         this.wsManager.connect();
         
-        // Setup WebSocket frame result handler
         this.wsManager.onFrameResult((data) => {
             const heroImage = document.getElementById('heroImage');
-            const newSrc = `data:image/png;base64,${data.image.data}`;
-            heroImage.src = newSrc;
-            heroImage.style.display = 'block';
+            if (heroImage) {
+                const newSrc = `data:image/png;base64,${data.image.data}`;
+                (heroImage as HTMLImageElement).src = newSrc;
+                (heroImage as HTMLElement).style.display = 'block';
+            }
         });
         
         this.statsManager.reset();
@@ -61,9 +65,9 @@ const app = {
     }
 };
 
-window.app = app;
+(window as any).app = app;
 
-function setInputSource(source) {
+(window as any).setInputSource = function(source: string) {
     app.selectedInputSource = app.uiManager.setInputSource(source);
     
     if (source === 'webcam') {
@@ -71,31 +75,32 @@ function setInputSource(source) {
     } else {
         switchToStatic();
     }
-}
+};
 
-function setAccelerator(type) {
+(window as any).setAccelerator = function(type: string) {
     app.selectedAccelerator = app.uiManager.setAccelerator(type);
     
     if (app.currentState === 'static') {
         app.uiManager.applyFilter();
     }
-}
+};
 
 async function switchToStreaming() {
     app.currentState = 'streaming';
     const heroImage = document.getElementById('heroImage');
-    heroImage.style.display = 'block';
+    if (heroImage) {
+        heroImage.style.display = 'block';
+    }
     
     const success = await app.cameraManager.start();
     if (success) {
-        app.cameraManager.startCapture((base64Data, width, height, timestamp) => {
+        app.cameraManager.startCapture((base64Data: string, width: number, height: number) => {
             const filters = app.filterManager.getSelectedFilters();
             const grayscaleType = app.filterManager.getGrayscaleType();
             app.wsManager.sendFrame(base64Data, width, height, filters, app.selectedAccelerator, grayscaleType);
         });
     } else {
-        // Revert to static on camera failure
-        setInputSource('lena');
+        (window as any).setInputSource('lena');
     }
 }
 
@@ -104,16 +109,18 @@ function switchToStatic() {
     app.cameraManager.stop();
     
     const heroImage = document.getElementById('heroImage');
-    heroImage.style.display = 'block';
+    if (heroImage) {
+        heroImage.style.display = 'block';
+    }
     
-    // Reload static image with current filters
     app.uiManager.applyFilter();
 }
 
-function updateResolution() {
-    // Already handled by UIManager initResolutionSelector
-}
+(window as any).updateResolution = function() {
+    // Already handled by UIService initResolutionSelector
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
 });
+

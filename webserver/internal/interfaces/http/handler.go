@@ -175,11 +175,15 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		SelectedFilter    string
 		SelectedAccel     string
 		SelectedGrayscale string
+		DevMode           bool
+		BundleFile        string
 	}{
 		ImageData:         base64Image,
 		SelectedFilter:    filterParam,
 		SelectedAccel:     acceleratorParam,
 		SelectedGrayscale: grayscaleParam,
+		DevMode:           h.devMode,
+		BundleFile:        getBundleFile(h.webRootPath),
 	}
 
 	tmpl := h.tmpl

@@ -1,4 +1,6 @@
 node_modules/
-static/js/dist/
+static/js/dist/*.js
+static/js/dist/*.map
+static/js/dist/*.d.ts
+static/js/dist/chunks/
 *.log
-

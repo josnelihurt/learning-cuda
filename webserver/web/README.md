@@ -1,4 +1,4 @@
-npm install
-npm run build
-# In dev mode run
-npm run watch
+```bash
+./scripts/start-dev.sh --build         # Dev (hot reload)
+./scripts/start-dev.sh --build --prod  # Production bundle
+```

@@ -7,16 +7,23 @@
 	auto_https disable_redirects
 }
 
-# HTTPS endpoint on port 8443 (no root permissions needed)
-# Listen on all interfaces (0.0.0.0) to allow access from local network
 :8443 {
-	# Use local certificates (generated with mkcert or openssl)
 	tls .secrets/localhost+2.pem .secrets/localhost+2-key.pem
 
-	# Reverse proxy to Go server
+	@vite {
+		path /@vite/* /src/* /node_modules/*
+	}
+	
+	handle @vite {
+		reverse_proxy https://localhost:3000 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+
 	reverse_proxy localhost:8080
 
-	# Enable logging for debugging
 	log {
 		output file ./caddy.log
 		level INFO

@@ -141,29 +141,7 @@
 
     <toast-container></toast-container>
 
-    <footer class="stats-bar">
-        <div class="stats-container">
-            <div class="stat-item">
-                <span class="stat-label">FPS:</span>
-                <strong id="statFPS">--</strong>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Time:</span>
-                <strong id="statTime">--ms</strong>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Frames:</span>
-                <strong id="statFrames">0</strong>
-            </div>
-            <div class="stat-item">
-                <span id="statCamera">Inactive</span>
-            </div>
-            <div class="stat-item">
-                <span class="ws-indicator" id="wsIndicator">○</span>
-                <span id="wsStatus">Connecting...</span>
-            </div>
-        </div>
-    </footer>
+    <stats-panel></stats-panel>
 
     <!-- TODO: add bundle for dependencies. For now it is ok. -->
     <script type="importmap">
@@ -181,12 +159,12 @@
     </script>
     
     <script src="/static/js/version.js"></script>
-    <script src="/static/js/modules/stats.js"></script>
     <script src="/static/js/modules/websocket.js"></script>
     <script src="/static/js/modules/filters.js"></script>
     <script src="/static/js/modules/ui.js"></script>
     <script type="module" src="/static/js/dist/components/camera-preview.js"></script>
     <script type="module" src="/static/js/dist/components/toast-container.js"></script>
+    <script type="module" src="/static/js/dist/components/stats-panel.js"></script>
     <script src="/static/js/app.js?v=12"></script>
 </body>
 </html>

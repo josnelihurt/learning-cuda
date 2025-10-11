@@ -17,11 +17,12 @@ const app = {
         console.log('Initializing dashboard...');
         await customElements.whenDefined('camera-preview');
         await customElements.whenDefined('toast-container');
+        await customElements.whenDefined('stats-panel');
         
         this.toastManager = document.querySelector('toast-container');
         this.toastManager.configure({ duration: 7000 });
         
-        this.statsManager = new StatsManager();
+        this.statsManager = document.querySelector('stats-panel');
         this.filterManager = new FilterManager();
         
         this.cameraManager = document.querySelector('camera-preview');

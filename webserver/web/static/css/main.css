@@ -155,14 +155,26 @@ body {
     margin-bottom: var(--spacing-lg);
 }
 
+.control-section:not(.filters-section) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+}
+
 .control-label {
     display: block;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-primary);
-    margin-bottom: var(--spacing-sm);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    flex-shrink: 0;
+    margin-bottom: 0;
+}
+
+.filters-section .control-label {
+    margin-bottom: var(--spacing-sm);
 }
 
 .hint {
@@ -184,16 +196,17 @@ body {
     border-radius: var(--radius-md);
     overflow: hidden;
     background: var(--background);
+    min-width: 160px;
 }
 
 .segment {
     flex: 1;
-    padding: 12px var(--spacing-sm);
+    padding: 8px 12px;
     background: var(--background);
     border: none;
     border-right: 1px solid var(--border-color);
     color: var(--text-light);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
@@ -201,7 +214,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 .segment:last-child {
@@ -227,11 +241,11 @@ body {
    ============================================ */
 
 .compact-select {
-    width: 100%;
-    padding: 12px;
+    min-width: 160px;
+    padding: 8px 12px;
     border-radius: var(--radius-md);
     border: 2px solid var(--border-color);
-    font-size: 14px;
+    font-size: 13px;
     font-family: inherit;
     color: var(--text-primary);
     background: var(--background);

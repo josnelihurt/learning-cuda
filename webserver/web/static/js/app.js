@@ -155,6 +155,24 @@ function toggleFilterCard(header) {
 }
 
 function updateFilters() {
+    // Auto-expand/collapse filter cards based on checkbox state
+    const grayscaleCheckbox = document.getElementById('filterGrayscale');
+    if (grayscaleCheckbox) {
+        const card = grayscaleCheckbox.closest('.filter-card');
+        const body = card.querySelector('.filter-body');
+        const header = card.querySelector('.filter-header');
+        
+        if (grayscaleCheckbox.checked) {
+            // Expand when enabled
+            body.classList.add('expanded');
+            header.classList.remove('collapsed');
+        } else {
+            // Collapse when disabled
+            body.classList.remove('expanded');
+            header.classList.add('collapsed');
+        }
+    }
+    
     // Apply filters if in static mode
     if (currentState === AppState.STATIC) {
         applyFilter();

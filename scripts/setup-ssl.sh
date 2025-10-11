@@ -32,12 +32,62 @@ if ! command -v mkcert &> /dev/null; then
             ;;
         2)
             echo "📝 Using OpenSSL for self-signed certificate..."
+            
+            # Get local IP address
+            LOCAL_IP=$(hostname -I | awk '{print $1}')
+            HOSTNAME=$(hostname -s)
+            
+            echo "Detected:"
+            echo "  Local IP: $LOCAL_IP"
+            echo "  Hostname: $HOSTNAME"
+            echo ""
+            
             cd "$SECRETS_DIR"
+            
+            # Create OpenSSL config with SAN (Subject Alternative Names)
+            cat > openssl.cnf << EOF
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+req_extensions = v3_req
+
+[dn]
+C=US
+ST=State
+L=City
+O=Dev
+CN=localhost
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = $HOSTNAME
+DNS.3 = *.local
+IP.1 = 127.0.0.1
+IP.2 = ::1
+IP.3 = $LOCAL_IP
+EOF
+
             openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
                 -keyout localhost+2-key.pem \
                 -out localhost+2.pem \
-                -subj "/C=US/ST=State/L=City/O=Dev/CN=localhost"
-            echo "✅ Self-signed certificate created!"
+                -config openssl.cnf \
+                -extensions v3_req
+            
+            rm openssl.cnf
+            
+            echo "✅ Self-signed certificate created with SAN!"
+            echo "📍 Certificate valid for:"
+            echo "  - localhost"
+            echo "  - 127.0.0.1"
+            echo "  - $LOCAL_IP"
+            echo "  - $HOSTNAME"
+            echo "  - *.local (mDNS)"
+            echo ""
             echo "⚠️  Note: Your browser will show security warnings for self-signed certs."
             exit 0
             ;;
@@ -56,10 +106,19 @@ fi
 echo "📋 Installing local Certificate Authority..."
 mkcert -install
 
-# Generate certificates
-echo "🔑 Generating SSL certificates..."
+# Get local IP and hostname
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+HOSTNAME=$(hostname -s)
+
+echo "Detected:"
+echo "  Local IP: $LOCAL_IP"
+echo "  Hostname: $HOSTNAME"
+echo ""
+
+# Generate certificates with local IP and hostname
+echo "🔑 Generating SSL certificates for local network..."
 cd "$SECRETS_DIR"
-mkcert localhost 127.0.0.1 ::1
+mkcert localhost 127.0.0.1 ::1 $LOCAL_IP $HOSTNAME $HOSTNAME.local
 
 echo ""
 echo "✅ SSL certificates generated successfully!"

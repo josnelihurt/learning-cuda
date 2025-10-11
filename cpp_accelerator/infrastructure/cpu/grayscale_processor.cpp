@@ -83,15 +83,9 @@ bool CpuGrayscaleProcessor::process(domain::interfaces::IImageSource& source,
     int channels = source.channels();
     const unsigned char* input_data = source.data();
 
-    spdlog::info("Processing image to grayscale (CPU)...");
-    spdlog::info("  Input: {}x{} ({} channels)", width, height, channels);
-    spdlog::info("  Algorithm: {}", static_cast<int>(algorithm_));
-
     std::unique_ptr<unsigned char[]> output_data(new unsigned char[width * height]);
 
     convert_to_grayscale_cpu(input_data, output_data.get(), width, height, channels);
-
-    spdlog::info("  Output: {}x{} (1 channel)", width, height);
 
     return sink.write(output_path.c_str(), output_data.get(), width, height, 1);
 }

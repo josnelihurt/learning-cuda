@@ -8,7 +8,8 @@
 }
 
 # HTTPS endpoint on port 8443 (no root permissions needed)
-localhost:8443 {
+# Listen on all interfaces (0.0.0.0) to allow access from local network
+:8443 {
 	# Use local certificates (generated with mkcert or openssl)
 	tls .secrets/localhost+2.pem .secrets/localhost+2-key.pem
 
@@ -23,6 +24,6 @@ localhost:8443 {
 }
 
 # Optional: HTTP on port 8000 (also no root) redirects to HTTPS
-http://localhost:8000 {
-	redir https://localhost:8443{uri} permanent
+:8000 {
+	redir https://{host}:8443{uri} permanent
 }

@@ -16,33 +16,28 @@ CommandFactory::CommandFactory() {
 }
 
 void CommandFactory::register_commands() {
-    // Register Passthrough Command (renamed from Simple)
     creators_[infrastructure::config::models::ProgramType::Passthrough] =
         [](const infrastructure::config::models::ProgramConfig& config) {
             auto processor = std::make_unique<infrastructure::cuda::SimpleKernelProcessor>();
             return std::make_unique<PassthroughCommand>(std::move(processor));
         };
 
-    // Register CUDA Image Filters Command (renamed from Grayscale, GPU-accelerated)
     creators_[infrastructure::config::models::ProgramType::CudaImageFilters] =
         [](const infrastructure::config::models::ProgramConfig& config) {
             auto processor = std::make_unique<infrastructure::cuda::GrayscaleProcessor>();
             auto source = std::make_unique<infrastructure::image::ImageLoader>(
                 config.input_image_path.c_str());
             auto sink = std::make_unique<infrastructure::image::ImageWriter>();
-
             return std::make_unique<CudaImageFiltersCommand>(
                 std::move(processor), std::move(source), std::move(sink), config.output_image_path);
         };
 
-    // Register CPU Image Filters Command (new, CPU-based processing)
     creators_[infrastructure::config::models::ProgramType::CpuImageFilters] =
         [](const infrastructure::config::models::ProgramConfig& config) {
             auto processor = std::make_unique<infrastructure::cpu::CpuGrayscaleProcessor>();
             auto source = std::make_unique<infrastructure::image::ImageLoader>(
                 config.input_image_path.c_str());
             auto sink = std::make_unique<infrastructure::image::ImageWriter>();
-
             return std::make_unique<CpuImageFiltersCommand>(
                 std::move(processor), std::move(source), std::move(sink), config.output_image_path);
         };

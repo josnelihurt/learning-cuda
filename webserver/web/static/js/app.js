@@ -1,9 +1,4 @@
-/**
- * CUDA Image Processor - Dashboard Application
- * Main entry point
- */
-
-console.log(`🚀 CUDA Image Processor Dashboard v${APP_VERSION} - Loaded`);
+console.log(`CUDA Image Processor Dashboard v${APP_VERSION} - Loaded`);
 
 // Application singleton
 const app = {
@@ -40,19 +35,13 @@ const app = {
             heroImage.style.display = 'block';
         });
         
-        // Reset stats
         this.statsManager.reset();
         
-        console.log('✅ Dashboard initialized');
+        console.log('Dashboard initialized');
     }
 };
 
-// Make app globally accessible
 window.app = app;
-
-/* ============================================
-   GLOBAL FUNCTIONS (called from HTML)
-   ============================================ */
 
 function setInputSource(source) {
     app.selectedInputSource = app.uiManager.setInputSource(source);
@@ -120,10 +109,6 @@ function applyFilter() {
 function updateResolution() {
     // Already handled by UIManager initResolutionSelector
 }
-
-/* ============================================
-   INITIALIZATION
-   ============================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
     app.init();

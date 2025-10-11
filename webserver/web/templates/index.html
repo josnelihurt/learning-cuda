@@ -16,7 +16,7 @@
                     <span class="accent">CUDA</span> Image Processor
                 </a>
                 <button class="info-btn" id="infoBtn" title="About this app">
-                    <span>ℹ️</span>
+                    <span>i</span>
                 </button>
             </div>
             <div class="navbar-credit">
@@ -49,10 +49,10 @@
                 <label class="control-label">Accelerator</label>
                 <div class="segmented-control">
                     <button class="segment active" data-value="gpu" onclick="setAccelerator('gpu')">
-                        <span class="segment-icon">⚡</span> GPU
+                        GPU
                     </button>
                     <button class="segment" data-value="cpu" onclick="setAccelerator('cpu')">
-                        <span class="segment-icon">🖥️</span> CPU
+                        CPU
                     </button>
                 </div>
             </div>
@@ -139,39 +139,30 @@
         </div>
     </main>
 
-    <!-- Stats Footer -->
     <footer class="stats-bar">
         <div class="stats-container">
             <div class="stat-item">
-                <span class="stat-icon">📊</span>
                 <span class="stat-label">FPS:</span>
                 <strong id="statFPS">--</strong>
             </div>
             <div class="stat-item">
-                <span class="stat-icon">⚡</span>
                 <span class="stat-label">Time:</span>
                 <strong id="statTime">--ms</strong>
             </div>
             <div class="stat-item">
-                <span class="stat-icon">🎬</span>
                 <span class="stat-label">Frames:</span>
                 <strong id="statFrames">0</strong>
             </div>
             <div class="stat-item">
-                <span class="stat-icon">📷</span>
                 <span id="statCamera">Inactive</span>
             </div>
             <div class="stat-item">
-                <span class="stat-icon">🔌</span>
                 <span class="ws-indicator" id="wsIndicator">○</span>
                 <span id="wsStatus">Connecting...</span>
             </div>
         </div>
     </footer>
 
-    <!-- Toast Container (populated by JavaScript) -->
-    
-    <!-- JavaScript Modules -->
     <script src="/static/js/version.js"></script>
     <script src="/static/js/modules/toast.js"></script>
     <script src="/static/js/modules/stats.js"></script>

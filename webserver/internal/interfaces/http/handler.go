@@ -49,25 +49,21 @@ func NewHandler(useCase *application.ProcessImageUseCase, devMode bool, webRootP
 }
 
 func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	// Get filters from query parameter (comma-separated), default to "none"
 	filterParam := r.URL.Query().Get("filter")
 	if filterParam == "" {
 		filterParam = "none"
 	}
 	
-	// Get accelerator type, default to "gpu"
 	acceleratorParam := r.URL.Query().Get("accelerator")
 	if acceleratorParam == "" {
 		acceleratorParam = "gpu"
 	}
 	
-	// Get grayscale type, default to "bt601"
 	grayscaleParam := r.URL.Query().Get("grayscale_type")
 	if grayscaleParam == "" {
 		grayscaleParam = "bt601"
 	}
 	
-	// Parse filters (for now, single filter support from query param)
 	var filters []domain.FilterType
 	switch filterParam {
 	case "none":
@@ -78,7 +74,6 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		filters = []domain.FilterType{domain.FilterNone}
 	}
 	
-	// Parse accelerator type
 	var accelerator domain.AcceleratorType
 	switch acceleratorParam {
 	case "gpu":
@@ -89,7 +84,6 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		accelerator = domain.AcceleratorGPU
 	}
 	
-	// Parse grayscale type
 	var grayscaleType domain.GrayscaleType
 	switch grayscaleParam {
 	case "bt601":
@@ -106,25 +100,22 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		grayscaleType = domain.GrayscaleBT601
 	}
 
-	// Load lena.png
 	lenaPath := filepath.Join("data", "lena.png")
 	imageFile, err := os.Open(lenaPath)
 	if err != nil {
-		log.Printf("Error reading lena.png: %v", err)
-		http.Error(w, "Error loading image", http.StatusInternalServerError)
+		log.Printf("open failed: %v", err)
+		http.Error(w, "load failed", http.StatusInternalServerError)
 		return
 	}
 	defer imageFile.Close()
 
-	// Decode PNG to get raw pixels
 	img, _, err := image.Decode(imageFile)
 	if err != nil {
-		log.Printf("Error decoding PNG: %v", err)
-		http.Error(w, "Error decoding image", http.StatusInternalServerError)
+		log.Printf("decode failed: %v", err)
+		http.Error(w, "decode failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Convert to RGBA format
 	bounds := img.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
@@ -136,7 +127,6 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Create domain image with raw pixel data
 	domainImg := &domain.Image{
 		Data:   rgba.Pix,
 		Width:  width,
@@ -144,15 +134,13 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		Format: "png",
 	}
 
-	// Process with selected filters
 	processedImg, err := h.useCase.Execute(domainImg, filters, accelerator, grayscaleType)
 	if err != nil {
-		log.Printf("Error processing image: %v", err)
-		http.Error(w, "Error processing image", http.StatusInternalServerError)
+		log.Printf("process failed: %v", err)
+		http.Error(w, "process failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Encode result to PNG based on filter type
 	var buf bytes.Buffer
 	hasGrayscale := false
 	for _, f := range filters {
@@ -163,26 +151,23 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	if !hasGrayscale {
-		// Original image in RGBA format
 		resultImg := image.NewRGBA(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		resultImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, resultImg); err != nil {
-			log.Printf("Error encoding PNG: %v", err)
-			http.Error(w, "Error encoding image", http.StatusInternalServerError)
+			log.Printf("encode failed: %v", err)
+			http.Error(w, "encode failed", http.StatusInternalServerError)
 			return
 		}
 	} else {
-		// Grayscale image
 		grayImg := image.NewGray(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		grayImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, grayImg); err != nil {
-			log.Printf("Error encoding PNG: %v", err)
-			http.Error(w, "Error encoding image", http.StatusInternalServerError)
+			log.Printf("encode failed: %v", err)
+			http.Error(w, "encode failed", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	// Convert to base64
 	base64Image := base64.StdEncoding.EncodeToString(buf.Bytes())
 
 	data := struct {
@@ -197,26 +182,24 @@ func (h *Handler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		SelectedGrayscale: grayscaleParam,
 	}
 
-	// In dev mode, reload template on each request
 	tmpl := h.tmpl
 	if h.devMode {
 		var err error
 		templatePath := filepath.Join(h.webRootPath, "templates", "index.html")
 		tmpl, err = template.ParseFiles(templatePath)
 		if err != nil {
-			log.Printf("Error parsing template: %v", err)
-			http.Error(w, "Error loading template", http.StatusInternalServerError)
+			log.Printf("template parse failed: %v", err)
+			http.Error(w, "template error", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {
-		log.Printf("Error executing template: %v", err)
-		http.Error(w, "Error rendering page", http.StatusInternalServerError)
+		log.Printf("template exec failed: %v", err)
+		http.Error(w, "render failed", http.StatusInternalServerError)
 	}
 }
 
-// WebSocket message types
 type FrameMessage struct {
 	Type          string   `json:"type"`
 	Filters       []string `json:"filters"`       // Array of filter names
@@ -244,7 +227,7 @@ type FrameResultMessage struct {
 func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf("ws upgrade failed: %v", err)
 		return
 	}
 	defer conn.Close()
@@ -252,29 +235,22 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("WebSocket read error: %v", err)
 			break
 		}
 
-		// Parse incoming frame message
 		var frameMsg FrameMessage
 		if err := json.Unmarshal(message, &frameMsg); err != nil {
-			log.Printf("Error parsing frame message: %v", err)
 			continue
 		}
 
-		// Process frame
 		result := h.processFrame(&frameMsg)
 
-		// Send result back
 		responseBytes, err := json.Marshal(result)
 		if err != nil {
-			log.Printf("Error marshaling response: %v", err)
 			continue
 		}
 
 		if err := conn.WriteMessage(1, responseBytes); err != nil {
-			log.Printf("WebSocket write error: %v", err)
 			break
 		}
 	}
@@ -287,27 +263,21 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		Success: false,
 	}
 
-	// Decode base64 image data (PNG or JPEG)
 	imageData, err := base64.StdEncoding.DecodeString(frameMsg.Image.Data)
 	if err != nil {
-		result.Error = "Failed to decode base64 data"
-		log.Printf("Base64 decode error: %v", err)
+		result.Error = "decode failed"
 		return result
 	}
 
-	// Decode image (try PNG first, then JPEG)
 	img, err := png.Decode(bytes.NewReader(imageData))
 	if err != nil {
-		// Try JPEG
 		img, err = jpeg.Decode(bytes.NewReader(imageData))
 		if err != nil {
-			result.Error = "Failed to decode image"
-			log.Printf("Image decode error: %v", err)
+			result.Error = "image decode failed"
 			return result
 		}
 	}
 
-	// Convert to RGBA
 	bounds := img.Bounds()
 	rgba := image.NewRGBA(bounds)
 	for y := 0; y < bounds.Dy(); y++ {
@@ -316,7 +286,6 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		}
 	}
 
-	// Create domain image
 	domainImg := &domain.Image{
 		Data:   rgba.Pix,
 		Width:  bounds.Dx(),
@@ -324,7 +293,6 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		Format: "png",
 	}
 
-	// Map filters
 	var filters []domain.FilterType
 	for _, filterStr := range frameMsg.Filters {
 		switch filterStr {
@@ -335,12 +303,10 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		}
 	}
 	
-	// Default to none if empty
 	if len(filters) == 0 {
 		filters = []domain.FilterType{domain.FilterNone}
 	}
 	
-	// Map accelerator type
 	var accelerator domain.AcceleratorType
 	switch frameMsg.Accelerator {
 	case "cpu":
@@ -351,7 +317,6 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		accelerator = domain.AcceleratorGPU
 	}
 	
-	// Map grayscale type
 	var grayscaleType domain.GrayscaleType
 	switch frameMsg.GrayscaleType {
 	case "bt601":
@@ -368,16 +333,13 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		grayscaleType = domain.GrayscaleBT601
 	}
 
-	// Process with CUDA/CPU
 	h.frameCounter++
 	processedImg, err := h.useCase.Execute(domainImg, filters, accelerator, grayscaleType)
 	if err != nil {
-		result.Error = "Processing failed"
-		log.Printf("Processing error: %v", err)
+		result.Error = "processing failed"
 		return result
 	}
 
-	// Encode result based on filters
 	hasGrayscale := false
 	for _, f := range filters {
 		if f == domain.FilterGrayscale {
@@ -391,28 +353,26 @@ func (h *Handler) processFrame(frameMsg *FrameMessage) *FrameResultMessage {
 		resultImg := image.NewRGBA(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		resultImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, resultImg); err != nil {
-			result.Error = "Failed to encode result"
+			result.Error = "encode failed"
 			return result
 		}
 	} else {
 		grayImg := image.NewGray(image.Rect(0, 0, processedImg.Width, processedImg.Height))
 		grayImg.Pix = processedImg.Data
 		if err := png.Encode(&buf, grayImg); err != nil {
-			result.Error = "Failed to encode result"
+			result.Error = "encode failed"
 			return result
 		}
 	}
 
-	// Success
 	result.Success = true
 	result.Image.Data = base64.StdEncoding.EncodeToString(buf.Bytes())
 	result.Image.Width = processedImg.Width
 	result.Image.Height = processedImg.Height
 
-	// Log performance every 30 frames
 	elapsed := time.Since(startTime)
 	if h.frameCounter%30 == 0 {
-		log.Printf("Frame processing: %v (%dx%d, filters: %v, accelerator: %s, size: %d bytes)", 
+		log.Printf("frame %v (%dx%d %v %s %db)", 
 			elapsed, processedImg.Width, processedImg.Height, frameMsg.Filters, frameMsg.Accelerator, len(buf.Bytes()))
 	}
 
@@ -425,8 +385,6 @@ func (h *Handler) HandleProcessImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Future: Parse multipart form data for image upload
-	// For now, this is a stub
 	img := &domain.Image{
 		Data:   []byte{},
 		Width:  512,
@@ -436,12 +394,10 @@ func (h *Handler) HandleProcessImage(w http.ResponseWriter, r *http.Request) {
 
 	processedImg, err := h.useCase.Execute(img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorGPU, domain.GrayscaleBT601)
 	if err != nil {
-		log.Printf("Error processing image: %v", err)
-		http.Error(w, "Error processing image", http.StatusInternalServerError)
+		http.Error(w, "process failed", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Image processed: %dx%d", processedImg.Width, processedImg.Height)
 	w.WriteHeader(http.StatusOK)
 }
 

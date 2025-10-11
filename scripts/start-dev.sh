@@ -1,11 +1,4 @@
 #!/bin/bash
-# Start development environment with HTTPS support
-#
-# Usage:
-#   ./scripts/start-dev.sh           # Start with existing binaries
-#   ./scripts/start-dev.sh --build   # Rebuild and start
-#   ./scripts/start-dev.sh -b        # Same as --build
-
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,14 +12,12 @@ if [[ "$1" == "--build" ]] || [[ "$1" == "-b" ]]; then
     BUILD_FIRST=true
 fi
 
-# Check if certificates exist
 if [ ! -f ".secrets/localhost+2.pem" ] || [ ! -f ".secrets/localhost+2-key.pem" ]; then
     echo "Error: SSL certificates not found"
     echo "Run: ./scripts/setup-ssl.sh"
     exit 1
 fi
 
-# Check if Caddy is installed
 if ! command -v caddy &> /dev/null; then
     echo "Error: Caddy not installed"
     echo "Install from: https://caddyserver.com/download"
@@ -46,7 +37,6 @@ fi
 echo "Starting CUDA Image Processor"
 echo ""
 
-# Build if requested
 if [ "$BUILD_FIRST" = true ]; then
     echo "Building project..."
     bazel build //webserver/cmd/server:server //cpp_accelerator/ports/cgo:cgo_api
@@ -54,12 +44,10 @@ if [ "$BUILD_FIRST" = true ]; then
     echo ""
 fi
 
-# Generate version file
 echo "Generating version..."
 ./scripts/generate-version.sh
 echo ""
 
-# Function to cleanup on exit
 cleanup() {
     echo ""
     echo "Stopping services..."
@@ -69,7 +57,6 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-# Start Go server
 echo "Starting Go server (dev mode)..."
 WEBROOT_PATH="$PROJECT_ROOT/webserver/web"
 bazel-bin/webserver/cmd/server/server_/server -dev -webroot="$WEBROOT_PATH" &
@@ -81,7 +68,6 @@ if ! kill -0 $GO_PID 2>/dev/null; then
     exit 1
 fi
 
-# Start Caddy
 echo "Starting Caddy..."
 caddy run --config Caddyfile --adapter caddyfile 2>&1 | sed 's/^/[Caddy] /' &
 CADDY_PID=$!
@@ -102,5 +88,4 @@ echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 
-# Wait for processes
 wait $GO_PID $CADDY_PID

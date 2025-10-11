@@ -56,10 +56,10 @@ caddy run
 ## Why HTTPS?
 
 Modern browsers require HTTPS for accessing:
-- 📷 Webcam/Camera (getUserMedia API)
-- 🎤 Microphone
-- 📍 Geolocation
-- 🔐 Other secure features
+- Webcam/Camera (getUserMedia API)
+- Microphone
+- Geolocation
+- Other secure features
 
 ## Certificate Trust
 

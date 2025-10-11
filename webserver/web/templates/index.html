@@ -139,6 +139,8 @@
         </div>
     </main>
 
+    <toast-container></toast-container>
+
     <footer class="stats-bar">
         <div class="stats-container">
             <div class="stat-item">
@@ -163,23 +165,28 @@
         </div>
     </footer>
 
+    <!-- TODO: add bundle for dependencies. For now it is ok. -->
     <script type="importmap">
     {
         "imports": {
-            "lit": "https://cdn.jsdelivr.net/gh/lit/dist@3/core/lit-core.min.js",
-            "lit/decorators.js": "https://cdn.jsdelivr.net/gh/lit/dist@3/decorators/decorators.js"
+            "lit": "https://cdn.jsdelivr.net/npm/lit@3.1.0/index.js",
+            "lit/": "https://cdn.jsdelivr.net/npm/lit@3.1.0/",
+            "@lit/reactive-element": "https://cdn.jsdelivr.net/npm/@lit/reactive-element@2.0.4/reactive-element.js",
+            "@lit/reactive-element/": "https://cdn.jsdelivr.net/npm/@lit/reactive-element@2.0.4/",
+            "lit-html": "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/lit-html.js",
+            "lit-html/": "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/",
+            "lit-element/": "https://cdn.jsdelivr.net/npm/lit-element@4.0.4/"
         }
     }
     </script>
     
     <script src="/static/js/version.js"></script>
-    <script src="/static/js/modules/toast.js"></script>
     <script src="/static/js/modules/stats.js"></script>
-    <script src="/static/js/modules/camera.js"></script>
     <script src="/static/js/modules/websocket.js"></script>
     <script src="/static/js/modules/filters.js"></script>
     <script src="/static/js/modules/ui.js"></script>
     <script type="module" src="/static/js/dist/components/camera-preview.js"></script>
+    <script type="module" src="/static/js/dist/components/toast-container.js"></script>
     <script src="/static/js/app.js?v=12"></script>
 </body>
 </html>

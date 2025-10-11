@@ -16,9 +16,11 @@ const app = {
     async init() {
         console.log('Initializing dashboard...');
         await customElements.whenDefined('camera-preview');
+        await customElements.whenDefined('toast-container');
         
-        // Initialize managers
-        this.toastManager = new ToastManager({ duration: 7000 });
+        this.toastManager = document.querySelector('toast-container');
+        this.toastManager.configure({ duration: 7000 });
+        
         this.statsManager = new StatsManager();
         this.filterManager = new FilterManager();
         

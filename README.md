@@ -30,16 +30,16 @@ Production deployment with GPU acceleration using Docker Compose and Traefik:
 ./scripts/validate-docker-env.sh
 
 # Build and run
-docker-compose up --build
+docker compose up --build
 
 # Or run in detached mode
-docker-compose up -d --build
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f app
+docker compose logs -f app
 
 # Stop containers
-docker-compose down
+docker compose down
 ```
 
 Access the application:

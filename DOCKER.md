@@ -88,16 +88,16 @@ This checks:
 
 ```bash
 # Build and run (interactive)
-docker-compose up --build
+docker compose up --build
 
 # Build and run (detached)
-docker-compose up -d --build
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f app
+docker compose logs -f app
 
 # Stop containers
-docker-compose down
+docker compose down
 ```
 
 ### 3. Access the Application
@@ -162,7 +162,7 @@ To use different certificates:
 **Solution**:
 ```bash
 # Test GPU access
-docker run --rm --gpus all nvidia/cuda:12.5.0-base-ubuntu22.04 nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.5.1-runtime-ubuntu24.04 nvidia-smi
 
 # If fails, reinstall NVIDIA Container Toolkit
 sudo apt-get install -y nvidia-container-toolkit
@@ -195,9 +195,9 @@ To avoid warnings:
 
 3. Clean build cache:
    ```bash
-   docker-compose down
+   docker compose down
    docker system prune -a
-   docker-compose up --build
+   docker compose up --build
    ```
 
 ### Port Already in Use
@@ -219,7 +219,7 @@ sudo systemctl stop nginx  # or apache2, caddy, etc.
 
 **Check logs**:
 ```bash
-docker-compose logs traefik
+docker compose logs traefik
 ```
 
 **Common issues**:

@@ -19,8 +19,8 @@ This checks:
 # Option 1: Using the helper script (recommended)
 ./scripts/docker-run.sh
 
-# Option 2: Using docker-compose directly
-docker-compose up --build
+# Option 2: Using docker compose directly
+docker compose up --build
 ```
 
 ## Access Points
@@ -36,14 +36,14 @@ Once running:
 ./scripts/docker-run.sh --detach
 
 # View logs
-docker-compose logs -f app
+docker compose logs -f app
 
 # Stop everything
-docker-compose down
+docker compose down
 
 # Rebuild from scratch
-docker-compose down
-docker-compose up --build
+docker compose down
+docker compose up --build
 ```
 
 ## Troubleshooting

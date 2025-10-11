@@ -71,7 +71,7 @@ echo ""
 if [ $ERRORS -eq 0 ]; then
     echo "All validation checks passed"
     echo ""
-    echo "Build and run: docker-compose up --build"
+    echo "Build and run: docker compose up --build"
     echo "Access: https://localhost"
     echo "Dashboard: http://localhost:8081"
     echo ""

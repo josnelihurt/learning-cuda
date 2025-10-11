@@ -21,13 +21,13 @@ for arg in "$@"; do
 done
 
 if [ "$DETACHED" = true ]; then
-    docker-compose up -d --build
+    docker compose up -d --build
     echo ""
     echo "Containers started. Access at https://localhost"
     echo "Traefik dashboard: http://localhost:8081"
     echo ""
-    echo "View logs: docker-compose logs -f app"
-    echo "Stop: docker-compose down"
+    echo "View logs: docker compose logs -f app"
+    echo "Stop: docker compose down"
 else
-    docker-compose up --build
+    docker compose up --build
 fi

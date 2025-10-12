@@ -2,6 +2,7 @@ import type { StatsPanel } from '../components/stats-panel';
 import type { CameraPreview } from '../components/camera-preview';
 import type { FilterPanel } from '../components/filter-panel';
 import type { ToastContainer } from '../components/toast-container';
+import type { WebSocketService } from './websocket-service';
 
 export class UIService {
     selectedInputSource = 'lena';
@@ -17,7 +18,8 @@ export class UIService {
         private statsManager: StatsPanel,
         private cameraManager: CameraPreview,
         private filterManager: FilterPanel,
-        private toastManager: ToastContainer
+        private toastManager: ToastContainer,
+        private wsService: WebSocketService
     ) {
         this.heroImage = document.getElementById('heroImage') as HTMLImageElement;
         this.resolutionSelect = document.getElementById('resolutionSelect') as HTMLSelectElement;
@@ -108,24 +110,30 @@ export class UIService {
         const filterParam = filters.includes('grayscale') ? 'grayscale' : 'none';
         const grayscaleType = this.filterManager.getGrayscaleType();
 
-        const startTime = performance.now();
         this.heroImage.classList.add('loading');
 
         try {
-            const url = `/?filter=${filterParam}&accelerator=${this.selectedAccelerator}&grayscale_type=${grayscaleType}`;
-            const response = await fetch(url);
-            const html = await response.text();
-
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newImage = doc.querySelector('#heroImage') as HTMLImageElement;
-
-            if (newImage && this.heroImage) {
-                this.heroImage.src = newImage.src;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                throw new Error('Canvas context not available');
             }
 
-            const processingTime = performance.now() - startTime;
-            this.statsManager.time = processingTime.toFixed(0) + 'ms';
+            const img = this.heroImage;
+            canvas.width = img.naturalWidth || 512;
+            canvas.height = img.naturalHeight || 512;
+            ctx.drawImage(img, 0, 0);
+
+            const imageData = canvas.toDataURL('image/png');
+
+            await this.wsService.sendSingleFrame(
+                imageData,
+                canvas.width,
+                canvas.height,
+                filters,
+                this.selectedAccelerator,
+                grayscaleType
+            );
 
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.set('filter', filterParam);

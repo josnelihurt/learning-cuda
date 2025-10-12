@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package cuda_learning;
 
-option go_package = "github.com/jrb/cuda-learning/proto";
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
 
 // Request: Go passes raw image buffer
 message ProcessImageRequest {
@@ -59,5 +59,12 @@ message InitRequest {
 message InitResponse {
   int32 code = 1;            // 0=success, non-zero=error
   string message = 2;        // Status or error message
+}
+
+service ImageProcessorService {
+  rpc ProcessImage(ProcessImageRequest) returns (ProcessImageResponse);
+  
+  // TODO: Implement video streaming using Connect-RPC bidirectional streaming
+  rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
 }
 

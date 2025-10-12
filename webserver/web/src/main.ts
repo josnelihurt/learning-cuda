@@ -45,8 +45,8 @@ const app = {
             });
         }
         
-        this.uiManager = new UIService(this.statsManager, this.cameraManager, this.filterManager, this.toastManager);
         this.wsManager = new WebSocketService(this.statsManager, this.cameraManager, this.toastManager);
+        this.uiManager = new UIService(this.statsManager, this.cameraManager, this.filterManager, this.toastManager, this.wsManager);
         
         this.wsManager.connect();
         

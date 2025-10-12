@@ -109,6 +109,33 @@ export class WebSocketService {
         this.ws.send(JSON.stringify(message));
     }
 
+    sendSingleFrame(base64Data: string, width: number, height: number, filters: string[], accelerator: string, grayscaleType: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                reject(new Error('WebSocket not connected'));
+                return;
+            }
+
+            const originalCallback = this.onFrameResultCallback;
+            
+            this.onFrameResultCallback = (data: FrameResult) => {
+                this.onFrameResultCallback = originalCallback;
+                
+                if (data.success) {
+                    const heroImage = document.querySelector('#heroImage') as HTMLImageElement;
+                    if (heroImage) {
+                        heroImage.src = `data:image/png;base64,${data.image.data}`;
+                    }
+                    resolve();
+                } else {
+                    reject(new Error(data.error || 'Unknown error'));
+                }
+            };
+
+            this.sendFrame(base64Data, width, height, filters, accelerator, grayscaleType);
+        });
+    }
+
     onFrameResult(callback: FrameResultCallback): void {
         this.onFrameResultCallback = callback;
     }

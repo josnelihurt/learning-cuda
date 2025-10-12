@@ -1,4 +1,4 @@
-package http
+package static_http
 
 import (
 	"encoding/json"

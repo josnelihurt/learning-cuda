@@ -31,19 +31,21 @@ Thumbs.db
 *.ptx
 *.cubin
 
-# Temporary/ignore directory
+# local directory, don't push this
 .ignore/
 
-# SSL/TLS certificates (kept in .secrets/)
+proto/gen/
+
+#TODO: move this to .secrets/.gitignore SSL/TLS certificates (kept in .secrets/)
 *.pem
 *.key
 *.crt
 *.cer
 
-# Caddy
+#TODO: Caddy, I want to replace this with docker and traefik
 caddy.log
 data/
 .caddy/
 
-# Auto-generated version file
+#TODO: do I still need this?
 webserver/web/static/js/version.js

@@ -18,45 +18,57 @@ Research and POC tasks for improving video transport from current WebSocket + ba
 
 ## Research Phase: Create POCs
 
-### POC 1: gRPC Streaming (Recommended First)
+### POC 1: Connect-RPC Implementation (In Progress)
 
-**Why Start Here**: Builds on existing proto definitions, lowest friction
+**Status**: Migrated from stdlib HTTP to Connect-RPC
 
-#### Tasks
-- [ ] Research gRPC streaming modes (server, client, bidirectional)
-- [ ] Read gRPC-Web documentation for browser support
-- [ ] Review existing `proto/image_processing.proto`
+#### Completed
+- [x] Added ImageProcessorService to proto with ProcessImage and StreamProcessVideo RPCs
+- [x] Implemented Connect-RPC server in `webserver/internal/interfaces/connectrpc/`
+- [x] Refactored main.go to clean App structure
+- [x] Setup buf for code generation with Docker
+- [x] Added HTTP annotations for REST-friendly endpoints
 
-#### Implementation Plan
-- [ ] Add streaming RPC to proto: `rpc StreamProcessVideo(stream VideoFrame) returns (stream ProcessedFrame)`
-- [ ] Implement gRPC server in `webserver/internal/grpc/`
-- [ ] Add grpc-gateway for REST/WebSocket fallback
-- [ ] Create simple web client with grpc-web
+#### Pending
+- [ ] Implement StreamProcessVideo bidirectional streaming (currently returns Unimplemented)
+- [ ] Update frontend to use Connect-RPC instead of WebSocket
 - [ ] Benchmark latency vs current WebSocket
+- [ ] Add grpc-web support for browser compatibility
 
-**Expected Outcome**: Lower latency, better structured communication, foundation for microservices
+**Note**: Using Connect-RPC instead of traditional gRPC-Gateway. Connect provides native HTTP/JSON support without needing a separate gateway.
 
-**Resources**:
-- https://grpc.io/docs/languages/go/basics/
-- https://github.com/grpc/grpc-web
-- https://github.com/grpc-ecosystem/grpc-gateway
+### POC 2: Binary Transport (Quick Win) - Next Optimization
 
-### POC 2: Binary Transport (Quick Win)
+**Status**: Current implementation uses PNG base64 (working but inefficient)
 
-**Why**: Eliminate base64 overhead, keep existing architecture
+**Why**: Eliminate base64 overhead and PNG encoding/decoding
+
+**Current Flow:**
+```
+Browser → canvas.toDataURL('png') → base64 → WebSocket → 
+Go decode PNG → RGBA raw → RPC → C++/CUDA → 
+RGBA raw → encode PNG → base64 → WebSocket → Browser
+```
+
+**Proposed Flow:**
+```
+Browser → canvas.getImageData() → raw RGBA → WebSocket binary → 
+RPC → C++/CUDA → raw RGBA → WebSocket binary → Browser
+```
 
 #### Tasks
-- [ ] Research WebSocket binary frames
-- [ ] Test raw RGB/YUV buffer transport
-- [ ] Compare with current base64 PNG approach
+- [ ] Modify WebSocket to accept binary frames instead of JSON
+- [ ] Frontend: use canvas.getImageData().data (Uint8ClampedArray)
+- [ ] Backend: remove PNG decode step in websocket_handler.go
+- [ ] Remove PNG encode step (return raw bytes)
+- [ ] Frontend: create ImageData and putImageData directly
+- [ ] Benchmark performance improvement
 
-#### Implementation Plan
-- [ ] Modify WebSocket handler to accept binary messages
-- [ ] Send raw pixel data from browser (ImageData.data)
-- [ ] Skip PNG encoding entirely
-- [ ] Measure bandwidth reduction
-
-**Expected Outcome**: ~25-30% bandwidth reduction, lower CPU usage
+**Expected Outcome**: 
+- 40-50% bandwidth reduction
+- 30% CPU reduction
+- 100-150 FPS (vs current ~25-30 FPS)
+- Simpler code (no encode/decode)
 
 ### POC 3: H.264/H.265 with NVENC
 

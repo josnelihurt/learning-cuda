@@ -4,6 +4,16 @@ This document tracks all completed features extracted from git commit history, o
 
 ## October 2025
 
+### Connect-RPC Migration (Oct 12, 2025)
+- [x] Migrate from stdlib HTTP to Connect-RPC
+- [x] Add ImageProcessorService with ProcessImage and StreamProcessVideo RPCs
+- [x] Implement Connect-RPC handlers in webserver/internal/interfaces/connectrpc
+- [x] Refactor main.go to clean App structure with Run() method
+- [x] Setup buf for proto code generation with Docker
+- [x] Update Go to 1.24 in Bazel configuration
+- [x] Remove old HTTP handlers and WebSocket implementation
+- [x] Add HTTP annotations for REST-friendly endpoints
+
 ### Core Architecture (Oct 8, 2025)
 - [x] Implement CUDA image processing with clean architecture
 - [x] Reorganize into clean architecture layers with proper DI

@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "app",
+    srcs = [
+        "app.go",
+        "config.go",
+    ],
+    importpath = "github.com/jrb/cuda-learning/webserver/internal/app",
+    visibility = ["//webserver:__subpackages__"],
+    deps = [
+        "//webserver/internal/application",
+        "//webserver/internal/interfaces/connectrpc",
+        "//webserver/internal/interfaces/static_http",
+    ],
+)
+

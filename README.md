@@ -139,3 +139,6 @@ Evolving this into a full CUDA learning platform. See `/docs/backlog/` for detai
 ## Notes
 
 Started as a weekend project to learn CUDA. Now it's a full learning platform covering GPU programming, video processing, neural networks, and production infrastructure. Code quality varies. CGO was harder than CUDA.
+
+### Generate docker 
+docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate

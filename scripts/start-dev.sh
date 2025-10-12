@@ -28,6 +28,12 @@ echo "Stopping previous services..."
 ./scripts/kill-services.sh 2>/dev/null || true
 
 [ "$BUILD_FIRST" = true ] && {
+    echo "Checking proto files..."
+    if [ ! -f "proto/gen/image_processing.pb.go" ]; then
+        echo "Generating proto files..."
+        docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
+    fi
+    
     echo "Building backend..."
     bazel build //webserver/cmd/server:server //cpp_accelerator/ports/cgo:cgo_api
 }

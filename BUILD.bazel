@@ -3,4 +3,10 @@ load("@gazelle//:def.bzl", "gazelle")
 # gazelle:prefix github.com/jrb/cuda-learning
 gazelle(name = "gazelle")
 
+exports_files([
+    "buf.yaml",
+    "buf.gen.yaml",
+    "bufgen.dockerfile",
+])
+
 # This is the root BUILD file for the cuda_learning workspace

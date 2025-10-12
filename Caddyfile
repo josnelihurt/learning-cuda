@@ -11,7 +11,7 @@
 	tls .secrets/localhost+2.pem .secrets/localhost+2-key.pem
 
 	@vite {
-		path /@vite/* /src/* /node_modules/*
+		path /src/* /@vite/* /node_modules/*
 	}
 	
 	handle @vite {
@@ -21,8 +21,10 @@
 			}
 		}
 	}
-
-	reverse_proxy localhost:8080
+	
+	handle {
+		reverse_proxy localhost:8080
+	}
 
 	log {
 		output file ./caddy.log

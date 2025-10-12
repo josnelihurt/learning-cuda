@@ -5,20 +5,22 @@ Microservices, observability, testing, and cloud deployment.
 ## gRPC Microservices
 
 ### Services to Build
-- [ ] Image Processing Service (ProcessImage, StreamProcessVideo)
+- [x] Image Processing Service (ProcessImage endpoint implemented)
+- [ ] StreamProcessVideo implementation (defined but returns Unimplemented)
 - [ ] Video Management Service (ListVideos, StreamVideo, Upload)
 - [ ] Model Inference Service (Predict, StreamInference)
 
-### gRPC-Gateway
-- [ ] Add to Bazel deps
-- [ ] Annotate protos with HTTP mappings
-- [ ] Create gateway binary
-- [ ] Keep WebSocket as fallback
+### Connect-RPC (Instead of gRPC-Gateway)
+- [x] Implemented Connect-RPC server
+- [x] HTTP annotations in proto
+- [x] Native HTTP/JSON support without gateway
+- [ ] Implement bidirectional streaming for video
+- [ ] Add Connect-Web for browser clients
 
 ### Infrastructure
 - [ ] Service discovery (Consul optional)
 - [ ] Load balancing (round-robin, retry, circuit breaker)
-- [ ] Clean arch: domain → application → infrastructure → interfaces
+- [x] Clean arch: domain → application → infrastructure → interfaces
 
 ## Observability
 

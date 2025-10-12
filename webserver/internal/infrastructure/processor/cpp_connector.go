@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"unsafe"
 
-	pb "github.com/jrb/cuda-learning/proto"
+	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/internal/domain"
 	"google.golang.org/protobuf/proto"
 )

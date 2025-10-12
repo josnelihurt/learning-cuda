@@ -32,8 +32,31 @@ func (a *App) Run() error {
 	staticHandler := static_http.NewStaticHandler(a.config, rpcHandler)
 	staticHandler.RegisterRoutes(mux)
 	
-	log.Printf("Starting server on %s (hot_reload: %v, transport: %s)\n", 
-		a.config.Server.Port, a.config.Server.HotReloadEnabled, a.config.Stream.TransportFormat)
-	return http.ListenAndServe(a.config.Server.Port, mux)
+	errChan := make(chan error, 2)
+	
+	go func() {
+		log.Printf("Starting HTTP server on %s (hot_reload: %v, transport: %s)\n", 
+			a.config.Server.HttpPort, a.config.Server.HotReloadEnabled, a.config.Stream.TransportFormat)
+		if err := http.ListenAndServe(a.config.Server.HttpPort, mux); err != nil {
+			errChan <- err
+		}
+	}()
+	
+	if a.config.Server.TLS.Enabled {
+		go func() {
+			log.Printf("Starting HTTPS server on %s (cert: %s)\n", 
+				a.config.Server.HttpsPort, a.config.Server.TLS.CertFile)
+			if err := http.ListenAndServeTLS(
+				a.config.Server.HttpsPort, 
+				a.config.Server.TLS.CertFile, 
+				a.config.Server.TLS.KeyFile, 
+				mux,
+			); err != nil {
+				errChan <- err
+			}
+		}()
+	}
+	
+	return <-errChan
 }
 

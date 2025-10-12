@@ -1,8 +1,12 @@
 package static_http
 
 import (
+	"crypto/tls"
 	"html/template"
+	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -15,6 +19,7 @@ type StaticHandler struct {
 	hotReloadEnabled bool
 	tmpl             *template.Template
 	wsHandler        *WebSocketHandler
+	viteProxy        *httputil.ReverseProxy
 }
 
 func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorHandler) *StaticHandler {
@@ -24,19 +29,47 @@ func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorH
 		tmpl = template.Must(template.ParseFiles(templatePath))
 	}
 	
+	var viteProxy *httputil.ReverseProxy
+	if cfg.Server.HotReloadEnabled {
+		viteURL, _ := url.Parse("https://localhost:3000")
+		viteProxy = httputil.NewSingleHostReverseProxy(viteURL)
+		viteProxy.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		viteProxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+			log.Printf("Vite proxy error: %v", err)
+			http.Error(w, "Vite dev server unavailable", http.StatusBadGateway)
+		}
+	}
+	
 	return &StaticHandler{
 		webRootPath:      cfg.Server.WebRootPath,
 		hotReloadEnabled: cfg.Server.HotReloadEnabled,
 		tmpl:             tmpl,
 		wsHandler:        NewWebSocketHandler(rpcHandler, cfg),
+		viteProxy:        viteProxy,
 	}
 }
 
 func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
+	if h.hotReloadEnabled && h.viteProxy != nil {
+		mux.HandleFunc("/@vite/", h.ServeVite)
+		mux.HandleFunc("/src/", h.ServeVite)
+		mux.HandleFunc("/node_modules/", h.ServeVite)
+	}
+	
 	mux.HandleFunc("/", h.ServeIndex)
 	mux.HandleFunc("/static/", h.ServeStatic)
 	mux.HandleFunc("/data/", h.ServeData)
 	mux.HandleFunc("/ws", h.wsHandler.HandleWebSocket)
+}
+
+func (h *StaticHandler) ServeVite(w http.ResponseWriter, r *http.Request) {
+	if h.viteProxy != nil {
+		h.viteProxy.ServeHTTP(w, r)
+	} else {
+		http.NotFound(w, r)
+	}
 }
 
 func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {

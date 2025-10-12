@@ -4,6 +4,13 @@ This document tracks all completed features extracted from git commit history, o
 
 ## October 2025
 
+### Native HTTPS Support (Oct 12, 2025)
+- [x] Remove Caddy reverse proxy dependency
+- [x] Implement native dual HTTP/HTTPS servers in Go using http.ListenAndServeTLS()
+- [x] Add configurable HTTP and HTTPS ports with TLS settings
+- [x] Centralize configuration to config/ directory
+- [x] Simplify development workflow by removing proxy layer
+
 ### Connect-RPC Migration (Oct 12, 2025)
 - [x] Migrate from stdlib HTTP to Connect-RPC
 - [x] Add ImageProcessorService with ProcessImage and StreamProcessVideo RPCs

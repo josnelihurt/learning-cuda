@@ -88,6 +88,7 @@ Microservices, observability, testing, and cloud deployment.
 
 ### Security
 - [ ] Secrets management (Vault, AWS Secrets Manager)
+- [x] TLS for HTTP server (native Go implementation)
 - [ ] TLS for gRPC
 - [ ] Auth (JWT, OAuth)
 - [ ] Rate limiting

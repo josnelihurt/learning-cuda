@@ -46,10 +46,20 @@ The deployment uses Docker Compose with two services:
 
 ### SSL Certificates
 
-SSL certificates must exist in the `.secrets/` directory:
+SSL certificates must exist in the `.secrets/` directory. Generate them with mkcert:
 
 ```bash
-./scripts/setup-ssl.sh
+# Install mkcert (first time only)
+wget -O /tmp/mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64
+chmod +x /tmp/mkcert
+sudo mv /tmp/mkcert /usr/local/bin/
+mkcert -install
+
+# Generate certificates
+mkdir -p .secrets
+cd .secrets
+mkcert localhost 127.0.0.1 ::1
+cd ..
 ```
 
 This creates:
@@ -233,13 +243,19 @@ docker compose logs traefik
 
 For active development with hot reload:
 ```bash
-./scripts/start-dev.sh --build
+# Start Vite dev server
+cd webserver/web
+npm install
+npm run dev &
+cd ../..
+
+# Start Go server
+bazel run //webserver/cmd/server:server
 ```
 
 This runs:
 - Vite dev server (hot reload for frontend)
-- Go server with `-dev` flag
-- Caddy for HTTPS
+- Go server with native HTTPS support on ports 8080 (HTTP) and 8443 (HTTPS)
 
 ### Production Setup
 

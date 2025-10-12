@@ -14,12 +14,43 @@ Built with Go because I wanted to try CGO, and C++ for the actual processing. Pr
 
 ### Development Mode
 
+First, generate SSL certificates for HTTPS (required for webcam access):
+
 ```bash
-./scripts/setup-ssl.sh
-./scripts/start-dev.sh --build  # Dev mode (hot reload)
-# or
-./scripts/start-dev.sh --build --prod  # Production bundle
+# Install mkcert (first time only)
+wget -O /tmp/mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64
+chmod +x /tmp/mkcert
+sudo mv /tmp/mkcert /usr/local/bin/
+mkcert -install
+
+# Generate certificates
+mkdir -p .secrets
+cd .secrets
+mkcert localhost 127.0.0.1 ::1
+cd ..
 ```
+
+Start the server:
+
+```bash
+# Option 1: Using the dev script (recommended)
+./scripts/start-dev.sh --build  # First time or after changes
+./scripts/start-dev.sh          # Subsequent runs
+
+# Option 2: Manual start
+bazel run //webserver/cmd/server:server
+
+# Option 3: With Vite hot reload (manual)
+cd webserver/web
+npm install
+npm run dev &
+cd ../..
+bazel run //webserver/cmd/server:server
+```
+
+Access the application:
+- **HTTPS (recommended):** https://localhost:8443
+- **HTTP:** http://localhost:8080
 
 ### Docker Deployment
 
@@ -49,7 +80,7 @@ Access the application:
 Requirements:
 - Docker with NVIDIA Container Toolkit installed
 - NVIDIA GPU with drivers
-- SSL certificates in `.secrets/` directory (run `./scripts/setup-ssl.sh`)
+- SSL certificates in `.secrets/` directory (see Development Mode setup above)
 
 The Docker setup uses:
 - Multi-stage build (frontend → backend → runtime)
@@ -59,11 +90,10 @@ The Docker setup uses:
 
 ## Tech
 
-- Go server handling WebSocket
+- Go server with native HTTPS support handling WebSocket
 - C++/CUDA doing the processing
 - CGO gluing them together
 - Bazel because... honestly not sure why I picked Bazel but it's fine
-- Caddy for HTTPS (needed for getUserMedia API)
 
 Frontend: Lit Web Components + TypeScript with Vite bundler. No React, just native web components.
 
@@ -89,12 +119,12 @@ CPU implementation is still useful for debugging though.
 ## Commands
 
 ```bash
-./scripts/start-dev.sh          # start (uses existing build)
-./scripts/start-dev.sh --build  # rebuild everything first
+./scripts/start-dev.sh --build  # start dev environment (first time)
+./scripts/start-dev.sh          # start dev environment
 ./scripts/kill-services.sh      # kill all processes
 ```
 
-Frontend hot reloads. For C++/Go you gotta rebuild.
+Frontend hot reloads with Vite. For C++/Go you gotta rebuild.
 
 ## Code structure
 
@@ -128,9 +158,8 @@ Right now only grayscale but the pipeline supports chaining filters. You can dra
 
 ## Known issues
 
-- Caddy sometimes doesn't stop cleanly, use `pkill caddy`
 - Camera needs user in `video` group on Linux
-- SSL cert warnings if you skip setup script
+- SSL cert warnings if using self-signed certificates (use mkcert to avoid)
 
 ## Roadmap
 

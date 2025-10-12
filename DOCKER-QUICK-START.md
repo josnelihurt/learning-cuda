@@ -59,7 +59,7 @@ docker run --rm --gpus all nvidia/cuda:12.5.0-base-ubuntu22.04 nvidia-smi
 # Find what's using it
 sudo lsof -i :443
 
-# Stop Caddy if running from dev setup
+# Stop development server if running
 ./scripts/kill-services.sh
 ```
 
@@ -86,5 +86,5 @@ NVIDIA GPU (full passthrough)
 
 - Full documentation: [DOCKER.md](./DOCKER.md)
 - Development setup: [README.md](./README.md)
-- SSL setup: `./scripts/setup-ssl.sh`
+- SSL setup: See README.md for mkcert instructions
 

@@ -8,7 +8,9 @@ RUN apk add --update --no-cache \
     ca-certificates \
     git \
     protoc \
-    openssh-client && \
+    openssh-client \
+    nodejs \
+    npm && \
   rm -rf /var/cache/apk/*
 
 COPY --from=proto-builder /go/bin/buf /usr/local/bin/buf

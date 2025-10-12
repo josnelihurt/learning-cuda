@@ -3,17 +3,18 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "connectrpc",
     srcs = [
+        "config_handler.go",
         "handler.go",
         "server.go",
     ],
     importpath = "github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc",
     visibility = ["//webserver:__subpackages__"],
     deps = [
-        "//proto:image_processing_go_proto",
-        "//proto:image_processing_connect_go",
+        "//proto/gen",
+        "//proto/gen/genconnect",
         "//webserver/internal/application",
+        "//webserver/internal/config",
         "//webserver/internal/domain",
         "@com_connectrpc_connect//:connect",
     ],
 )
-

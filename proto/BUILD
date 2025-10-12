@@ -1,7 +1,8 @@
-load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_buf//buf:defs.bzl", "buf_lint_test")
 load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@rules_go//go:def.bzl", "go_library")
-load("@rules_buf//buf:defs.bzl", "buf_lint_test")
+load("@rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 
 # Proto definitions
 proto_library(
@@ -33,12 +34,9 @@ go_library(
         ["gen/*.pb.go"],
         allow_empty = True,
     ),
+    embed = [":gen_go_proto"],
     importpath = "github.com/jrb/cuda-learning/proto/gen",
     visibility = ["//visibility:public"],
-    deps = [
-        "@org_golang_google_protobuf//reflect/protoreflect",
-        "@org_golang_google_protobuf//runtime/protoimpl",
-    ],
 )
 
 # Connect-RPC handlers (package genconnect)
@@ -56,3 +54,10 @@ go_library(
     ],
 )
 
+go_proto_library(
+    name = "gen_go_proto",
+    compilers = ["@rules_go//proto:go_grpc"],
+    importpath = "github.com/jrb/cuda-learning/proto/gen",
+    proto = ":image_processing_proto",
+    visibility = ["//visibility:public"],
+)

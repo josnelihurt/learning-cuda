@@ -4,6 +4,7 @@ import './components/stats-panel';
 import './components/filter-panel';
 import { WebSocketService } from './services/websocket-service';
 import { UIService } from './services/ui-service';
+import { streamConfigService } from './services/config-service';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 
@@ -21,6 +22,8 @@ const app = {
     
     async init() {
         console.log('Initializing dashboard...');
+        await streamConfigService.initialize();
+        
         await customElements.whenDefined('camera-preview');
         await customElements.whenDefined('toast-container');
         await customElements.whenDefined('stats-panel');
@@ -52,8 +55,14 @@ const app = {
         
         this.wsManager.onFrameResult((data) => {
             const heroImage = document.getElementById('heroImage');
-            if (heroImage) {
-                const newSrc = `data:image/png;base64,${data.image.data}`;
+            if (heroImage && data.response) {
+                let binary = '';
+                const len = data.response.imageData.byteLength;
+                for (let i = 0; i < len; i++) {
+                    binary += String.fromCharCode(data.response.imageData[i]);
+                }
+                const imageData = btoa(binary);
+                const newSrc = `data:image/png;base64,${imageData}`;
                 (heroImage as HTMLImageElement).src = newSrc;
                 (heroImage as HTMLElement).style.display = 'block';
             }

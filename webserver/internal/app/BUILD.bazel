@@ -10,8 +10,8 @@ go_library(
     visibility = ["//webserver:__subpackages__"],
     deps = [
         "//webserver/internal/application",
+        "//webserver/internal/config",
         "//webserver/internal/interfaces/connectrpc",
         "//webserver/internal/interfaces/static_http",
     ],
 )
-

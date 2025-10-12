@@ -10,10 +10,12 @@ go_library(
     importpath = "github.com/jrb/cuda-learning/webserver/internal/interfaces/static_http",
     visibility = ["//webserver:__subpackages__"],
     deps = [
-        "//proto:image_processing_go_proto",
+        "//proto/gen",
+        "//webserver/internal/config",
         "//webserver/internal/interfaces/connectrpc",
         "@com_connectrpc_connect//:connect",
         "@com_github_gorilla_websocket//:websocket",
+        "@org_golang_google_protobuf//encoding/protojson",
+        "@org_golang_google_protobuf//proto",
     ],
 )
-

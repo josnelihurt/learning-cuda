@@ -10,14 +10,14 @@ cc_library(
 cc_library(
     name = "commands",
     srcs = [
-        "passthrough_command.cpp",
-        "cuda_image_filters_command.cpp",
         "cpu_image_filters_command.cpp",
+        "cuda_image_filters_command.cpp",
+        "passthrough_command.cpp",
     ],
     hdrs = [
-        "passthrough_command.h",
-        "cuda_image_filters_command.h",
         "cpu_image_filters_command.h",
+        "cuda_image_filters_command.h",
+        "passthrough_command.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -38,8 +38,8 @@ cc_library(
         ":command_interface",
         ":commands",
         "//cpp_accelerator/infrastructure/config",
-        "//cpp_accelerator/infrastructure/cuda:cuda_processors",
         "//cpp_accelerator/infrastructure/cpu:grayscale_processor",
+        "//cpp_accelerator/infrastructure/cuda:cuda_processors",
         "//cpp_accelerator/infrastructure/image:image_adapters",
     ],
 )

@@ -6,13 +6,13 @@ option go_package = "github.com/jrb/cuda-learning/proto/gen";
 
 // Request: Go passes raw image buffer
 message ProcessImageRequest {
-  bytes image_data = 1;      // Raw pixel data (RGBA or agreed format)
-  int32 width = 2;
-  int32 height = 3;
-  int32 channels = 5;        // 3=RGB, 4=RGBA
-  repeated FilterType filters = 10;  // Array of filters to apply sequentially
-  AcceleratorType accelerator = 11;  // GPU or CPU processing
-  GrayscaleType grayscale_type = 12; // Grayscale algorithm selection
+  bytes image_data = 1 [json_name = "image_data"];      // Raw pixel data (RGBA or agreed format)
+  int32 width = 3 [json_name = "width"];
+  int32 height = 5 [json_name = "height"];
+  int32 channels = 7 [json_name = "channels"];        // 3=RGB, 4=RGBA
+  repeated FilterType filters = 9 [json_name = "filters"];  // Array of filters to apply sequentially
+  AcceleratorType accelerator = 11 [json_name = "accelerator"];  // GPU or CPU processing
+  GrayscaleType grayscale_type = 13 [json_name = "grayscale_type"]; // Grayscale algorithm selection
 }
 
 // Enum for filter types
@@ -42,12 +42,12 @@ enum GrayscaleType {
 
 // Response: C++ returns processed image buffer
 message ProcessImageResponse {
-  int32 code = 1;            // 0=success, non-zero=error (gRPC style)
-  string message = 2;        // Status message or error description
-  bytes image_data = 5;      // Processed pixel data
-  int32 width = 10;
-  int32 height = 11;
-  int32 channels = 12;
+  int32 code = 1 [json_name = "code"];            // 0=success, non-zero=error (gRPC style)
+  string message = 3 [json_name = "message"];        // Status message or error description
+  bytes image_data = 5 [json_name = "image_data"];      // Processed pixel data
+  int32 width = 7 [json_name = "width"];
+  int32 height = 9 [json_name = "height"];
+  int32 channels = 11 [json_name = "channels"];
 }
 
 // Lifecycle management
@@ -58,7 +58,33 @@ message InitRequest {
 
 message InitResponse {
   int32 code = 1;            // 0=success, non-zero=error
-  string message = 2;        // Status or error message
+  string message = 3;        // Status or error message
+}
+
+// WebSocket stream messages
+message WebSocketFrameRequest {
+  string type = 1 [json_name = "type"];
+  ProcessImageRequest request = 3 [json_name = "request"];
+}
+
+message WebSocketFrameResponse {
+  string type = 1 [json_name = "type"];
+  bool success = 3 [json_name = "success"];
+  string error = 5 [json_name = "error"];
+  ProcessImageResponse response = 7 [json_name = "response"];
+}
+
+// Stream configuration
+message StreamEndpoint {
+  string type = 1 [json_name = "type"];  // "websocket" or "grpc"
+  string endpoint = 3 [json_name = "endpoint"];  // "/ws" or ":50051"
+  string transport_format = 5 [json_name = "transport_format"];  // "json" or "binary"
+}
+
+message GetStreamConfigRequest {}
+
+message GetStreamConfigResponse {
+  repeated StreamEndpoint endpoints = 1 [json_name = "endpoints"];
 }
 
 service ImageProcessorService {
@@ -66,5 +92,9 @@ service ImageProcessorService {
   
   // TODO: Implement video streaming using Connect-RPC bidirectional streaming
   rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
+}
+
+service ConfigService {
+  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
 }
 

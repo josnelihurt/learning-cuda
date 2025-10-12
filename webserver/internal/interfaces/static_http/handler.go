@@ -6,28 +6,29 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jrb/cuda-learning/webserver/internal/config"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc"
 )
 
 type StaticHandler struct {
-	webRootPath string
-	devMode     bool
-	tmpl        *template.Template
-	wsHandler   *WebSocketHandler
+	webRootPath      string
+	hotReloadEnabled bool
+	tmpl             *template.Template
+	wsHandler        *WebSocketHandler
 }
 
-func NewStaticHandler(webRootPath string, devMode bool, rpcHandler *connectrpc.ImageProcessorHandler) *StaticHandler {
+func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorHandler) *StaticHandler {
 	var tmpl *template.Template
-	if !devMode {
-		templatePath := filepath.Join(webRootPath, "templates", "index.html")
+	if !cfg.Server.HotReloadEnabled {
+		templatePath := filepath.Join(cfg.Server.WebRootPath, "templates", "index.html")
 		tmpl = template.Must(template.ParseFiles(templatePath))
 	}
 	
 	return &StaticHandler{
-		webRootPath: webRootPath,
-		devMode:     devMode,
-		tmpl:        tmpl,
-		wsHandler:   NewWebSocketHandler(rpcHandler),
+		webRootPath:      cfg.Server.WebRootPath,
+		hotReloadEnabled: cfg.Server.HotReloadEnabled,
+		tmpl:             tmpl,
+		wsHandler:        NewWebSocketHandler(rpcHandler, cfg),
 	}
 }
 
@@ -43,12 +44,12 @@ func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 		DevMode    bool
 		BundleFile string
 	}{
-		DevMode:    h.devMode,
+		DevMode:    h.hotReloadEnabled,
 		BundleFile: getBundleFile(h.webRootPath),
 	}
 	
 	tmpl := h.tmpl
-	if h.devMode {
+	if h.hotReloadEnabled {
 		templatePath := filepath.Join(h.webRootPath, "templates", "index.html")
 		var err error
 		tmpl, err = template.ParseFiles(templatePath)
@@ -71,7 +72,7 @@ func (h *StaticHandler) ServeStatic(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 	}
 	
-	if h.devMode {
+	if h.hotReloadEnabled {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")

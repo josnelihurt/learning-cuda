@@ -3,12 +3,12 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "processor",
     srcs = ["cpp_connector.go"],
-    cgo = True,
     cdeps = ["//cpp_accelerator/ports/cgo:cgo_api"],
+    cgo = True,
     importpath = "github.com/jrb/cuda-learning/webserver/internal/infrastructure/processor",
     visibility = ["//webserver:__subpackages__"],
     deps = [
-        "//proto:image_processing_go_proto",
+        "//proto/gen",
         "//webserver/internal/domain",
         "@org_golang_google_protobuf//proto",
     ],

@@ -12,14 +12,13 @@ cc_library(
     name = "cgo_api",
     srcs = ["cgo_api.cpp"],
     hdrs = ["cgo_api.h"],
-    alwayslink = 1,
     visibility = ["//visibility:public"],
     deps = [
         ":image_buffer_adapter",
-        "//cpp_accelerator/infrastructure/cuda:cuda_processors",
         "//cpp_accelerator/infrastructure/cpu:grayscale_processor",
+        "//cpp_accelerator/infrastructure/cuda:cuda_processors",
         "//proto:image_processing_cc_proto",
         "@spdlog",
     ],
+    alwayslink = 1,
 )
-

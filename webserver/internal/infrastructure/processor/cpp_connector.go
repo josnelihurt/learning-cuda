@@ -1,8 +1,6 @@
 package processor
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../..
-#cgo LDFLAGS: -L${SRCDIR}/../../../../bazel-bin/cpp_accelerator/ports/cgo -lcgo_api
 #include "cpp_accelerator/ports/cgo/cgo_api.h"
 #include <stdlib.h>
 */

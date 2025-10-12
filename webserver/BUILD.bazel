@@ -20,15 +20,15 @@ filegroup(
 # Package server binary and data files for Docker
 pkg_tar(
     name = "server_layer",
-    srcs = ["//webserver/cmd/server:server"],
+    srcs = ["//webserver/cmd/server"],
     package_dir = "/app",
 )
 
 pkg_tar(
     name = "data_layer",
     srcs = [
-        "//data:lena.png",
         "web/templates/index.html",
+        "//data:lena.png",
     ],
     package_dir = "/app",
 )

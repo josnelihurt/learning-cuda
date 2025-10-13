@@ -14,7 +14,7 @@ go_library(
         "//proto/gen/genconnect",
         "//webserver/internal/application",
         "//webserver/internal/config",
-        "//webserver/internal/domain",
+        "//webserver/internal/interfaces/adapters",
         "@com_connectrpc_connect//:connect",
     ],
 )

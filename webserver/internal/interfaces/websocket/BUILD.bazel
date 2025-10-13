@@ -11,7 +11,7 @@ go_library(
         "//webserver/internal/config",
         "//webserver/internal/domain",
         "//webserver/internal/infrastructure/image",
-        "@com_connectrpc_connect//:connect",
+        "//webserver/internal/interfaces/adapters",
         "@com_github_gorilla_websocket//:websocket",
         "@io_opentelemetry_go_otel//:otel",
         "@io_opentelemetry_go_otel//attribute",

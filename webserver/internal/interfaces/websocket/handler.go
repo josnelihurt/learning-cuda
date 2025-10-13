@@ -12,6 +12,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/internal/config"
 	"github.com/jrb/cuda-learning/webserver/internal/domain"
 	imageinfra "github.com/jrb/cuda-learning/webserver/internal/infrastructure/image"
+	"github.com/jrb/cuda-learning/webserver/internal/interfaces/adapters"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -29,6 +30,7 @@ var upgrader = websocket.Upgrader{
 type Handler struct {
 	useCase      *application.ProcessImageUseCase
 	imageCodec   *imageinfra.ImageCodec
+	adapter      *adapters.ProtobufAdapter
 	config       *config.Config
 	frameCounter int
 }
@@ -37,6 +39,7 @@ func NewHandler(useCase *application.ProcessImageUseCase, cfg *config.Config) *H
 	return &Handler{
 		useCase:      useCase,
 		imageCodec:   imageinfra.NewImageCodec(),
+		adapter:      adapters.NewProtobufAdapter(),
 		config:       cfg,
 		frameCounter: 0,
 	}
@@ -132,41 +135,9 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 		return result
 	}
 
-	filters := make([]domain.FilterType, 0, len(req.Filters))
-	for _, f := range req.Filters {
-		switch f {
-		case pb.FilterType_FILTER_TYPE_GRAYSCALE:
-			filters = append(filters, domain.FilterGrayscale)
-		case pb.FilterType_FILTER_TYPE_NONE:
-			filters = append(filters, domain.FilterNone)
-		}
-	}
-
-	var accelerator domain.AcceleratorType
-	switch req.Accelerator {
-	case pb.AcceleratorType_ACCELERATOR_TYPE_GPU:
-		accelerator = domain.AcceleratorGPU
-	case pb.AcceleratorType_ACCELERATOR_TYPE_CPU:
-		accelerator = domain.AcceleratorCPU
-	default:
-		accelerator = domain.AcceleratorGPU
-	}
-
-	var grayscaleType domain.GrayscaleType
-	switch req.GrayscaleType {
-	case pb.GrayscaleType_GRAYSCALE_TYPE_BT601:
-		grayscaleType = domain.GrayscaleBT601
-	case pb.GrayscaleType_GRAYSCALE_TYPE_BT709:
-		grayscaleType = domain.GrayscaleBT709
-	case pb.GrayscaleType_GRAYSCALE_TYPE_AVERAGE:
-		grayscaleType = domain.GrayscaleAverage
-	case pb.GrayscaleType_GRAYSCALE_TYPE_LIGHTNESS:
-		grayscaleType = domain.GrayscaleLightness
-	case pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY:
-		grayscaleType = domain.GrayscaleLuminosity
-	default:
-		grayscaleType = domain.GrayscaleBT601
-	}
+	filters := h.adapter.ToFilters(req.Filters)
+	accelerator := h.adapter.ToAccelerator(req.Accelerator)
+	grayscaleType := h.adapter.ToGrayscaleType(req.GrayscaleType)
 
 	h.frameCounter++
 	span.SetAttributes(

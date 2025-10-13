@@ -1,20 +1,17 @@
-package static_http
+package websocket
 
 import (
-	"bytes"
 	"context"
-	"image"
-	"image/jpeg"
-	"image/png"
 	"log"
 	"net/http"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/gorilla/websocket"
 	pb "github.com/jrb/cuda-learning/proto/gen"
+	"github.com/jrb/cuda-learning/webserver/internal/application"
 	"github.com/jrb/cuda-learning/webserver/internal/config"
-	"github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc"
+	"github.com/jrb/cuda-learning/webserver/internal/domain"
+	imageinfra "github.com/jrb/cuda-learning/webserver/internal/infrastructure/image"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -29,24 +26,26 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type WebSocketHandler struct {
-	rpcHandler   *connectrpc.ImageProcessorHandler
+type Handler struct {
+	useCase      *application.ProcessImageUseCase
+	imageCodec   *imageinfra.ImageCodec
 	config       *config.Config
 	frameCounter int
 }
 
-func NewWebSocketHandler(rpcHandler *connectrpc.ImageProcessorHandler, cfg *config.Config) *WebSocketHandler {
-	return &WebSocketHandler{
-		rpcHandler:   rpcHandler,
+func NewHandler(useCase *application.ProcessImageUseCase, cfg *config.Config) *Handler {
+	return &Handler{
+		useCase:      useCase,
+		imageCodec:   imageinfra.NewImageCodec(),
 		config:       cfg,
 		frameCounter: 0,
 	}
 }
 
-func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 	tracer := otel.Tracer("websocket-handler")
-	
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("ws upgrade failed: %v", err)
@@ -95,7 +94,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (h *WebSocketHandler) processFrame(ctx context.Context, tracer trace.Tracer, frameMsg *pb.WebSocketFrameRequest) *pb.WebSocketFrameResponse {
+func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMsg *pb.WebSocketFrameRequest) *pb.WebSocketFrameResponse {
 	if frameMsg.TraceContext != nil && frameMsg.TraceContext.Traceparent != "" {
 		carrier := propagation.MapCarrier{
 			"traceparent": frameMsg.TraceContext.Traceparent,
@@ -105,10 +104,10 @@ func (h *WebSocketHandler) processFrame(ctx context.Context, tracer trace.Tracer
 		}
 		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 	}
-	
+
 	ctx, span := tracer.Start(ctx, "WebSocket.processFrame")
 	defer span.End()
-	
+
 	startTime := time.Now()
 	result := &pb.WebSocketFrameResponse{
 		Type:    "frame_result",
@@ -127,80 +126,89 @@ func (h *WebSocketHandler) processFrame(ctx context.Context, tracer trace.Tracer
 		return result
 	}
 
-	img, err := png.Decode(bytes.NewReader(req.ImageData))
+	domainImg, err := h.imageCodec.DecodeToRGBA(req.ImageData)
 	if err != nil {
-		img, err = jpeg.Decode(bytes.NewReader(req.ImageData))
-		if err != nil {
-			result.Error = "image decode failed"
-			return result
+		result.Error = "image decode failed"
+		return result
+	}
+
+	filters := make([]domain.FilterType, 0, len(req.Filters))
+	for _, f := range req.Filters {
+		switch f {
+		case pb.FilterType_FILTER_TYPE_GRAYSCALE:
+			filters = append(filters, domain.FilterGrayscale)
+		case pb.FilterType_FILTER_TYPE_NONE:
+			filters = append(filters, domain.FilterNone)
 		}
 	}
 
-	bounds := img.Bounds()
-	rgba := image.NewRGBA(bounds)
-	for y := 0; y < bounds.Dy(); y++ {
-		for x := 0; x < bounds.Dx(); x++ {
-			rgba.Set(x, y, img.At(x, y))
-		}
+	var accelerator domain.AcceleratorType
+	switch req.Accelerator {
+	case pb.AcceleratorType_ACCELERATOR_TYPE_GPU:
+		accelerator = domain.AcceleratorGPU
+	case pb.AcceleratorType_ACCELERATOR_TYPE_CPU:
+		accelerator = domain.AcceleratorCPU
+	default:
+		accelerator = domain.AcceleratorGPU
 	}
 
-	req.ImageData = rgba.Pix
-	req.Width = int32(bounds.Dx())
-	req.Height = int32(bounds.Dy())
-	req.Channels = 4
+	var grayscaleType domain.GrayscaleType
+	switch req.GrayscaleType {
+	case pb.GrayscaleType_GRAYSCALE_TYPE_BT601:
+		grayscaleType = domain.GrayscaleBT601
+	case pb.GrayscaleType_GRAYSCALE_TYPE_BT709:
+		grayscaleType = domain.GrayscaleBT709
+	case pb.GrayscaleType_GRAYSCALE_TYPE_AVERAGE:
+		grayscaleType = domain.GrayscaleAverage
+	case pb.GrayscaleType_GRAYSCALE_TYPE_LIGHTNESS:
+		grayscaleType = domain.GrayscaleLightness
+	case pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY:
+		grayscaleType = domain.GrayscaleLuminosity
+	default:
+		grayscaleType = domain.GrayscaleBT601
+	}
 
 	h.frameCounter++
 	span.SetAttributes(
-		attribute.Int("image.width", int(req.Width)),
-		attribute.Int("image.height", int(req.Height)),
+		attribute.Int("image.width", domainImg.Width),
+		attribute.Int("image.height", domainImg.Height),
 		attribute.String("accelerator", req.Accelerator.String()),
 	)
-	
-	resp, err := h.rpcHandler.ProcessImage(ctx, connect.NewRequest(req))
+
+	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType)
 	if err != nil {
 		result.Error = "processing failed: " + err.Error()
 		return result
 	}
 
 	hasGrayscale := false
-	for _, f := range req.Filters {
-		if f == pb.FilterType_FILTER_TYPE_GRAYSCALE {
+	for _, f := range filters {
+		if f == domain.FilterGrayscale {
 			hasGrayscale = true
 			break
 		}
 	}
 
-	var buf bytes.Buffer
-	if !hasGrayscale {
-		resultImg := image.NewRGBA(image.Rect(0, 0, int(resp.Msg.Width), int(resp.Msg.Height)))
-		resultImg.Pix = resp.Msg.ImageData
-		if err := png.Encode(&buf, resultImg); err != nil {
-			result.Error = "encode failed"
-			return result
-		}
-	} else {
-		grayImg := image.NewGray(image.Rect(0, 0, int(resp.Msg.Width), int(resp.Msg.Height)))
-		grayImg.Pix = resp.Msg.ImageData
-		if err := png.Encode(&buf, grayImg); err != nil {
-			result.Error = "encode failed"
-			return result
-		}
+	encodedData, err := h.imageCodec.EncodeToPNG(processedImg, hasGrayscale)
+	if err != nil {
+		result.Error = "encode failed"
+		return result
 	}
 
 	result.Success = true
 	result.Response = &pb.ProcessImageResponse{
 		Code:      0,
 		Message:   "success",
-		ImageData: buf.Bytes(),
-		Width:     resp.Msg.Width,
-		Height:    resp.Msg.Height,
-		Channels:  resp.Msg.Channels,
+		ImageData: encodedData,
+		Width:     int32(processedImg.Width),
+		Height:    int32(processedImg.Height),
+		Channels:  int32(len(processedImg.Data) / (processedImg.Width * processedImg.Height)),
 	}
 
 	elapsed := time.Since(startTime)
 	if h.frameCounter%30 == 0 {
-		log.Printf("frame %v (%dx%d %v %v)", 
-			elapsed, resp.Msg.Width, resp.Msg.Height, req.Filters, req.Accelerator)
+		log.Printf("frame %v (%dx%d %v %v)",
+			elapsed, processedImg.Width, processedImg.Height, filters, accelerator)
 	}
 
 	return result

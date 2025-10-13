@@ -39,7 +39,7 @@ func (a *App) Run() error {
 		log.Println("Trace proxy endpoint registered at /api/traces")
 	}
 	
-	staticHandler := static_http.NewStaticHandler(a.config, rpcHandler)
+	staticHandler := static_http.NewStaticHandler(a.config, a.useCase)
 	staticHandler.RegisterRoutes(mux)
 	
 	var handler http.Handler = mux

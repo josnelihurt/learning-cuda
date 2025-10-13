@@ -1,0 +1,24 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "websocket",
+    srcs = ["handler.go"],
+    importpath = "github.com/jrb/cuda-learning/webserver/internal/interfaces/websocket",
+    visibility = ["//webserver:__subpackages__"],
+    deps = [
+        "//proto/gen",
+        "//webserver/internal/application",
+        "//webserver/internal/config",
+        "//webserver/internal/domain",
+        "//webserver/internal/infrastructure/image",
+        "@com_connectrpc_connect//:connect",
+        "@com_github_gorilla_websocket//:websocket",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel//propagation",
+        "@io_opentelemetry_go_otel_trace//:trace",
+        "@org_golang_google_protobuf//encoding/protojson",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+

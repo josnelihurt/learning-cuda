@@ -6,19 +6,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jrb/cuda-learning/webserver/internal/application"
 	"github.com/jrb/cuda-learning/webserver/internal/config"
-	"github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc"
+	"github.com/jrb/cuda-learning/webserver/internal/interfaces/websocket"
 )
 
 type StaticHandler struct {
 	webRootPath      string
 	hotReloadEnabled bool
 	tmpl             *template.Template
-	wsHandler        *WebSocketHandler
+	wsHandler        *websocket.Handler
 	assetHandler     AssetHandler
 }
 
-func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorHandler) *StaticHandler {
+func NewStaticHandler(cfg *config.Config, useCase *application.ProcessImageUseCase) *StaticHandler {
 	var tmpl *template.Template
 	if !cfg.Server.HotReloadEnabled {
 		templatePath := filepath.Join(cfg.Server.WebRootPath, "templates", "index.html")
@@ -39,7 +40,7 @@ func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorH
 		webRootPath:      cfg.Server.WebRootPath,
 		hotReloadEnabled: cfg.Server.HotReloadEnabled,
 		tmpl:             tmpl,
-		wsHandler:        NewWebSocketHandler(rpcHandler, cfg),
+		wsHandler:        websocket.NewHandler(useCase, cfg),
 		assetHandler:     assetHandler,
 	}
 }

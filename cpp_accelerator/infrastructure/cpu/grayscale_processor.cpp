@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <memory>
 
+#include "cpp_accelerator/core/telemetry.h"
+
 namespace jrb::infrastructure::cpu {
 
 CpuGrayscaleProcessor::CpuGrayscaleProcessor(GrayscaleAlgorithm algorithm) : algorithm_(algorithm) {
@@ -52,7 +54,16 @@ unsigned char CpuGrayscaleProcessor::calculate_grayscale_value(unsigned char r, 
 void CpuGrayscaleProcessor::convert_to_grayscale_cpu(const unsigned char* input,
                                                      unsigned char* output, int width, int height,
                                                      int channels) {
+    auto& telemetry = core::telemetry::TelemetryManager::GetInstance();
+    auto span = telemetry.CreateSpan("cpu-grayscale", "convert_to_grayscale_cpu");
+    core::telemetry::ScopedSpan scoped_span(span);
+
     int total_pixels = width * height;
+
+    scoped_span.SetAttribute("image.width", static_cast<int64_t>(width));
+    scoped_span.SetAttribute("image.height", static_cast<int64_t>(height));
+    scoped_span.SetAttribute("image.channels", static_cast<int64_t>(channels));
+    scoped_span.SetAttribute("total_pixels", static_cast<int64_t>(total_pixels));
 
     for (int i = 0; i < total_pixels; i++) {
         int input_idx = i * channels;

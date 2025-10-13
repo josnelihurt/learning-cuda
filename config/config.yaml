@@ -20,3 +20,10 @@ stream:
 features:
   use_binary_protocol: false
   enable_grpc_streaming: false
+  enable_observability: true
+
+observability:
+  service_name: "cuda-image-processor"
+  service_version: "1.0.0"
+  otel_collector_endpoint: "localhost:4317"
+  trace_sampling_rate: 1.0

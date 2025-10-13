@@ -9,6 +9,7 @@ go_library(
         "//webserver/internal/app",
         "//webserver/internal/application",
         "//webserver/internal/infrastructure/processor",
+        "//webserver/internal/telemetry",
     ],
 )
 

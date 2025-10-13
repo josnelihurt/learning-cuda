@@ -6,11 +6,15 @@ package processor
 */
 import "C"
 import (
+	"context"
 	"fmt"
 	"unsafe"
 
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/internal/domain"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -76,7 +80,18 @@ func init() {
 }
 
 // ProcessImage processes an image using C++ CUDA or CPU kernels
-func (c *CppConnector) ProcessImage(img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
+func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
+	tracer := otel.Tracer("cpp-connector")
+	ctx, span := tracer.Start(ctx, "CppConnector.ProcessImage",
+		trace.WithSpanKind(trace.SpanKindInternal),
+	)
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("accelerator", string(accelerator)),
+		attribute.String("grayscale_type", string(grayscaleType)),
+	)
+
 	// Handle "none" filter or empty filters - return original image without processing
 	if len(filters) == 0 || (len(filters) == 1 && filters[0] == domain.FilterNone) {
 		return img, nil
@@ -123,6 +138,20 @@ func (c *CppConnector) ProcessImage(img *domain.Image, filters []domain.FilterTy
 		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT601 // Default to BT601
 	}
 
+	// Extract trace context from current span
+	spanContext := trace.SpanContextFromContext(ctx)
+	var traceID, spanID string
+	var traceFlags uint32
+	if spanContext.IsValid() {
+		traceID = spanContext.TraceID().String()
+		spanID = spanContext.SpanID().String()
+		traceFlags = uint32(spanContext.TraceFlags())
+		span.SetAttributes(
+			attribute.String("trace.id", traceID),
+			attribute.String("span.id", spanID),
+		)
+	}
+
 	// Create process request
 	procReq := &pb.ProcessImageRequest{
 		ImageData:     img.Data,
@@ -132,6 +161,9 @@ func (c *CppConnector) ProcessImage(img *domain.Image, filters []domain.FilterTy
 		Filters:       protoFilters,
 		Accelerator:   protoAccelerator,
 		GrayscaleType: protoGrayscaleType,
+		TraceId:       traceID,
+		SpanId:        spanID,
+		TraceFlags:    traceFlags,
 	}
 
 	// Marshal to bytes
@@ -141,6 +173,7 @@ func (c *CppConnector) ProcessImage(img *domain.Image, filters []domain.FilterTy
 	}
 
 	// Call C++ processing
+	span.AddEvent("CGO call started")
 	var response *C.uint8_t
 	var responseLen C.int
 	
@@ -156,6 +189,7 @@ func (c *CppConnector) ProcessImage(img *domain.Image, filters []domain.FilterTy
 		&response,
 		&responseLen,
 	)
+	span.AddEvent("CGO call completed")
 
 	// Always free the response
 	defer C.FreeResponse(response)
@@ -168,7 +202,9 @@ func (c *CppConnector) ProcessImage(img *domain.Image, filters []domain.FilterTy
 	}
 
 	if !success || procResp.Code != 0 {
-		return nil, fmt.Errorf("processing failed: %s", procResp.Message)
+		err := fmt.Errorf("processing failed: %s", procResp.Message)
+		span.RecordError(err)
+		return nil, err
 	}
 
 	// Build result image

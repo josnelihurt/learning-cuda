@@ -5,6 +5,7 @@
 #include <cstring>
 #include <memory>
 
+#include "cpp_accelerator/core/telemetry.h"
 #include "cpp_accelerator/infrastructure/cpu/grayscale_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_processor.h"
 #include "cpp_accelerator/ports/cgo/image_buffer_adapter.h"
@@ -82,6 +83,10 @@ bool CudaInit(const uint8_t* request, int request_len, uint8_t** response, int* 
     spdlog::info("Initializing CUDA context (device: {})", init_req.cuda_device_id());
 
     try {
+        // Initialize OpenTelemetry
+        auto& telemetry = jrb::core::telemetry::TelemetryManager::GetInstance();
+        telemetry.Initialize("cuda-image-processor-cpp", "localhost:4317", true);
+
         // Create singleton processor instances (GPU and CPU)
         g_cuda_grayscale_processor =
             std::make_unique<jrb::infrastructure::cuda::GrayscaleProcessor>();
@@ -89,8 +94,9 @@ bool CudaInit(const uint8_t* request, int request_len, uint8_t** response, int* 
             std::make_unique<jrb::infrastructure::cpu::CpuGrayscaleProcessor>();
 
         init_resp.set_code(0);
-        init_resp.set_message("CUDA context and CPU processors initialized successfully");
-        spdlog::info("Initialization successful (CUDA + CPU)");
+        init_resp.set_message(
+            "CUDA context, CPU processors, and telemetry initialized successfully");
+        spdlog::info("Initialization successful (CUDA + CPU + Telemetry)");
     } catch (const std::exception& e) {
         spdlog::error("Initialization failed: {}", e.what());
         init_resp.set_code(2);
@@ -104,9 +110,12 @@ bool CudaInit(const uint8_t* request, int request_len, uint8_t** response, int* 
 }
 
 void CudaCleanup() {
-    spdlog::info("Cleaning up CUDA context and CPU processors");
+    spdlog::info("Cleaning up CUDA context, CPU processors, and telemetry");
     g_cuda_grayscale_processor.reset();
     g_cpu_grayscale_processor.reset();
+
+    auto& telemetry = jrb::core::telemetry::TelemetryManager::GetInstance();
+    telemetry.Shutdown();
 }
 
 bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, int* response_len) {
@@ -121,6 +130,13 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
         *response = allocate_response(proc_resp.SerializeAsString(), response_len);
         return false;
     }
+
+    // Create span with parent context from Go
+    auto& telemetry = jrb::core::telemetry::TelemetryManager::GetInstance();
+    auto span =
+        telemetry.CreateChildSpan("cgo-api", "ProcessImage", proc_req.trace_id(),
+                                  proc_req.span_id(), static_cast<uint8_t>(proc_req.trace_flags()));
+    jrb::core::telemetry::ScopedSpan scoped_span(span);
 
     // Check if processors are initialized
     if (!g_cuda_grayscale_processor || !g_cpu_grayscale_processor) {
@@ -148,6 +164,13 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
                   cuda_learning::AcceleratorType_Name(accelerator),
                   cuda_learning::GrayscaleType_Name(grayscale_type));
 
+    scoped_span.SetAttribute("image.width", static_cast<int64_t>(proc_req.width()));
+    scoped_span.SetAttribute("image.height", static_cast<int64_t>(proc_req.height()));
+    scoped_span.SetAttribute("image.channels", static_cast<int64_t>(proc_req.channels()));
+    scoped_span.SetAttribute("accelerator", cuda_learning::AcceleratorType_Name(accelerator));
+    scoped_span.SetAttribute("grayscale_type", cuda_learning::GrayscaleType_Name(grayscale_type));
+    scoped_span.SetAttribute("filters_count", static_cast<int64_t>(proc_req.filters_size()));
+
     try {
         // Create initial source from request
         jrb::ports::cgo::ImageBufferSource source(
@@ -169,19 +192,24 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
                 bool success = false;
 
                 if (accelerator == cuda_learning::ACCELERATOR_TYPE_GPU) {
+                    scoped_span.AddEvent("Starting CUDA grayscale processing");
                     // Use CUDA processor
                     g_cuda_grayscale_processor->set_algorithm(
                         proto_to_cuda_algorithm(grayscale_type));
                     success = g_cuda_grayscale_processor->process(source, sink, "");
+                    scoped_span.AddEvent("CUDA grayscale processing completed");
                 } else {
+                    scoped_span.AddEvent("Starting CPU grayscale processing");
                     // Use CPU processor
                     g_cpu_grayscale_processor->set_algorithm(
                         proto_to_cpu_algorithm(grayscale_type));
                     success = g_cpu_grayscale_processor->process(source, sink, "");
+                    scoped_span.AddEvent("CPU grayscale processing completed");
                 }
 
                 if (!success) {
                     spdlog::error("Grayscale filter processing failed");
+                    scoped_span.RecordError("Grayscale filter processing failed");
                     proc_resp.set_code(5);
                     proc_resp.set_message("Grayscale filter processing failed");
                     *response = allocate_response(proc_resp.SerializeAsString(), response_len);
@@ -207,8 +235,13 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
 
         spdlog::debug("Image processing completed successfully");
 
+        scoped_span.SetAttribute("result.width", static_cast<int64_t>(sink.width()));
+        scoped_span.SetAttribute("result.height", static_cast<int64_t>(sink.height()));
+        scoped_span.SetAttribute("result.channels", static_cast<int64_t>(sink.channels()));
+
     } catch (const std::exception& e) {
         spdlog::error("Exception during image processing: {}", e.what());
+        scoped_span.RecordError(std::string("Exception: ") + e.what());
         proc_resp.set_code(6);
         proc_resp.set_message(std::string("Exception: ") + e.what());
         *response = allocate_response(proc_resp.SerializeAsString(), response_len);

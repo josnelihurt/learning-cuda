@@ -5,5 +5,10 @@ go_library(
     srcs = ["process_image_use_case.go"],
     importpath = "github.com/jrb/cuda-learning/webserver/internal/application",
     visibility = ["//webserver:__subpackages__"],
-    deps = ["//webserver/internal/domain"],
+    deps = [
+        "//webserver/internal/domain",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel_trace//:trace",
+    ],
 )

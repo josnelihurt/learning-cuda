@@ -20,6 +20,12 @@
     "vite": "^5.0.10"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.9.0",
+    "@opentelemetry/core": "1.28.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.55.0",
+    "@opentelemetry/resources": "1.28.0",
+    "@opentelemetry/sdk-trace-base": "1.28.0",
+    "@opentelemetry/sdk-trace-web": "1.28.0",
     "lit": "^3.1.0"
   }
 }

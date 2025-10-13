@@ -12,6 +12,7 @@ go_library(
         "//webserver/internal/application",
         "//webserver/internal/config",
         "//webserver/internal/interfaces/connectrpc",
+        "//webserver/internal/interfaces/http",
         "//webserver/internal/interfaces/static_http",
     ],
 )

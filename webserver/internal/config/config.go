@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Server       ServerConfig
 	Stream       StreamConfig
+	Observability ObservabilityConfig
 	FeatureFlags map[string]bool
 }
 
@@ -33,6 +34,13 @@ type StreamConfig struct {
 	WebsocketEndpoint string
 }
 
+type ObservabilityConfig struct {
+	ServiceName            string
+	ServiceVersion         string
+	OtelCollectorEndpoint  string
+	TraceSamplingRate      float64
+}
+
 func Load() *Config {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -50,6 +58,13 @@ func Load() *Config {
 	viper.SetDefault("server.tls.key_file", ".secrets/localhost+2-key.pem")
 	viper.SetDefault("stream.transport_format", "json")
 	viper.SetDefault("stream.websocket_endpoint", "/ws")
+	viper.SetDefault("observability.service_name", "cuda-image-processor")
+	viper.SetDefault("observability.service_version", "1.0.0")
+	viper.SetDefault("observability.otel_collector_endpoint", "localhost:4317")
+	viper.SetDefault("observability.trace_sampling_rate", 1.0)
+
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("CUDA_PROCESSOR")
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Warning: Config file not found, using defaults: %v", err)
@@ -72,6 +87,12 @@ func Load() *Config {
 		Stream: StreamConfig{
 			TransportFormat:   viper.GetString("stream.transport_format"),
 			WebsocketEndpoint: viper.GetString("stream.websocket_endpoint"),
+		},
+		Observability: ObservabilityConfig{
+			ServiceName:           viper.GetString("observability.service_name"),
+			ServiceVersion:        viper.GetString("observability.service_version"),
+			OtelCollectorEndpoint: viper.GetString("observability.otel_collector_endpoint"),
+			TraceSamplingRate:     viper.GetFloat64("observability.trace_sampling_rate"),
 		},
 		FeatureFlags: make(map[string]bool),
 	}

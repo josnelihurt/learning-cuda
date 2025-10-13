@@ -1,14 +1,21 @@
-# C++ standard
+# Enable WORKSPACE for OpenTelemetry C++ dependencies
+common --enable_workspace
+
+# CUDA settings
+build --repo_env=HERMETIC_CUDA_VERSION="12.4.0"
+build --@rules_cuda//cuda:enable=True
+build --@rules_cuda//cuda:compiler=nvcc
+build --@rules_cuda//cuda:copts=-allow-unsupported-compiler
+
+# Build settings
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
 
-# CUDA compatibility
-build --cxxopt=-Wno-unknown-cuda-version
+# Color output
+common --color=yes
 
-# Suppress specific warnings from external dependencies
-build --cxxopt=-Wno-missing-requires
-build --cxxopt=-Wno-deprecated-declarations
-build --cxxopt=-Wno-sign-compare
-build --host_cxxopt=-Wno-missing-requires
-build --host_cxxopt=-Wno-deprecated-declarations
-build --host_cxxopt=-Wno-sign-compare
+# Keep going on errors
+build --keep_going
+
+# Performance
+build --jobs=auto

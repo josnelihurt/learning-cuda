@@ -10,6 +10,9 @@ go_library(
     deps = [
         "//proto/gen",
         "//webserver/internal/domain",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel_trace//:trace",
         "@org_golang_google_protobuf//proto",
     ],
 )

@@ -7,6 +7,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/internal/application"
 	"github.com/jrb/cuda-learning/webserver/internal/config"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc"
+	httphandlers "github.com/jrb/cuda-learning/webserver/internal/interfaces/http"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/static_http"
 )
 
@@ -29,15 +30,30 @@ func (a *App) Run() error {
 	connectrpc.RegisterRoutesWithHandler(mux, rpcHandler)
 	connectrpc.RegisterConfigService(mux, a.config)
 	
+	if a.config.IsFeatureEnabled("enable_observability") {
+		traceProxy := httphandlers.NewTraceProxyHandler(
+			a.config.Observability.OtelCollectorEndpoint,
+			true,
+		)
+		mux.Handle("/api/traces", traceProxy)
+		log.Println("Trace proxy endpoint registered at /api/traces")
+	}
+	
 	staticHandler := static_http.NewStaticHandler(a.config, rpcHandler)
 	staticHandler.RegisterRoutes(mux)
+	
+	var handler http.Handler = mux
+	// Note: HTTP auto-instrumentation disabled - tracing works from handler level down
+	if a.config.IsFeatureEnabled("enable_observability") {
+		log.Println("OpenTelemetry enabled - tracing from handler level")
+	}
 	
 	errChan := make(chan error, 2)
 	
 	go func() {
 		log.Printf("Starting HTTP server on %s (hot_reload: %v, transport: %s)\n", 
 			a.config.Server.HttpPort, a.config.Server.HotReloadEnabled, a.config.Stream.TransportFormat)
-		if err := http.ListenAndServe(a.config.Server.HttpPort, mux); err != nil {
+		if err := http.ListenAndServe(a.config.Server.HttpPort, handler); err != nil {
 			errChan <- err
 		}
 	}()
@@ -50,7 +66,7 @@ func (a *App) Run() error {
 				a.config.Server.HttpsPort, 
 				a.config.Server.TLS.CertFile, 
 				a.config.Server.TLS.KeyFile, 
-				mux,
+				handler,
 			); err != nil {
 				errChan <- err
 			}

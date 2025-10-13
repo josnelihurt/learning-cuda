@@ -15,6 +15,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":image_buffer_adapter",
+        "//cpp_accelerator/core:telemetry",
         "//cpp_accelerator/infrastructure/cpu:grayscale_processor",
         "//cpp_accelerator/infrastructure/cuda:cuda_processors",
         "//proto:image_processing_cc_proto",

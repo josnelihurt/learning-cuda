@@ -5,6 +5,7 @@ import './components/filter-panel';
 import { WebSocketService } from './services/websocket-service';
 import { UIService } from './services/ui-service';
 import { streamConfigService } from './services/config-service';
+import { telemetryService } from './services/telemetry-service';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 
@@ -22,6 +23,8 @@ const app = {
     
     async init() {
         console.log('Initializing dashboard...');
+        
+        await telemetryService.initialize();
         await streamConfigService.initialize();
         
         await customElements.whenDefined('camera-preview');

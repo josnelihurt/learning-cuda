@@ -53,6 +53,17 @@ export default defineConfig({
   
   plugins: [gitVersionPlugin()],
   
+  optimizeDeps: {
+    include: [
+      '@opentelemetry/api',
+      '@opentelemetry/sdk-trace-web',
+      '@opentelemetry/sdk-trace-base',
+      '@opentelemetry/resources',
+      '@opentelemetry/core',
+      '@opentelemetry/exporter-trace-otlp-http',
+    ],
+  },
+  
   server: {
     host: '0.0.0.0',
     port: 3000,

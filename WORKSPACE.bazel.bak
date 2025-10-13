@@ -1,0 +1,50 @@
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# Abseil (required by OpenTelemetry)
+http_archive(
+    name = "com_google_absl",
+    sha256 = "3ea49a7d97421b88a8c48a0de16c16048e17725c7ec0f1d3ea2683a2a75adc21",
+    strip_prefix = "abseil-cpp-20230125.0",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20230125.0.tar.gz"],
+)
+
+# nlohmann_json (required by OpenTelemetry)
+http_archive(
+    name = "github_nlohmann_json",
+    build_file_content = """
+cc_library(
+    name = "json",
+    hdrs = glob(["include/**/*.hpp"]),
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+)
+""",
+    sha256 = "d69f9deb6a75e2580465c6c4c5111b89c4dc2fa94e3a85fcd2ffcd9a143d9273",
+    strip_prefix = "json-3.11.2",
+    urls = ["https://github.com/nlohmann/json/archive/refs/tags/v3.11.2.tar.gz"],
+)
+
+# curl (for OpenTelemetry HTTP exporter)
+http_archive(
+    name = "curl",
+    build_file_content = """
+cc_library(
+    name = "curl",
+    srcs = [],
+    hdrs = [],
+    visibility = ["//visibility:public"],
+    linkopts = ["-lcurl"],
+)
+""",
+    sha256 = "1",
+    urls = ["https://github.com/curl/curl/archive/refs/tags/curl-8_0_1.tar.gz"],
+)
+
+# OpenTelemetry C++ (using HTTP exporter instead of gRPC to avoid complex dependencies)
+http_archive(
+    name = "io_opentelemetry_cpp",
+    sha256 = "b149109d5983cf8290d614654a878899a68b0c8902b64c934d06f47cd50ffe2e",
+    strip_prefix = "opentelemetry-cpp-1.18.0",
+    urls = ["https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.18.0.tar.gz"],
+)
+

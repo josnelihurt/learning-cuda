@@ -13,6 +13,14 @@ message ProcessImageRequest {
   repeated FilterType filters = 9 [json_name = "filters"];  // Array of filters to apply sequentially
   AcceleratorType accelerator = 11 [json_name = "accelerator"];  // GPU or CPU processing
   GrayscaleType grayscale_type = 13 [json_name = "grayscale_type"]; // Grayscale algorithm selection
+  
+  // OpenTelemetry trace context propagation (deprecated - use trace_context instead)
+  string trace_id = 15 [json_name = "trace_id"];      // W3C trace-id (32 hex chars)
+  string span_id = 17 [json_name = "span_id"];        // W3C span-id (16 hex chars)
+  uint32 trace_flags = 19 [json_name = "trace_flags"]; // W3C trace-flags (8 bit)
+  
+  // W3C Trace Context (unified for all layers)
+  TraceContext trace_context = 21 [json_name = "trace_context"];
 }
 
 // Enum for filter types
@@ -48,23 +56,33 @@ message ProcessImageResponse {
   int32 width = 7 [json_name = "width"];
   int32 height = 9 [json_name = "height"];
   int32 channels = 11 [json_name = "channels"];
+  TraceContext trace_context = 13 [json_name = "trace_context"];
 }
 
 // Lifecycle management
 message InitRequest {
   int32 cuda_device_id = 1;  // Default 0
+  TraceContext trace_context = 3 [json_name = "trace_context"];
   // Future: memory_pool_size = 5, enable_profiling = 10, etc.
 }
 
 message InitResponse {
   int32 code = 1;            // 0=success, non-zero=error
   string message = 3;        // Status or error message
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+// W3C Trace Context for distributed tracing
+message TraceContext {
+  string traceparent = 1 [json_name = "traceparent"];
+  string tracestate = 3 [json_name = "tracestate"];
 }
 
 // WebSocket stream messages
 message WebSocketFrameRequest {
   string type = 1 [json_name = "type"];
   ProcessImageRequest request = 3 [json_name = "request"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
 }
 
 message WebSocketFrameResponse {
@@ -72,6 +90,7 @@ message WebSocketFrameResponse {
   bool success = 3 [json_name = "success"];
   string error = 5 [json_name = "error"];
   ProcessImageResponse response = 7 [json_name = "response"];
+  TraceContext trace_context = 9 [json_name = "trace_context"];
 }
 
 // Stream configuration

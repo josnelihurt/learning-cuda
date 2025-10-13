@@ -18,6 +18,7 @@ cuda_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//cpp_accelerator/core:telemetry",
         "//cpp_accelerator/domain/interfaces",
         "//cpp_accelerator/domain/interfaces:processors",
         "@spdlog",

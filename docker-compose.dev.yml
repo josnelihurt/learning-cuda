@@ -1,0 +1,50 @@
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: jaeger-dev
+    restart: unless-stopped
+    
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+    
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=debug
+    
+    networks:
+      - dev-network
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector-dev
+    restart: unless-stopped
+    
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "13133:13133"
+    
+    networks:
+      - dev-network
+    
+    depends_on:
+      jaeger:
+        condition: service_healthy
+
+networks:
+  dev-network:
+    driver: bridge
+

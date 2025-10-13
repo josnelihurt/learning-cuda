@@ -69,7 +69,7 @@ func (h *ImageProcessorHandler) ProcessImage(
 		Format: "raw",
 	}
 	
-	processedImg, err := h.useCase.Execute(domainImg, filters, accelerator, grayscaleType)
+	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

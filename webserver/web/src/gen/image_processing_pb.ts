@@ -171,6 +171,36 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
    */
   grayscaleType = GrayscaleType.UNSPECIFIED;
 
+  /**
+   * OpenTelemetry trace context propagation (deprecated - use trace_context instead)
+   *
+   * W3C trace-id (32 hex chars)
+   *
+   * @generated from field: string trace_id = 15 [json_name = "trace_id"];
+   */
+  traceId = "";
+
+  /**
+   * W3C span-id (16 hex chars)
+   *
+   * @generated from field: string span_id = 17 [json_name = "span_id"];
+   */
+  spanId = "";
+
+  /**
+   * W3C trace-flags (8 bit)
+   *
+   * @generated from field: uint32 trace_flags = 19 [json_name = "trace_flags"];
+   */
+  traceFlags = 0;
+
+  /**
+   * W3C Trace Context (unified for all layers)
+   *
+   * @generated from field: cuda_learning.TraceContext trace_context = 21 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
   constructor(data?: PartialMessage<ProcessImageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -186,6 +216,10 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
     { no: 9, name: "filters", kind: "enum", T: proto3.getEnumType(FilterType), repeated: true },
     { no: 11, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
     { no: 13, name: "grayscale_type", jsonName: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
+    { no: 15, name: "trace_id", jsonName: "trace_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 17, name: "span_id", jsonName: "span_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 19, name: "trace_flags", jsonName: "trace_flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 21, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProcessImageRequest {
@@ -247,6 +281,11 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
    */
   channels = 0;
 
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 13 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
   constructor(data?: PartialMessage<ProcessImageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -261,6 +300,7 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
     { no: 7, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 9, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 11, name: "channels", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 13, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProcessImageResponse {
@@ -293,6 +333,13 @@ export class InitRequest extends Message<InitRequest> {
    */
   cudaDeviceId = 0;
 
+  /**
+   * Future: memory_pool_size = 5, enable_profiling = 10, etc.
+   *
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
   constructor(data?: PartialMessage<InitRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -302,6 +349,7 @@ export class InitRequest extends Message<InitRequest> {
   static readonly typeName = "cuda_learning.InitRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "cuda_device_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitRequest {
@@ -339,6 +387,11 @@ export class InitResponse extends Message<InitResponse> {
    */
   message = "";
 
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 5 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
   constructor(data?: PartialMessage<InitResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -349,6 +402,7 @@ export class InitResponse extends Message<InitResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitResponse {
@@ -369,6 +423,51 @@ export class InitResponse extends Message<InitResponse> {
 }
 
 /**
+ * W3C Trace Context for distributed tracing
+ *
+ * @generated from message cuda_learning.TraceContext
+ */
+export class TraceContext extends Message<TraceContext> {
+  /**
+   * @generated from field: string traceparent = 1;
+   */
+  traceparent = "";
+
+  /**
+   * @generated from field: string tracestate = 3;
+   */
+  tracestate = "";
+
+  constructor(data?: PartialMessage<TraceContext>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.TraceContext";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "traceparent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tracestate", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TraceContext {
+    return new TraceContext().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TraceContext {
+    return new TraceContext().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TraceContext {
+    return new TraceContext().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TraceContext | PlainMessage<TraceContext> | undefined, b: TraceContext | PlainMessage<TraceContext> | undefined): boolean {
+    return proto3.util.equals(TraceContext, a, b);
+  }
+}
+
+/**
  * WebSocket stream messages
  *
  * @generated from message cuda_learning.WebSocketFrameRequest
@@ -384,6 +483,11 @@ export class WebSocketFrameRequest extends Message<WebSocketFrameRequest> {
    */
   request?: ProcessImageRequest;
 
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 5 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
   constructor(data?: PartialMessage<WebSocketFrameRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -394,6 +498,7 @@ export class WebSocketFrameRequest extends Message<WebSocketFrameRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "request", kind: "message", T: ProcessImageRequest },
+    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WebSocketFrameRequest {
@@ -437,6 +542,11 @@ export class WebSocketFrameResponse extends Message<WebSocketFrameResponse> {
    */
   response?: ProcessImageResponse;
 
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 9 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
   constructor(data?: PartialMessage<WebSocketFrameResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -449,6 +559,7 @@ export class WebSocketFrameResponse extends Message<WebSocketFrameResponse> {
     { no: 3, name: "success", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "error", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "response", kind: "message", T: ProcessImageResponse },
+    { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WebSocketFrameResponse {

@@ -1,8 +1,10 @@
 import type { StatsPanel } from '../components/stats-panel';
 import type { CameraPreview } from '../components/camera-preview';
 import type { ToastContainer } from '../components/toast-container';
-import { WebSocketFrameRequest, WebSocketFrameResponse, ProcessImageRequest, FilterType, AcceleratorType, GrayscaleType } from '../gen/image_processing_pb';
+import { WebSocketFrameRequest, WebSocketFrameResponse, ProcessImageRequest, FilterType, AcceleratorType, GrayscaleType, TraceContext } from '../gen/image_processing_pb';
 import { streamConfigService } from './config-service';
+import { telemetryService } from './telemetry-service';
+import { context, propagation } from '@opentelemetry/api';
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
 
@@ -126,9 +128,18 @@ export class WebSocketService {
             grayscaleType: protoGrayscaleType,
         });
 
+        const carrier: { [key: string]: string } = {};
+        propagation.inject(context.active(), carrier);
+        
+        const traceContext = new TraceContext({
+            traceparent: carrier['traceparent'] || '',
+            tracestate: carrier['tracestate'] || '',
+        });
+
         const frameRequest = new WebSocketFrameRequest({
             type: 'frame',
             request: request,
+            traceContext: traceContext,
         });
 
         const transportFormat = streamConfigService.getTransportFormat();
@@ -140,30 +151,46 @@ export class WebSocketService {
     }
 
     sendSingleFrame(base64Data: string, width: number, height: number, filters: string[], accelerator: string, grayscaleType: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-                reject(new Error('WebSocket not connected'));
-                return;
-            }
-
-            const originalCallback = this.onFrameResultCallback;
-            
-            this.onFrameResultCallback = (data: WebSocketFrameResponse) => {
-                this.onFrameResultCallback = originalCallback;
-                
-                if (data.success && data.response) {
-                    const heroImage = document.querySelector('#heroImage') as HTMLImageElement;
-                    if (heroImage) {
-                        const imageData = uint8ArrayToBase64(data.response.imageData);
-                        heroImage.src = `data:image/png;base64,${imageData}`;
+        return telemetryService.withSpanAsync('WebSocket.sendSingleFrame', {
+            'image.width': width,
+            'image.height': height,
+            'filters': filters.join(','),
+            'accelerator': accelerator,
+            'grayscale_type': grayscaleType,
+        }, async (span) => {
+                return new Promise((resolve, reject) => {
+                    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                        reject(new Error('WebSocket not connected'));
+                        return;
                     }
-                    resolve();
-                } else {
-                    reject(new Error(data.error || 'Unknown error'));
-                }
-            };
 
-            this.sendFrame(base64Data, width, height, filters, accelerator, grayscaleType);
+                    span?.addEvent('Preparing WebSocket frame');
+                    const originalCallback = this.onFrameResultCallback;
+                    
+                    this.onFrameResultCallback = (data: WebSocketFrameResponse) => {
+                        this.onFrameResultCallback = originalCallback;
+                        
+                        if (data.success && data.response) {
+                            span?.addEvent('Frame processed successfully');
+                            span?.setAttribute('result.width', data.response.width);
+                            span?.setAttribute('result.height', data.response.height);
+                            
+                            const heroImage = document.querySelector('#heroImage') as HTMLImageElement;
+                            if (heroImage) {
+                                span?.addEvent('Updating UI with result');
+                                const imageData = uint8ArrayToBase64(data.response.imageData);
+                                heroImage.src = `data:image/png;base64,${imageData}`;
+                            }
+                            resolve();
+                        } else {
+                            const error = new Error(data.error || 'Unknown error');
+                            reject(error);
+                        }
+                    };
+
+                    span?.addEvent('Sending frame via WebSocket');
+                    this.sendFrame(base64Data, width, height, filters, accelerator, grayscaleType);
+                });
         });
     }
 

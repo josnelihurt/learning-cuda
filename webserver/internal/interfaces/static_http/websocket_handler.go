@@ -15,6 +15,10 @@ import (
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/internal/config"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -40,6 +44,9 @@ func NewWebSocketHandler(rpcHandler *connectrpc.ImageProcessorHandler, cfg *conf
 }
 
 func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	tracer := otel.Tracer("websocket-handler")
+	
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("ws upgrade failed: %v", err)
@@ -68,7 +75,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 			continue
 		}
 
-		result := h.processFrame(&frameMsg)
+		result := h.processFrame(ctx, tracer, &frameMsg)
 
 		var responseBytes []byte
 		if transportFormat == "binary" {
@@ -88,7 +95,20 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (h *WebSocketHandler) processFrame(frameMsg *pb.WebSocketFrameRequest) *pb.WebSocketFrameResponse {
+func (h *WebSocketHandler) processFrame(ctx context.Context, tracer trace.Tracer, frameMsg *pb.WebSocketFrameRequest) *pb.WebSocketFrameResponse {
+	if frameMsg.TraceContext != nil && frameMsg.TraceContext.Traceparent != "" {
+		carrier := propagation.MapCarrier{
+			"traceparent": frameMsg.TraceContext.Traceparent,
+		}
+		if frameMsg.TraceContext.Tracestate != "" {
+			carrier["tracestate"] = frameMsg.TraceContext.Tracestate
+		}
+		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+	}
+	
+	ctx, span := tracer.Start(ctx, "WebSocket.processFrame")
+	defer span.End()
+	
 	startTime := time.Now()
 	result := &pb.WebSocketFrameResponse{
 		Type:    "frame_result",
@@ -130,7 +150,13 @@ func (h *WebSocketHandler) processFrame(frameMsg *pb.WebSocketFrameRequest) *pb.
 	req.Channels = 4
 
 	h.frameCounter++
-	resp, err := h.rpcHandler.ProcessImage(context.Background(), connect.NewRequest(req))
+	span.SetAttributes(
+		attribute.Int("image.width", int(req.Width)),
+		attribute.Int("image.height", int(req.Height)),
+		attribute.String("accelerator", req.Accelerator.String()),
+	)
+	
+	resp, err := h.rpcHandler.ProcessImage(ctx, connect.NewRequest(req))
 	if err != nil {
 		result.Error = "processing failed: " + err.Error()
 		return result

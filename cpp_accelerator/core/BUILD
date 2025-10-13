@@ -14,6 +14,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "telemetry",
+    srcs = ["telemetry_stub.cpp"],
+    hdrs = ["telemetry.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@spdlog",
+    ],
+)
+
 cc_test(
     name = "logger_test",
     srcs = ["logger_test.cpp"],

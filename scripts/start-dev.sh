@@ -20,7 +20,28 @@ done
     exit 1
 }
 
-echo "Stopping previous services..."
+echo "Checking observability services (Jaeger + OTel Collector)..."
+if ! docker ps --format '{{.Names}}' | grep -q 'jaeger-dev'; then
+    echo "Starting observability services..."
+    docker compose -f docker-compose.dev.yml up -d
+    echo "Waiting for Jaeger to be healthy..."
+    timeout=30
+    while [ $timeout -gt 0 ]; do
+        if docker ps --format '{{.Names}}\t{{.Status}}' | grep 'jaeger-dev' | grep -q 'healthy'; then
+            echo "Jaeger is ready!"
+            break
+        fi
+        sleep 1
+        timeout=$((timeout - 1))
+    done
+    if [ $timeout -eq 0 ]; then
+        echo "Warning: Jaeger health check timeout. Continuing anyway..."
+    fi
+else
+    echo "Observability services already running"
+fi
+
+echo "Stopping previous application services..."
 ./scripts/kill-services.sh 2>/dev/null || true
 
 [ "$BUILD_FIRST" = true ] && {
@@ -73,10 +94,12 @@ sleep 2
 
 echo ""
 echo "Development server running:"
-echo "  HTTP:  http://localhost:8080"
-echo "  HTTPS: https://localhost:8443"
+echo "  HTTP:   http://localhost:8080"
+echo "  HTTPS:  https://localhost:8443"
+echo "  Jaeger: http://localhost:16686"
 echo ""
 echo "Dev mode - hot reload enabled"
+echo "Observability enabled - View traces in Jaeger UI"
 echo "Press Ctrl+C to stop"
 
 wait $VITE_PID $GO_PID

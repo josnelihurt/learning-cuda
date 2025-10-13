@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "cpp_accelerator/core/telemetry.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_processor.h"
 
 namespace jrb::infrastructure::cuda {
@@ -71,31 +72,56 @@ void GrayscaleProcessor::set_algorithm(GrayscaleAlgorithm algorithm) {
 void GrayscaleProcessor::convert_to_grayscale_cuda(const unsigned char* input,
                                                    unsigned char* output, int width, int height,
                                                    int channels) {
+    auto& telemetry = core::telemetry::TelemetryManager::GetInstance();
+    auto span = telemetry.CreateSpan("cuda-grayscale", "convert_to_grayscale_cuda");
+    core::telemetry::ScopedSpan scoped_span(span);
+
     size_t input_size = width * height * channels;
     size_t output_size = width * height;
+
+    scoped_span.SetAttribute("image.width", static_cast<int64_t>(width));
+    scoped_span.SetAttribute("image.height", static_cast<int64_t>(height));
+    scoped_span.SetAttribute("image.channels", static_cast<int64_t>(channels));
+    scoped_span.SetAttribute("input.size_bytes", static_cast<int64_t>(input_size));
+    scoped_span.SetAttribute("output.size_bytes", static_cast<int64_t>(output_size));
 
     unsigned char* d_input = nullptr;
     unsigned char* d_output = nullptr;
 
+    scoped_span.AddEvent("Allocating device memory");
     cudaMalloc(&d_input, input_size);
     cudaMalloc(&d_output, output_size);
+
+    scoped_span.AddEvent("Copying input to device");
     cudaMemcpy(d_input, input, input_size, cudaMemcpyHostToDevice);
 
     dim3 block_size(16, 16);
     dim3 grid_size((width + block_size.x - 1) / block_size.x,
                    (height + block_size.y - 1) / block_size.y);
 
+    scoped_span.SetAttribute("cuda.block_size.x", static_cast<int64_t>(16));
+    scoped_span.SetAttribute("cuda.block_size.y", static_cast<int64_t>(16));
+    scoped_span.SetAttribute("cuda.grid_size.x", static_cast<int64_t>(grid_size.x));
+    scoped_span.SetAttribute("cuda.grid_size.y", static_cast<int64_t>(grid_size.y));
+
+    scoped_span.AddEvent("Launching CUDA kernel");
     GrayscaleAlgorithmType kernel_algorithm = static_cast<GrayscaleAlgorithmType>(algorithm_);
     convert_to_grayscale_kernel<<<grid_size, block_size>>>(d_input, d_output, width, height,
                                                            channels, kernel_algorithm);
 
+    scoped_span.AddEvent("Synchronizing device");
     cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-        spdlog::error("CUDA kernel error: {}", cudaGetErrorString(error));
+        std::string error_msg = std::string("CUDA kernel error: ") + cudaGetErrorString(error);
+        spdlog::error(error_msg);
+        scoped_span.RecordError(error_msg);
     }
+
+    scoped_span.AddEvent("Copying output to host");
     cudaMemcpy(output, d_output, output_size, cudaMemcpyDeviceToHost);
 
+    scoped_span.AddEvent("Freeing device memory");
     cudaFree(d_input);
     cudaFree(d_output);
 }

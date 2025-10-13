@@ -3,6 +3,7 @@ import type { CameraPreview } from '../components/camera-preview';
 import type { FilterPanel } from '../components/filter-panel';
 import type { ToastContainer } from '../components/toast-container';
 import type { WebSocketService } from './websocket-service';
+import { telemetryService } from './telemetry-service';
 
 export class UIService {
     selectedInputSource = 'lena';
@@ -112,44 +113,61 @@ export class UIService {
 
         this.heroImage.classList.add('loading');
 
-        try {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                throw new Error('Canvas context not available');
+        await telemetryService.withSpanAsync('UI.applyFilter', {
+            'filter': filterParam,
+            'accelerator': this.selectedAccelerator,
+            'grayscale_type': grayscaleType,
+            'input_source': this.selectedInputSource,
+        }, async (span) => {
+            try {
+                span?.addEvent('Creating canvas');
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    throw new Error('Canvas context not available');
+                }
+
+                const img = this.heroImage!;
+                canvas.width = img.naturalWidth || 512;
+                canvas.height = img.naturalHeight || 512;
+                
+                span?.setAttribute('image.width', canvas.width);
+                span?.setAttribute('image.height', canvas.height);
+                
+                span?.addEvent('Drawing image to canvas');
+                ctx.drawImage(img, 0, 0);
+
+                span?.addEvent('Encoding image data');
+                const imageData = canvas.toDataURL('image/png');
+
+                span?.addEvent('Sending frame to backend');
+                await this.wsService.sendSingleFrame(
+                    imageData,
+                    canvas.width,
+                    canvas.height,
+                    filters,
+                    this.selectedAccelerator,
+                    grayscaleType
+                );
+
+                span?.addEvent('Updating browser history');
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('filter', filterParam);
+                newUrl.searchParams.set('accelerator', this.selectedAccelerator);
+                newUrl.searchParams.set('grayscale_type', grayscaleType);
+                window.history.pushState({}, '', newUrl);
+
+            } catch (error) {
+                console.error('Error applying filter:', error);
+                this.toastManager.error('Filter Error', 'Failed to apply filter. Please try again.');
+                this.statsManager.updateWebSocketStatus('disconnected', 'Error processing');
+                throw error;
+            } finally {
+                if (this.heroImage) {
+                    this.heroImage.classList.remove('loading');
+                }
             }
-
-            const img = this.heroImage;
-            canvas.width = img.naturalWidth || 512;
-            canvas.height = img.naturalHeight || 512;
-            ctx.drawImage(img, 0, 0);
-
-            const imageData = canvas.toDataURL('image/png');
-
-            await this.wsService.sendSingleFrame(
-                imageData,
-                canvas.width,
-                canvas.height,
-                filters,
-                this.selectedAccelerator,
-                grayscaleType
-            );
-
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('filter', filterParam);
-            newUrl.searchParams.set('accelerator', this.selectedAccelerator);
-            newUrl.searchParams.set('grayscale_type', grayscaleType);
-            window.history.pushState({}, '', newUrl);
-
-        } catch (error) {
-            console.error('Error applying filter:', error);
-            this.toastManager.error('Filter Error', 'Failed to apply filter. Please try again.');
-            this.statsManager.updateWebSocketStatus('disconnected', 'Error processing');
-        } finally {
-            if (this.heroImage) {
-                this.heroImage.classList.remove('loading');
-            }
-        }
+        });
     }
 }
 

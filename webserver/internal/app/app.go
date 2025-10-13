@@ -4,11 +4,13 @@ import (
 	"log"
 	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/webserver/internal/application"
 	"github.com/jrb/cuda-learning/webserver/internal/config"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/internal/interfaces/http"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/static_http"
+	"github.com/jrb/cuda-learning/webserver/internal/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -44,11 +46,10 @@ func (a *App) setupTelemetryMiddleware(handler http.Handler) http.Handler {
 func (a *App) Run() error {
 	mux := http.NewServeMux()
 	
-	rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
-	connectrpc.RegisterRoutesWithHandler(mux, rpcHandler)
-	connectrpc.RegisterConfigService(mux, a.config)
-	
+	var interceptors []connect.Interceptor
 	if a.config.IsFeatureEnabled("enable_observability") {
+		interceptors = append(interceptors, telemetry.TraceContextInterceptor())
+		
 		traceProxy := httphandlers.NewTraceProxyHandler(
 			a.config.Observability.OtelCollectorEndpoint,
 			true,
@@ -56,6 +57,10 @@ func (a *App) Run() error {
 		mux.Handle("/api/traces", traceProxy)
 		log.Println("Trace proxy endpoint registered at /api/traces")
 	}
+	
+	rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
+	connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, interceptors...)
+	connectrpc.RegisterConfigService(mux, a.config, interceptors...)
 	
 	staticHandler := static_http.NewStaticHandler(a.config, a.useCase)
 	staticHandler.RegisterRoutes(mux)

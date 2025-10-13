@@ -3,6 +3,7 @@ package connectrpc
 import (
 	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/webserver/internal/application"
 	"github.com/jrb/cuda-learning/webserver/internal/config"
@@ -14,14 +15,25 @@ func RegisterRoutes(mux *http.ServeMux, useCase *application.ProcessImageUseCase
 	mux.Handle(path, rpcHandler)
 }
 
-func RegisterRoutesWithHandler(mux *http.ServeMux, handler *ImageProcessorHandler) {
-	path, rpcHandler := genconnect.NewImageProcessorServiceHandler(handler)
+func RegisterRoutesWithHandler(mux *http.ServeMux, handler *ImageProcessorHandler, interceptors ...connect.Interceptor) {
+	var opts []connect.HandlerOption
+	if len(interceptors) > 0 {
+		opts = append(opts, connect.WithInterceptors(interceptors...))
+	}
+
+	path, rpcHandler := genconnect.NewImageProcessorServiceHandler(handler, opts...)
 	mux.Handle(path, rpcHandler)
 }
 
-func RegisterConfigService(mux *http.ServeMux, cfg *config.Config) {
+func RegisterConfigService(mux *http.ServeMux, cfg *config.Config, interceptors ...connect.Interceptor) {
 	configHandler := NewConfigHandler(cfg)
-	path, rpcHandler := genconnect.NewConfigServiceHandler(configHandler)
+
+	var opts []connect.HandlerOption
+	if len(interceptors) > 0 {
+		opts = append(opts, connect.WithInterceptors(interceptors...))
+	}
+
+	path, rpcHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 	mux.Handle(path, rpcHandler)
 }
 

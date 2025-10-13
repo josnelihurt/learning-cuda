@@ -13,9 +13,9 @@ import (
 	"github.com/jrb/cuda-learning/webserver/internal/domain"
 	imageinfra "github.com/jrb/cuda-learning/webserver/internal/infrastructure/image"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/adapters"
+	"github.com/jrb/cuda-learning/webserver/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -46,7 +46,7 @@ func NewHandler(useCase *application.ProcessImageUseCase, cfg *config.Config) *H
 }
 
 func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	ctx := telemetry.ExtractFromHTTPHeaders(r.Context(), r.Header)
 	tracer := otel.Tracer("websocket-handler")
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -98,15 +98,7 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMsg *pb.WebSocketFrameRequest) *pb.WebSocketFrameResponse {
-	if frameMsg.TraceContext != nil && frameMsg.TraceContext.Traceparent != "" {
-		carrier := propagation.MapCarrier{
-			"traceparent": frameMsg.TraceContext.Traceparent,
-		}
-		if frameMsg.TraceContext.Tracestate != "" {
-			carrier["tracestate"] = frameMsg.TraceContext.Tracestate
-		}
-		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
-	}
+	ctx = telemetry.ExtractFromProtobuf(ctx, frameMsg.TraceContext)
 
 	ctx, span := tracer.Start(ctx, "WebSocket.processFrame")
 	defer span.End()

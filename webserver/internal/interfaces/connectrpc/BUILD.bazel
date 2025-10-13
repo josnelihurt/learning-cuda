@@ -16,5 +16,7 @@ go_library(
         "//webserver/internal/config",
         "//webserver/internal/interfaces/adapters",
         "@com_connectrpc_connect//:connect",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel_trace//:trace",
     ],
 )

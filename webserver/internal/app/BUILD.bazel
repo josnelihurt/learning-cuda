@@ -14,5 +14,6 @@ go_library(
         "//webserver/internal/interfaces/connectrpc",
         "//webserver/internal/interfaces/http",
         "//webserver/internal/interfaces/static_http",
+        "@io_opentelemetry_go_contrib_instrumentation_net_http_otelhttp//:otelhttp",
     ],
 )

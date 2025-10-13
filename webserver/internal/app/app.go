@@ -9,6 +9,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/internal/interfaces/http"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/static_http"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type App struct {
@@ -21,6 +22,23 @@ func New(cfg *config.Config, useCase *application.ProcessImageUseCase) *App {
 		config:  cfg,
 		useCase: useCase,
 	}
+}
+
+func (a *App) setupTelemetryMiddleware(handler http.Handler) http.Handler {
+	if !a.config.IsFeatureEnabled("enable_observability") {
+		return handler
+	}
+
+	instrumentedHandler := otelhttp.NewHandler(
+		handler,
+		"http-server",
+		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}),
+	)
+
+	log.Println("OpenTelemetry HTTP instrumentation enabled")
+	return instrumentedHandler
 }
 
 func (a *App) Run() error {
@@ -42,11 +60,7 @@ func (a *App) Run() error {
 	staticHandler := static_http.NewStaticHandler(a.config, a.useCase)
 	staticHandler.RegisterRoutes(mux)
 	
-	var handler http.Handler = mux
-	// Note: HTTP auto-instrumentation disabled - tracing works from handler level down
-	if a.config.IsFeatureEnabled("enable_observability") {
-		log.Println("OpenTelemetry enabled - tracing from handler level")
-	}
+	handler := a.setupTelemetryMiddleware(mux)
 	
 	errChan := make(chan error, 2)
 	

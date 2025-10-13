@@ -109,6 +109,7 @@ use_repo(
     "com_connectrpc_connect",
     "com_github_gorilla_websocket",
     "com_github_spf13_viper",
+    "io_opentelemetry_go_contrib_instrumentation_net_http_otelhttp",
     "io_opentelemetry_go_otel",
     "io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracegrpc",
     "io_opentelemetry_go_otel_sdk",

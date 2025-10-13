@@ -1,6 +1,6 @@
-# Completed Features
+# Changelog
 
-This document tracks all completed features extracted from git commit history, organized by category.
+Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
@@ -103,8 +103,8 @@ This document tracks all completed features extracted from git commit history, o
 ## Next Milestones
 
 See individual backlog files for upcoming features:
-- [kernels.md](./kernels.md) - More image processing filters
-- [video-streaming.md](./video-streaming.md) - Optimized video transport
-- [neural-networks.md](./neural-networks.md) - CUDA neural networks
-- [infrastructure.md](./infrastructure.md) - Microservices and observability
+- [kernels.md](./docs/backlog/kernels.md) - More image processing filters
+- [video-streaming.md](./docs/backlog/video-streaming.md) - Optimized video transport
+- [neural-networks.md](./docs/backlog/neural-networks.md) - CUDA neural networks
+- [infrastructure.md](./docs/backlog/infrastructure.md) - Microservices and observability
 

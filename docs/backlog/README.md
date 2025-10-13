@@ -4,7 +4,7 @@ Project tasks organized by area. Work on whatever sounds interesting that day.
 
 ## Files
 
-- `completed.md` - Done stuff
+- [CHANGELOG.md](../../CHANGELOG.md) - Done stuff
 - `kernels.md` - Image processing filters to add
 - `video-streaming.md` - Video optimization ideas
 - `neural-networks.md` - NN learning path

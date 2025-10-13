@@ -84,11 +84,8 @@
 
     <stats-panel></stats-panel>
 
-    {{if .DevMode}}
-    <script type="module" src="/@vite/client"></script>
-    <script type="module" src="/src/main.ts"></script>
-    {{else}}
-    <script type="module" src="/static/js/dist/{{.BundleFile}}"></script>
+    {{range .ScriptTags}}
+    <script{{if .Module}} type="module"{{end}} src="{{.Src}}"></script>
     {{end}}
 </body>
 </html>

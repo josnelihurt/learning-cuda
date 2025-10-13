@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 )
 
+type AssetManifest interface {
+	GetEntryFile() string
+}
+
 type ViteManifestEntry struct {
 	File string `json:"file"`
 	Src  string `json:"src"`
@@ -13,32 +17,26 @@ type ViteManifestEntry struct {
 
 type ViteManifest map[string]ViteManifestEntry
 
-func readViteManifest(webRootPath string) (ViteManifest, error) {
+func (m ViteManifest) GetEntryFile() string {
+	if entry, ok := m["src/main.ts"]; ok {
+		return entry.File
+	}
+	return "app.js"
+}
+
+func loadAssetManifest(webRootPath string) AssetManifest {
 	manifestPath := filepath.Join(webRootPath, "static", "js", "dist", ".vite", "manifest.json")
 	
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return nil, err
+		return ViteManifest{}
 	}
 	
 	var manifest ViteManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, err
+		return ViteManifest{}
 	}
 	
-	return manifest, nil
-}
-
-func getBundleFile(webRootPath string) string {
-	manifest, err := readViteManifest(webRootPath)
-	if err != nil {
-		return "app.js"
-	}
-	
-	if entry, ok := manifest["src/main.ts"]; ok {
-		return entry.File
-	}
-	
-	return "app.js"
+	return manifest
 }
 

@@ -1,12 +1,8 @@
 package static_http
 
 import (
-	"crypto/tls"
 	"html/template"
-	"log"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -19,7 +15,7 @@ type StaticHandler struct {
 	hotReloadEnabled bool
 	tmpl             *template.Template
 	wsHandler        *WebSocketHandler
-	viteProxy        *httputil.ReverseProxy
+	assetHandler     AssetHandler
 }
 
 func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorHandler) *StaticHandler {
@@ -29,17 +25,14 @@ func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorH
 		tmpl = template.Must(template.ParseFiles(templatePath))
 	}
 	
-	var viteProxy *httputil.ReverseProxy
+	var assetHandler AssetHandler
 	if cfg.Server.HotReloadEnabled {
-		viteURL, _ := url.Parse("https://localhost:3000")
-		viteProxy = httputil.NewSingleHostReverseProxy(viteURL)
-		viteProxy.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		viteProxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-			log.Printf("Vite proxy error: %v", err)
-			http.Error(w, "Vite dev server unavailable", http.StatusBadGateway)
-		}
+		assetHandler = NewDevelopmentAssetHandler(
+			cfg.Server.DevServerURL,
+			cfg.Server.DevServerPaths,
+		)
+	} else {
+		assetHandler = NewProductionAssetHandler(cfg.Server.WebRootPath)
 	}
 	
 	return &StaticHandler{
@@ -47,15 +40,15 @@ func NewStaticHandler(cfg *config.Config, rpcHandler *connectrpc.ImageProcessorH
 		hotReloadEnabled: cfg.Server.HotReloadEnabled,
 		tmpl:             tmpl,
 		wsHandler:        NewWebSocketHandler(rpcHandler, cfg),
-		viteProxy:        viteProxy,
+		assetHandler:     assetHandler,
 	}
 }
 
 func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
-	if h.hotReloadEnabled && h.viteProxy != nil {
-		mux.HandleFunc("/@vite/", h.ServeVite)
-		mux.HandleFunc("/src/", h.ServeVite)
-		mux.HandleFunc("/node_modules/", h.ServeVite)
+	if devHandler, ok := h.assetHandler.(*DevelopmentAssetHandler); ok {
+		for _, prefix := range devHandler.GetPathPrefixes() {
+			mux.HandleFunc(prefix, h.ServeAsset)
+		}
 	}
 	
 	mux.HandleFunc("/", h.ServeIndex)
@@ -64,21 +57,15 @@ func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws", h.wsHandler.HandleWebSocket)
 }
 
-func (h *StaticHandler) ServeVite(w http.ResponseWriter, r *http.Request) {
-	if h.viteProxy != nil {
-		h.viteProxy.ServeHTTP(w, r)
-	} else {
-		http.NotFound(w, r)
-	}
+func (h *StaticHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {
+	h.assetHandler.ServeAsset(w, r)
 }
 
 func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 	data := struct {
-		DevMode    bool
-		BundleFile string
+		ScriptTags []ScriptTag
 	}{
-		DevMode:    h.hotReloadEnabled,
-		BundleFile: getBundleFile(h.webRootPath),
+		ScriptTags: h.assetHandler.GetScriptTags(),
 	}
 	
 	tmpl := h.tmpl
@@ -105,7 +92,7 @@ func (h *StaticHandler) ServeStatic(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 	}
 	
-	if h.hotReloadEnabled {
+	if !h.assetHandler.ShouldCacheAssets() {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")

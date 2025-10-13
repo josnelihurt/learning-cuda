@@ -17,6 +17,8 @@ type ServerConfig struct {
 	HttpsPort        string
 	HotReloadEnabled bool
 	WebRootPath      string
+	DevServerURL     string
+	DevServerPaths   []string
 	TLS              TLSConfig
 }
 
@@ -41,6 +43,8 @@ func Load() *Config {
 	viper.SetDefault("server.https_port", ":8443")
 	viper.SetDefault("server.hot_reload_enabled", false)
 	viper.SetDefault("server.web_root_path", "webserver/web")
+	viper.SetDefault("server.dev_server_url", "https://localhost:3000")
+	viper.SetDefault("server.dev_server_paths", []string{"/@vite/", "/src/", "/node_modules/"})
 	viper.SetDefault("server.tls.enabled", true)
 	viper.SetDefault("server.tls.cert_file", ".secrets/localhost+2.pem")
 	viper.SetDefault("server.tls.key_file", ".secrets/localhost+2-key.pem")
@@ -57,6 +61,8 @@ func Load() *Config {
 			HttpsPort:        viper.GetString("server.https_port"),
 			HotReloadEnabled: viper.GetBool("server.hot_reload_enabled"),
 			WebRootPath:      viper.GetString("server.web_root_path"),
+			DevServerURL:     viper.GetString("server.dev_server_url"),
+			DevServerPaths:   viper.GetStringSlice("server.dev_server_paths"),
 			TLS: TLSConfig{
 				Enabled:  viper.GetBool("server.tls.enabled"),
 				CertFile: viper.GetString("server.tls.cert_file"),

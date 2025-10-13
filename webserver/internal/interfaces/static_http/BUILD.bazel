@@ -3,8 +3,11 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "static_http",
     srcs = [
+        "asset_handler.go",
+        "asset_manifest.go",
+        "development_handler.go",
         "handler.go",
-        "vite_manifest.go",
+        "production_handler.go",
         "websocket_handler.go",
     ],
     importpath = "github.com/jrb/cuda-learning/webserver/internal/interfaces/static_http",

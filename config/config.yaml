@@ -2,7 +2,12 @@ server:
   http_port: ":8080"
   https_port: ":8443"
   hot_reload_enabled: true  
-  web_root_path: "webserver/web" 
+  web_root_path: "webserver/web"
+  dev_server_url: "https://localhost:3000"
+  dev_server_paths:
+    - "/@vite/"
+    - "/src/"
+    - "/node_modules/"
   tls:
     enabled: true
     cert_file: ".secrets/localhost+2.pem"

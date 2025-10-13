@@ -1,16 +1,22 @@
 package config
 
 import (
+	"context"
 	"log"
+	"os"
+	"time"
 
 	"github.com/spf13/viper"
+	flipt "go.flipt.io/flipt-client"
 )
 
 type Config struct {
-	Server       ServerConfig
-	Stream       StreamConfig
+	Server        ServerConfig
+	Stream        StreamConfig
 	Observability ObservabilityConfig
-	FeatureFlags map[string]bool
+	Flipt         FliptConfig
+	FeatureFlags  map[string]bool
+	fliptClient   *flipt.Client
 }
 
 type ServerConfig struct {
@@ -35,10 +41,17 @@ type StreamConfig struct {
 }
 
 type ObservabilityConfig struct {
-	ServiceName            string
-	ServiceVersion         string
-	OtelCollectorEndpoint  string
-	TraceSamplingRate      float64
+	ServiceName           string
+	ServiceVersion        string
+	OtelCollectorEndpoint string
+	TraceSamplingRate     float64
+}
+
+type FliptConfig struct {
+	Enabled   bool
+	URL       string
+	Namespace string
+	DBPath    string
 }
 
 func Load() *Config {
@@ -62,6 +75,10 @@ func Load() *Config {
 	viper.SetDefault("observability.service_version", "1.0.0")
 	viper.SetDefault("observability.otel_collector_endpoint", "localhost:4317")
 	viper.SetDefault("observability.trace_sampling_rate", 1.0)
+	viper.SetDefault("flipt.enabled", true)
+	viper.SetDefault("flipt.url", "http://localhost:9000")
+	viper.SetDefault("flipt.namespace", "default")
+	viper.SetDefault("flipt.db_path", ".ignore/storage/flipt/flipt.db")
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CUDA_PROCESSOR")
@@ -94,6 +111,12 @@ func Load() *Config {
 			OtelCollectorEndpoint: viper.GetString("observability.otel_collector_endpoint"),
 			TraceSamplingRate:     viper.GetFloat64("observability.trace_sampling_rate"),
 		},
+		Flipt: FliptConfig{
+			Enabled:   viper.GetBool("flipt.enabled"),
+			URL:       viper.GetString("flipt.url"),
+			Namespace: viper.GetString("flipt.namespace"),
+			DBPath:    viper.GetString("flipt.db_path"),
+		},
 		FeatureFlags: make(map[string]bool),
 	}
 
@@ -104,7 +127,52 @@ func Load() *Config {
 		}
 	}
 
+	if cfg.Flipt.Enabled {
+		cfg.initFliptClient()
+		cfg.syncYAMLToFlipt()
+	}
+
 	return cfg
+}
+
+func (c *Config) initFliptClient() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := flipt.NewClient(
+		ctx,
+		flipt.WithURL(c.Flipt.URL),
+		flipt.WithNamespace(c.Flipt.Namespace),
+		flipt.WithUpdateInterval(30*time.Second),
+		flipt.WithFetchMode(flipt.FetchModePolling),
+		flipt.WithErrorStrategy(flipt.ErrorStrategyFallback),
+	)
+
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Flipt client: %v. Falling back to YAML config.", err)
+		return
+	}
+
+	c.fliptClient = client
+	log.Printf("Flipt SDK initialized successfully at %s", c.Flipt.URL)
+}
+
+func (c *Config) syncYAMLToFlipt() {
+	if c.fliptClient == nil {
+		return
+	}
+
+	if _, err := os.Stat(c.Flipt.DBPath); err == nil {
+		log.Println("Flipt DB exists. Flags will be evaluated from Flipt.")
+		return
+	}
+
+	log.Println("Flipt DB not found. Please create flags manually in Flipt UI at http://localhost:8088")
+	log.Println("Feature flags from YAML that should be created in Flipt:")
+	for key, enabled := range c.FeatureFlags {
+		log.Printf("  - %s: %v (type: BOOLEAN_FLAG_TYPE, namespace: %s)", key, enabled, c.Flipt.Namespace)
+	}
+	log.Println("After creating flags in Flipt UI, the app will automatically use them.")
 }
 
 func (c *Config) GetFeature(name string) bool {
@@ -115,6 +183,42 @@ func (c *Config) GetFeature(name string) bool {
 }
 
 func (c *Config) IsFeatureEnabled(name string) bool {
+	if c.fliptClient != nil {
+		enabled, err := c.evaluateFliptFlag(name)
+		if err != nil {
+			log.Printf("Flipt evaluation failed for '%s': %v. Using YAML fallback.", name, err)
+			return c.GetFeature(name)
+		}
+		return enabled
+	}
+
 	return c.GetFeature(name)
+}
+
+func (c *Config) evaluateFliptFlag(key string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	result, err := c.fliptClient.EvaluateBoolean(ctx, &flipt.EvaluationRequest{
+		FlagKey:  key,
+		EntityID: "system",
+		Context:  map[string]string{},
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return result.Enabled, nil
+}
+
+func (c *Config) Close() {
+	if c.fliptClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := c.fliptClient.Close(ctx); err != nil {
+			log.Printf("Error closing Flipt client: %v", err)
+		}
+	}
 }
 

@@ -7,5 +7,6 @@ go_library(
     visibility = ["//webserver:__subpackages__"],
     deps = [
         "@com_github_spf13_viper//:viper",
+        "@io_flipt_go_flipt_client//:flipt-client",
     ],
 )

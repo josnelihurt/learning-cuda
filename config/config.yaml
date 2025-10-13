@@ -22,6 +22,12 @@ features:
   enable_grpc_streaming: false
   enable_observability: true
 
+flipt:
+  enabled: true
+  url: "http://localhost:8080"
+  namespace: "default"
+  db_path: ".ignore/storage/flipt/flipt.db"
+
 observability:
   service_name: "cuda-image-processor"
   service_version: "1.0.0"

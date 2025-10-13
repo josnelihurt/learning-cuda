@@ -44,6 +44,33 @@ services:
       jaeger:
         condition: service_healthy
 
+  flipt:
+    image: flipt/flipt:latest
+    container_name: flipt-dev
+    restart: unless-stopped
+    
+    ports:
+      - "8088:8080"
+      - "9000:9000"
+    
+    volumes:
+      - ./.ignore/storage/flipt:/var/opt/flipt
+    
+    environment:
+      - FLIPT_LOG_LEVEL=info
+      - FLIPT_DB_URL=file:/var/opt/flipt/flipt.db
+      - FLIPT_META_TELEMETRY_ENABLED=false
+    
+    networks:
+      - dev-network
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 networks:
   dev-network:
     driver: bridge

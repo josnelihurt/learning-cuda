@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "config_handler.go",
         "handler.go",
+        "interfaces.go",
         "server.go",
     ],
     importpath = "github.com/jrb/cuda-learning/webserver/internal/interfaces/connectrpc",

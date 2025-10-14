@@ -21,8 +21,8 @@ import (
 // CppConnector connects to C++ CUDA processors via CGO
 type CppConnector struct{}
 
-// NewCppConnector creates a new C++ connector instance
-func NewCppConnector() *CppConnector {
+// New creates a new C++ connector instance
+func New() *CppConnector {
 	return &CppConnector{}
 }
 

@@ -704,3 +704,71 @@ export class GetStreamConfigResponse extends Message<GetStreamConfigResponse> {
   }
 }
 
+/**
+ * @generated from message cuda_learning.SyncFeatureFlagsRequest
+ */
+export class SyncFeatureFlagsRequest extends Message<SyncFeatureFlagsRequest> {
+  constructor(data?: PartialMessage<SyncFeatureFlagsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.SyncFeatureFlagsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SyncFeatureFlagsRequest {
+    return new SyncFeatureFlagsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SyncFeatureFlagsRequest {
+    return new SyncFeatureFlagsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SyncFeatureFlagsRequest {
+    return new SyncFeatureFlagsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SyncFeatureFlagsRequest | PlainMessage<SyncFeatureFlagsRequest> | undefined, b: SyncFeatureFlagsRequest | PlainMessage<SyncFeatureFlagsRequest> | undefined): boolean {
+    return proto3.util.equals(SyncFeatureFlagsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.SyncFeatureFlagsResponse
+ */
+export class SyncFeatureFlagsResponse extends Message<SyncFeatureFlagsResponse> {
+  /**
+   * @generated from field: string message = 1;
+   */
+  message = "";
+
+  constructor(data?: PartialMessage<SyncFeatureFlagsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.SyncFeatureFlagsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SyncFeatureFlagsResponse {
+    return new SyncFeatureFlagsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SyncFeatureFlagsResponse {
+    return new SyncFeatureFlagsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SyncFeatureFlagsResponse {
+    return new SyncFeatureFlagsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SyncFeatureFlagsResponse | PlainMessage<SyncFeatureFlagsResponse> | undefined, b: SyncFeatureFlagsResponse | PlainMessage<SyncFeatureFlagsResponse> | undefined): boolean {
+    return proto3.util.equals(SyncFeatureFlagsResponse, a, b);
+  }
+}
+

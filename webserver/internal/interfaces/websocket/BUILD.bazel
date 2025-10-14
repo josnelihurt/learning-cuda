@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "websocket",
-    srcs = ["handler.go"],
+    srcs = [
+        "config_provider.go",
+        "handler.go",
+    ],
     importpath = "github.com/jrb/cuda-learning/webserver/internal/interfaces/websocket",
     visibility = ["//webserver:__subpackages__"],
     deps = [

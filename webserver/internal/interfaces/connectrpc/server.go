@@ -25,8 +25,8 @@ func RegisterRoutesWithHandler(mux *http.ServeMux, handler *ImageProcessorHandle
 	mux.Handle(path, rpcHandler)
 }
 
-func RegisterConfigService(mux *http.ServeMux, cfg *config.Config, interceptors ...connect.Interceptor) {
-	configHandler := NewConfigHandler(cfg)
+func RegisterConfigService(mux *http.ServeMux, streamCfg config.StreamConfig, fliptCfg config.FliptConfig, client httpClient, featureFlagsManager featureFlagsManager, interceptors ...connect.Interceptor) {
+	configHandler := NewConfigHandler(streamCfg, fliptCfg, client, featureFlagsManager)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {
@@ -36,4 +36,3 @@ func RegisterConfigService(mux *http.ServeMux, cfg *config.Config, interceptors 
 	path, rpcHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 	mux.Handle(path, rpcHandler)
 }
-

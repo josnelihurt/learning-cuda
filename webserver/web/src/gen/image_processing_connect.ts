@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetStreamConfigRequest, GetStreamConfigResponse, ProcessImageRequest, ProcessImageResponse } from "./image_processing_pb.js";
+import { GetStreamConfigRequest, GetStreamConfigResponse, ProcessImageRequest, ProcessImageResponse, SyncFeatureFlagsRequest, SyncFeatureFlagsResponse } from "./image_processing_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -48,6 +48,15 @@ export const ConfigService = {
       name: "GetStreamConfig",
       I: GetStreamConfigRequest,
       O: GetStreamConfigResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.ConfigService.SyncFeatureFlags
+     */
+    syncFeatureFlags: {
+      name: "SyncFeatureFlags",
+      I: SyncFeatureFlagsRequest,
+      O: SyncFeatureFlagsResponse,
       kind: MethodKind.Unary,
     },
   }

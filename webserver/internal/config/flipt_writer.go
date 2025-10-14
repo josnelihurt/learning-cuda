@@ -11,21 +11,23 @@ import (
 	"time"
 )
 
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type FliptWriter struct {
 	apiURL    string
 	namespace string
-	client    *http.Client
+	client    httpClient
 }
 
-func NewFliptWriter(grpcURL, namespace string) *FliptWriter {
+func NewFliptWriter(grpcURL, namespace string, client httpClient) *FliptWriter {
 	restAPIURL := convertGRPCToRESTURL(grpcURL)
 	
 	return &FliptWriter{
 		apiURL:    restAPIURL,
 		namespace: namespace,
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		client:    client,
 	}
 }
 
@@ -34,13 +36,15 @@ func convertGRPCToRESTURL(grpcURL string) string {
 	return restURL
 }
 
-func (fw *FliptWriter) SyncFlags(flags map[string]bool) error {
+func (fw *FliptWriter) SyncFlags(ctx context.Context, flags map[string]interface{}) error {
 	failedFlags := []string{}
 	
-	for key, enabled := range flags {
-		if err := fw.ensureFlagExists(key, enabled); err != nil {
-			log.Printf("Failed to sync flag '%s': %v", key, err)
-			failedFlags = append(failedFlags, key)
+	for key, value := range flags {
+		if boolVal, ok := value.(bool); ok {
+			if err := fw.ensureFlagExists(ctx, key, boolVal); err != nil {
+				log.Printf("Failed to sync flag '%s': %v", key, err)
+				failedFlags = append(failedFlags, key)
+			}
 		}
 	}
 	
@@ -51,8 +55,8 @@ func (fw *FliptWriter) SyncFlags(flags map[string]bool) error {
 	return nil
 }
 
-func (fw *FliptWriter) ensureFlagExists(flagKey string, defaultEnabled bool) error {
-	exists, err := fw.checkFlagExists(flagKey)
+func (fw *FliptWriter) ensureFlagExists(ctx context.Context, flagKey string, defaultEnabled bool) error {
+	exists, err := fw.checkFlagExists(ctx, flagKey)
 	if err != nil {
 		return fmt.Errorf("failed to check flag existence: %w", err)
 	}
@@ -61,23 +65,23 @@ func (fw *FliptWriter) ensureFlagExists(flagKey string, defaultEnabled bool) err
 		return nil
 	}
 	
-	if err := fw.createFlag(flagKey, defaultEnabled); err != nil {
+	if err := fw.createFlag(ctx, flagKey, defaultEnabled); err != nil {
 		return fmt.Errorf("failed to create flag: %w", err)
 	}
 	
-	if err := fw.createBooleanVariant(flagKey, defaultEnabled); err != nil {
+	if err := fw.createBooleanVariant(ctx, flagKey, defaultEnabled); err != nil {
 		log.Printf("WARNING: Flag created but variant setup failed for '%s': %v", flagKey, err)
 	}
 	
 	return nil
 }
 
-func (fw *FliptWriter) checkFlagExists(flagKey string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (fw *FliptWriter) checkFlagExists(ctx context.Context, flagKey string) (bool, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags/%s", fw.apiURL, fw.namespace, flagKey)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
 	if err != nil {
 		return false, err
 	}
@@ -91,8 +95,8 @@ func (fw *FliptWriter) checkFlagExists(flagKey string) (bool, error) {
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-func (fw *FliptWriter) createFlag(flagKey string, defaultEnabled bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (fw *FliptWriter) createFlag(ctx context.Context, flagKey string, defaultEnabled bool) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags", fw.apiURL, fw.namespace)
@@ -110,7 +114,7 @@ func (fw *FliptWriter) createFlag(flagKey string, defaultEnabled bool) error {
 		return err
 	}
 	
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(timeoutCtx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -129,8 +133,8 @@ func (fw *FliptWriter) createFlag(flagKey string, defaultEnabled bool) error {
 	return nil
 }
 
-func (fw *FliptWriter) createBooleanVariant(flagKey string, defaultValue bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (fw *FliptWriter) createBooleanVariant(ctx context.Context, flagKey string, defaultValue bool) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags/%s/variants", fw.apiURL, fw.namespace, flagKey)
@@ -149,7 +153,7 @@ func (fw *FliptWriter) createBooleanVariant(flagKey string, defaultValue bool) e
 		return err
 	}
 	
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(timeoutCtx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}

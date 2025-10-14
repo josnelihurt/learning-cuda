@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/jrb/cuda-learning/webserver/internal/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -16,36 +17,37 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+
 type TracerProvider struct {
 	provider *sdktrace.TracerProvider
 	enabled  bool
 }
 
-func NewTracerProvider(serviceName, serviceVersion, endpoint string, samplingRate float64, enabled bool) (*TracerProvider, error) {
+func New(ctx context.Context, enabled bool, config config.ObservabilityConfig) (*TracerProvider, error) {
 	if !enabled {
 		log.Println("Observability disabled by feature flag")
 		return &TracerProvider{enabled: false}, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
-			attribute.String("service.name", serviceName),
-			attribute.String("service.version", serviceVersion),
+			attribute.String("service.name", config.ServiceName),
+			attribute.String("service.version", config.ServiceVersion),
 		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	conn, err := grpc.DialContext(ctx, endpoint,
+	conn, err := grpc.DialContext(ctx, config.OtelCollectorEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to OpenTelemetry collector at %s: %w", endpoint, err)
+		return nil, fmt.Errorf("failed to connect to OpenTelemetry collector at %s: %w", config.OtelCollectorEndpoint, err)
 	}
 
 	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
@@ -53,6 +55,7 @@ func NewTracerProvider(serviceName, serviceVersion, endpoint string, samplingRat
 		return nil, fmt.Errorf("failed to create OTLP trace exporter: %w", err)
 	}
 
+	samplingRate := config.TraceSamplingRate
 	var sampler sdktrace.Sampler
 	if samplingRate >= 1.0 {
 		sampler = sdktrace.AlwaysSample()
@@ -74,7 +77,7 @@ func NewTracerProvider(serviceName, serviceVersion, endpoint string, samplingRat
 		propagation.Baggage{},
 	))
 
-	log.Printf("OpenTelemetry tracer initialized (endpoint: %s, sampling: %.2f)", endpoint, samplingRate)
+	log.Printf("OpenTelemetry tracer initialized (endpoint: %s, sampling: %.2f)", config.OtelCollectorEndpoint, config.TraceSamplingRate)
 
 	return &TracerProvider{
 		provider: provider,

@@ -10,40 +10,41 @@ import (
 	"github.com/jrb/cuda-learning/webserver/internal/config"
 	"github.com/jrb/cuda-learning/webserver/internal/interfaces/websocket"
 )
-
 type StaticHandler struct {
 	webRootPath      string
 	hotReloadEnabled bool
 	tmpl             *template.Template
 	wsHandler        *websocket.Handler
 	assetHandler     AssetHandler
-	fliptHandler     *FliptSyncHandler
 }
 
-func NewStaticHandler(cfg *config.Config, useCase *application.ProcessImageUseCase) *StaticHandler {
+func NewStaticHandler(
+	serverConfig config.ServerConfig,
+	streamConfig config.StreamConfig,
+	useCase *application.ProcessImageUseCase,
+) *StaticHandler {
 	var tmpl *template.Template
-	if !cfg.Server.HotReloadEnabled {
-		templatePath := filepath.Join(cfg.Server.WebRootPath, "templates", "index.html")
+	if !serverConfig.HotReloadEnabled {
+		templatePath := filepath.Join(serverConfig.WebRootPath, "templates", "index.html")
 		tmpl = template.Must(template.ParseFiles(templatePath))
 	}
 	
 	var assetHandler AssetHandler
-	if cfg.Server.HotReloadEnabled {
+	if serverConfig.HotReloadEnabled {
 		assetHandler = NewDevelopmentAssetHandler(
-			cfg.Server.DevServerURL,
-			cfg.Server.DevServerPaths,
+			serverConfig.DevServerURL,
+			serverConfig.DevServerPaths,
 		)
 	} else {
-		assetHandler = NewProductionAssetHandler(cfg.Server.WebRootPath)
+		assetHandler = NewProductionAssetHandler(serverConfig.WebRootPath)
 	}
 	
 	return &StaticHandler{
-		webRootPath:      cfg.Server.WebRootPath,
-		hotReloadEnabled: cfg.Server.HotReloadEnabled,
+		webRootPath:      serverConfig.WebRootPath,
+		hotReloadEnabled: serverConfig.HotReloadEnabled,
 		tmpl:             tmpl,
-		wsHandler:        websocket.NewHandler(useCase, cfg),
+		wsHandler:        websocket.NewHandler(useCase, streamConfig),
 		assetHandler:     assetHandler,
-		fliptHandler:     NewFliptSyncHandler(cfg),
 	}
 }
 
@@ -58,7 +59,6 @@ func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/static/", h.ServeStatic)
 	mux.HandleFunc("/data/", h.ServeData)
 	mux.HandleFunc("/ws", h.wsHandler.HandleWebSocket)
-	mux.HandleFunc("/api/flipt/sync", h.fliptHandler.HandleSyncFlags)
 }
 
 func (h *StaticHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {

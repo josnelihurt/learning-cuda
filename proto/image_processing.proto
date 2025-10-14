@@ -113,7 +113,13 @@ service ImageProcessorService {
   rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
 }
 
-service ConfigService {
-  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
+message SyncFeatureFlagsRequest {}
+
+message SyncFeatureFlagsResponse {
+  string message = 1 [json_name = "message"];
 }
 
+service ConfigService {
+  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
+  rpc SyncFeatureFlags(SyncFeatureFlagsRequest) returns (SyncFeatureFlagsResponse);
+}

@@ -11,6 +11,7 @@ go_library(
     visibility = ["//webserver:__subpackages__"],
     deps = [
         "//proto/gen",
+        "//webserver/internal/config",
         "@com_connectrpc_connect//:connect",
         "@io_opentelemetry_go_otel//:otel",
         "@io_opentelemetry_go_otel//attribute",

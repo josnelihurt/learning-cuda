@@ -31,16 +31,16 @@ type Handler struct {
 	useCase      *application.ProcessImageUseCase
 	imageCodec   *imageinfra.ImageCodec
 	adapter      *adapters.ProtobufAdapter
-	config       *config.Config
+	streamConfig config.StreamConfig
 	frameCounter int
 }
 
-func NewHandler(useCase *application.ProcessImageUseCase, cfg *config.Config) *Handler {
+func NewHandler(useCase *application.ProcessImageUseCase, streamCfg config.StreamConfig) *Handler {
 	return &Handler{
 		useCase:      useCase,
 		imageCodec:   imageinfra.NewImageCodec(),
 		adapter:      adapters.NewProtobufAdapter(),
-		config:       cfg,
+		streamConfig: streamCfg,
 		frameCounter: 0,
 	}
 }
@@ -56,7 +56,7 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	transportFormat := h.config.Stream.TransportFormat
+	transportFormat := h.streamConfig.TransportFormat
 	log.Printf("WebSocket connected, transport format: %s", transportFormat)
 
 	for {

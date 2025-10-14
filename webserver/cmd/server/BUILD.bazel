@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//webserver/internal/app",
         "//webserver/internal/application",
+        "//webserver/internal/config",
         "//webserver/internal/infrastructure/processor",
         "//webserver/internal/telemetry",
     ],

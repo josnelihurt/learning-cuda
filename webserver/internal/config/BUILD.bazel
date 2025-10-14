@@ -4,12 +4,22 @@ go_library(
     name = "config",
     srcs = [
         "config.go",
+        "flipt_client.go",
+        "flipt_client_proxy.go",
         "flipt_writer.go",
+        "observability_config.go",
+        "server_config.go",
+        "stream_config.go",
+        "tls_config.go",
     ],
     importpath = "github.com/jrb/cuda-learning/webserver/internal/config",
     visibility = ["//webserver:__subpackages__"],
     deps = [
+        "//webserver/internal/infrastructure/http",
         "@com_github_spf13_viper//:viper",
         "@io_flipt_go_flipt_client//:flipt-client",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel//codes",
     ],
 )

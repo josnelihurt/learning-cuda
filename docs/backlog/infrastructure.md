@@ -25,8 +25,11 @@ Microservices, observability, testing, and cloud deployment.
 ## Observability
 
 ### Jaeger (Distributed Tracing)
-- [ ] Add Jaeger to docker-compose
-- [ ] OpenTelemetry SDK for Go
+- [x] Add Jaeger to docker-compose
+- [x] OpenTelemetry SDK for Go
+- [x] OpenTelemetry SDK for frontend (browser)
+- [x] Distributed tracing from browser to backend
+- [x] Trace context propagation with W3C headers
 - [ ] Trace WebSocket, CGO calls, CUDA kernels
 - [ ] Span attributes: width, height, filter type
 
@@ -43,8 +46,16 @@ Microservices, observability, testing, and cloud deployment.
 - [ ] Dashboard 3: Request rate, errors, latency
 - [ ] Alerts: high errors, latency, GPU temp
 
+### Feature Flags
+- [x] Integrate Flipt for feature flag management
+- [x] Automatic flag synchronization from YAML to Flipt
+- [x] REST API endpoint for manual flag sync
+- [x] Web UI integration with sync button
+- [x] Fallback to YAML when Flipt unavailable
+- [ ] Advanced flag rules and targeting
+
 ### Logging
-- [ ] spdlog (C++), zap/zerolog (Go)
+- [x] spdlog (C++)
 - [ ] Add trace_id to logs
 - [ ] Optional: Loki or ELK
 

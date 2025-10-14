@@ -4,6 +4,17 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Observability & Feature Flags (Oct 13, 2025)
+- [x] Integrate Jaeger all-in-one for distributed tracing
+- [x] Add OpenTelemetry collector for trace aggregation
+- [x] Integrate Flipt for feature flag management
+- [x] Implement automatic flag synchronization from YAML to Flipt on boot
+- [x] Add service navigation buttons (Jaeger, Flipt, Sync Flags) in navbar
+- [x] Create sync-flags-button Lit component with OpenTelemetry tracing
+- [x] Add /api/flipt/sync REST endpoint for manual flag synchronization
+- [x] Configure unified port mapping for Flipt services (8081 REST, 9000 gRPC)
+- [x] Update start-dev.sh to verify service availability before startup
+
 ### Native HTTPS Support (Oct 12, 2025)
 - [x] Remove Caddy reverse proxy dependency
 - [x] Implement native dual HTTP/HTTPS servers in Go using http.ListenAndServeTLS()
@@ -94,6 +105,8 @@ Completed features extracted from git commit history, organized by category.
 - **Testing**: GoogleTest/GMock for C++
 - **Containerization**: Docker with NVIDIA Container Toolkit
 - **Reverse Proxy**: Caddy (dev) + Traefik (production)
+- **Observability**: Jaeger + OpenTelemetry + distributed tracing
+- **Feature Flags**: Flipt with automatic YAML synchronization
 
 ### Performance
 - Real-time video processing at ~150 FPS (GPU) vs ~25 FPS (CPU) at 720p

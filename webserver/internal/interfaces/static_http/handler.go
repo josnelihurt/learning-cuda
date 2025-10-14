@@ -17,6 +17,7 @@ type StaticHandler struct {
 	tmpl             *template.Template
 	wsHandler        *websocket.Handler
 	assetHandler     AssetHandler
+	fliptHandler     *FliptSyncHandler
 }
 
 func NewStaticHandler(cfg *config.Config, useCase *application.ProcessImageUseCase) *StaticHandler {
@@ -42,6 +43,7 @@ func NewStaticHandler(cfg *config.Config, useCase *application.ProcessImageUseCa
 		tmpl:             tmpl,
 		wsHandler:        websocket.NewHandler(useCase, cfg),
 		assetHandler:     assetHandler,
+		fliptHandler:     NewFliptSyncHandler(cfg),
 	}
 }
 
@@ -56,6 +58,7 @@ func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/static/", h.ServeStatic)
 	mux.HandleFunc("/data/", h.ServeData)
 	mux.HandleFunc("/ws", h.wsHandler.HandleWebSocket)
+	mux.HandleFunc("/api/flipt/sync", h.fliptHandler.HandleSyncFlags)
 }
 
 func (h *StaticHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {

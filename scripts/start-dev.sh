@@ -20,10 +20,11 @@ done
     exit 1
 }
 
-echo "Checking observability services (Jaeger + OTel Collector)..."
+echo "Checking services (Jaeger + OTel Collector + Flipt)..."
 if ! docker ps --format '{{.Names}}' | grep -q 'jaeger-dev'; then
-    echo "Starting observability services..."
+    echo "Starting services..."
     docker compose -f docker-compose.dev.yml up -d
+    
     echo "Waiting for Jaeger to be healthy..."
     timeout=30
     while [ $timeout -gt 0 ]; do
@@ -37,8 +38,30 @@ if ! docker ps --format '{{.Names}}' | grep -q 'jaeger-dev'; then
     if [ $timeout -eq 0 ]; then
         echo "Warning: Jaeger health check timeout. Continuing anyway..."
     fi
+    
+    echo "Waiting for Flipt to be ready..."
+    timeout=30
+    while [ $timeout -gt 0 ]; do
+        if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
+            echo "Flipt is ready!"
+            break
+        fi
+        sleep 1
+        timeout=$((timeout - 1))
+    done
+    if [ $timeout -eq 0 ]; then
+        echo "Warning: Flipt is not responding. Flag sync may fail..."
+    fi
 else
-    echo "Observability services already running"
+    echo "Services already running"
+    
+    # Verify Flipt is accessible
+    if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
+        echo "Warning: Flipt is not responding at http://localhost:8081"
+        echo "   Starting Flipt..."
+        docker compose -f docker-compose.dev.yml up -d flipt
+        sleep 5
+    fi
 fi
 
 echo "Stopping previous application services..."
@@ -97,9 +120,10 @@ echo "Development server running:"
 echo "  HTTP:   http://localhost:8080"
 echo "  HTTPS:  https://localhost:8443"
 echo "  Jaeger: http://localhost:16686"
+echo "  Flipt:  http://localhost:8081"
 echo ""
 echo "Dev mode - hot reload enabled"
-echo "Observability enabled - View traces in Jaeger UI"
+echo "Observability & Feature Flags enabled"
 echo "Press Ctrl+C to stop"
 
 wait $VITE_PID $GO_PID

@@ -2,6 +2,7 @@ import './components/camera-preview';
 import './components/toast-container';
 import './components/stats-panel';
 import './components/filter-panel';
+import './components/sync-flags-button';
 import { WebSocketService } from './services/websocket-service';
 import { UIService } from './services/ui-service';
 import { streamConfigService } from './services/config-service';

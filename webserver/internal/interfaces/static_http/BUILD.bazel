@@ -6,6 +6,7 @@ go_library(
         "asset_handler.go",
         "asset_manifest.go",
         "development_handler.go",
+        "flipt_handler.go",
         "handler.go",
         "production_handler.go",
     ],

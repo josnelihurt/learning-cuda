@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 
 	"github.com/spf13/viper"
@@ -136,7 +135,7 @@ func Load() *Config {
 }
 
 func (c *Config) initFliptClient() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	client, err := flipt.NewClient(
@@ -149,30 +148,22 @@ func (c *Config) initFliptClient() {
 	)
 
 	if err != nil {
-		log.Printf("Warning: Failed to initialize Flipt client: %v. Falling back to YAML config.", err)
+		log.Printf("Failed to initialize Flipt SDK client: %v", err)
 		return
 	}
 
 	c.fliptClient = client
-	log.Printf("Flipt SDK initialized successfully at %s", c.Flipt.URL)
 }
 
 func (c *Config) syncYAMLToFlipt() {
-	if c.fliptClient == nil {
+	if len(c.FeatureFlags) == 0 {
 		return
 	}
-
-	if _, err := os.Stat(c.Flipt.DBPath); err == nil {
-		log.Println("Flipt DB exists. Flags will be evaluated from Flipt.")
-		return
+	
+	writer := NewFliptWriter(c.Flipt.URL, c.Flipt.Namespace)
+	if err := writer.SyncFlags(c.FeatureFlags); err != nil {
+		log.Printf("Failed to sync flags to Flipt: %v", err)
 	}
-
-	log.Println("Flipt DB not found. Please create flags manually in Flipt UI at http://localhost:8088")
-	log.Println("Feature flags from YAML that should be created in Flipt:")
-	for key, enabled := range c.FeatureFlags {
-		log.Printf("  - %s: %v (type: BOOLEAN_FLAG_TYPE, namespace: %s)", key, enabled, c.Flipt.Namespace)
-	}
-	log.Println("After creating flags in Flipt UI, the app will automatically use them.")
 }
 
 func (c *Config) GetFeature(name string) bool {

@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "config",
-    srcs = ["config.go"],
+    srcs = [
+        "config.go",
+        "flipt_writer.go",
+    ],
     importpath = "github.com/jrb/cuda-learning/webserver/internal/config",
     visibility = ["//webserver:__subpackages__"],
     deps = [

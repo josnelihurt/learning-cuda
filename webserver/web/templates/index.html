@@ -19,6 +19,15 @@
                     <span>i</span>
                 </button>
             </div>
+            <div class="navbar-services">
+                <a href="#" class="service-btn" id="jaegerBtn" title="Open Jaeger Tracing UI" target="_blank">
+                    <span>Jaeger</span>
+                </a>
+                <a href="#" class="service-btn" id="fliptBtn" title="Open Flipt Feature Flags UI" target="_blank">
+                    <span>Flipt</span>
+                </a>
+                <sync-flags-button></sync-flags-button>
+            </div>
             <div class="navbar-credit">
                 by <a href="https://josnelihurt.me" target="_blank">josnelihurt</a>
             </div>
@@ -87,5 +96,13 @@
     {{range .ScriptTags}}
     <script{{if .Module}} type="module"{{end}} src="{{.Src}}"></script>
     {{end}}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const hostname = window.location.hostname;
+            document.getElementById('jaegerBtn').href = `http://${hostname}:16686`;
+            document.getElementById('fliptBtn').href = `http://${hostname}:8081`;
+        });
+    </script>
 </body>
 </html>

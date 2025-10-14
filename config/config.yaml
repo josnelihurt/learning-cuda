@@ -24,7 +24,7 @@ features:
 
 flipt:
   enabled: true
-  url: "http://localhost:8080"
+  url: "http://localhost:9000"
   namespace: "default"
   db_path: ".ignore/storage/flipt/flipt.db"
 

@@ -62,15 +62,18 @@ func (h *ConfigHandler) SyncFeatureFlags(
 	err := h.featureFlags.Sync(ctx)
 	if err != nil {
 		log.Printf("Flag sync failed: %v", err)
-		span.SetAttributes(attribute.String("sync.status", "failed"))
-		return connect.NewResponse(&pb.SyncFeatureFlagsResponse{
-			Message: "Failed to sync flags: " + err.Error(),
-		}), nil
+		span.SetAttributes(
+			attribute.String("sync.status", "failed"),
+			attribute.String("error.message", err.Error()),
+		)
+		span.RecordError(err)
+
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	log.Println("Manual flag sync completed successfully")
 	span.SetAttributes(attribute.String("sync.status", "success"))
 	return connect.NewResponse(&pb.SyncFeatureFlagsResponse{
-		Message: "Flags synced successfully",
+		Message: "Flags synced successfully to Flipt",
 	}), nil
 }

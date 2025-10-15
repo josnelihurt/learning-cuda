@@ -26,7 +26,7 @@ features:
 
 flipt:
   enabled: true
-  url: "http://localhost:9000"
+  url: "http://localhost:8081"
   namespace: "default"
   db_path: ".ignore/storage/flipt/flipt.db"
   client_timeout: "30s"

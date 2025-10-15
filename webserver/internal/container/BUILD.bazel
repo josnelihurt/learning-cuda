@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "container",
+    srcs = ["container.go"],
+    importpath = "github.com/jrb/cuda-learning/webserver/internal/container",
+    visibility = ["//webserver:__subpackages__"],
+    deps = [
+        "//webserver/internal/config",
+        "//webserver/internal/infrastructure/http",
+        "@io_flipt_go_flipt_client//:flipt-client",
+    ],
+)
+

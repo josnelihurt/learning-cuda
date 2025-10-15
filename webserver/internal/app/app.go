@@ -16,11 +16,16 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
+type featureFlagsManager interface {
+	Sync(ctx context.Context) error
+}
+
 type App struct {
-	config       *config.Manager
-	appContext   context.Context
-	useCase      *application.ProcessImageUseCase
-	interceptors []connect.Interceptor
+	config              *config.Manager
+	appContext          context.Context
+	useCase             *application.ProcessImageUseCase
+	featureFlagsManager featureFlagsManager
+	interceptors        []connect.Interceptor
 }
 
 type AppOption func(*App)
@@ -46,6 +51,12 @@ func WithConfig(cfg *config.Manager) AppOption {
 func WithUseCase(useCase *application.ProcessImageUseCase) AppOption {
 	return func(a *App) {
 		a.useCase = useCase
+	}
+}
+
+func WithFeatureFlagManager(mgr featureFlagsManager) AppOption {
+	return func(a *App) {
+		a.featureFlagsManager = mgr
 	}
 }
 
@@ -85,11 +96,13 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
 		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 	}
-	{
+	if a.featureFlagsManager != nil {
 		httpClient := httpinfra.New(&http.Client{
 			Timeout: a.config.HttpClientTimeout,
 		})
-		connectrpc.RegisterConfigService(mux, a.config.StreamConfig, a.config, httpClient, a.interceptors...)
+		connectrpc.RegisterConfigService(mux, a.config.StreamConfig, a.featureFlagsManager, httpClient, a.interceptors...)
+	} else {
+		log.Println("Warning: Feature flag service not registered (Flipt client unavailable)")
 	}
 }
 

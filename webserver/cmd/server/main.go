@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,41 +10,34 @@ import (
 
 	"github.com/jrb/cuda-learning/webserver/internal/app"
 	"github.com/jrb/cuda-learning/webserver/internal/application"
-	"github.com/jrb/cuda-learning/webserver/internal/config"
-	httpinfra "github.com/jrb/cuda-learning/webserver/internal/infrastructure/http"
+	"github.com/jrb/cuda-learning/webserver/internal/container"
 	"github.com/jrb/cuda-learning/webserver/internal/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/internal/telemetry"
-	"go.flipt.io/flipt-client"
 )
 
 func main() {
 	ctx := context.Background()
-	cfg := config.New()
 
-	fliptClient, err := flipt.NewClient(context.Background(), flipt.WithURL(cfg.FliptConfig.URL), flipt.WithNamespace(cfg.FliptConfig.Namespace))
+	di, err := container.New(ctx)
 	if err != nil {
-		log.Fatalf("Failed to create Flipt client: %v", err)
+		log.Fatalf("Failed to initialize container: %v", err)
 	}
-	fliptClientProxy := config.NewFliptClient(fliptClient)
-	httpClientProxy := httpinfra.New(&http.Client{
-		Timeout: cfg.HttpClientTimeout,
-	})
-	fliptWriter := config.NewFliptWriter(cfg.FliptConfig.URL, cfg.FliptConfig.Namespace, httpClientProxy)
-	featureFlagsManager := config.NewFeatureFlagManager(fliptClientProxy, fliptWriter)
-	config.WithFeatureFlagManager(featureFlagsManager)
+	defer di.Close(ctx)
 
-	tracerProvider, err := telemetry.New(ctx, featureFlagsManager.IsObservabilityEnabled(ctx), cfg.ObservabilityConfig)
+	tracerProvider, err := telemetry.New(
+		ctx,
+		di.FeatureFlagManager.IsObservabilityEnabled(ctx),
+		di.Config.ObservabilityConfig,
+	)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize telemetry: %v", err)
 	}
 
 	defer func() {
-		cfg.Close()
-
 		if tracerProvider != nil {
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			if err := tracerProvider.Shutdown(ctx); err != nil {
+			if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
 				log.Printf("Error shutting down tracer provider: %v", err)
 			}
 		}
@@ -56,8 +48,9 @@ func main() {
 
 	server := app.New(
 		ctx,
-		app.WithConfig(cfg),
+		app.WithConfig(di.Config),
 		app.WithUseCase(processImageUseCase),
+		app.WithFeatureFlagManager(di.FeatureFlagManager),
 	)
 
 	errChan := make(chan error, 1)

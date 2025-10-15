@@ -13,10 +13,13 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-type clientProxy struct {
+type ClientProxy struct {
 	client *http.Client
 }
 
+type clientProxy = ClientProxy
+
+// Deprecated: Use NewInstrumentedClient from factory.go instead
 func New(client *http.Client) *clientProxy {
 	client.Transport = otelhttp.NewTransport(client.Transport)
 	return &clientProxy{client: client}
@@ -24,7 +27,7 @@ func New(client *http.Client) *clientProxy {
 
 func (p *clientProxy) Do(req *http.Request) (*http.Response, error) {
 	tracer := otel.Tracer("httpinfra.ClientProxy")
-	ctx, span := tracer.Start(req.Context(), "HTTP.Do:" + req.Method + "=" + req.URL.Path)
+	ctx, span := tracer.Start(req.Context(), "HTTP.Do:"+req.Method+"="+req.URL.Path)
 	defer span.End()
 
 	span.SetAttributes(
@@ -37,7 +40,7 @@ func (p *clientProxy) Do(req *http.Request) (*http.Response, error) {
 
 	req = req.WithContext(ctx)
 	resp, err := p.client.Do(req)
-	
+
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "HTTP request failed")
@@ -73,14 +76,14 @@ func (p *clientProxy) Get(url string) (*http.Response, error) {
 		span.SetStatus(codes.Error, "Failed to create request")
 		return nil, err
 	}
-	
+
 	resp, doErr := p.Do(req)
 	if doErr != nil {
 		span.RecordError(doErr)
 		span.SetStatus(codes.Error, "Request failed")
 		return nil, doErr
 	}
-	
+
 	span.SetStatus(codes.Ok, "Request successful")
 	return resp, nil
 }
@@ -101,14 +104,14 @@ func (p *clientProxy) GetWithContext(ctx context.Context, url string) (*http.Res
 		span.SetStatus(codes.Error, "Failed to create request")
 		return nil, err
 	}
-	
+
 	resp, doErr := p.Do(req)
 	if doErr != nil {
 		span.RecordError(doErr)
 		span.SetStatus(codes.Error, "Request failed")
 		return nil, doErr
 	}
-	
+
 	span.SetStatus(codes.Ok, "Request successful")
 	return resp, nil
 }
@@ -129,14 +132,14 @@ func (p *clientProxy) Head(url string) (*http.Response, error) {
 		span.SetStatus(codes.Error, "Failed to create request")
 		return nil, err
 	}
-	
+
 	resp, doErr := p.Do(req)
 	if doErr != nil {
 		span.RecordError(doErr)
 		span.SetStatus(codes.Error, "Request failed")
 		return nil, doErr
 	}
-	
+
 	span.SetStatus(codes.Ok, "Request successful")
 	return resp, nil
 }
@@ -157,14 +160,14 @@ func (p *clientProxy) HeadWithContext(ctx context.Context, url string) (*http.Re
 		span.SetStatus(codes.Error, "Failed to create request")
 		return nil, err
 	}
-	
+
 	resp, doErr := p.Do(req)
 	if doErr != nil {
 		span.RecordError(doErr)
 		span.SetStatus(codes.Error, "Request failed")
 		return nil, doErr
 	}
-	
+
 	span.SetStatus(codes.Ok, "Request successful")
 	return resp, nil
 }
@@ -187,14 +190,14 @@ func (p *clientProxy) Post(url, contentType string, body io.Reader) (*http.Respo
 		return nil, err
 	}
 	req.Header.Set("Content-Type", contentType)
-	
+
 	resp, doErr := p.Do(req)
 	if doErr != nil {
 		span.RecordError(doErr)
 		span.SetStatus(codes.Error, "Request failed")
 		return nil, doErr
 	}
-	
+
 	span.SetStatus(codes.Ok, "Request successful")
 	return resp, nil
 }
@@ -217,14 +220,14 @@ func (p *clientProxy) PostWithContext(ctx context.Context, url, contentType stri
 		return nil, err
 	}
 	req.Header.Set("Content-Type", contentType)
-	
+
 	resp, doErr := p.Do(req)
 	if doErr != nil {
 		span.RecordError(doErr)
 		span.SetStatus(codes.Error, "Request failed")
 		return nil, doErr
 	}
-	
+
 	span.SetStatus(codes.Ok, "Request successful")
 	return resp, nil
 }
@@ -247,7 +250,7 @@ func (p *clientProxy) PostForm(url string, data url.Values) (*http.Response, err
 		span.SetStatus(codes.Error, "PostForm failed")
 		return nil, err
 	}
-	
+
 	span.SetStatus(codes.Ok, "PostForm successful")
 	return resp, nil
 }
@@ -270,7 +273,7 @@ func (p *clientProxy) PostFormWithContext(ctx context.Context, url string, data 
 		span.SetStatus(codes.Error, "PostForm failed")
 		return nil, err
 	}
-	
+
 	span.SetStatus(codes.Ok, "PostForm successful")
 	return resp, nil
 }
@@ -278,4 +281,3 @@ func (p *clientProxy) PostFormWithContext(ctx context.Context, url string, data 
 func (p *clientProxy) CloseIdleConnections() {
 	p.client.CloseIdleConnections()
 }
-

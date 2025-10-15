@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	FeatureFlagTransportFormat      = "ws.transport_format"
-	FeatureFlagObservabilityEnabled = "observability.enabled"
+	FeatureFlagTransportFormat      = "ws_transport_format"
+	FeatureFlagObservabilityEnabled = "observability_enabled"
 )
 
 type FeatureFlagManager struct {
@@ -19,14 +19,20 @@ type FeatureFlagManager struct {
 	streamTransportFormat string
 }
 
-func NewFeatureFlagManager(reader fliptClientInterface, writer *FliptWriter) *FeatureFlagManager {
+func NewFeatureFlagManager(reader fliptClientInterface, writer *FliptWriter, streamTransportFormat string, observabilityEnabled bool) *FeatureFlagManager {
 	return &FeatureFlagManager{
-		reader: reader,
-		writer: writer,
+		reader:                reader,
+		writer:                writer,
+		streamTransportFormat: streamTransportFormat,
+		observabilityEnabled:  observabilityEnabled,
 	}
 }
 
 func (m *FeatureFlagManager) Sync(ctx context.Context) error {
+	if m == nil || m.writer == nil {
+		log.Printf("Warning: Feature flag sync skipped (Flipt client not initialized)")
+		return nil
+	}
 	return m.writer.SyncFlags(ctx, map[string]interface{}{
 		FeatureFlagTransportFormat:      m.streamTransportFormat,
 		FeatureFlagObservabilityEnabled: m.observabilityEnabled,
@@ -34,6 +40,9 @@ func (m *FeatureFlagManager) Sync(ctx context.Context) error {
 }
 
 func (m *FeatureFlagManager) GetStreamTransportFormat(ctx context.Context) string {
+	if m == nil || m.reader == nil {
+		return "json"
+	}
 	variant, err := m.reader.EvaluateString(ctx, &flipt.EvaluationRequest{
 		FlagKey:  "enable_stream_transport_format",
 		EntityID: "stream_transport_format",
@@ -46,6 +55,9 @@ func (m *FeatureFlagManager) GetStreamTransportFormat(ctx context.Context) strin
 }
 
 func (m *FeatureFlagManager) IsObservabilityEnabled(ctx context.Context) bool {
+	if m == nil || m.reader == nil {
+		return true
+	}
 	enabled, err := m.reader.EvaluateBoolean(ctx, &flipt.EvaluationRequest{
 		FlagKey:  "enable_observability",
 		EntityID: "observability",

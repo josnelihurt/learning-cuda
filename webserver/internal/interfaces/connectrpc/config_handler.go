@@ -12,18 +12,16 @@ import (
 )
 
 type ConfigHandler struct {
-	streamConfig        config.StreamConfig
-	fliptConfig         config.FliptConfig
-	client              httpClient
-	featureFlagsManager featureFlagsManager
+	streamConfig config.StreamConfig
+	client       httpClient
+	featureFlags featureFlagsManager
 }
 
-func NewConfigHandler(streamCfg config.StreamConfig, fliptCfg config.FliptConfig, client httpClient, featureFlagsManager featureFlagsManager) *ConfigHandler {
+func NewConfigHandler(streamCfg config.StreamConfig, featureFlagsManager featureFlagsManager, client httpClient) *ConfigHandler {
 	return &ConfigHandler{
-		streamConfig:        streamCfg,
-		fliptConfig:         fliptCfg,
-		client:              client,
-		featureFlagsManager: featureFlagsManager,
+		streamConfig: streamCfg,
+		client:       client,
+		featureFlags: featureFlagsManager,
 	}
 }
 
@@ -61,38 +59,18 @@ func (h *ConfigHandler) SyncFeatureFlags(
 ) (*connect.Response[pb.SyncFeatureFlagsResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	flags := make(map[string]interface{})
-	err := h.featureFlagsManager.Iterate(ctx, func(ctx context.Context, flagKey string, flagValue interface{}) error {
-		flags[flagKey] = flagValue
-		return nil
-	})
-	if err != nil {
-		log.Printf("Failed to iterate feature flags: %v", err)
-		if len(flags) == 0 {
-			span.SetAttributes(attribute.String("sync.status", "error"))
-			return connect.NewResponse(&pb.SyncFeatureFlagsResponse{
-				Message: "No feature flags defined in YAML configuration",
-			}), nil
-		}
-	}
-
-	log.Printf("Manual flag sync triggered - syncing %d flags to Flipt", len(flags))
-	span.SetAttributes(attribute.Int("sync.flag_count", len(flags)))
-
-	writer := config.NewFliptWriter(h.fliptConfig.URL, h.fliptConfig.Namespace, h.client)
-	err = writer.SyncFlags(ctx, flags)
-
+	err := h.featureFlags.Sync(ctx)
 	if err != nil {
 		log.Printf("Flag sync failed: %v", err)
 		span.SetAttributes(attribute.String("sync.status", "failed"))
 		return connect.NewResponse(&pb.SyncFeatureFlagsResponse{
-			Message: "Failed to sync flags to Flipt: " + err.Error(),
+			Message: "Failed to sync flags: " + err.Error(),
 		}), nil
 	}
 
 	log.Println("Manual flag sync completed successfully")
 	span.SetAttributes(attribute.String("sync.status", "success"))
 	return connect.NewResponse(&pb.SyncFeatureFlagsResponse{
-		Message: "Flags synced successfully to Flipt",
+		Message: "Flags synced successfully",
 	}), nil
 }

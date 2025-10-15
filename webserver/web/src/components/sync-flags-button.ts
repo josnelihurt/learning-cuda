@@ -1,17 +1,31 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { createPromiseClient, PromiseClient, Interceptor, ConnectError } from '@connectrpc/connect';
+import { createConnectTransport } from '@connectrpc/connect-web';
+import { ConfigService } from '../gen/image_processing_connect';
 import { telemetryService } from '../services/telemetry-service';
 
-interface SyncFlagsResponse {
-  success: boolean;
-  message: string;
-  flags?: Record<string, boolean>;
-  errors?: string[];
-}
+const tracingInterceptor: Interceptor = (next) => async (req) => {
+    const headers = telemetryService.getTraceHeaders();
+    for (const [key, value] of Object.entries(headers)) {
+        req.header.set(key, value);
+    }
+    return await next(req);
+};
 
 @customElement('sync-flags-button')
 export class SyncFlagsButton extends LitElement {
     @state() private syncing = false;
+    private client: PromiseClient<typeof ConfigService>;
+
+    constructor() {
+        super();
+        const transport = createConnectTransport({
+            baseUrl: window.location.origin,
+            interceptors: [tracingInterceptor],
+        });
+        this.client = createPromiseClient(ConfigService, transport);
+    }
 
     static styles = css`
         :host {
@@ -64,55 +78,52 @@ export class SyncFlagsButton extends LitElement {
                 'flipt.sync_flags',
                 {
                     'flipt.operation': 'sync',
-                    'http.method': 'POST',
-                    'http.url': '/api/flipt/sync',
+                    'rpc.service': 'ConfigService',
+                    'rpc.method': 'SyncFeatureFlags',
                 },
                 async (span) => {
                     const startTime = performance.now();
 
                     try {
-                        const traceHeaders = telemetryService.getTraceHeaders();
+                        span.addEvent('Calling syncFeatureFlags RPC');
                         
-                        const response = await fetch('/api/flipt/sync', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...traceHeaders,
-                            },
-                        });
+                        const response = await this.client.syncFeatureFlags({});
 
                         const endTime = performance.now();
                         const duration = endTime - startTime;
 
-                        span.setAttribute('http.status_code', response.status);
-                        span.setAttribute('http.response_time_ms', duration);
+                        span.setAttribute('rpc.response_time_ms', duration);
+                        span.setAttribute('flipt.sync_success', true);
+                        span.setAttribute('flipt.message', response.message);
 
-                        const data: SyncFlagsResponse = await response.json();
-
-                        span.setAttribute('flipt.sync_success', data.success);
+                        this.showToast('success', response.message);
+                        console.log('✓ Flags synced successfully:', response.message);
                         
-                        if (data.flags) {
-                            span.setAttribute('flipt.flags_count', Object.keys(data.flags).length);
-                            span.setAttribute('flipt.flags', JSON.stringify(data.flags));
-                        }
-
-                        if (data.success) {
-                            this.showToast('success', data.message);
-                            if (data.flags) {
-                                console.log('✓ Synced flags to Flipt:', data.flags);
-                            }
-                        } else {
-                            this.showToast('error', data.message);
-                            if (data.errors) {
-                                span.setAttribute('flipt.errors', JSON.stringify(data.errors));
-                                console.error('Sync errors:', data.errors);
-                            }
-                        }
+                        span.addEvent('Sync completed successfully');
                     } catch (error) {
                         span.setAttribute('error', true);
-                        span.setAttribute('error.message', error instanceof Error ? error.message : String(error));
-                        console.error('Failed to sync flags:', error);
-                        this.showToast('error', 'Failed to connect to server');
+                        
+                        if (error instanceof ConnectError) {
+                            span.setAttribute('error.code', error.code);
+                            span.setAttribute('error.message', error.message);
+                            span.recordException(error);
+                            
+                            console.error('Failed to sync flags (ConnectError):', {
+                                code: error.code,
+                                message: error.message,
+                                details: error.rawMessage,
+                            });
+                            
+                            this.showToast('error', `Sync failed: ${error.message}`);
+                        } else {
+                            const errorMsg = error instanceof Error ? error.message : String(error);
+                            span.setAttribute('error.message', errorMsg);
+                            span.recordException(error as Error);
+                            
+                            console.error('Failed to sync flags:', error);
+                            this.showToast('error', 'Failed to connect to server');
+                        }
+                        
                         throw error;
                     }
                 }
@@ -124,8 +135,12 @@ export class SyncFlagsButton extends LitElement {
 
     private showToast(type: 'success' | 'error', message: string): void {
         const toastContainer = document.querySelector('toast-container');
-        if (toastContainer && 'addToast' in toastContainer) {
-            (toastContainer as any).addToast(message, type);
+        if (toastContainer) {
+            if (type === 'success' && 'success' in toastContainer) {
+                (toastContainer as any).success('Feature Flags', message);
+            } else if (type === 'error' && 'error' in toastContainer) {
+                (toastContainer as any).error('Sync Error', message);
+            }
         }
     }
 

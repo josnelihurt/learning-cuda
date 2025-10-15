@@ -10,5 +10,5 @@ type httpClient interface {
 }
 
 type featureFlagsManager interface {
-	Iterate(ctx context.Context, fn func(ctx context.Context, flagKey string, flagValue interface{}) error) error
+	Sync(ctx context.Context) error
 }

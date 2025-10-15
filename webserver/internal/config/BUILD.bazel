@@ -4,6 +4,7 @@ go_library(
     name = "config",
     srcs = [
         "config.go",
+        "feature_flag_manager.go",
         "flipt_client.go",
         "flipt_client_proxy.go",
         "flipt_writer.go",

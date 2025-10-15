@@ -10,9 +10,9 @@ import (
 )
 
 type FliptConfig struct {
-	URL string
+	URL       string
 	Namespace string
-	DBPath string
+	DBPath    string
 }
 
 // fliptClientProxy wraps a Flipt client and adds OpenTelemetry tracing
@@ -20,7 +20,7 @@ type fliptClientProxy struct {
 	client *flipt.Client
 }
 
-func newFliptClient(client *flipt.Client) *fliptClientProxy {
+func NewFliptClient(client *flipt.Client) *fliptClientProxy {
 	return &fliptClientProxy{client: client}
 }
 

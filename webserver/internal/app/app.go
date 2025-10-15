@@ -89,7 +89,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		httpClient := httpinfra.New(&http.Client{
 			Timeout: a.config.HttpClientTimeout,
 		})
-		connectrpc.RegisterConfigService(mux, a.config.StreamConfig, a.config.FliptConfig, httpClient, a.config, a.interceptors...)
+		connectrpc.RegisterConfigService(mux, a.config.StreamConfig, a.config, httpClient, a.interceptors...)
 	}
 }
 

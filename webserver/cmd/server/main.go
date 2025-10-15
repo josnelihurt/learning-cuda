@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,15 +12,29 @@ import (
 	"github.com/jrb/cuda-learning/webserver/internal/app"
 	"github.com/jrb/cuda-learning/webserver/internal/application"
 	"github.com/jrb/cuda-learning/webserver/internal/config"
+	httpinfra "github.com/jrb/cuda-learning/webserver/internal/infrastructure/http"
 	"github.com/jrb/cuda-learning/webserver/internal/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/internal/telemetry"
+	"go.flipt.io/flipt-client"
 )
 
 func main() {
 	ctx := context.Background()
 	cfg := config.New()
 
-	tracerProvider, err := telemetry.New(ctx, cfg.ObservabilityConfig.IsObservabilityEnabled(ctx), *cfg.ObservabilityConfig)
+	fliptClient, err := flipt.NewClient(context.Background(), flipt.WithURL(cfg.FliptConfig.URL), flipt.WithNamespace(cfg.FliptConfig.Namespace))
+	if err != nil {
+		log.Fatalf("Failed to create Flipt client: %v", err)
+	}
+	fliptClientProxy := config.NewFliptClient(fliptClient)
+	httpClientProxy := httpinfra.New(&http.Client{
+		Timeout: cfg.HttpClientTimeout,
+	})
+	fliptWriter := config.NewFliptWriter(cfg.FliptConfig.URL, cfg.FliptConfig.Namespace, httpClientProxy)
+	featureFlagsManager := config.NewFeatureFlagManager(fliptClientProxy, fliptWriter)
+	config.WithFeatureFlagManager(featureFlagsManager)
+
+	tracerProvider, err := telemetry.New(ctx, featureFlagsManager.IsObservabilityEnabled(ctx), cfg.ObservabilityConfig)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize telemetry: %v", err)
 	}

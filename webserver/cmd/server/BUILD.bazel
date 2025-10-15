@@ -6,11 +6,11 @@ go_library(
     importpath = "github.com/jrb/cuda-learning/webserver/cmd/server",
     visibility = ["//visibility:private"],
     deps = [
-        "//webserver/internal/app",
-        "//webserver/internal/application",
-        "//webserver/internal/container",
-        "//webserver/internal/infrastructure/processor",
-        "//webserver/internal/telemetry",
+        "//webserver/pkg/app",
+        "//webserver/pkg/application",
+        "//webserver/pkg/container",
+        "//webserver/pkg/infrastructure/processor",
+        "//webserver/pkg/telemetry",
     ],
 )
 

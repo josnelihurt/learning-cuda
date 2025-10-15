@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "http",
+    srcs = ["trace_proxy.go"],
+    importpath = "github.com/jrb/cuda-learning/webserver/pkg/interfaces/http",
+    visibility = ["//webserver:__subpackages__"],
+)
+

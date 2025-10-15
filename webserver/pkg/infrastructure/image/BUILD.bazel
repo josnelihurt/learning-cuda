@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "image",
+    srcs = ["codec.go"],
+    importpath = "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/image",
+    visibility = ["//webserver:__subpackages__"],
+    deps = [
+        "//webserver/pkg/domain",
+    ],
+)
+

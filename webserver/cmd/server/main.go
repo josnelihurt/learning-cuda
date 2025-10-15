@@ -8,11 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jrb/cuda-learning/webserver/internal/app"
-	"github.com/jrb/cuda-learning/webserver/internal/application"
-	"github.com/jrb/cuda-learning/webserver/internal/container"
-	"github.com/jrb/cuda-learning/webserver/internal/infrastructure/processor"
-	"github.com/jrb/cuda-learning/webserver/internal/telemetry"
+	"github.com/jrb/cuda-learning/webserver/pkg/app"
+	"github.com/jrb/cuda-learning/webserver/pkg/application"
+	"github.com/jrb/cuda-learning/webserver/pkg/container"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
+	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 
 	tracerProvider, err := telemetry.New(
 		ctx,
-		di.FeatureFlagManager.IsObservabilityEnabled(ctx),
+		di.Config.IsObservabilityEnabled(ctx),
 		di.Config.ObservabilityConfig,
 	)
 	if err != nil {
@@ -50,7 +50,8 @@ func main() {
 		ctx,
 		app.WithConfig(di.Config),
 		app.WithUseCase(processImageUseCase),
-		app.WithFeatureFlagManager(di.FeatureFlagManager),
+		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
+		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
 	)
 
 	errChan := make(chan error, 1)

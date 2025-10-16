@@ -4,6 +4,39 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Multi-Source Video Processing (Oct 16, 2025)
+- [x] Implement ListInputs endpoint with BDD test coverage
+- [x] Create dynamic video grid component supporting up to 9 sources
+- [x] Add drawer UI for source selection with real-time updates
+- [x] Support per-source filter and resolution configuration
+- [x] Implement frontend image scaling (original/half/quarter)
+- [x] Modularize protobuf into separate service definitions (common, config_service, image_processor_service)
+- [x] Add FAB controls for source management
+- [x] Enhance UI with source indicators
+
+### Integration Testing & BDD (Oct 15, 2025)
+- [x] Implement godog/gherkin BDD framework with 29 passing scenarios
+- [x] Add image_processing.feature with 14 scenarios (all filter/accelerator/grayscale combinations)
+- [x] Add websocket_processing.feature with 4 scenarios
+- [x] Add streaming_service.feature with 1 scenario
+- [x] Add feature_flags.feature with 5 scenarios (GetStreamConfig, Sync, Health)
+- [x] Add input_sources.feature with 5 scenarios
+- [x] Add checksum validation using SHA-256 for image comparison
+- [x] Dockerize integration tests with proper user permissions
+- [x] Add cucumber HTML report visualization at port 5050
+- [x] Migrate internal/ to pkg/ structure for better package visibility
+- [x] Add /health endpoint with JSON response
+- [x] Create automated test runner script (run-docker-tests.sh)
+
+### Bug Fixes & Optimizations (Oct 15, 2025)
+- [x] Fix missing CUDA error checks in grayscale_processor.cu
+- [x] Fix dangling pointers from protobuf in cgo_api.cpp
+- [x] Fix image decode error (PNG vs RAW pixels mismatch)
+- [x] Add proper memory cleanup on CUDA errors
+- [x] Remove duplicate buffer copies (-1MB per request, ~30% faster)
+- [x] Remove unused code (intermediate_buffer, filter chaining)
+- [x] Add strict compilation flags (-Werror=unused-*)
+
 ### Observability & Feature Flags (Oct 13, 2025)
 - [x] Integrate Jaeger all-in-one for distributed tracing
 - [x] Add OpenTelemetry collector for trace aggregation

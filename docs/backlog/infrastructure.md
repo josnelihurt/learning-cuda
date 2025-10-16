@@ -56,6 +56,7 @@ Microservices, observability, testing, and cloud deployment.
 
 ### Logging
 - [x] spdlog (C++)
+- [x] Health endpoint at /health with JSON response
 - [ ] Add trace_id to logs
 - [ ] Optional: Loki or ELK
 
@@ -68,11 +69,15 @@ Microservices, observability, testing, and cloud deployment.
 - [ ] gRPC tests with `ghz`
 
 ### Godog BDD
-- [ ] Setup Godog + feature files
-- [ ] Feature: Video processing performance
-- [ ] Feature: Filter pipeline
-- [ ] Step definitions in Go
-- [ ] CI integration, fail on regression
+- [x] Setup Godog + feature files
+- [x] Feature: Image processing (14 scenarios)
+- [x] Feature: WebSocket processing (4 scenarios)
+- [x] Feature: Streaming service (1 scenario)
+- [x] Feature: Feature flags (5 scenarios)
+- [x] Feature: Input sources (5 scenarios)
+- [x] Step definitions in Go
+- [x] CI integration with dockerized tests
+- [x] Cucumber HTML reports at port 5050
 
 ## Cloud Deployment
 

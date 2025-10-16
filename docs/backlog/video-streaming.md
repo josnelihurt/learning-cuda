@@ -20,18 +20,23 @@ Research and POC tasks for improving video transport from current WebSocket + ba
 
 ### POC 1: Connect-RPC Implementation (In Progress)
 
-**Status**: Migrated from stdlib HTTP to Connect-RPC
+**Status**: Migrated from stdlib HTTP to Connect-RPC with multi-source support
 
 #### Completed
 - [x] Added ImageProcessorService to proto with ProcessImage and StreamProcessVideo RPCs
-- [x] Implemented Connect-RPC server in `webserver/internal/interfaces/connectrpc/`
+- [x] Implemented Connect-RPC server in `webserver/pkg/interfaces/connectrpc/`
 - [x] Refactored main.go to clean App structure
 - [x] Setup buf for code generation with Docker
 - [x] Added HTTP annotations for REST-friendly endpoints
+- [x] Modularized protobuf into separate service definitions (common, config_service, image_processor_service)
+- [x] Implemented ListInputs endpoint with BDD test coverage
+- [x] Created dynamic video grid component supporting up to 9 sources
+- [x] Added drawer UI for source selection with real-time updates
+- [x] Support per-source filter and resolution configuration
 
 #### Pending
 - [ ] Implement StreamProcessVideo bidirectional streaming (currently returns Unimplemented)
-- [ ] Update frontend to use Connect-RPC instead of WebSocket
+- [ ] Update frontend to use Connect-RPC instead of WebSocket for video streaming
 - [ ] Benchmark latency vs current WebSocket
 - [ ] Add grpc-web support for browser compatibility
 

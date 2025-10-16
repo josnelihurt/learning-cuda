@@ -172,35 +172,29 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
     scoped_span.SetAttribute("filters_count", static_cast<int64_t>(proc_req.filters_size()));
 
     try {
-        // Create initial source from request
         jrb::ports::cgo::ImageBufferSource source(
             reinterpret_cast<const uint8_t*>(proc_req.image_data().data()), proc_req.width(),
             proc_req.height(), proc_req.channels());
 
         jrb::ports::cgo::ImageBufferSink sink;
+        bool success = false;
 
-        // Process filters sequentially
         for (int i = 0; i < proc_req.filters_size(); i++) {
             cuda_learning::FilterType filter = proc_req.filters(i);
 
-            // Skip NONE filter
             if (filter == cuda_learning::FILTER_TYPE_NONE) {
                 continue;
             }
 
             if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
-                bool success = false;
-
                 if (accelerator == cuda_learning::ACCELERATOR_TYPE_GPU) {
                     scoped_span.AddEvent("Starting CUDA grayscale processing");
-                    // Use CUDA processor
                     g_cuda_grayscale_processor->set_algorithm(
                         proto_to_cuda_algorithm(grayscale_type));
                     success = g_cuda_grayscale_processor->process(source, sink, "");
                     scoped_span.AddEvent("CUDA grayscale processing completed");
                 } else {
                     scoped_span.AddEvent("Starting CPU grayscale processing");
-                    // Use CPU processor
                     g_cpu_grayscale_processor->set_algorithm(
                         proto_to_cpu_algorithm(grayscale_type));
                     success = g_cpu_grayscale_processor->process(source, sink, "");
@@ -215,11 +209,6 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
                     *response = allocate_response(proc_resp.SerializeAsString(), response_len);
                     return false;
                 }
-
-                // For next filter in chain, use output of this filter as input
-                // Create new source from sink output
-                source = jrb::ports::cgo::ImageBufferSource(sink.get_data().data(), sink.width(),
-                                                            sink.height(), sink.channels());
             } else {
                 spdlog::warn("Unsupported filter type: {}", filter);
             }

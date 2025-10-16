@@ -1,0 +1,123 @@
+{
+  "generated_at": "2025-10-15T12:55:47-07:00",
+  "checksums": [
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_NONE",
+      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "checksum": "f9d6e659deaf5380779b3b7602691fe668ac483b94ecbb35f544e9263b2fb656",
+      "width": 512,
+      "height": 512,
+      "channels": 4
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_NONE",
+      "accelerator": "ACCELERATOR_TYPE_CPU",
+      "checksum": "f9d6e659deaf5380779b3b7602691fe668ac483b94ecbb35f544e9263b2fb656",
+      "width": 512,
+      "height": 512,
+      "channels": 4
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "grayscale_type": "GRAYSCALE_TYPE_BT601",
+      "checksum": "bae8a5e6b717586d88b6e2d18585ffd41be896e64e85bb0614695222596362f9",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "grayscale_type": "GRAYSCALE_TYPE_BT709",
+      "checksum": "fb104838b91a8cb91b334c2b642f0bc8dced2ee42d071b3689d62cee28e4ba2a",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "grayscale_type": "GRAYSCALE_TYPE_AVERAGE",
+      "checksum": "cd3cdb2dc3c53820943e8a4b763ac16d2f42ed8e41d5fdeb96b7641fd9dab29a",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "grayscale_type": "GRAYSCALE_TYPE_LIGHTNESS",
+      "checksum": "502acec9a0e5aec9edd5fdfb72a6acb11791d39ec3858fd6ed4dd8248988809e",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "grayscale_type": "GRAYSCALE_TYPE_LUMINOSITY",
+      "checksum": "078c0e2c024e1fd352cb4752594509705e42d42bb6890e0a6eb756a645d821d4",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_CPU",
+      "grayscale_type": "GRAYSCALE_TYPE_BT601",
+      "checksum": "d542bde03e79f26d73919ca92e8df42515ab837b67b654666ba43733e34bb57d",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_CPU",
+      "grayscale_type": "GRAYSCALE_TYPE_BT709",
+      "checksum": "1d01bb354007b1c59ecc1ad1e4a61d4161eac8226887d7b2f3743e98f770df60",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_CPU",
+      "grayscale_type": "GRAYSCALE_TYPE_AVERAGE",
+      "checksum": "cd3cdb2dc3c53820943e8a4b763ac16d2f42ed8e41d5fdeb96b7641fd9dab29a",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_CPU",
+      "grayscale_type": "GRAYSCALE_TYPE_LIGHTNESS",
+      "checksum": "502acec9a0e5aec9edd5fdfb72a6acb11791d39ec3858fd6ed4dd8248988809e",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    },
+    {
+      "image": "lena.png",
+      "filter": "FILTER_TYPE_GRAYSCALE",
+      "accelerator": "ACCELERATOR_TYPE_CPU",
+      "grayscale_type": "GRAYSCALE_TYPE_LUMINOSITY",
+      "checksum": "003420ddaea397faa11e885e1200a08fdd213efdb5a4e0b6b7a342bd278188db",
+      "width": 512,
+      "height": 512,
+      "channels": 1
+    }
+  ]
+}

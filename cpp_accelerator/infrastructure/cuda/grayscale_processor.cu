@@ -89,11 +89,35 @@ void GrayscaleProcessor::convert_to_grayscale_cuda(const unsigned char* input,
     unsigned char* d_output = nullptr;
 
     scoped_span.AddEvent("Allocating device memory");
-    cudaMalloc(&d_input, input_size);
-    cudaMalloc(&d_output, output_size);
+    cudaError_t error = cudaMalloc(&d_input, input_size);
+    if (error != cudaSuccess) {
+        std::string error_msg =
+            std::string("cudaMalloc input failed: ") + cudaGetErrorString(error);
+        spdlog::error(error_msg);
+        scoped_span.RecordError(error_msg);
+        return;
+    }
+
+    error = cudaMalloc(&d_output, output_size);
+    if (error != cudaSuccess) {
+        std::string error_msg =
+            std::string("cudaMalloc output failed: ") + cudaGetErrorString(error);
+        spdlog::error(error_msg);
+        scoped_span.RecordError(error_msg);
+        cudaFree(d_input);
+        return;
+    }
 
     scoped_span.AddEvent("Copying input to device");
-    cudaMemcpy(d_input, input, input_size, cudaMemcpyHostToDevice);
+    error = cudaMemcpy(d_input, input, input_size, cudaMemcpyHostToDevice);
+    if (error != cudaSuccess) {
+        std::string error_msg = std::string("cudaMemcpy H2D failed: ") + cudaGetErrorString(error);
+        spdlog::error(error_msg);
+        scoped_span.RecordError(error_msg);
+        cudaFree(d_input);
+        cudaFree(d_output);
+        return;
+    }
 
     dim3 block_size(16, 16);
     dim3 grid_size((width + block_size.x - 1) / block_size.x,
@@ -110,16 +134,37 @@ void GrayscaleProcessor::convert_to_grayscale_cuda(const unsigned char* input,
                                                            channels, kernel_algorithm);
 
     scoped_span.AddEvent("Synchronizing device");
-    cudaDeviceSynchronize();
-    cudaError_t error = cudaGetLastError();
+    error = cudaDeviceSynchronize();
+    if (error != cudaSuccess) {
+        std::string error_msg =
+            std::string("cudaDeviceSynchronize failed: ") + cudaGetErrorString(error);
+        spdlog::error(error_msg);
+        scoped_span.RecordError(error_msg);
+        cudaFree(d_input);
+        cudaFree(d_output);
+        return;
+    }
+
+    error = cudaGetLastError();
     if (error != cudaSuccess) {
         std::string error_msg = std::string("CUDA kernel error: ") + cudaGetErrorString(error);
         spdlog::error(error_msg);
         scoped_span.RecordError(error_msg);
+        cudaFree(d_input);
+        cudaFree(d_output);
+        return;
     }
 
     scoped_span.AddEvent("Copying output to host");
-    cudaMemcpy(output, d_output, output_size, cudaMemcpyDeviceToHost);
+    error = cudaMemcpy(output, d_output, output_size, cudaMemcpyDeviceToHost);
+    if (error != cudaSuccess) {
+        std::string error_msg = std::string("cudaMemcpy D2H failed: ") + cudaGetErrorString(error);
+        spdlog::error(error_msg);
+        scoped_span.RecordError(error_msg);
+        cudaFree(d_input);
+        cudaFree(d_output);
+        return;
+    }
 
     scoped_span.AddEvent("Freeing device memory");
     cudaFree(d_input);

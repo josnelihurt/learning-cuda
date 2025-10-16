@@ -13,6 +13,11 @@ cc_library(
     srcs = ["cgo_api.cpp"],
     hdrs = ["cgo_api.h"],
     visibility = ["//visibility:public"],
+    copts = [
+        "-Werror=unused-variable",
+        "-Werror=unused-parameter",
+        "-Wno-unused-but-set-variable",
+    ],
     deps = [
         ":image_buffer_adapter",
         "//cpp_accelerator/core:telemetry",

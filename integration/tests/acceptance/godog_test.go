@@ -23,7 +23,7 @@ func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: InitializeScenario,
 		Options: &godog.Options{
-			Format:   "pretty,cucumber:" + resultsDir + "/cucumber-report.json,junit:" + resultsDir + "/junit-report.xml",
+			Format:   "pretty,cucumber:" + resultsDir + "/cucumber-report.json",
 			Paths:    []string{"features"},
 			Output:   colors.Colored(os.Stdout),
 			TestingT: t,
@@ -43,7 +43,13 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		return ctx, nil
 	})
 
+	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+		testCtx.CloseWebSocket()
+		return ctx, nil
+	})
+
 	steps.InitializeGivenSteps(ctx, testCtx)
 	steps.InitializeWhenSteps(ctx, testCtx)
 	steps.InitializeThenSteps(ctx, testCtx)
+	steps.InitializeImageSteps(ctx, testCtx)
 }

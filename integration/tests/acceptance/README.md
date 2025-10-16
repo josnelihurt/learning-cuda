@@ -1,8 +1,12 @@
-# BDD Acceptance Tests for Feature Flags
+# BDD Acceptance Tests
 
 ## Overview
 
-This directory contains BDD-style acceptance tests that validate the behavior of the feature flag system. These tests ensure that the `GetStreamConfig` and `SyncFeatureFlags` endpoints work correctly with Flipt.
+This directory contains BDD-style acceptance tests that validate the behavior of the CUDA image processing service, including:
+- Feature flag management with Flipt
+- Image processing via ConnectRPC
+- WebSocket real-time processing
+- Streaming service endpoints
 
 ## Prerequisites
 
@@ -246,14 +250,76 @@ Error: x509: certificate signed by unknown authority
 go test ./integration/tests/acceptance/... -v -timeout 60s
 ```
 
+## Image Processing Tests
+
+### Test Features
+
+The suite now includes comprehensive tests for:
+
+1. **`image_processing.feature`** - ConnectRPC Image Processing
+   - 12 successful processing scenarios (filters × accelerators × grayscale types)
+   - 3 error scenarios (empty image, zero dimensions, invalid channels)
+   - Checksum validation for consistent output
+
+2. **`websocket_processing.feature`** - Real-time WebSocket Processing
+   - JSON and Binary transport formats
+   - 4 successful frame processing scenarios
+   - 2 error scenarios (empty request, empty image)
+   - Checksum validation for processed frames
+
+3. **`streaming_service.feature`** - Streaming Service Status
+   - Validates StreamProcessVideo returns Unimplemented
+
+### Generating Test Checksums
+
+Before running image processing tests, generate checksums:
+
+```bash
+# Start the service first
+./scripts/start-dev.sh
+
+# In another terminal, generate checksums
+cd integration/tests/acceptance/scripts
+./run_checksum_generation.sh
+```
+
+This will process test images with all combinations and save checksums to `testdata/checksums.json`.
+
+### Test Combinations
+
+**Filters:**
+- `FILTER_TYPE_NONE` - No processing (passthrough)
+- `FILTER_TYPE_GRAYSCALE` - Convert to grayscale
+
+**Accelerators:**
+- `ACCELERATOR_TYPE_GPU` - CUDA GPU processing
+- `ACCELERATOR_TYPE_CPU` - CPU processing
+
+**Grayscale Algorithms:**
+- `GRAYSCALE_TYPE_BT601` - ITU-R BT.601 (SDTV)
+- `GRAYSCALE_TYPE_BT709` - ITU-R BT.709 (HDTV)
+- `GRAYSCALE_TYPE_AVERAGE` - Simple average
+- `GRAYSCALE_TYPE_LIGHTNESS` - (max + min) / 2
+- `GRAYSCALE_TYPE_LUMINOSITY` - Weighted average
+
+### Checksum Validation
+
+Tests use SHA-256 checksums to validate that:
+- Image processing produces consistent results
+- GPU and CPU implementations match expected outputs
+- Different grayscale algorithms produce correct transformations
+- WebSocket processing matches ConnectRPC results
+
 ## Next Steps
 
 After these tests pass (baseline validation), you can proceed with the architectural refactoring. Re-run these tests after refactoring to ensure nothing broke.
 
 ## Future Improvements
 
+- [ ] Add more test images with different formats (JPEG, etc.)
+- [ ] Add tests for batch processing
+- [ ] Add performance benchmarks
 - [ ] Integrate tests into Bazel build system
-- [ ] Consider migrating to godog framework for Gherkin syntax
 - [ ] Add tests for Flipt service unavailability scenarios
 - [ ] Add CI/CD pipeline integration
 - [ ] Add performance/load tests for flag evaluation

@@ -52,4 +52,5 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	steps.InitializeWhenSteps(ctx, testCtx)
 	steps.InitializeThenSteps(ctx, testCtx)
 	steps.InitializeImageSteps(ctx, testCtx)
+	steps.InitializeInputSourceSteps(ctx, testCtx)
 }

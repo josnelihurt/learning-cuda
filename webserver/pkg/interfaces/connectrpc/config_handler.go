@@ -15,15 +15,18 @@ import (
 type ConfigHandler struct {
 	getStreamConfigUseCase *application.GetStreamConfigUseCase
 	syncFlagsUseCase       *application.SyncFeatureFlagsUseCase
+	listInputsUseCase      *application.ListInputsUseCase
 }
 
 func NewConfigHandler(
 	getStreamConfigUC *application.GetStreamConfigUseCase,
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
+	listInputsUC *application.ListInputsUseCase,
 ) *ConfigHandler {
 	return &ConfigHandler{
 		getStreamConfigUseCase: getStreamConfigUC,
 		syncFlagsUseCase:       syncFlagsUC,
+		listInputsUseCase:      listInputsUC,
 	}
 }
 
@@ -98,5 +101,38 @@ func (h *ConfigHandler) SyncFeatureFlags(
 	span.SetAttributes(attribute.String("sync.status", "success"))
 	return connect.NewResponse(&pb.SyncFeatureFlagsResponse{
 		Message: "Flags synced successfully to Flipt",
+	}), nil
+}
+
+func (h *ConfigHandler) ListInputs(
+	ctx context.Context,
+	req *connect.Request[pb.ListInputsRequest],
+) (*connect.Response[pb.ListInputsResponse], error) {
+	span := trace.SpanFromContext(ctx)
+
+	sources, err := h.listInputsUseCase.Execute(ctx)
+	if err != nil {
+		span.RecordError(err)
+		log.Printf("Failed to list input sources: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	pbSources := make([]*pb.InputSource, len(sources))
+	for i, src := range sources {
+		pbSources[i] = &pb.InputSource{
+			Id:          src.ID,
+			DisplayName: src.DisplayName,
+			Type:        src.Type,
+			ImagePath:   src.ImagePath,
+			IsDefault:   src.IsDefault,
+		}
+	}
+
+	span.SetAttributes(
+		attribute.Int("input_sources.count", len(pbSources)),
+	)
+
+	return connect.NewResponse(&pb.ListInputsResponse{
+		Sources: pbSources,
 	}), nil
 }

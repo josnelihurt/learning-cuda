@@ -28,6 +28,10 @@ func (tc *TestContext) theResponseShouldContainStatus(status string) error {
 	return tc.ThenTheResponseShouldContainHealthStatus(status)
 }
 
+func (tc *TestContext) theResponseShouldSucceed() error {
+	return tc.ThenTheResponseShouldSucceed()
+}
+
 func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain transport format "([^"]*)"$`, tc.theResponseShouldContainTransportFormat)
 	ctx.Step(`^the response should contain endpoint "([^"]*)"$`, tc.theResponseShouldContainEndpoint)
@@ -35,4 +39,5 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^flag "([^"]*)" should be enabled$`, tc.flagShouldBeEnabled)
 	ctx.Step(`^the response status should be (\d+)$`, tc.theResponseStatusShouldBe)
 	ctx.Step(`^the response should contain status "([^"]*)"$`, tc.theResponseShouldContainStatus)
+	ctx.Step(`^the response should succeed$`, tc.theResponseShouldSucceed)
 }

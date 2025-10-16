@@ -52,6 +52,7 @@ func main() {
 		app.WithUseCase(processImageUseCase),
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
 		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
+		app.WithListInputsUseCase(di.ListInputsUseCase),
 	)
 
 	errChan := make(chan error, 1)

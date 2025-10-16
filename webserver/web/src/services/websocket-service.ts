@@ -1,7 +1,8 @@
 import type { StatsPanel } from '../components/stats-panel';
 import type { CameraPreview } from '../components/camera-preview';
 import type { ToastContainer } from '../components/toast-container';
-import { WebSocketFrameRequest, WebSocketFrameResponse, ProcessImageRequest, FilterType, AcceleratorType, GrayscaleType, TraceContext } from '../gen/image_processing_pb';
+import { WebSocketFrameRequest, WebSocketFrameResponse, ProcessImageRequest } from '../gen/image_processor_service_pb';
+import { FilterType, AcceleratorType, GrayscaleType, TraceContext } from '../gen/common_pb';
 import { streamConfigService } from './config-service';
 import { telemetryService } from './telemetry-service';
 import { context, propagation } from '@opentelemetry/api';
@@ -150,7 +151,7 @@ export class WebSocketService {
         }
     }
 
-    sendSingleFrame(base64Data: string, width: number, height: number, filters: string[], accelerator: string, grayscaleType: string): Promise<void> {
+    sendSingleFrame(base64Data: string, width: number, height: number, filters: string[], accelerator: string, grayscaleType: string): Promise<WebSocketFrameResponse> {
         return telemetryService.withSpanAsync('WebSocket.sendSingleFrame', {
             'image.width': width,
             'image.height': height,
@@ -174,14 +175,7 @@ export class WebSocketService {
                             span?.addEvent('Frame processed successfully');
                             span?.setAttribute('result.width', data.response.width);
                             span?.setAttribute('result.height', data.response.height);
-                            
-                            const heroImage = document.querySelector('#heroImage') as HTMLImageElement;
-                            if (heroImage) {
-                                span?.addEvent('Updating UI with result');
-                                const imageData = uint8ArrayToBase64(data.response.imageData);
-                                heroImage.src = `data:image/png;base64,${imageData}`;
-                            }
-                            resolve();
+                            resolve(data);
                         } else {
                             const error = new Error(data.error || 'Unknown error');
                             reject(error);
@@ -200,6 +194,15 @@ export class WebSocketService {
 
     isConnected(): boolean {
         return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+    }
+
+    disconnect(): void {
+        if (this.ws) {
+            this.ws.onclose = null;
+            this.ws.close();
+            this.ws = null;
+            this.statsManager.updateWebSocketStatus('disconnected', 'Disconnected');
+        }
     }
 }
 

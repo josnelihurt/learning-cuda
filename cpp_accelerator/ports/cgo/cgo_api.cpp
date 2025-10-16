@@ -5,11 +5,12 @@
 #include <cstring>
 #include <memory>
 
+#include "common.pb.h"
 #include "cpp_accelerator/core/telemetry.h"
 #include "cpp_accelerator/infrastructure/cpu/grayscale_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_processor.h"
 #include "cpp_accelerator/ports/cgo/image_buffer_adapter.h"
-#include "proto/image_processing.pb.h"
+#include "image_processor_service.pb.h"
 
 namespace {
 

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package cuda_learning;
+
+import "common.proto";
+
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
+
+// Stream configuration
+message StreamEndpoint {
+  string type = 1 [json_name = "type"];
+  string endpoint = 3 [json_name = "endpoint"];
+  string transport_format = 5 [json_name = "transport_format"];
+}
+
+message GetStreamConfigRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message GetStreamConfigResponse {
+  repeated StreamEndpoint endpoints = 1 [json_name = "endpoints"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+// Feature flags synchronization
+message SyncFeatureFlagsRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message SyncFeatureFlagsResponse {
+  string message = 1 [json_name = "message"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+// Input sources configuration
+message InputSource {
+  string id = 1 [json_name = "id"];
+  string display_name = 3 [json_name = "display_name"];
+  string type = 5 [json_name = "type"];
+  string image_path = 7 [json_name = "image_path"];
+  bool is_default = 9 [json_name = "is_default"];
+}
+
+message ListInputsRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message ListInputsResponse {
+  repeated InputSource sources = 1 [json_name = "sources"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+service ConfigService {
+  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
+  rpc SyncFeatureFlags(SyncFeatureFlagsRequest) returns (SyncFeatureFlagsResponse);
+  rpc ListInputs(ListInputsRequest) returns (ListInputsResponse);
+}
+

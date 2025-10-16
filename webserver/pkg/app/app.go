@@ -21,6 +21,7 @@ type App struct {
 	useCase           *application.ProcessImageUseCase
 	getStreamConfigUC *application.GetStreamConfigUseCase
 	syncFlagsUC       *application.SyncFeatureFlagsUseCase
+	listInputsUC      *application.ListInputsUseCase
 	interceptors      []connect.Interceptor
 }
 
@@ -62,6 +63,12 @@ func WithSyncFlagsUseCase(uc *application.SyncFeatureFlagsUseCase) AppOption {
 	}
 }
 
+func WithListInputsUseCase(uc *application.ListInputsUseCase) AppOption {
+	return func(a *App) {
+		a.listInputsUC = uc
+	}
+}
+
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
 	if !a.config.IsObservabilityEnabled(a.appContext) {
 		return handler
@@ -98,10 +105,10 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
 		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 	}
-	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil {
-		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.interceptors...)
+	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil {
+		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.interceptors...)
 	} else {
-		log.Println("Warning: Feature flag service not registered (use cases unavailable)")
+		log.Println("Warning: Config service not registered (use cases unavailable)")
 	}
 }
 

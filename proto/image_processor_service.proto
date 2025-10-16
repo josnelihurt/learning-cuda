@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package cuda_learning;
+
+import "common.proto";
+
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
+
+// Request: Go passes raw image buffer
+message ProcessImageRequest {
+  bytes image_data = 1 [json_name = "image_data"];
+  int32 width = 3 [json_name = "width"];
+  int32 height = 5 [json_name = "height"];
+  int32 channels = 7 [json_name = "channels"];
+  repeated FilterType filters = 9 [json_name = "filters"];
+  AcceleratorType accelerator = 11 [json_name = "accelerator"];
+  GrayscaleType grayscale_type = 13 [json_name = "grayscale_type"];
+  
+  // OpenTelemetry trace context propagation (deprecated - use trace_context instead)
+  string trace_id = 15 [json_name = "trace_id"];
+  string span_id = 17 [json_name = "span_id"];
+  uint32 trace_flags = 19 [json_name = "trace_flags"];
+  
+  TraceContext trace_context = 21 [json_name = "trace_context"];
+}
+
+// Response: C++ returns processed image buffer
+message ProcessImageResponse {
+  int32 code = 1 [json_name = "code"];
+  string message = 3 [json_name = "message"];
+  bytes image_data = 5 [json_name = "image_data"];
+  int32 width = 7 [json_name = "width"];
+  int32 height = 9 [json_name = "height"];
+  int32 channels = 11 [json_name = "channels"];
+  TraceContext trace_context = 13 [json_name = "trace_context"];
+}
+
+// Lifecycle management
+message InitRequest {
+  int32 cuda_device_id = 1;
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message InitResponse {
+  int32 code = 1;
+  string message = 3;
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+// WebSocket stream messages
+message WebSocketFrameRequest {
+  string type = 1 [json_name = "type"];
+  ProcessImageRequest request = 3 [json_name = "request"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+message WebSocketFrameResponse {
+  string type = 1 [json_name = "type"];
+  bool success = 3 [json_name = "success"];
+  string error = 5 [json_name = "error"];
+  ProcessImageResponse response = 7 [json_name = "response"];
+  TraceContext trace_context = 9 [json_name = "trace_context"];
+}
+
+service ImageProcessorService {
+  rpc ProcessImage(ProcessImageRequest) returns (ProcessImageResponse);
+  rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
+}
+

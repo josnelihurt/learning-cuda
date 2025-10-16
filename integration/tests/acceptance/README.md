@@ -10,7 +10,23 @@ This directory contains BDD-style acceptance tests that validate the behavior of
 
 ## Prerequisites
 
-Before running these tests, ensure the following services are running:
+Before running these tests, ensure the following:
+
+### 1. Proto Files Generated
+
+If you've modified `proto/image_processing.proto`, regenerate the proto files:
+
+```bash
+# Option 1: Run setup script (checks and regenerates if needed)
+./integration/tests/acceptance/scripts/setup.sh
+
+# Option 2: Manually regenerate
+docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
+```
+
+### 2. Services Running
+
+Ensure the following services are running:
 
 1. **Flipt** - Feature flag service at `http://localhost:8081`
 2. **Go Service** - Application server at `https://localhost:8443`
@@ -156,7 +172,39 @@ These tests reuse production code from `webserver/pkg/infrastructure/featureflag
 
 ### Workflow for Adding New Test Scenarios
 
-1. **Write the scenario in Gherkin** (`features/feature_flags.feature`):
+#### Step 1: Define the API Contract (Protobuf)
+
+If your feature requires a new RPC endpoint:
+
+1. **Edit `proto/image_processing.proto`**:
+   ```protobuf
+   message ListInputsRequest {}
+   
+   message ListInputsResponse {
+     repeated InputSource sources = 1 [json_name = "sources"];
+   }
+   
+   service ConfigService {
+     rpc ListInputs(ListInputsRequest) returns (ListInputsResponse);
+   }
+   ```
+
+2. **Generate proto files**:
+   ```bash
+   ./integration/tests/acceptance/scripts/setup.sh
+   # or manually:
+   docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
+   ```
+
+3. **Verify generation**:
+   ```bash
+   # Check that types are generated
+   grep -q "ListInputs" proto/gen/image_processing.pb.go && echo "✅ Proto generated"
+   ```
+
+#### Step 2: Write BDD Scenarios
+
+1. **Create/edit feature file** (`features/your_feature.feature`):
    ```gherkin
    Scenario: New feature behavior
      Given some initial state
@@ -170,48 +218,110 @@ These tests reuse production code from `webserver/pkg/infrastructure/featureflag
    ```
    Godog will show you which step definitions are missing.
 
-3. **Implement step definitions**:
-   - Add to `steps/given_steps.go` for Given steps
-   - Add to `steps/when_steps.go` for When steps
-   - Add to `steps/then_steps.go` for Then steps
+#### Step 3: Implement Step Definitions
 
-4. **Add underlying logic if needed** in `steps/bdd_context.go`:
+1. **Create step file** (e.g., `steps/your_feature_steps.go`):
    ```go
-   func (c *BDDContext) WhenIDoSomethingNew() error {
-       // Implementation
+   func InitializeYourFeatureSteps(ctx *godog.ScenarioContext, tc *TestContext) {
+       ctx.Step(`^I do something$`, tc.iDoSomething)
    }
    ```
 
-5. **Re-run tests** to verify they pass.
+2. **Add implementation in `steps/bdd_context.go`**:
+   ```go
+   func (c *BDDContext) WhenIDoSomething() error {
+       // Use the generated proto client
+       resp, err := c.configClient.YourMethod(ctx, connect.NewRequest(&pb.YourRequest{}))
+       return err
+   }
+   ```
 
-### Example: Adding a New Endpoint Test
+3. **Register steps in `godog_test.go`**:
+   ```go
+   steps.InitializeYourFeatureSteps(ctx, testCtx)
+   ```
 
-**1. Add scenario to `features/feature_flags.feature`**:
+#### Step 4: Verify and Iterate
+
+1. **Re-run tests** to verify they pass:
+   ```bash
+   go test ./integration/tests/acceptance -run TestFeatures -v
+   ```
+
+2. **Fix any issues** and iterate until all scenarios pass.
+
+### Example: Adding ListInputs Endpoint (Complete Walkthrough)
+
+This is a real example from this codebase showing the complete BDD workflow:
+
+**1. Define Proto** (`proto/image_processing.proto`):
+```protobuf
+message InputSource {
+  string id = 1 [json_name = "id"];
+  string display_name = 2 [json_name = "display_name"];
+  string type = 3 [json_name = "type"];
+  string image_path = 4 [json_name = "image_path"];
+  bool is_default = 5 [json_name = "is_default"];
+}
+
+message ListInputsRequest {}
+
+message ListInputsResponse {
+  repeated InputSource sources = 1 [json_name = "sources"];
+}
+
+service ConfigService {
+  rpc ListInputs(ListInputsRequest) returns (ListInputsResponse);
+}
+```
+
+**2. Generate Proto**:
+```bash
+./integration/tests/acceptance/scripts/setup.sh
+```
+
+**3. Create Feature** (`features/input_sources.feature`):
 ```gherkin
-Scenario: ProcessImage endpoint works correctly
-  Given I have an image "lena.png"
-  When I call the ProcessImage endpoint with filter "grayscale"
-  Then the response should contain a processed image
-  And the image should be in grayscale
+Feature: Input Source Selection
+  Scenario: List default input sources
+    Given the service is running at "https://localhost:8443"
+    When I call ListInputs endpoint
+    Then the response should succeed
+    And the response should contain input source "lena" with type "static"
 ```
 
-**2. Implement steps**:
+**4. Create Steps** (`steps/input_source_steps.go`):
 ```go
-// In steps/when_steps.go
-func (tc *TestContext) iCallProcessImageEndpointWithFilter(filter string) error {
-    return tc.WhenICallProcessImageWithFilter(filter)
+func InitializeInputSourceSteps(ctx *godog.ScenarioContext, tc *TestContext) {
+    ctx.Step(`^I call ListInputs endpoint$`, tc.iCallListInputsEndpoint)
+    ctx.Step(`^the response should contain input source "([^"]*)" with type "([^"]*)"$`, 
+        tc.theResponseShouldContainInputSourceWithType)
 }
 
-// In steps/bdd_context.go
-func (c *BDDContext) WhenICallProcessImageWithFilter(filter string) error {
-    // HTTP call implementation
+func (tc *TestContext) iCallListInputsEndpoint() error {
+    return tc.WhenICallListInputs()
 }
 ```
 
-**3. Register step**:
+**5. Implement Logic** (`steps/bdd_context.go`):
 ```go
-// In steps/when_steps.go - InitializeWhenSteps
-ctx.Step(`^I call the ProcessImage endpoint with filter "([^"]*)"$`, tc.iCallProcessImageEndpointWithFilter)
+func (c *BDDContext) WhenICallListInputs() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    resp, err := c.configClient.ListInputs(ctx, connect.NewRequest(&pb.ListInputsRequest{}))
+    if err != nil {
+        return fmt.Errorf("failed to call ListInputs: %w", err)
+    }
+
+    c.inputSources = resp.Msg.Sources
+    return nil
+}
+```
+
+**6. Register in Test Suite** (`godog_test.go`):
+```go
+steps.InitializeInputSourceSteps(ctx, testCtx)
 ```
 
 ## Troubleshooting

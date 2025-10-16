@@ -44,12 +44,12 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-content">
-            <!-- Input Source -->
+            <!-- Selected Source Indicator -->
             <div class="control-section">
-                <label class="control-label">Input Source</label>
-                <div class="segmented-control">
-                    <button class="segment active" data-value="lena" onclick="setInputSource('lena')">Lena</button>
-                    <button class="segment" data-value="webcam" onclick="setInputSource('webcam')">Camera</button>
+                <label class="control-label">Selected</label>
+                <div class="selected-source-compact">
+                    <span class="source-badge" id="selectedSourceNumber">1</span>
+                    <span id="selectedSourceName">Lena</span>
                 </div>
             </div>
 
@@ -69,10 +69,10 @@
             <!-- Resolution -->
             <div class="control-section">
                 <label class="control-label">Resolution</label>
-                <select id="resolutionSelect" class="compact-select" onchange="updateResolution()">
-                    <option value="quarter">Quarter (160x120)</option>
-                    <option value="half">Half (320x240)</option>
-                    <option value="full" selected>Full (640x480)</option>
+                <select id="resolutionSelect" class="compact-select">
+                    <option value="original" selected>Original Size</option>
+                    <option value="half">Half</option>
+                    <option value="quarter">Quarter</option>
                 </select>
             </div>
 
@@ -82,16 +82,13 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        <div class="image-container">
-            <camera-preview>
-                <img id="heroImage" slot="hero-image" src="/data/lena.png" alt="Processed Image">
-            </camera-preview>
-        </div>
+        <video-grid></video-grid>
     </main>
 
     <toast-container></toast-container>
-
     <stats-panel></stats-panel>
+    <source-drawer></source-drawer>
+    <add-source-fab></add-source-fab>
 
     {{range .ScriptTags}}
     <script{{if .Module}} type="module"{{end}} src="{{.Src}}"></script>

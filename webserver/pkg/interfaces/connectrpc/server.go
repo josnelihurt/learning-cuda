@@ -28,9 +28,10 @@ func RegisterConfigService(
 	mux *http.ServeMux,
 	getStreamConfigUC *application.GetStreamConfigUseCase,
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
+	listInputsUC *application.ListInputsUseCase,
 	interceptors ...connect.Interceptor,
 ) {
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC)
+	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

@@ -23,6 +23,7 @@ type Container struct {
 	EvaluateFeatureFlagUseCase *application.EvaluateFeatureFlagUseCase
 	SyncFeatureFlagsUseCase    *application.SyncFeatureFlagsUseCase
 	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
+	ListInputsUseCase          *application.ListInputsUseCase
 
 	fliptClientProxy featureflags.FliptClientInterface
 }
@@ -62,6 +63,7 @@ func New(ctx context.Context) (*Container, error) {
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.StreamConfig)
+	listInputsUseCase := application.NewListInputsUseCase()
 
 	return &Container{
 		Config:                     cfg,
@@ -70,6 +72,7 @@ func New(ctx context.Context) (*Container, error) {
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
 		SyncFeatureFlagsUseCase:    syncFFUseCase,
 		GetStreamConfigUseCase:     getStreamConfigUseCase,
+		ListInputsUseCase:          listInputsUseCase,
 		fliptClientProxy:           fliptClientProxy,
 	}, nil
 }

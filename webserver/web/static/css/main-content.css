@@ -8,7 +8,7 @@
     align-items: center;
     justify-content: center;
     padding: var(--spacing-xl);
-    background: var(--background-secondary);
+    background: #fff8ed;
 }
 
 .main-content::-webkit-scrollbar {

@@ -177,6 +177,16 @@ export class FilterPanel extends LitElement {
         return this.grayscaleAlgo;
     }
 
+    setFilters(filters: string[], grayscaleType: string) {
+        this.filters = this.filters.map(f => ({
+            ...f,
+            enabled: filters.includes(f.id),
+            expanded: filters.includes(f.id)
+        }));
+        this.grayscaleAlgo = grayscaleType;
+        this.requestUpdate();
+    }
+
     updateFiltersUI() {
         this.filters = this.filters.map(f => ({
             ...f,

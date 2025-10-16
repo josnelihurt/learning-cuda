@@ -705,6 +705,135 @@ export class GetStreamConfigResponse extends Message<GetStreamConfigResponse> {
 }
 
 /**
+ * @generated from message cuda_learning.InputSource
+ */
+export class InputSource extends Message<InputSource> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string display_name = 2 [json_name = "display_name"];
+   */
+  displayName = "";
+
+  /**
+   * @generated from field: string type = 3;
+   */
+  type = "";
+
+  /**
+   * @generated from field: string image_path = 4 [json_name = "image_path"];
+   */
+  imagePath = "";
+
+  /**
+   * @generated from field: bool is_default = 5 [json_name = "is_default"];
+   */
+  isDefault = false;
+
+  constructor(data?: PartialMessage<InputSource>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.InputSource";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "display_name", jsonName: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "image_path", jsonName: "image_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "is_default", jsonName: "is_default", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InputSource {
+    return new InputSource().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): InputSource {
+    return new InputSource().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): InputSource {
+    return new InputSource().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: InputSource | PlainMessage<InputSource> | undefined, b: InputSource | PlainMessage<InputSource> | undefined): boolean {
+    return proto3.util.equals(InputSource, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListInputsRequest
+ */
+export class ListInputsRequest extends Message<ListInputsRequest> {
+  constructor(data?: PartialMessage<ListInputsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListInputsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInputsRequest {
+    return new ListInputsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInputsRequest {
+    return new ListInputsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInputsRequest {
+    return new ListInputsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListInputsRequest | PlainMessage<ListInputsRequest> | undefined, b: ListInputsRequest | PlainMessage<ListInputsRequest> | undefined): boolean {
+    return proto3.util.equals(ListInputsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListInputsResponse
+ */
+export class ListInputsResponse extends Message<ListInputsResponse> {
+  /**
+   * @generated from field: repeated cuda_learning.InputSource sources = 1;
+   */
+  sources: InputSource[] = [];
+
+  constructor(data?: PartialMessage<ListInputsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListInputsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "sources", kind: "message", T: InputSource, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInputsResponse {
+    return new ListInputsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInputsResponse {
+    return new ListInputsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInputsResponse {
+    return new ListInputsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListInputsResponse | PlainMessage<ListInputsResponse> | undefined, b: ListInputsResponse | PlainMessage<ListInputsResponse> | undefined): boolean {
+    return proto3.util.equals(ListInputsResponse, a, b);
+  }
+}
+
+/**
  * @generated from message cuda_learning.SyncFeatureFlagsRequest
  */
 export class SyncFeatureFlagsRequest extends Message<SyncFeatureFlagsRequest> {

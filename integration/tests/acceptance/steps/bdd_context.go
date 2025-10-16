@@ -44,6 +44,8 @@ type BDDContext struct {
 	wsResponse         *pb.WebSocketFrameResponse
 	lastError          error
 	checksums          map[string]string
+	inputSources       []*pb.InputSource
+	configClient       genconnect.ConfigServiceClient
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -57,12 +59,14 @@ func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDCont
 	}
 
 	connectClient := genconnect.NewImageProcessorServiceClient(httpClient, serviceBaseURL)
+	configClient := genconnect.NewConfigServiceClient(httpClient, serviceBaseURL)
 
 	ctx := &BDDContext{
 		fliptAPI:       featureflags.NewFliptHTTPAPI(fliptBaseURL, fliptNamespace, httpClient),
 		httpClient:     httpClient,
 		serviceBaseURL: serviceBaseURL,
 		connectClient:  connectClient,
+		configClient:   configClient,
 		checksums:      make(map[string]string),
 	}
 
@@ -796,4 +800,55 @@ func parseGrayscaleType(gsType string) pb.GrayscaleType {
 	default:
 		return pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED
 	}
+}
+
+func (c *BDDContext) WhenICallListInputs() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := c.configClient.ListInputs(ctx, connect.NewRequest(&pb.ListInputsRequest{}))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: 500}
+		return fmt.Errorf("failed to call ListInputs: %w", err)
+	}
+
+	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastError = nil
+	c.inputSources = resp.Msg.Sources
+
+	return nil
+}
+
+func (c *BDDContext) ThenResponseShouldContainInputSource(id, sourceType string) error {
+	if c.inputSources == nil {
+		return fmt.Errorf("no input sources in response")
+	}
+
+	for _, src := range c.inputSources {
+		if src.Id == id && src.Type == sourceType {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("input source %s with type %s not found in response", id, sourceType)
+}
+
+func (c *BDDContext) GetInputSourcesFromResponse() ([]*pb.InputSource, error) {
+	if c.inputSources == nil {
+		return nil, fmt.Errorf("no input sources in response")
+	}
+	return c.inputSources, nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldSucceed() error {
+	if c.lastResponse == nil {
+		return fmt.Errorf("no response available")
+	}
+
+	if c.lastResponse.StatusCode < 200 || c.lastResponse.StatusCode >= 300 {
+		return fmt.Errorf("expected success status code (2xx), got %d: %s", c.lastResponse.StatusCode, string(c.lastResponseBody))
+	}
+
+	return nil
 }

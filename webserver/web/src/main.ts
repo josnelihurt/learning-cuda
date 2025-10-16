@@ -3,6 +3,7 @@ import './components/toast-container';
 import './components/stats-panel';
 import './components/filter-panel';
 import './components/sync-flags-button';
+import './components/tools-dropdown';
 import './components/video-grid';
 import './components/source-drawer';
 import './components/add-source-fab';

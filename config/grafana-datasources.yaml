@@ -1,0 +1,29 @@
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: Jaeger
+          matcherRegex: '"trace_id":"([^"]+)"'
+          name: TraceID
+          url: '$${__value.raw}'
+          urlDisplayLabel: 'View Trace'
+
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    uid: Jaeger
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: 'Loki'
+        tags: [{key: 'trace_id', value: 'trace_id'}]
+        filterByTraceID: true
+        filterBySpanID: false
+

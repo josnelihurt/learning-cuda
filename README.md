@@ -108,14 +108,6 @@ Implemented a few different ones:
 
 Can switch between them in the UI. Honestly can't tell much difference except Average looks a bit off.
 
-## GPU vs CPU
-
-The GPU version is way faster obviously. At 720p:
-- GPU: ~150 FPS
-- CPU: ~25 FPS
-
-CPU implementation is still useful for debugging though.
-
 ## Commands
 
 ```bash

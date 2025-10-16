@@ -11,6 +11,7 @@ go_library(
         "//webserver/pkg/application",
         "//webserver/pkg/config",
         "//webserver/pkg/infrastructure/http",
+        "//webserver/pkg/infrastructure/logger",
         "//webserver/pkg/interfaces/connectrpc",
         "//webserver/pkg/interfaces/http",
         "//webserver/pkg/interfaces/static_http",

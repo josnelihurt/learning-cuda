@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	imageinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/image"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/adapters"
 	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
 	"go.opentelemetry.io/otel"
@@ -48,16 +48,17 @@ func NewHandler(useCase *application.ProcessImageUseCase, streamCfg config.Strea
 func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	ctx := telemetry.ExtractFromHTTPHeaders(r.Context(), r.Header)
 	tracer := otel.Tracer("websocket-handler")
+	log := logger.FromContext(ctx)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("ws upgrade failed: %v", err)
+		log.Error().Err(err).Msg("WebSocket upgrade failed")
 		return
 	}
 	defer conn.Close()
 
 	transportFormat := h.streamConfig.TransportFormat
-	log.Printf("WebSocket connected, transport format: %s", transportFormat)
+	log.Info().Str("transport_format", transportFormat).Msg("WebSocket connected")
 
 	for {
 		messageType, message, err := conn.ReadMessage()
@@ -73,7 +74,7 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			log.Printf("failed to unmarshal message: %v", err)
+			log.Error().Err(err).Msg("Failed to unmarshal message")
 			continue
 		}
 
@@ -87,7 +88,7 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			log.Printf("failed to marshal response: %v", err)
+			log.Error().Err(err).Msg("Failed to marshal response")
 			continue
 		}
 
@@ -170,10 +171,18 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 
 	elapsed := time.Since(startTime)
 	if h.frameCounter%30 == 0 {
-		log.Printf("frame %v (%dx%d %v %v)",
-			elapsed, processedImg.Width, processedImg.Height, filters, accelerator)
+		log := logger.FromContext(ctx).Debug().
+			Dur("elapsed", elapsed).
+			Int("width", processedImg.Width).
+			Int("height", processedImg.Height).
+			Str("accelerator", string(accelerator))
+
+		if len(filters) > 0 {
+			log = log.Str("filter", string(filters[0]))
+		}
+
+		log.Msg("Frame processed")
 	}
 
 	return result
 }
-

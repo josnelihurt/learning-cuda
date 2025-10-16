@@ -14,6 +14,7 @@ go_library(
         "//webserver/pkg/config",
         "//webserver/pkg/domain",
         "//webserver/pkg/infrastructure/image",
+        "//webserver/pkg/infrastructure/logger",
         "//webserver/pkg/interfaces/adapters",
         "//webserver/pkg/telemetry",
         "@com_github_gorilla_websocket//:websocket",

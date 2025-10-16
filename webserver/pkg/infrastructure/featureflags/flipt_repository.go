@@ -2,9 +2,9 @@ package featureflags
 
 import (
 	"context"
-	"log"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	flipt "go.flipt.io/flipt-client"
 )
 
@@ -24,8 +24,11 @@ func (r *FliptRepository) EvaluateBoolean(
 	ctx context.Context,
 	flagKey, entityID string,
 ) (*domain.FeatureFlagEvaluation, error) {
+	log := logger.FromContext(ctx)
 	if r.reader == nil {
-		log.Printf("Flipt client not initialized, returning fallback evaluation")
+		log.Warn().
+			Str("flag_key", flagKey).
+			Msg("Flipt client not initialized, returning fallback evaluation")
 		return &domain.FeatureFlagEvaluation{
 			FlagKey:      flagKey,
 			EntityID:     entityID,
@@ -40,7 +43,10 @@ func (r *FliptRepository) EvaluateBoolean(
 	})
 
 	if err != nil {
-		log.Printf("Flipt boolean evaluation failed for '%s': %v", flagKey, err)
+		log.Warn().
+			Err(err).
+			Str("flag_key", flagKey).
+			Msg("Flipt boolean evaluation failed")
 		return &domain.FeatureFlagEvaluation{
 			FlagKey:      flagKey,
 			EntityID:     entityID,
@@ -62,8 +68,11 @@ func (r *FliptRepository) EvaluateVariant(
 	ctx context.Context,
 	flagKey, entityID string,
 ) (*domain.FeatureFlagEvaluation, error) {
+	log := logger.FromContext(ctx)
 	if r.reader == nil {
-		log.Printf("Flipt client not initialized, returning fallback evaluation")
+		log.Warn().
+			Str("flag_key", flagKey).
+			Msg("Flipt client not initialized, returning fallback evaluation")
 		return &domain.FeatureFlagEvaluation{
 			FlagKey:      flagKey,
 			EntityID:     entityID,
@@ -78,7 +87,10 @@ func (r *FliptRepository) EvaluateVariant(
 	})
 
 	if err != nil {
-		log.Printf("Flipt variant evaluation failed for '%s': %v", flagKey, err)
+		log.Warn().
+			Err(err).
+			Str("flag_key", flagKey).
+			Msg("Flipt variant evaluation failed")
 		return &domain.FeatureFlagEvaluation{
 			FlagKey:      flagKey,
 			EntityID:     entityID,
@@ -97,8 +109,9 @@ func (r *FliptRepository) EvaluateVariant(
 }
 
 func (r *FliptRepository) SyncFlags(ctx context.Context, flags []domain.FeatureFlag) error {
+	log := logger.FromContext(ctx)
 	if r.writer == nil {
-		log.Printf("Flipt writer not initialized, skipping flag sync")
+		log.Warn().Msg("Flipt writer not initialized, skipping flag sync")
 		return nil
 	}
 
@@ -111,7 +124,9 @@ func (r *FliptRepository) SyncFlags(ctx context.Context, flags []domain.FeatureF
 }
 
 func (r *FliptRepository) GetFlag(ctx context.Context, flagKey string) (*domain.FeatureFlag, error) {
-	log.Printf("GetFlag not implemented yet for flag '%s'", flagKey)
+	logger.FromContext(ctx).Warn().
+		Str("flag_key", flagKey).
+		Msg("GetFlag not implemented yet")
 	return nil, nil
 }
 

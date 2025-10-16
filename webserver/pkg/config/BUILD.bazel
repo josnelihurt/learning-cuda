@@ -4,6 +4,7 @@ go_library(
     name = "config",
     srcs = [
         "config.go",
+        "logger_config.go",
         "observability_config.go",
         "server_config.go",
         "stream_config.go",

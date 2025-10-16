@@ -94,6 +94,90 @@ services:
       retries: 5
       start_period: 10s
 
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    restart: unless-stopped
+    
+    expose:
+      - "3100"
+    
+    command: -config.file=/etc/loki/loki-config.yaml
+    
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+    
+    networks:
+      - traefik
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: promtail
+    restart: unless-stopped
+    
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/promtail-config.yaml:/etc/promtail/config.yml:ro
+    
+    command: -config.file=/etc/promtail/config.yml
+    
+    depends_on:
+      loki:
+        condition: service_healthy
+    
+    networks:
+      - traefik
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    restart: unless-stopped
+    
+    expose:
+      - "3000"
+    
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceToLogs
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    
+    volumes:
+      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./config/grafana-dashboard-logs.json:/etc/grafana/dashboards/logs.json:ro
+      - grafana-storage:/var/lib/grafana
+    
+    depends_on:
+      loki:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    
+    networks:
+      - traefik
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=PathPrefix(`/grafana`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.91.0
     container_name: otel-collector
@@ -151,4 +235,7 @@ services:
 networks:
   traefik:
     driver: bridge
+
+volumes:
+  grafana-storage:
 

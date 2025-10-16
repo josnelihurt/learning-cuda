@@ -13,6 +13,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//webserver/pkg/domain",
+        "//webserver/pkg/infrastructure/logger",
         "@io_flipt_go_flipt_client//:flipt-client",
         "@io_opentelemetry_go_otel//:otel",
         "@io_opentelemetry_go_otel//attribute",

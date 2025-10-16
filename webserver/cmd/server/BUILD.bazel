@@ -9,6 +9,7 @@ go_library(
         "//webserver/pkg/app",
         "//webserver/pkg/application",
         "//webserver/pkg/container",
+        "//webserver/pkg/infrastructure/logger",
         "//webserver/pkg/infrastructure/processor",
         "//webserver/pkg/telemetry",
     ],

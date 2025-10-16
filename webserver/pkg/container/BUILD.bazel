@@ -11,6 +11,7 @@ go_library(
         "//webserver/pkg/domain",
         "//webserver/pkg/infrastructure/featureflags",
         "//webserver/pkg/infrastructure/http",
+        "//webserver/pkg/infrastructure/logger",
         "@io_flipt_go_flipt_client//:flipt-client",
     ],
 )

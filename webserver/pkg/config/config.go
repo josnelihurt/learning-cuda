@@ -14,6 +14,7 @@ type Manager struct {
 	ServerConfig
 	StreamConfig
 	ObservabilityConfig
+	LoggerConfig
 }
 
 type FliptConfig struct {
@@ -55,6 +56,10 @@ func New() *Manager {
 	viper.SetDefault("flipt.client_timeout", "30s")
 	viper.SetDefault("flipt.update_interval", "30s")
 	viper.SetDefault("flipt.http_timeout", "10s")
+	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("logging.format", "json")
+	viper.SetDefault("logging.output", "stdout")
+	viper.SetDefault("logging.include_caller", true)
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CUDA_PROCESSOR")
@@ -92,6 +97,12 @@ func New() *Manager {
 			URL:       viper.GetString("flipt.url"),
 			Namespace: viper.GetString("flipt.namespace"),
 			DBPath:    viper.GetString("flipt.db_path"),
+		},
+		LoggerConfig: LoggerConfig{
+			Level:         viper.GetString("logging.level"),
+			Format:        viper.GetString("logging.format"),
+			Output:        viper.GetString("logging.output"),
+			IncludeCaller: viper.GetBool("logging.include_caller"),
 		},
 	}
 }

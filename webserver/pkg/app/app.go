@@ -2,12 +2,12 @@ package app
 
 import (
 	"context"
-	"log"
 	"net/http"
 
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/pkg/interfaces/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/static_http"
@@ -82,13 +82,14 @@ func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
 		}),
 	)
 
-	log.Println("OpenTelemetry HTTP instrumentation enabled")
+	logger.Global().Info().Msg("OpenTelemetry HTTP instrumentation enabled")
 	return instrumentedHandler
 }
 
 func (a *App) setupObservability(mux *http.ServeMux) {
+	log := logger.Global()
 	if !a.config.IsObservabilityEnabled(a.appContext) {
-		log.Println("OpenTelemetry HTTP instrumentation disabled")
+		log.Info().Msg("OpenTelemetry HTTP instrumentation disabled")
 		return
 	}
 	a.interceptors = append(a.interceptors, telemetry.TraceContextInterceptor())
@@ -97,7 +98,7 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 		true,
 	)
 	mux.Handle("/api/traces", traceProxy)
-	log.Println("Trace proxy endpoint registered at /api/traces")
+	log.Info().Msg("Trace proxy endpoint registered at /api/traces")
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
@@ -108,14 +109,14 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil {
 		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.interceptors...)
 	} else {
-		log.Println("Warning: Config service not registered (use cases unavailable)")
+		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")
 	}
 }
 
 func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 	healthHandler := httphandlers.NewHealthHandler()
 	mux.Handle("/health", healthHandler)
-	log.Println("Health endpoint registered at /health")
+	logger.Global().Info().Msg("Health endpoint registered at /health")
 }
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
@@ -124,6 +125,7 @@ func (a *App) setupStaticHandler(mux *http.ServeMux) {
 }
 
 func (a *App) Run() error {
+	log := logger.Global()
 	mux := http.NewServeMux()
 	a.setupObservability(mux)
 
@@ -135,8 +137,11 @@ func (a *App) Run() error {
 	errChan := make(chan error, 2)
 
 	go func() {
-		log.Printf("Starting HTTP server on %s (hot_reload: %v, transport: %s)\n",
-			a.config.ServerConfig.HTTPPort, a.config.ServerConfig.HotReloadEnabled, a.config.StreamConfig.TransportFormat)
+		log.Info().
+			Str("port", a.config.ServerConfig.HTTPPort).
+			Bool("hot_reload", a.config.ServerConfig.HotReloadEnabled).
+			Str("transport", a.config.StreamConfig.TransportFormat).
+			Msg("Starting HTTP server")
 		if err := http.ListenAndServe(a.config.ServerConfig.HTTPPort, handler); err != nil {
 			errChan <- err
 		}
@@ -144,8 +149,10 @@ func (a *App) Run() error {
 
 	if a.config.ServerConfig.TLSConfig.Enabled {
 		go func() {
-			log.Printf("Starting HTTPS server on %s (cert: %s)\n",
-				a.config.ServerConfig.HTTPSPort, a.config.ServerConfig.TLSConfig.CertFile)
+			log.Info().
+				Str("port", a.config.ServerConfig.HTTPSPort).
+				Str("cert", a.config.ServerConfig.TLSConfig.CertFile).
+				Msg("Starting HTTPS server")
 			if err := http.ListenAndServeTLS(
 				a.config.ServerConfig.HTTPSPort,
 				a.config.ServerConfig.TLSConfig.CertFile,

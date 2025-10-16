@@ -2,7 +2,6 @@ package container
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
@@ -10,6 +9,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
 	httpinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/http"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	flipt "go.flipt.io/flipt-client"
 )
 
@@ -31,6 +31,13 @@ type Container struct {
 func New(ctx context.Context) (*Container, error) {
 	cfg := config.New()
 
+	log := logger.New(logger.Config{
+		Level:         cfg.LoggerConfig.Level,
+		Format:        cfg.LoggerConfig.Format,
+		Output:        cfg.LoggerConfig.Output,
+		IncludeCaller: cfg.LoggerConfig.IncludeCaller,
+	})
+
 	httpClient := httpinfra.NewInstrumentedClient(httpinfra.ClientConfig{
 		Timeout:         cfg.HttpClientTimeout,
 		MaxIdleConns:    100,
@@ -46,8 +53,10 @@ func New(ctx context.Context) (*Container, error) {
 		flipt.WithNamespace(cfg.FliptConfig.Namespace),
 	)
 	if err != nil {
-		log.Printf("Warning: Failed to initialize Flipt client: %v. Feature flags will be disabled.", err)
-		log.Printf("Note: Make sure Flipt is running and accessible at %s", cfg.FliptConfig.URL)
+		log.Warn().
+			Err(err).
+			Str("flipt_url", cfg.FliptConfig.URL).
+			Msg("Failed to initialize Flipt client. Feature flags will be disabled")
 		fliptClientProxy = nil
 		featureFlagRepo = nil
 	} else {
@@ -78,11 +87,12 @@ func New(ctx context.Context) (*Container, error) {
 }
 
 func (c *Container) Close(ctx context.Context) error {
+	log := logger.Global()
 	if c.fliptClientProxy != nil {
 		closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		if err := c.fliptClientProxy.Close(closeCtx); err != nil {
-			log.Printf("Error closing Flipt client: %v", err)
+			log.Error().Err(err).Msg("Error closing Flipt client")
 			return err
 		}
 	}

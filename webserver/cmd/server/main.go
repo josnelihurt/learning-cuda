@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +10,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/app"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/container"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
 )
@@ -20,9 +20,11 @@ func main() {
 
 	di, err := container.New(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize container: %v", err)
+		logger.Global().Fatal().Err(err).Msg("Failed to initialize container")
 	}
 	defer di.Close(ctx)
+
+	log := logger.Global()
 
 	tracerProvider, err := telemetry.New(
 		ctx,
@@ -30,7 +32,7 @@ func main() {
 		di.Config.ObservabilityConfig,
 	)
 	if err != nil {
-		log.Printf("Warning: Failed to initialize telemetry: %v", err)
+		log.Warn().Err(err).Msg("Failed to initialize telemetry")
 	}
 
 	defer func() {
@@ -38,7 +40,7 @@ func main() {
 			shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 			if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
-				log.Printf("Error shutting down tracer provider: %v", err)
+				log.Error().Err(err).Msg("Error shutting down tracer provider")
 			}
 		}
 	}()
@@ -66,9 +68,9 @@ func main() {
 	select {
 	case err := <-errChan:
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err).Msg("Server error")
 		}
 	case sig := <-sigChan:
-		log.Printf("Received signal %v, shutting down gracefully...", sig)
+		log.Info().Str("signal", sig.String()).Msg("Received signal, shutting down gracefully")
 	}
 }

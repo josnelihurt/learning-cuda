@@ -20,32 +20,47 @@ The easiest way to start all required services is:
 
 ## Running Tests
 
-### Run all acceptance tests
+### BDD Tests with Godog/Gherkin (Recommended)
 
 From the project root:
 
 ```bash
-go test ./integration/tests/acceptance/... -v
+go test ./integration/tests/acceptance -run TestFeatures -v
 ```
 
-### Run with longer timeout
+### Generate Reports
 
+**Cucumber JSON** (for Allure and other tools):
 ```bash
-go test ./integration/tests/acceptance/... -v -timeout 30s
+go test ./integration/tests/acceptance -run TestFeatures -v \
+  -godog.format=cucumber \
+  -godog.output=cucumber-report.json
 ```
 
-### Run specific test
-
+**JUnit XML** (for CI/CD):
 ```bash
-go test ./integration/tests/acceptance/... -v -run TestFeatureFlagsAcceptance/GetStreamConfig
+go test ./integration/tests/acceptance -run TestFeatures -v \
+  -godog.format=junit > junit-report.xml
+```
+
+**Multiple formats at once**:
+```bash
+go test ./integration/tests/acceptance -run TestFeatures -v \
+  -godog.format=pretty,cucumber:cucumber-report.json,junit:junit-report.xml
+```
+
+### Legacy Tests (Deprecated)
+
+The original Go-native tests still work:
+```bash
+go test ./integration/tests/acceptance -run TestFeatureFlagsAcceptance -v
 ```
 
 ### Skip in short mode
 
-These tests are skipped when running with `-short` flag:
-
+Tests are skipped when running with `-short` flag:
 ```bash
-go test -short ./integration/tests/acceptance/...  # Will skip these tests
+go test -short ./integration/tests/acceptance  # Will skip these tests
 ```
 
 ## Test Scenarios
@@ -129,9 +144,71 @@ The tests follow the **Given/When/Then** BDD pattern:
 
 ## Architecture
 
-These tests reuse production code from `webserver/internal/infrastructure/featureflags`:
+These tests reuse production code from `webserver/pkg/infrastructure/featureflags`:
 - `FliptHTTPAPI` - Extended FliptWriter with GET methods for listing and retrieving flags
 - No code duplication, tests use the same infrastructure as the application
+
+## Adding New BDD Tests
+
+### Workflow for Adding New Test Scenarios
+
+1. **Write the scenario in Gherkin** (`features/feature_flags.feature`):
+   ```gherkin
+   Scenario: New feature behavior
+     Given some initial state
+     When I perform an action
+     Then I expect some outcome
+   ```
+
+2. **Run tests to see missing steps**:
+   ```bash
+   go test ./integration/tests/acceptance -run TestFeatures -v
+   ```
+   Godog will show you which step definitions are missing.
+
+3. **Implement step definitions**:
+   - Add to `steps/given_steps.go` for Given steps
+   - Add to `steps/when_steps.go` for When steps
+   - Add to `steps/then_steps.go` for Then steps
+
+4. **Add underlying logic if needed** in `steps/bdd_context.go`:
+   ```go
+   func (c *BDDContext) WhenIDoSomethingNew() error {
+       // Implementation
+   }
+   ```
+
+5. **Re-run tests** to verify they pass.
+
+### Example: Adding a New Endpoint Test
+
+**1. Add scenario to `features/feature_flags.feature`**:
+```gherkin
+Scenario: ProcessImage endpoint works correctly
+  Given I have an image "lena.png"
+  When I call the ProcessImage endpoint with filter "grayscale"
+  Then the response should contain a processed image
+  And the image should be in grayscale
+```
+
+**2. Implement steps**:
+```go
+// In steps/when_steps.go
+func (tc *TestContext) iCallProcessImageEndpointWithFilter(filter string) error {
+    return tc.WhenICallProcessImageWithFilter(filter)
+}
+
+// In steps/bdd_context.go
+func (c *BDDContext) WhenICallProcessImageWithFilter(filter string) error {
+    // HTTP call implementation
+}
+```
+
+**3. Register step**:
+```go
+// In steps/when_steps.go - InitializeWhenSteps
+ctx.Step(`^I call the ProcessImage endpoint with filter "([^"]*)"$`, tc.iCallProcessImageEndpointWithFilter)
+```
 
 ## Troubleshooting
 

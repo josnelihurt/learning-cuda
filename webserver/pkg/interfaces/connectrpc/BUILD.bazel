@@ -15,6 +15,7 @@ go_library(
         "//proto/gen/genconnect",
         "//webserver/pkg/application",
         "//webserver/pkg/config",
+        "//webserver/pkg/domain",
         "//webserver/pkg/interfaces/adapters",
         "@com_connectrpc_connect//:connect",
         "@io_opentelemetry_go_otel//attribute",

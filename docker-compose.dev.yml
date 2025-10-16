@@ -71,6 +71,41 @@ services:
       retries: 5
       start_period: 10s
 
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: integration-tests
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    container_name: integration-tests
+    network_mode: host
+    volumes:
+      - ./integration/tests/acceptance/.ignore/test-results:/workspace/integration/tests/acceptance/.ignore/test-results
+    profiles:
+      - testing
+
+  cucumber-report:
+    image: node:18-alpine
+    container_name: cucumber-report-viewer
+    working_dir: /app
+    ports:
+      - "5050:8080"
+    volumes:
+      - ./integration/tests/acceptance/.ignore/test-results:/app/input:ro
+      - ./integration/tests/acceptance/.ignore/reports:/app/output
+    command: >
+      sh -c "npm init -y &&
+             npm install multiple-cucumber-html-reporter http-server && 
+             node -e \"const report = require('multiple-cucumber-html-reporter'); report.generate({ jsonDir: '/app/input', reportPath: '/app/output', displayDuration: true, displayReportTime: true, pageTitle: 'Feature Flags BDD Tests', reportName: 'CUDA Learning - Integration Tests', metadata: { browser: { name: 'API Tests', version: '1.0' }, platform: { name: 'Docker', version: 'latest' } } }); console.log('Report generated!');\" && 
+             echo 'Starting HTTP server on port 8080...' &&
+             npx http-server /app/output -p 8080"
+    networks:
+      - dev-network
+    profiles:
+      - testing
+
 networks:
   dev-network:
     driver: bridge

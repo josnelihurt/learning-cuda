@@ -50,6 +50,32 @@ RUN mkdir -p /artifacts/bin /artifacts/lib && \
     find bazel-bin/cpp_accelerator/ports/cgo -name "*.so" -exec cp -L {} /artifacts/lib/ \; || true && \
     find bazel-bin/cpp_accelerator/ports/cgo -name "libcgo_api.a" -exec cp -L {} /artifacts/lib/ \; || true
 
+FROM golang:1.24-alpine AS integration-tests
+
+WORKDIR /workspace
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN apk add --no-cache curl
+
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+RUN mkdir -p /workspace/integration/tests/acceptance/.ignore/test-results && \
+    mkdir -p /home/testuser/.cache && \
+    addgroup -g ${GROUP_ID} testuser || true && \
+    adduser -D -u ${USER_ID} -G testuser testuser 2>/dev/null || true && \
+    chown -R ${USER_ID}:${GROUP_ID} /workspace/integration/tests/acceptance/.ignore /home/testuser
+
+USER ${USER_ID}:${GROUP_ID}
+ENV HOME=/home/testuser
+
+WORKDIR /workspace/integration/tests/acceptance
+
+CMD ["sh", "-c", "go test . -run TestFeatures -v"]
+
 FROM nvidia/cuda:12.5.1-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive

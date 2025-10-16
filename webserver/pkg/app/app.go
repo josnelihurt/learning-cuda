@@ -105,6 +105,12 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	}
 }
 
+func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
+	healthHandler := httphandlers.NewHealthHandler()
+	mux.Handle("/health", healthHandler)
+	log.Println("Health endpoint registered at /health")
+}
+
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
 	staticHandler := static_http.NewStaticHandler(a.config.ServerConfig, a.config.StreamConfig, a.useCase)
 	staticHandler.RegisterRoutes(mux)
@@ -114,6 +120,7 @@ func (a *App) Run() error {
 	mux := http.NewServeMux()
 	a.setupObservability(mux)
 
+	a.setupHealthEndpoint(mux)
 	a.setupConnectRPCServices(mux)
 	a.setupStaticHandler(mux)
 	handler := a.makeTelemetryMiddleware(mux)

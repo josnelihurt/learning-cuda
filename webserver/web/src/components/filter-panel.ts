@@ -36,6 +36,8 @@ export class FilterPanel extends LitElement {
                 @drop=${(e: DragEvent) => this.handleDrop(e, index)}
                 @dragenter=${(e: Event) => this.handleDragEnter(e)}
                 @dragleave=${(e: Event) => this.handleDragLeave(e)}
+                data-filter-name="${filter.name}"
+                data-filter-id="${filter.id}"
             >
                 <div class="filter-header" @click=${() => this.toggleCard(index)}>
                     <span class="drag-handle">⋮⋮</span>
@@ -44,6 +46,7 @@ export class FilterPanel extends LitElement {
                         .checked=${filter.enabled}
                         @change=${(e: Event) => this.handleCheckboxChange(index, e)}
                         @click=${(e: Event) => e.stopPropagation()}
+                        data-testid="filter-checkbox-${filter.id}"
                     />
                     <label @click=${(e: Event) => e.stopPropagation()}>
                         ${filter.name}
@@ -73,6 +76,7 @@ export class FilterPanel extends LitElement {
                                 value="${option}"
                                 .checked=${filter.parameterValues[param.id] === option}
                                 @change=${() => this.handleParameterChange(filter.id, param.id, option)}
+                                data-testid="filter-parameter-${filter.id}-${param.id}-${option}"
                             />
                             <span>${formatParameterLabel(param, option)}</span>
                         </label>

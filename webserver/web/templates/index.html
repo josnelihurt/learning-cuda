@@ -64,7 +64,7 @@
             <!-- Resolution -->
             <div class="control-section">
                 <label class="control-label">Resolution</label>
-                <select id="resolutionSelect" class="compact-select">
+                <select id="resolutionSelect" class="compact-select" data-testid="resolution-select">
                     <option value="original" selected>Original Size</option>
                     <option value="half">Half</option>
                     <option value="quarter">Quarter</option>
@@ -92,8 +92,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const hostname = window.location.hostname;
-            document.getElementById('jaegerBtn').href = `http://${hostname}:16686`;
-            document.getElementById('fliptBtn').href = `http://${hostname}:8081`;
+            const jaegerBtn = document.getElementById('jaegerBtn');
+            const fliptBtn = document.getElementById('fliptBtn');
+            if (jaegerBtn) jaegerBtn.href = `http://${hostname}:16686`;
+            if (fliptBtn) fliptBtn.href = `http://${hostname}:8081`;
         });
     </script>
 </body>

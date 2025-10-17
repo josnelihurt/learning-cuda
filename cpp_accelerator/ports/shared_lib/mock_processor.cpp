@@ -80,7 +80,19 @@ bool MockGetCapabilities(const uint8_t* request, int request_len, uint8_t** resp
     algorithm_param->set_type("select");
     algorithm_param->add_options("bt601");
     algorithm_param->add_options("bt709");
+    algorithm_param->add_options("average");
+    algorithm_param->add_options("lightness");
+    algorithm_param->add_options("luminosity");
     algorithm_param->set_default_value("bt601");
+
+    auto* resolution_param = grayscale_filter->add_parameters();
+    resolution_param->set_id("resolution");
+    resolution_param->set_name("Resolution");
+    resolution_param->set_type("select");
+    resolution_param->add_options("original");
+    resolution_param->add_options("half");
+    resolution_param->add_options("quarter");
+    resolution_param->set_default_value("original");
 
     *response = allocate_response(resp.SerializeAsString(), response_len);
     return true;

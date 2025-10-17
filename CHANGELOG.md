@@ -4,6 +4,29 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### End-to-End Testing with Playwright (Oct 17, 2025)
+- [x] Integrate Playwright testing framework with TypeScript
+- [x] Add 9 comprehensive E2E test suites (954 lines of tests)
+- [x] Implement drawer-functionality tests (82 lines, 4 tests)
+- [x] Implement filter-configuration tests (86 lines, 5 tests)
+- [x] Implement filter-toggle tests (79 lines, 4 tests)
+- [x] Implement multi-source-management tests (85 lines, 4 tests)
+- [x] Implement panel-synchronization tests (97 lines, 5 tests)
+- [x] Implement resolution-control tests (71 lines, 3 tests)
+- [x] Implement source-removal tests (55 lines, 2 tests)
+- [x] Implement ui-validation tests (162 lines, 8 tests)
+- [x] Implement websocket-management tests (55 lines, 2 tests)
+- [x] Create test-helpers utility with 182 lines of reusable functions
+- [x] Add data-testid attributes to all interactive frontend components
+- [x] Configure Playwright for Chrome, Firefox, and WebKit testing
+- [x] Create run-e2e-tests.sh script for automated test execution
+- [x] Integrate E2E tests with Docker Compose for CI/CD
+- [x] Add Playwright service to docker-compose.dev.yml
+- [x] Configure test artifacts and reports output
+- [x] Add npm scripts for running tests (headed/headless/debug/UI modes)
+- [x] Update .gitignore for Playwright artifacts
+- [x] All tests passing with cross-browser validation
+
 ### Dynamic Tools Configuration (Oct 17, 2025)
 - [x] Create Tool and ToolCategory proto messages with support for URLs and actions
 - [x] Add GetAvailableTools RPC endpoint to ConfigService

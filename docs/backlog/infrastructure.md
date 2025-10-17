@@ -107,10 +107,32 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Feature: Feature flags (5 scenarios)
 - [x] Feature: Input sources (3 scenarios)
 - [x] Feature: Processor capabilities (4 scenarios)
+- [x] Feature: Tools configuration (6 scenarios)
 - [x] Step definitions in Go
 - [x] CI integration with dockerized tests
 - [x] Cucumber HTML reports at port 5050
-- [x] 31 scenarios passing with dynamic filter validation
+- [x] 37 scenarios passing with dynamic filter and tools validation
+
+### Playwright E2E Tests (Frontend)
+- [x] Setup Playwright with TypeScript
+- [x] Configure multi-browser testing (Chrome, Firefox, WebKit)
+- [x] Test: Drawer functionality (4 tests)
+- [x] Test: Filter configuration (5 tests)
+- [x] Test: Filter toggle behavior (4 tests)
+- [x] Test: Multi-source management (4 tests)
+- [x] Test: Panel synchronization (5 tests)
+- [x] Test: Resolution control (3 tests)
+- [x] Test: Source removal (2 tests)
+- [x] Test: UI validation (8 tests)
+- [x] Test: WebSocket management (2 tests)
+- [x] Create reusable test helpers
+- [x] Add data-testid attributes to components
+- [x] Docker integration for CI/CD
+- [x] Test artifacts and HTML reports
+- [ ] Visual regression testing with screenshots
+- [ ] Performance testing with Lighthouse
+- [ ] Accessibility testing with axe-core
+- [ ] Mobile viewport testing
 
 ## Cloud Deployment
 

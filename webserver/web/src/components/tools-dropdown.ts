@@ -163,6 +163,7 @@ export class ToolsDropdown extends LitElement {
       <a 
         class="dropdown-item" 
         @click=${() => this.handleToolClick(tool)}
+        data-testid="tool-item-${tool.name.toLowerCase().replace(/\s+/g, '-')}"
       >
         <span class="dropdown-item-icon">${iconContent}</span>
         <span class="dropdown-item-text">${tool.name}</span>
@@ -175,12 +176,13 @@ export class ToolsDropdown extends LitElement {
       <button 
         class="dropdown-trigger ${this.isOpen ? 'open' : ''}" 
         @click=${this.toggleDropdown}
+        data-testid="tools-dropdown-button"
       >
         <span>Tools</span>
         <span class="arrow ${this.isOpen ? 'open' : ''}">▼</span>
       </button>
 
-      <div class="dropdown-menu ${this.isOpen ? 'open' : ''}">
+      <div class="dropdown-menu ${this.isOpen ? 'open' : ''}" data-testid="tools-dropdown-menu">
         ${this.categories.map((category, index) => html`
           ${category.tools.map(tool => this.renderTool(tool))}
           ${index < this.categories.length - 1 ? html`<div class="dropdown-divider"></div>` : ''}

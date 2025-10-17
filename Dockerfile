@@ -202,6 +202,46 @@ WORKDIR /workspace/integration/tests/acceptance
 CMD ["sh", "-c", "go test . -run TestFeatures -v"]
 
 #################################################################################
+#                         E2E FRONTEND TESTS STAGE                              #
+#################################################################################
+# Run Playwright E2E tests for frontend UI validation
+# Requires: Running webserver accessible via network
+# Tests execute in Chromium, Firefox, and WebKit browsers
+# This stage ONLY installs dependencies - source code mounted via volumes
+# This stage is optional and only runs when explicitly targeted
+#################################################################################
+
+FROM mcr.microsoft.com/playwright:v1.56.1-jammy AS e2e-tests
+
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
+WORKDIR /workspace
+
+# Install Node.js dependencies only
+COPY webserver/web/package*.json ./webserver/web/
+RUN cd webserver/web && npm ci
+
+# Install Playwright browsers
+RUN cd webserver/web && npx playwright install chromium firefox webkit
+
+# Create user with same UID/GID as host
+RUN groupadd -g ${GROUP_ID} testuser || true && \
+    useradd -u ${USER_ID} -g testuser -m -s /bin/bash testuser 2>/dev/null || true && \
+    mkdir -p /workspace/webserver/web/.ignore && \
+    mkdir -p /home/testuser/.cache && \
+    chown -R ${USER_ID}:${GROUP_ID} /workspace /home/testuser
+
+USER ${USER_ID}:${GROUP_ID}
+ENV HOME=/home/testuser
+ENV NODE_ENV=test
+ENV PLAYWRIGHT_BASE_URL=https://localhost:8443
+
+WORKDIR /workspace/webserver/web
+
+CMD ["npx", "playwright", "test"]
+
+#################################################################################
 #                       TEST REPORTS GENERATOR STAGE                            #
 #################################################################################
 # Generate HTML test reports from integration test results

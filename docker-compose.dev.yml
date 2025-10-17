@@ -164,6 +164,56 @@ services:
     profiles:
       - testing
 
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: e2e-tests
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    container_name: e2e-tests
+    network_mode: host
+    
+    environment:
+      - PLAYWRIGHT_SINGLE_BROWSER=${PLAYWRIGHT_SINGLE_BROWSER:-false}
+      - PLAYWRIGHT_VIDEO=${PLAYWRIGHT_VIDEO:-false}
+      - PLAYWRIGHT_SCREENSHOTS=${PLAYWRIGHT_SCREENSHOTS:-false}
+      - PLAYWRIGHT_TRACE=${PLAYWRIGHT_TRACE:-false}
+    
+    volumes:
+      - ./webserver/web/src:/workspace/webserver/web/src:ro
+      - ./webserver/web/tests:/workspace/webserver/web/tests
+      - ./webserver/web/playwright.config.ts:/workspace/webserver/web/playwright.config.ts:ro
+      - ./webserver/web/tsconfig.json:/workspace/webserver/web/tsconfig.json:ro
+      - ./webserver/web/.ignore:/workspace/webserver/web/.ignore
+    
+    depends_on:
+      - flipt
+      - jaeger
+      - otel-collector
+    
+    profiles:
+      - testing
+
+  e2e-report-viewer:
+    image: node:20-alpine
+    container_name: e2e-report-viewer
+    working_dir: /app
+    ports:
+      - "5051:8080"
+    
+    volumes:
+      - ./webserver/web/.ignore/playwright-report:/app:ro
+    
+    command: npx http-server /app -p 8080
+    
+    networks:
+      - dev-network
+    
+    profiles:
+      - testing
+
   cucumber-report:
     image: node:18-alpine
     container_name: cucumber-report-viewer

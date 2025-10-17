@@ -108,12 +108,16 @@ export class VideoSourceCard extends LitElement {
             <div 
                 class="card ${this.isSelected ? 'selected' : ''}"
                 @click=${this.handleCardClick}
+                data-testid="source-card-${this.sourceNumber}"
+                data-source-number="${this.sourceNumber}"
+                data-source-id="${this.sourceId}"
             >
                 <div class="source-number">${this.sourceNumber}</div>
                 <button 
                     class="close-btn" 
                     @click=${this.handleClose}
                     title="Close ${this.sourceName}"
+                    data-testid="source-close-button"
                 >×</button>
                 <div class="content">
                     <slot></slot>

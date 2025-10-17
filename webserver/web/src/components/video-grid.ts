@@ -66,7 +66,7 @@ export class VideoGrid extends LitElement {
         const gridClass = `grid-${this.sources.length}`;
         
         return html`
-            <div class="grid-container ${gridClass}">
+            <div class="grid-container ${gridClass}" data-testid="video-grid">
                 ${this.sources.map(source => this.renderSourceCard(source))}
             </div>
         `;
@@ -82,6 +82,8 @@ export class VideoGrid extends LitElement {
                 .isSelected=${this.selectedSourceId === source.id}
                 @source-selected=${() => this.selectSource(source.id)}
                 @source-closed=${() => this.removeSource(source.id)}
+                data-testid="video-source-card"
+                data-source-id="${source.id}"
             >
                 ${source.imageElement 
                     ? source.imageElement

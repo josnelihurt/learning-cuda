@@ -155,10 +155,10 @@ export class SourceDrawer extends LitElement {
     render() {
         return html`
             <div class="backdrop ${this.isOpen ? 'show' : ''}" @click=${this.close}></div>
-            <div class="drawer ${this.isOpen ? 'show' : ''}">
+            <div class="drawer ${this.isOpen ? 'show' : ''}" data-testid="source-drawer">
                 <div class="drawer-header">
                     <h2 class="drawer-title">Select Input Source</h2>
-                    <button class="close-btn" @click=${this.close}>×</button>
+                    <button class="close-btn" @click=${this.close} data-testid="drawer-close">×</button>
                 </div>
                 <div class="drawer-content">
                     <div class="source-list">
@@ -176,6 +176,7 @@ export class SourceDrawer extends LitElement {
             <div 
                 class="source-item"
                 @click=${() => this.selectSource(source)}
+                data-testid="source-item-${source.id}"
             >
                 <div class="source-icon">${icon}</div>
                 <div class="source-info">

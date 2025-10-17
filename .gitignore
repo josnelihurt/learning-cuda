@@ -34,6 +34,11 @@ Thumbs.db
 # local directory, don't push this
 .ignore/
 
+# E2E test artifacts
+webserver/web/.ignore/
+webserver/web/test-results/
+webserver/web/playwright-report/
+
 proto/gen/
 
 #TODO: move this to .secrets/.gitignore SSL/TLS certificates (kept in .secrets/)

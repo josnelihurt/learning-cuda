@@ -59,7 +59,7 @@ export class AddSourceFab extends LitElement {
 
     render() {
         return html`
-            <button class="fab" @click=${this.handleClick}>
+            <button class="fab" @click=${this.handleClick} data-testid="add-input-fab">
                 <span class="fab-icon">+</span>
                 <span class="fab-text">Add Input</span>
             </button>

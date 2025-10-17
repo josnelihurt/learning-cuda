@@ -9,15 +9,26 @@ cd "$PROJECT_ROOT"
 export USER_ID=$(id -u)
 export GROUP_ID=$(id -g)
 
-echo "Running integration tests with Docker..."
+TEST_TYPE="${1:-all}"
+
+if [[ "$TEST_TYPE" != "backend" && "$TEST_TYPE" != "e2e" && "$TEST_TYPE" != "all" ]]; then
+    echo "Usage: $0 [backend|e2e|all]"
+    echo ""
+    echo "  backend  - Run only backend BDD tests"
+    echo "  e2e      - Run only E2E frontend tests"
+    echo "  all      - Run both test suites (default)"
+    exit 1
+fi
+
+echo "Running tests with Docker..."
+echo "Test type: $TEST_TYPE"
 echo "User: $USER_ID:$GROUP_ID"
-
-mkdir -p .ignore/test-results
-mkdir -p .ignore/allure-reports
-
-rm -f .ignore/test-results/*.json .ignore/test-results/*.xml 2>/dev/null || true
-
 echo ""
+
+mkdir -p integration/tests/acceptance/.ignore/test-results
+mkdir -p webserver/web/.ignore/test-results
+mkdir -p webserver/web/.ignore/playwright-report
+
 echo "Note: Tests require local services running (Flipt + App)"
 echo "Make sure you've run: ./scripts/start-dev.sh"
 echo ""
@@ -34,34 +45,111 @@ if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
     exit 1
 fi
 
-echo "✅ Services are running"
+echo "Services are running"
 echo ""
 
-docker compose -f docker-compose.dev.yml --profile testing build integration-tests
+BACKEND_EXIT=0
+E2E_EXIT=0
 
-docker compose -f docker-compose.dev.yml --profile testing run \
-  --rm \
-  integration-tests
+if [[ "$TEST_TYPE" == "backend" || "$TEST_TYPE" == "all" ]]; then
+    echo "========================================="
+    echo "Running Backend BDD Tests"
+    echo "========================================="
+    echo ""
+    
+    docker compose -f docker-compose.dev.yml --profile testing build integration-tests
+    
+    docker compose -f docker-compose.dev.yml --profile testing run \
+      --rm \
+      integration-tests
+    
+    BACKEND_EXIT=$?
+    
+    echo ""
+    if [ $BACKEND_EXIT -eq 0 ]; then
+        echo "Backend tests passed"
+    else
+        echo "Backend tests failed with exit code $BACKEND_EXIT"
+    fi
+    echo ""
+fi
 
-EXIT_CODE=$?
+if [[ "$TEST_TYPE" == "e2e" || "$TEST_TYPE" == "all" ]]; then
+    echo "========================================="
+    echo "Running E2E Frontend Tests"
+    echo "========================================="
+    echo ""
+    
+    docker compose -f docker-compose.dev.yml --profile testing build e2e-tests
+    
+    docker compose -f docker-compose.dev.yml --profile testing run \
+      --rm \
+      e2e-tests
+    
+    E2E_EXIT=$?
+    
+    echo ""
+    if [ $E2E_EXIT -eq 0 ]; then
+        echo "E2E tests passed"
+    else
+        echo "E2E tests failed with exit code $E2E_EXIT"
+    fi
+    echo ""
+fi
 
-echo ""
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "✅ All tests passed!"
-else
-    echo "❌ Tests failed with exit code $EXIT_CODE"
+echo "========================================="
+echo "Test Summary"
+echo "========================================="
+
+if [[ "$TEST_TYPE" == "backend" || "$TEST_TYPE" == "all" ]]; then
+    if [ $BACKEND_EXIT -eq 0 ]; then
+        echo "Backend: PASSED"
+    else
+        echo "Backend: FAILED (exit code $BACKEND_EXIT)"
+    fi
+fi
+
+if [[ "$TEST_TYPE" == "e2e" || "$TEST_TYPE" == "all" ]]; then
+    if [ $E2E_EXIT -eq 0 ]; then
+        echo "E2E:     PASSED"
+    else
+        echo "E2E:     FAILED (exit code $E2E_EXIT)"
+    fi
 fi
 
 echo ""
-echo "Results saved in integration/tests/acceptance/.ignore/test-results/"
-echo "  - cucumber-report.json (Cucumber JSON)"
-echo "  - junit-report.xml (JUnit XML)"
-echo ""
-echo "To view test reports:"
-echo "  docker compose -f docker-compose.dev.yml --profile testing up -d cucumber-report"
-echo ""
-echo "  📊 HTML Report: http://localhost:5050"
+echo "========================================="
+echo "Test Reports"
+echo "========================================="
+
+if [[ "$TEST_TYPE" == "backend" || "$TEST_TYPE" == "all" ]]; then
+    echo ""
+    echo "Backend Results:"
+    echo "  Location: integration/tests/acceptance/.ignore/test-results/"
+    echo "  Files: cucumber-report.json, junit-report.xml"
+    echo ""
+    echo "  View report:"
+    echo "    docker compose -f docker-compose.dev.yml --profile testing up -d cucumber-report"
+    echo "    HTML Report: http://localhost:5050"
+fi
+
+if [[ "$TEST_TYPE" == "e2e" || "$TEST_TYPE" == "all" ]]; then
+    echo ""
+    echo "E2E Results:"
+    echo "  Location: webserver/web/.ignore/"
+    echo "  Subdirs: test-results/, playwright-report/"
+    echo ""
+    echo "  View report:"
+    echo "    docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer"
+    echo "    HTML Report: http://localhost:5051"
+fi
+
 echo ""
 
-exit $EXIT_CODE
+FINAL_EXIT=0
+if [ $BACKEND_EXIT -ne 0 ] || [ $E2E_EXIT -ne 0 ]; then
+    FINAL_EXIT=1
+fi
+
+exit $FINAL_EXIT
 

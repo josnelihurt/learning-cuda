@@ -47,6 +47,8 @@ type BDDContext struct {
 	inputSources          []*pb.InputSource
 	configClient          genconnect.ConfigServiceClient
 	processorCapabilities *pb.LibraryCapabilities
+	toolsResponse         *pb.GetAvailableToolsResponse
+	currentTool           *pb.Tool
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -980,4 +982,176 @@ func (c *BDDContext) ThenTheFilterShouldSupportAccelerator(filterId, accelerator
 		}
 	}
 	return fmt.Errorf("filter '%s' not found in capabilities", filterId)
+}
+
+func (c *BDDContext) WhenICallGetAvailableTools() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := c.configClient.GetAvailableTools(ctx, connect.NewRequest(&pb.GetAvailableToolsRequest{}))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: 500}
+		return fmt.Errorf("failed to call GetAvailableTools: %w", err)
+	}
+
+	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastError = nil
+	c.toolsResponse = resp.Msg
+
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldContainToolCategories() error {
+	if c.toolsResponse == nil {
+		return fmt.Errorf("no tools response available")
+	}
+	if len(c.toolsResponse.Categories) == 0 {
+		return fmt.Errorf("no tool categories in response")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheCategoriesShouldInclude(categoryName string) error {
+	if c.toolsResponse == nil {
+		return fmt.Errorf("no tools response available")
+	}
+	for _, cat := range c.toolsResponse.Categories {
+		if cat.Name == categoryName {
+			return nil
+		}
+	}
+	return fmt.Errorf("category '%s' not found in response", categoryName)
+}
+
+func (c *BDDContext) ThenEachToolShouldHaveField(fieldName string) error {
+	if c.toolsResponse == nil {
+		return fmt.Errorf("no tools response available")
+	}
+	for _, cat := range c.toolsResponse.Categories {
+		for _, tool := range cat.Tools {
+			switch fieldName {
+			case "id":
+				if tool.Id == "" {
+					return fmt.Errorf("tool in category '%s' missing id field", cat.Name)
+				}
+			case "name":
+				if tool.Name == "" {
+					return fmt.Errorf("tool '%s' missing name field", tool.Id)
+				}
+			case "type":
+				if tool.Type == "" {
+					return fmt.Errorf("tool '%s' missing type field", tool.Id)
+				}
+			default:
+				return fmt.Errorf("unknown field: %s", fieldName)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenToolsWithTypeShouldHaveField(toolType, fieldName string) error {
+	if c.toolsResponse == nil {
+		return fmt.Errorf("no tools response available")
+	}
+	foundTool := false
+	for _, cat := range c.toolsResponse.Categories {
+		for _, tool := range cat.Tools {
+			if tool.Type == toolType {
+				foundTool = true
+				switch fieldName {
+				case "url":
+					if tool.Url == "" {
+						return fmt.Errorf("tool '%s' of type '%s' has empty url", tool.Id, toolType)
+					}
+				case "action":
+					if tool.Action == "" {
+						return fmt.Errorf("tool '%s' of type '%s' has empty action", tool.Id, toolType)
+					}
+				default:
+					return fmt.Errorf("unknown field: %s", fieldName)
+				}
+			}
+		}
+	}
+	if !foundTool {
+		return fmt.Errorf("no tools found with type '%s'", toolType)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheUrlShouldNotBeEmpty() error {
+	return nil
+}
+
+func (c *BDDContext) ThenTheActionShouldMatchKnownActions() error {
+	knownActions := map[string]bool{
+		"sync_flags": true,
+	}
+
+	if c.toolsResponse == nil {
+		return fmt.Errorf("no tools response available")
+	}
+
+	for _, cat := range c.toolsResponse.Categories {
+		for _, tool := range cat.Tools {
+			if tool.Type == "action" && tool.Action != "" {
+				if !knownActions[tool.Action] {
+					return fmt.Errorf("tool '%s' has unknown action '%s'", tool.Id, tool.Action)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (c *BDDContext) WhenIFindTheTool(toolId string) error {
+	if c.toolsResponse == nil {
+		return fmt.Errorf("no tools response available")
+	}
+	for _, cat := range c.toolsResponse.Categories {
+		for _, tool := range cat.Tools {
+			if tool.Id == toolId {
+				c.currentTool = tool
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("tool '%s' not found", toolId)
+}
+
+func (c *BDDContext) ThenTheToolUrlShouldContain(substring string) error {
+	if c.currentTool == nil {
+		return fmt.Errorf("no current tool set")
+	}
+	if !bytes.Contains([]byte(c.currentTool.Url), []byte(substring)) {
+		return fmt.Errorf("tool url '%s' does not contain '%s'", c.currentTool.Url, substring)
+	}
+	return nil
+}
+
+func (c *BDDContext) WhenIFindAnyToolWithAnIcon() error {
+	if c.toolsResponse == nil {
+		return fmt.Errorf("no tools response available")
+	}
+	for _, cat := range c.toolsResponse.Categories {
+		for _, tool := range cat.Tools {
+			if tool.IconPath != "" {
+				c.currentTool = tool
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("no tool with icon found")
+}
+
+func (c *BDDContext) ThenTheIconPathShouldStartWith(prefix string) error {
+	if c.currentTool == nil {
+		return fmt.Errorf("no current tool set")
+	}
+	if !bytes.HasPrefix([]byte(c.currentTool.IconPath), []byte(prefix)) {
+		return fmt.Errorf("icon_path '%s' does not start with '%s'", c.currentTool.IconPath, prefix)
+	}
+	return nil
 }

@@ -1,9 +1,11 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
+import type { ToolCategory } from '../gen/config_service_pb';
 
 @customElement('tools-dropdown')
 export class ToolsDropdown extends LitElement {
   @state() private isOpen = false;
+  @property({ type: Array }) categories: ToolCategory[] = [];
 
   static styles = css`
     :host {
@@ -133,46 +135,39 @@ export class ToolsDropdown extends LitElement {
     this.isOpen = !this.isOpen;
   }
 
-  private openLink(url: string) {
-    window.open(url, '_blank');
-    this.isOpen = false;
-  }
-
-  private syncFlags() {
-    const syncButton = document.querySelector('sync-flags-button');
-    if (syncButton) {
-      const button = syncButton.shadowRoot?.querySelector('button');
-      button?.click();
+  private handleToolClick(tool: any) {
+    if (tool.type === 'url' && tool.url) {
+      window.open(tool.url, '_blank');
+    } else if (tool.type === 'action') {
+      this.executeAction(tool.action);
     }
     this.isOpen = false;
   }
 
-  private getJaegerUrl(): string {
-    return 'http://localhost:16686';
+  private executeAction(action: string) {
+    if (action === 'sync_flags') {
+      const syncButton = document.querySelector('sync-flags-button');
+      if (syncButton) {
+        const button = syncButton.shadowRoot?.querySelector('button');
+        button?.click();
+      }
+    }
   }
 
-  private getGrafanaUrl(path: string): string {
-    const isDev = window.location.port === '3000' || window.location.port === '8443' || window.location.port === '8080';
-    if (isDev) {
-      return `http://localhost:3001${path}`;
-    }
-    return `${window.location.protocol}//${window.location.host}/grafana${path}`;
-  }
+  private renderTool(tool: any) {
+    const iconContent = tool.iconPath 
+      ? html`<img src="${tool.iconPath}" alt="${tool.name}">`
+      : html`${tool.type === 'action' && tool.action === 'sync_flags' ? '↻' : '✓'}`;
 
-  private getFliptUrl(): string {
-    const isDev = window.location.port === '3000' || window.location.port === '8443' || window.location.port === '8080';
-    if (isDev) {
-      return 'http://localhost:8081';
-    }
-    return `${window.location.protocol}//${window.location.host}/flipt`;
-  }
-
-  private getTestReportsUrl(): string {
-    const isDev = window.location.port === '3000' || window.location.port === '8443' || window.location.port === '8080';
-    if (isDev) {
-      return 'http://localhost:5050';
-    }
-    return `${window.location.protocol}//${window.location.host}/reports`;
+    return html`
+      <a 
+        class="dropdown-item" 
+        @click=${() => this.handleToolClick(tool)}
+      >
+        <span class="dropdown-item-icon">${iconContent}</span>
+        <span class="dropdown-item-text">${tool.name}</span>
+      </a>
+    `;
   }
 
   render() {
@@ -186,65 +181,10 @@ export class ToolsDropdown extends LitElement {
       </button>
 
       <div class="dropdown-menu ${this.isOpen ? 'open' : ''}">
-        <a 
-          class="dropdown-item" 
-          @click=${() => this.openLink(this.getJaegerUrl())}
-        >
-          <span class="dropdown-item-icon">
-            <img src="https://www.jaegertracing.io/img/jaeger-icon-reverse-color.svg" alt="Jaeger">
-          </span>
-          <span class="dropdown-item-text">Jaeger Tracing</span>
-        </a>
-
-        <a 
-          class="dropdown-item" 
-          @click=${() => this.openLink(this.getGrafanaUrl('/d/cuda-multi-layer-logs'))}
-        >
-          <span class="dropdown-item-icon">
-            <img src="https://grafana.com/static/img/menu/grafana2.svg" alt="Grafana">
-          </span>
-          <span class="dropdown-item-text">Logs Dashboard</span>
-        </a>
-
-        <a 
-          class="dropdown-item" 
-          @click=${() => this.openLink(this.getGrafanaUrl('/explore'))}
-        >
-          <span class="dropdown-item-icon">
-            <img src="https://grafana.com/static/img/menu/grafana2.svg" alt="Grafana">
-          </span>
-          <span class="dropdown-item-text">Grafana Explore</span>
-        </a>
-
-        <div class="dropdown-divider"></div>
-
-        <a 
-          class="dropdown-item" 
-          @click=${() => this.openLink(this.getFliptUrl())}
-        >
-          <span class="dropdown-item-icon">
-            <img src="https://www.flipt.io/images/favicon/favicon-32x32.png" alt="Flipt">
-          </span>
-          <span class="dropdown-item-text">Flipt Feature Flags</span>
-        </a>
-
-        <a 
-          class="dropdown-item" 
-          @click=${this.syncFlags}
-        >
-          <span class="dropdown-item-icon">↻</span>
-          <span class="dropdown-item-text">Sync Feature Flags</span>
-        </a>
-
-        <div class="dropdown-divider"></div>
-
-        <a 
-          class="dropdown-item" 
-          @click=${() => this.openLink(this.getTestReportsUrl())}
-        >
-          <span class="dropdown-item-icon">✓</span>
-          <span class="dropdown-item-text">Test Reports (BDD)</span>
-        </a>
+        ${this.categories.map((category, index) => html`
+          ${category.tools.map(tool => this.renderTool(tool))}
+          ${index < this.categories.length - 1 ? html`<div class="dropdown-divider"></div>` : ''}
+        `)}
       </div>
     `;
   }

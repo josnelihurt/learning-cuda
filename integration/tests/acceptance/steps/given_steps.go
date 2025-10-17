@@ -32,10 +32,15 @@ func (tc *TestContext) flagsAreAlreadySyncedToFlipt() error {
 	return tc.WhenIWaitForFlagsToBeSynced()
 }
 
+func (tc *TestContext) theEnvironmentIs(environment string) error {
+	return nil
+}
+
 func InitializeGivenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^Flipt is running at "([^"]*)" with namespace "([^"]*)"$`, tc.fliptIsRunningAt)
 	ctx.Step(`^the service is running at "([^"]*)"$`, tc.theServiceIsRunningAt)
 	ctx.Step(`^Flipt has no flags configured$`, tc.fliptHasNoFlagsConfigured)
 	ctx.Step(`^default config has transport format "([^"]*)" and endpoint "([^"]*)"$`, tc.defaultConfigHasTransportFormatAndEndpoint)
 	ctx.Step(`^flags are already synced to Flipt$`, tc.flagsAreAlreadySyncedToFlipt)
+	ctx.Step(`^the environment is "([^"]*)"$`, tc.theEnvironmentIs)
 }

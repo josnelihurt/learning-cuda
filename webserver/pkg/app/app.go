@@ -131,7 +131,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	}
 	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil {
 		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC,
-			a.registry, a.currentLoader, a.loaderMutex, a.interceptors...)
+			a.registry, a.currentLoader, a.loaderMutex, a.config, a.interceptors...)
 	} else {
 		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")
 	}

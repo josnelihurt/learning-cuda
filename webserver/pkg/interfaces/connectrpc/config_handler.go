@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
+	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"go.opentelemetry.io/otel/attribute"
@@ -23,6 +24,7 @@ type ConfigHandler struct {
 	registry               *loader.Registry
 	currentLoader          **loader.Loader
 	loaderMutex            *sync.RWMutex
+	configManager          *config.Manager
 }
 
 func NewConfigHandler(
@@ -32,6 +34,7 @@ func NewConfigHandler(
 	registry *loader.Registry,
 	currentLoader **loader.Loader,
 	loaderMutex *sync.RWMutex,
+	configManager *config.Manager,
 ) *ConfigHandler {
 	return &ConfigHandler{
 		getStreamConfigUseCase: getStreamConfigUC,
@@ -40,6 +43,7 @@ func NewConfigHandler(
 		registry:               registry,
 		currentLoader:          currentLoader,
 		loaderMutex:            loaderMutex,
+		configManager:          configManager,
 	}
 }
 
@@ -222,4 +226,83 @@ func (h *ConfigHandler) ReloadProcessor(
 		Status:  "success",
 		Message: "Processor library reloaded to version " + version,
 	}), nil
+}
+
+func (h *ConfigHandler) GetAvailableTools(
+	ctx context.Context,
+	req *connect.Request[pb.GetAvailableToolsRequest],
+) (*connect.Response[pb.GetAvailableToolsResponse], error) {
+	span := trace.SpanFromContext(ctx)
+
+	if h.configManager == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("config manager not available"))
+	}
+
+	categories := []*pb.ToolCategory{}
+
+	if len(h.configManager.ToolsConfig.Observability) > 0 {
+		tools := h.buildTools(h.configManager.ToolsConfig.Observability, h.configManager.Environment)
+		categories = append(categories, &pb.ToolCategory{
+			Id:    "observability",
+			Name:  "Observability",
+			Tools: tools,
+		})
+	}
+
+	if len(h.configManager.ToolsConfig.Features) > 0 {
+		tools := h.buildTools(h.configManager.ToolsConfig.Features, h.configManager.Environment)
+		categories = append(categories, &pb.ToolCategory{
+			Id:    "features",
+			Name:  "Features",
+			Tools: tools,
+		})
+	}
+
+	if len(h.configManager.ToolsConfig.Testing) > 0 {
+		tools := h.buildTools(h.configManager.ToolsConfig.Testing, h.configManager.Environment)
+		categories = append(categories, &pb.ToolCategory{
+			Id:    "testing",
+			Name:  "Testing",
+			Tools: tools,
+		})
+	}
+
+	span.SetAttributes(
+		attribute.String("config.environment", h.configManager.Environment),
+		attribute.Int("tools.category_count", len(categories)),
+	)
+
+	log.Printf("GetAvailableTools: returning %d categories for environment: %s",
+		len(categories), h.configManager.Environment)
+
+	return connect.NewResponse(&pb.GetAvailableToolsResponse{
+		Categories: categories,
+	}), nil
+}
+
+func (h *ConfigHandler) buildTools(toolDefs []config.ToolDefinition, environment string) []*pb.Tool {
+	tools := make([]*pb.Tool, 0, len(toolDefs))
+
+	for _, toolDef := range toolDefs {
+		tool := &pb.Tool{
+			Id:       toolDef.ID,
+			Name:     toolDef.Name,
+			IconPath: toolDef.IconPath,
+			Type:     toolDef.Type,
+		}
+
+		if toolDef.Type == "url" {
+			if environment == "production" {
+				tool.Url = toolDef.URLProd
+			} else {
+				tool.Url = toolDef.URLDev
+			}
+		} else if toolDef.Type == "action" {
+			tool.Action = toolDef.Action
+		}
+
+		tools = append(tools, tool)
+	}
+
+	return tools
 }

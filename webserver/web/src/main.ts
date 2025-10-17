@@ -11,8 +11,10 @@ import { streamConfigService } from './services/config-service';
 import { telemetryService } from './services/telemetry-service';
 import { inputSourceService } from './services/input-source-service';
 import { processorCapabilitiesService } from './services/processor-capabilities-service';
+import { toolsService } from './services/tools-service';
 import type { VideoGrid } from './components/video-grid';
 import type { SourceDrawer } from './components/source-drawer';
+import type { ToolsDropdown } from './components/tools-dropdown';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 
@@ -22,6 +24,7 @@ const app = {
     filterManager: null as any,
     videoGrid: null as VideoGrid | null,
     sourceDrawer: null as SourceDrawer | null,
+    toolsDropdown: null as ToolsDropdown | null,
     
     selectedAccelerator: 'gpu',
     selectedResolution: 'original',
@@ -33,6 +36,7 @@ const app = {
         await streamConfigService.initialize();
         await inputSourceService.initialize();
         await processorCapabilitiesService.initialize();
+        await toolsService.initialize();
         
         await customElements.whenDefined('camera-preview');
         await customElements.whenDefined('toast-container');
@@ -41,6 +45,7 @@ const app = {
         await customElements.whenDefined('video-grid');
         await customElements.whenDefined('source-drawer');
         await customElements.whenDefined('add-source-fab');
+        await customElements.whenDefined('tools-dropdown');
         
         this.toastManager = document.querySelector('toast-container');
         this.toastManager.configure({ duration: 7000 });
@@ -49,9 +54,14 @@ const app = {
         this.filterManager = document.querySelector('filter-panel');
         this.videoGrid = document.querySelector('video-grid');
         this.sourceDrawer = document.querySelector('source-drawer');
+        this.toolsDropdown = document.querySelector('tools-dropdown');
         
         if (this.filterManager && processorCapabilitiesService.isInitialized()) {
             this.filterManager.filters = processorCapabilitiesService.getFilters();
+        }
+        
+        if (this.toolsDropdown && toolsService.isInitialized()) {
+            this.toolsDropdown.categories = toolsService.getCategories();
         }
         
         if (this.videoGrid) {

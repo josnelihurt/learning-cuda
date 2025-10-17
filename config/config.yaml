@@ -1,3 +1,5 @@
+environment: "development"
+
 server:
   http_port: ":8080"
   https_port: ":8443"
@@ -53,3 +55,43 @@ processor:
   fallback_chain:
     - "2.0.0"
     - "mock"
+
+tools:
+  observability:
+    - id: "jaeger"
+      name: "Jaeger Tracing"
+      icon_path: "/static/img/tools/jaeger.svg"
+      type: "url"
+      url_dev: "http://localhost:16686"
+      url_prod: "https://jaeger.production.example.com"
+    - id: "grafana_logs"
+      name: "Logs Dashboard"
+      icon_path: "/static/img/tools/grafana.svg"
+      type: "url"
+      url_dev: "http://localhost:3001/d/cuda-multi-layer-logs"
+      url_prod: "/grafana/d/cuda-multi-layer-logs"
+    - id: "grafana_explore"
+      name: "Grafana Explore"
+      icon_path: "/static/img/tools/grafana.svg"
+      type: "url"
+      url_dev: "http://localhost:3001/explore"
+      url_prod: "/grafana/explore"
+  features:
+    - id: "flipt"
+      name: "Flipt Feature Flags"
+      icon_path: "/static/img/tools/flipt.png"
+      type: "url"
+      url_dev: "http://localhost:8081"
+      url_prod: "/flipt"
+    - id: "sync_flags"
+      name: "Sync Feature Flags"
+      icon_path: ""
+      type: "action"
+      action: "sync_flags"
+  testing:
+    - id: "bdd_reports"
+      name: "Test Reports (BDD)"
+      icon_path: ""
+      type: "url"
+      url_dev: "http://localhost:5050"
+      url_prod: "/reports"

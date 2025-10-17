@@ -11,18 +11,36 @@ import (
 
 type Manager struct {
 	HttpClientTimeout time.Duration
+	Environment       string
 	FliptConfig       FliptConfig
 	ServerConfig
 	StreamConfig
 	ObservabilityConfig
 	LoggerConfig
 	ProcessorConfig
+	ToolsConfig ToolsConfig
 }
 
 type FliptConfig struct {
 	URL       string
 	Namespace string
 	DBPath    string
+}
+
+type ToolsConfig struct {
+	Observability []ToolDefinition
+	Features      []ToolDefinition
+	Testing       []ToolDefinition
+}
+
+type ToolDefinition struct {
+	ID       string `mapstructure:"id"`
+	Name     string `mapstructure:"name"`
+	IconPath string `mapstructure:"icon_path"`
+	Type     string `mapstructure:"type"`
+	URLDev   string `mapstructure:"url_dev"`
+	URLProd  string `mapstructure:"url_prod"`
+	Action   string `mapstructure:"action"`
 }
 
 func (m *Manager) IsObservabilityEnabled(ctx context.Context) bool {
@@ -67,6 +85,7 @@ func New() *Manager {
 	viper.SetDefault("processor.enable_hot_reload", false)
 	viper.SetDefault("processor.fallback_enabled", true)
 	viper.SetDefault("processor.fallback_chain", []string{"1.0.0", "mock"})
+	viper.SetDefault("environment", "development")
 
 	viper.SetEnvPrefix("CUDA_PROCESSOR")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -75,8 +94,15 @@ func New() *Manager {
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Warning: Config file not found, using defaults: %v", err)
 	}
+
+	var toolsConfig ToolsConfig
+	if err := viper.UnmarshalKey("tools", &toolsConfig); err != nil {
+		log.Printf("Warning: Failed to unmarshal tools config: %v", err)
+	}
+
 	return &Manager{
 		HttpClientTimeout: viper.GetDuration("flipt.http_timeout"),
+		Environment:       viper.GetString("environment"),
 		ServerConfig: ServerConfig{
 			HTTPPort:         viper.GetString("server.http_port"),
 			HTTPSPort:        viper.GetString("server.https_port"),
@@ -119,5 +145,6 @@ func New() *Manager {
 			FallbackEnabled: viper.GetBool("processor.fallback_enabled"),
 			FallbackChain:   viper.GetStringSlice("processor.fallback_chain"),
 		},
+		ToolsConfig: toolsConfig,
 	}
 }

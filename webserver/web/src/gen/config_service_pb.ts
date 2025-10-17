@@ -555,3 +555,201 @@ export class ReloadProcessorResponse extends Message<ReloadProcessorResponse> {
   }
 }
 
+/**
+ * Tools configuration
+ *
+ * @generated from message cuda_learning.Tool
+ */
+export class Tool extends Message<Tool> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * @generated from field: string icon_path = 5 [json_name = "icon_path"];
+   */
+  iconPath = "";
+
+  /**
+   * @generated from field: string type = 7;
+   */
+  type = "";
+
+  /**
+   * @generated from field: string url = 9;
+   */
+  url = "";
+
+  /**
+   * @generated from field: string action = 11;
+   */
+  action = "";
+
+  constructor(data?: PartialMessage<Tool>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.Tool";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "icon_path", jsonName: "icon_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "action", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Tool {
+    return new Tool().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Tool {
+    return new Tool().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Tool {
+    return new Tool().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Tool | PlainMessage<Tool> | undefined, b: Tool | PlainMessage<Tool> | undefined): boolean {
+    return proto3.util.equals(Tool, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ToolCategory
+ */
+export class ToolCategory extends Message<ToolCategory> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * @generated from field: repeated cuda_learning.Tool tools = 5;
+   */
+  tools: Tool[] = [];
+
+  constructor(data?: PartialMessage<ToolCategory>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ToolCategory";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "tools", kind: "message", T: Tool, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ToolCategory {
+    return new ToolCategory().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ToolCategory {
+    return new ToolCategory().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ToolCategory {
+    return new ToolCategory().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ToolCategory | PlainMessage<ToolCategory> | undefined, b: ToolCategory | PlainMessage<ToolCategory> | undefined): boolean {
+    return proto3.util.equals(ToolCategory, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GetAvailableToolsRequest
+ */
+export class GetAvailableToolsRequest extends Message<GetAvailableToolsRequest> {
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 1 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<GetAvailableToolsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetAvailableToolsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAvailableToolsRequest {
+    return new GetAvailableToolsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAvailableToolsRequest {
+    return new GetAvailableToolsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAvailableToolsRequest {
+    return new GetAvailableToolsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAvailableToolsRequest | PlainMessage<GetAvailableToolsRequest> | undefined, b: GetAvailableToolsRequest | PlainMessage<GetAvailableToolsRequest> | undefined): boolean {
+    return proto3.util.equals(GetAvailableToolsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GetAvailableToolsResponse
+ */
+export class GetAvailableToolsResponse extends Message<GetAvailableToolsResponse> {
+  /**
+   * @generated from field: repeated cuda_learning.ToolCategory categories = 1;
+   */
+  categories: ToolCategory[] = [];
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<GetAvailableToolsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetAvailableToolsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "categories", kind: "message", T: ToolCategory, repeated: true },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAvailableToolsResponse {
+    return new GetAvailableToolsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAvailableToolsResponse {
+    return new GetAvailableToolsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAvailableToolsResponse {
+    return new GetAvailableToolsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAvailableToolsResponse | PlainMessage<GetAvailableToolsResponse> | undefined, b: GetAvailableToolsResponse | PlainMessage<GetAvailableToolsResponse> | undefined): boolean {
+    return proto3.util.equals(GetAvailableToolsResponse, a, b);
+  }
+}
+

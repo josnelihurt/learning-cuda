@@ -8,7 +8,7 @@ Playing around with CUDA and real-time video processing. Mostly just wanted to s
 
 Webcam app that processes video through CUDA kernels. You pick filters, it runs them on your GPU (or CPU if you want to compare), shows you the FPS. That's it.
 
-Built with Go web server that loads C++ accelerator libraries via dlopen. Filter definitions are discovered dynamically from the library capabilities. Probably overengineered but whatever, it works.
+Built with Go web server that loads C++ accelerator libraries via dlopen. Filter definitions and development tools are discovered dynamically from backend configuration. The tools dropdown adapts to your environment (dev/prod) automatically. Clean architecture for a learning platform.
 
 ## Setup
 
@@ -117,6 +117,24 @@ Can switch between them in the UI. Honestly can't tell much difference except Av
 ```
 
 Frontend hot reloads with Vite. For C++/Go you gotta rebuild.
+
+## Development Tools
+
+The app includes a dynamic tools dropdown that adapts to your environment:
+
+**Observability:**
+- Jaeger Tracing - distributed tracing visualization
+- Grafana Logs Dashboard - centralized log viewing
+- Grafana Explore - ad-hoc query interface
+
+**Feature Management:**
+- Flipt Feature Flags - runtime configuration
+- Sync Feature Flags - manual synchronization
+
+**Testing:**
+- BDD Test Reports - Cucumber test results
+
+Tool URLs automatically resolve based on environment (`CUDA_PROCESSOR_ENVIRONMENT`). Development mode points to localhost services, production mode uses reverse proxy paths. Add new tools by editing `config/config.yaml`, no code changes needed.
 
 ## Code structure
 

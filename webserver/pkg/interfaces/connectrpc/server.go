@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
+	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 )
 
@@ -34,9 +35,10 @@ func RegisterConfigService(
 	registry *loader.Registry,
 	currentLoader **loader.Loader,
 	loaderMutex *sync.RWMutex,
+	configManager *config.Manager,
 	interceptors ...connect.Interceptor,
 ) {
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, registry, currentLoader, loaderMutex)
+	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, registry, currentLoader, loaderMutex, configManager)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

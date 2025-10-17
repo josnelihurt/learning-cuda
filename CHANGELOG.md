@@ -4,6 +4,23 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Dynamic Tools Configuration (Oct 17, 2025)
+- [x] Create Tool and ToolCategory proto messages with support for URLs and actions
+- [x] Add GetAvailableTools RPC endpoint to ConfigService
+- [x] Implement tools configuration in config.yaml with dev/prod URL mappings
+- [x] Add environment detection via CUDA_PROCESSOR_ENVIRONMENT env variable
+- [x] Create ToolsService for dynamic tool discovery from backend
+- [x] Refactor tools-dropdown component to render tools dynamically
+- [x] Remove hardcoded tool URLs and port-based environment detection from frontend
+- [x] Download and serve favicons locally for improved performance
+- [x] Add 6 BDD scenarios for tools configuration validation
+- [x] Support both URL tools (external links) and action tools (internal operations)
+- [x] Implement environment-based URL resolution (localhost for dev, relative paths for prod)
+- [x] Enable adding new tools by only editing config.yaml
+- [x] All 37 BDD scenarios passing (6 new tools scenarios)
+- [x] Frontend builds with no linter errors
+- [x] Performance improved with local favicon serving (no external requests)
+
 ### Frontend Dynamic Filter Rendering (Oct 17, 2025)
 - [x] Create ProcessorCapabilitiesService to fetch filter definitions from GetProcessorStatus
 - [x] Refactor Filter interface to support dynamic FilterParameter arrays
@@ -184,11 +201,6 @@ Completed features extracted from git commit history, organized by category.
 - **Reverse Proxy**: Traefik with TLS termination
 - **Observability**: Jaeger + OpenTelemetry + Grafana + Loki + Promtail
 - **Feature Flags**: Flipt with automatic YAML synchronization
-
-### Performance
-- Real-time video processing at ~150 FPS (GPU) vs ~25 FPS (CPU) at 720p
-- WebSocket-based streaming with base64 PNG transport
-- Frame-by-frame processing with stats tracking
 
 ## Next Milestones
 

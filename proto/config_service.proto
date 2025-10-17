@@ -74,11 +74,37 @@ message ReloadProcessorResponse {
   TraceContext trace_context = 5 [json_name = "trace_context"];
 }
 
+// Tools configuration
+message Tool {
+  string id = 1 [json_name = "id"];
+  string name = 3 [json_name = "name"];
+  string icon_path = 5 [json_name = "icon_path"];
+  string type = 7 [json_name = "type"];
+  string url = 9 [json_name = "url"];
+  string action = 11 [json_name = "action"];
+}
+
+message ToolCategory {
+  string id = 1 [json_name = "id"];
+  string name = 3 [json_name = "name"];
+  repeated Tool tools = 5 [json_name = "tools"];
+}
+
+message GetAvailableToolsRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message GetAvailableToolsResponse {
+  repeated ToolCategory categories = 1 [json_name = "categories"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
 service ConfigService {
   rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
   rpc SyncFeatureFlags(SyncFeatureFlagsRequest) returns (SyncFeatureFlagsResponse);
   rpc ListInputs(ListInputsRequest) returns (ListInputsResponse);
   rpc GetProcessorStatus(GetProcessorStatusRequest) returns (GetProcessorStatusResponse);
   rpc ReloadProcessor(ReloadProcessorRequest) returns (ReloadProcessorResponse);
+  rpc GetAvailableTools(GetAvailableToolsRequest) returns (GetAvailableToolsResponse);
 }
 

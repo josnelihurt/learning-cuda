@@ -105,10 +105,12 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Feature: WebSocket processing (4 scenarios)
 - [x] Feature: Streaming service (1 scenario)
 - [x] Feature: Feature flags (5 scenarios)
-- [x] Feature: Input sources (5 scenarios)
+- [x] Feature: Input sources (3 scenarios)
+- [x] Feature: Processor capabilities (4 scenarios)
 - [x] Step definitions in Go
 - [x] CI integration with dockerized tests
 - [x] Cucumber HTML reports at port 5050
+- [x] 31 scenarios passing with dynamic filter validation
 
 ## Cloud Deployment
 

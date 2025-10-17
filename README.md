@@ -8,7 +8,7 @@ Playing around with CUDA and real-time video processing. Mostly just wanted to s
 
 Webcam app that processes video through CUDA kernels. You pick filters, it runs them on your GPU (or CPU if you want to compare), shows you the FPS. That's it.
 
-Built with Go because I wanted to try CGO, and C++ for the actual processing. Probably overengineered but whatever, it works.
+Built with Go web server that loads C++ accelerator libraries via dlopen. Filter definitions are discovered dynamically from the library capabilities. Probably overengineered but whatever, it works.
 
 ## Setup
 
@@ -91,9 +91,9 @@ The Docker setup uses:
 ## Tech
 
 - Go server with native HTTPS support handling WebSocket
-- C++/CUDA doing the processing
-- CGO gluing them together
-- Bazel because... honestly not sure why I picked Bazel but it's fine
+- C++/CUDA doing the processing via dynamic library plugins (dlopen)
+- Protocol Buffers for C++/Go communication
+- Bazel for C++/CUDA builds, Makefile for Go
 
 Frontend: Lit Web Components + TypeScript with Vite bundler. No React, just native web components.
 
@@ -137,16 +137,19 @@ scripts/               - bash stuff
 
 1. Browser grabs webcam frames
 2. Sends via WebSocket as base64 PNG
-3. Go decodes, passes to C++ via CGO
-4. CUDA kernel processes on GPU
+3. Go decodes, passes to C++ accelerator library via protobuf
+4. CUDA kernel processes on GPU (or CPU fallback)
 5. Result goes back as base64
 6. Browser renders it
+
+Filter definitions are loaded dynamically from the C++ library on startup,
+enabling the frontend to adapt automatically when new filters are added.
 
 Stats bar shows FPS and processing time per frame. Logs every 30 frames.
 
 ## Filters
 
-Right now only grayscale but the pipeline supports chaining filters. You can drag and drop to reorder them. Might add blur or edge detection later if I feel like it.
+Currently supports grayscale with 5 algorithms (BT.601, BT.709, Average, Lightness, Luminosity). The UI discovers available filters and their parameters dynamically from the C++ library capabilities. You can drag and drop to reorder filters. Might add blur or edge detection later if I feel like it.
 
 ## Known issues
 
@@ -159,7 +162,7 @@ Evolving this into a full CUDA learning platform. See `/docs/backlog/` for detai
 
 ## Notes
 
-Started as a weekend project to learn CUDA. Now it's a full learning platform covering GPU programming, video processing, neural networks, and production infrastructure. Code quality varies. CGO was harder than CUDA.
+Started as a weekend project to learn CUDA. Now it's a full learning platform covering GPU programming, video processing, neural networks, and production infrastructure. Code quality varies. The plugin architecture makes it easy to add new accelerators (OpenCL coming soon).
 
 ### Generate docker 
 docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate

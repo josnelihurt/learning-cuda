@@ -3,6 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { InputSource } from '../gen/config_service_pb';
 import { WebSocketService } from '../services/websocket-service';
 import { telemetryService } from '../services/telemetry-service';
+import { processorCapabilitiesService } from '../services/processor-capabilities-service';
 import type { StatsPanel } from './stats-panel';
 import type { CameraPreview } from './camera-preview';
 import type { ToastContainer } from './toast-container';

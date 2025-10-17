@@ -10,6 +10,7 @@ import './components/add-source-fab';
 import { streamConfigService } from './services/config-service';
 import { telemetryService } from './services/telemetry-service';
 import { inputSourceService } from './services/input-source-service';
+import { processorCapabilitiesService } from './services/processor-capabilities-service';
 import type { VideoGrid } from './components/video-grid';
 import type { SourceDrawer } from './components/source-drawer';
 
@@ -31,6 +32,7 @@ const app = {
         await telemetryService.initialize();
         await streamConfigService.initialize();
         await inputSourceService.initialize();
+        await processorCapabilitiesService.initialize();
         
         await customElements.whenDefined('camera-preview');
         await customElements.whenDefined('toast-container');
@@ -47,6 +49,10 @@ const app = {
         this.filterManager = document.querySelector('filter-panel');
         this.videoGrid = document.querySelector('video-grid');
         this.sourceDrawer = document.querySelector('source-drawer');
+        
+        if (this.filterManager && processorCapabilitiesService.isInitialized()) {
+            this.filterManager.filters = processorCapabilitiesService.getFilters();
+        }
         
         if (this.videoGrid) {
             this.videoGrid.setManagers(this.statsManager, this.toastManager);

@@ -1,12 +1,11 @@
 import { LitElement, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
 import { filterPanelStyles } from './filter-panel.styles';
-import { Filter, GRAYSCALE_ALGORITHMS, DEFAULT_FILTERS } from './filter-panel.types';
+import { Filter, formatParameterLabel } from './filter-panel.types';
 
 @customElement('filter-panel')
 export class FilterPanel extends LitElement {
-    @state() private filters: Filter[] = DEFAULT_FILTERS;
-    @state() private grayscaleAlgo = 'bt601';
+    @property({ type: Array }) filters: Filter[] = [];
     
     private draggedIndex: number | null = null;
 
@@ -27,12 +26,10 @@ export class FilterPanel extends LitElement {
     }
 
     private renderFilterCard(filter: Filter, index: number) {
-        const disabled = filter.disabled;
-        
         return html`
             <div 
-                class="filter-card ${disabled ? 'disabled' : ''}"
-                draggable="${!disabled}"
+                class="filter-card"
+                draggable="true"
                 @dragstart=${(e: DragEvent) => this.handleDragStart(e, index)}
                 @dragend=${() => this.handleDragEnd()}
                 @dragover=${(e: DragEvent) => this.handleDragOver(e)}
@@ -40,47 +37,50 @@ export class FilterPanel extends LitElement {
                 @dragenter=${(e: Event) => this.handleDragEnter(e)}
                 @dragleave=${(e: Event) => this.handleDragLeave(e)}
             >
-                <div class="filter-header" @click=${() => !disabled && this.toggleCard(index)}>
-                    <span class="drag-handle ${disabled ? 'disabled' : ''}">⋮⋮</span>
+                <div class="filter-header" @click=${() => this.toggleCard(index)}>
+                    <span class="drag-handle">⋮⋮</span>
                     <input 
                         type="checkbox" 
                         .checked=${filter.enabled}
-                        ?disabled=${disabled}
                         @change=${(e: Event) => this.handleCheckboxChange(index, e)}
                         @click=${(e: Event) => e.stopPropagation()}
                     />
                     <label @click=${(e: Event) => e.stopPropagation()}>
                         ${filter.name}
-                        ${disabled ? html`<span class="badge">Soon</span>` : ''}
                     </label>
                     <span class="chevron ${filter.expanded ? 'expanded' : ''}">▶</span>
                 </div>
                 
-                ${filter.id === 'grayscale' && !disabled ? html`
+                ${filter.parameters.length > 0 ? html`
                     <div class="filter-body ${filter.expanded ? 'expanded' : ''}">
-                        <label class="radio-label">Algorithm</label>
-                        <div class="radio-group">
-                            ${this.renderGrayscaleOptions()}
-                        </div>
+                        ${filter.parameters.map(param => this.renderParameter(filter, param))}
                     </div>
                 ` : ''}
             </div>
         `;
     }
 
-    private renderGrayscaleOptions() {
-        return GRAYSCALE_ALGORITHMS.map(opt => html`
-            <label class="radio-option">
-                <input 
-                    type="radio" 
-                    name="grayscale-algo" 
-                    value="${opt.value}"
-                    .checked=${this.grayscaleAlgo === opt.value}
-                    @change=${() => this.handleAlgoChange(opt.value)}
-                />
-                <span>${opt.label}</span>
-            </label>
-        `);
+    private renderParameter(filter: Filter, param: any) {
+        if (param.type === 'select') {
+            return html`
+                <label class="radio-label">${param.name}</label>
+                <div class="radio-group">
+                    ${param.options.map((option: string) => html`
+                        <label class="radio-option">
+                            <input 
+                                type="radio" 
+                                name="${filter.id}-${param.id}" 
+                                value="${option}"
+                                .checked=${filter.parameterValues[param.id] === option}
+                                @change=${() => this.handleParameterChange(filter.id, param.id, option)}
+                            />
+                            <span>${formatParameterLabel(param, option)}</span>
+                        </label>
+                    `)}
+                </div>
+            `;
+        }
+        return html``;
     }
 
     private toggleCard(index: number) {
@@ -100,8 +100,19 @@ export class FilterPanel extends LitElement {
         this.dispatchFilterChange();
     }
 
-    private handleAlgoChange(value: string) {
-        this.grayscaleAlgo = value;
+    private handleParameterChange(filterId: string, paramId: string, value: string) {
+        this.filters = this.filters.map(f => {
+            if (f.id === filterId) {
+                return {
+                    ...f,
+                    parameterValues: {
+                        ...f.parameterValues,
+                        [paramId]: value
+                    }
+                };
+            }
+            return f;
+        });
         this.dispatchFilterChange();
     }
 
@@ -130,9 +141,7 @@ export class FilterPanel extends LitElement {
 
     private handleDragEnter(e: Event) {
         const target = e.currentTarget as HTMLElement;
-        if (!target.classList.contains('disabled')) {
-            target.classList.add('drag-over');
-        }
+        target.classList.add('drag-over');
     }
 
     private handleDragLeave(e: Event) {
@@ -156,34 +165,47 @@ export class FilterPanel extends LitElement {
     }
 
     private dispatchFilterChange() {
+        const grayscaleFilter = this.filters.find(f => f.id === 'grayscale');
+        const grayscaleType = grayscaleFilter?.parameterValues['algorithm'] || 'bt601';
+        
         this.dispatchEvent(new CustomEvent('filter-change', {
             bubbles: true,
             composed: true,
             detail: {
                 filters: this.getSelectedFilters(),
-                grayscaleType: this.grayscaleAlgo
+                grayscaleType: grayscaleType
             }
         }));
     }
 
     getSelectedFilters(): string[] {
         const selected = this.filters
-            .filter(f => f.enabled && !f.disabled)
+            .filter(f => f.enabled)
             .map(f => f.id);
         return selected.length > 0 ? selected : ['none'];
     }
 
     getGrayscaleType(): string {
-        return this.grayscaleAlgo;
+        const grayscaleFilter = this.filters.find(f => f.id === 'grayscale');
+        return grayscaleFilter?.parameterValues['algorithm'] || 'bt601';
     }
 
     setFilters(filters: string[], grayscaleType: string) {
-        this.filters = this.filters.map(f => ({
-            ...f,
-            enabled: filters.includes(f.id),
-            expanded: filters.includes(f.id)
-        }));
-        this.grayscaleAlgo = grayscaleType;
+        this.filters = this.filters.map(f => {
+            const enabled = filters.includes(f.id);
+            const parameterValues = { ...f.parameterValues };
+            
+            if (f.id === 'grayscale' && grayscaleType) {
+                parameterValues['algorithm'] = grayscaleType;
+            }
+            
+            return {
+                ...f,
+                enabled,
+                expanded: enabled,
+                parameterValues
+            };
+        });
         this.requestUpdate();
     }
 

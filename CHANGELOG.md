@@ -4,6 +4,18 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Frontend Dynamic Filter Rendering (Oct 17, 2025)
+- [x] Create ProcessorCapabilitiesService to fetch filter definitions from GetProcessorStatus
+- [x] Refactor Filter interface to support dynamic FilterParameter arrays
+- [x] Add createFilterFromDefinition() helper for proto-to-UI conversion
+- [x] Update FilterPanel component to render parameters dynamically based on type
+- [x] Replace hardcoded GRAYSCALE_ALGORITHMS with dynamic parameter options
+- [x] Remove disabled filter logic (all filters from library are supported)
+- [x] Initialize processor capabilities service in main.ts on app startup
+- [x] Frontend adapts automatically when new filters are added to C++ library
+- [x] All 31 BDD scenarios passing including new capabilities tests
+- [x] Frontend builds with no linter errors
+
 ### API 2.0.0 & Dynamic Filter Metadata (Oct 17, 2025)
 - [x] Upgrade processor API to version 2.0.0 (breaking change)
 - [x] Add FilterDefinition proto with filter metadata (id, name, parameters)
@@ -13,7 +25,10 @@ Completed features extracted from git commit history, organized by category.
 - [x] Add ACCELERATOR_TYPE_OPENCL for future OpenCL support
 - [x] Implement processor_capabilities.feature with 4 BDD scenarios
 - [x] Update BDD tests to validate filter definitions and parameters
-- [x] Enable dynamic UI generation from filter metadata (future-ready)
+- [x] Update all backend code to use ACCELERATOR_TYPE_CUDA
+- [x] Fix processor_api_version() to use PROCESSOR_API_VERNUM define
+- [x] Update config.yaml default_library from 1.0.0 to 2.0.0
+- [x] Update start-dev.sh to generate API 2.0.0 metadata
 
 ### Plugin Architecture & Observability Stack (Oct 17, 2025)
 - [x] Migrate from CGO direct binding to dlopen-based plugin system
@@ -44,7 +59,7 @@ Completed features extracted from git commit history, organized by category.
 - [x] Enhance UI with source indicators
 
 ### Integration Testing & BDD (Oct 15, 2025)
-- [x] Implement godog/gherkin BDD framework with 29 passing scenarios
+- [x] Implement godog/gherkin BDD framework with 31 passing scenarios
 - [x] Add image_processing.feature with 14 scenarios (all filter/accelerator/grayscale combinations)
 - [x] Add websocket_processing.feature with 4 scenarios
 - [x] Add streaming_service.feature with 1 scenario

@@ -8,6 +8,7 @@ cd "$PROJECT_ROOT"
 
 export USER_ID=$(id -u)
 export GROUP_ID=$(id -g)
+export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
 
 echo "Starting E2E tests..."
 echo "User: $USER_ID:$GROUP_ID"

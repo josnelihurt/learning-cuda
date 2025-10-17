@@ -1,8 +1,6 @@
 package config
 
 type StreamConfig struct {
-	TransportFormat   string
-	WebsocketEndpoint string
+	TransportFormat   string `mapstructure:"transport_format"`
+	WebsocketEndpoint string `mapstructure:"websocket_endpoint"`
 }
-
-

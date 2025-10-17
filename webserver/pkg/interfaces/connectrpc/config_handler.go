@@ -240,8 +240,8 @@ func (h *ConfigHandler) GetAvailableTools(
 
 	categories := []*pb.ToolCategory{}
 
-	if len(h.configManager.ToolsConfig.Observability) > 0 {
-		tools := h.buildTools(h.configManager.ToolsConfig.Observability, h.configManager.Environment)
+	if len(h.configManager.Tools.Observability) > 0 {
+		tools := h.buildTools(h.configManager.Tools.Observability, h.configManager.Environment)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "observability",
 			Name:  "Observability",
@@ -249,8 +249,8 @@ func (h *ConfigHandler) GetAvailableTools(
 		})
 	}
 
-	if len(h.configManager.ToolsConfig.Features) > 0 {
-		tools := h.buildTools(h.configManager.ToolsConfig.Features, h.configManager.Environment)
+	if len(h.configManager.Tools.Features) > 0 {
+		tools := h.buildTools(h.configManager.Tools.Features, h.configManager.Environment)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "features",
 			Name:  "Features",
@@ -258,8 +258,8 @@ func (h *ConfigHandler) GetAvailableTools(
 		})
 	}
 
-	if len(h.configManager.ToolsConfig.Testing) > 0 {
-		tools := h.buildTools(h.configManager.ToolsConfig.Testing, h.configManager.Environment)
+	if len(h.configManager.Tools.Testing) > 0 {
+		tools := h.buildTools(h.configManager.Tools.Testing, h.configManager.Environment)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "testing",
 			Name:  "Testing",

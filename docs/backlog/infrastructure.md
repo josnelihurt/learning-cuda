@@ -174,6 +174,9 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Extract processor loading logic into separate loader package
 - [x] Implement version compatibility validation
 - [x] Add proper error handling for plugin lifecycle
+- [x] Refactor Viper configuration to use mapstructure tags
+- [x] Add environment variable for mock mode in testing
+- [x] Simplify config initialization with automatic unmarshaling
 - [ ] Add godoc documentation for all exported types/functions
 - [ ] Extract magic numbers to constants (timeouts, intervals, buffer sizes)
 - [ ] Refactor long functions (websocket.processFrame)

@@ -41,10 +41,10 @@ func New(ctx context.Context) (*Container, error) {
 	cfg := config.New()
 
 	log := logger.New(logger.Config{
-		Level:         cfg.LoggerConfig.Level,
-		Format:        cfg.LoggerConfig.Format,
-		Output:        cfg.LoggerConfig.Output,
-		IncludeCaller: cfg.LoggerConfig.IncludeCaller,
+		Level:         cfg.Logging.Level,
+		Format:        cfg.Logging.Format,
+		Output:        cfg.Logging.Output,
+		IncludeCaller: cfg.Logging.IncludeCaller,
 	})
 
 	httpClient := httpinfra.NewInstrumentedClient(httpinfra.ClientConfig{
@@ -58,40 +58,40 @@ func New(ctx context.Context) (*Container, error) {
 
 	fliptClient, err := flipt.NewClient(
 		ctx,
-		flipt.WithURL(cfg.FliptConfig.URL),
-		flipt.WithNamespace(cfg.FliptConfig.Namespace),
+		flipt.WithURL(cfg.Flipt.URL),
+		flipt.WithNamespace(cfg.Flipt.Namespace),
 	)
 	if err != nil {
 		log.Warn().
 			Err(err).
-			Str("flipt_url", cfg.FliptConfig.URL).
+			Str("flipt_url", cfg.Flipt.URL).
 			Msg("Failed to initialize Flipt client. Feature flags will be disabled")
 		fliptClientProxy = nil
 		featureFlagRepo = nil
 	} else {
 		fliptClientProxy = featureflags.NewFliptClient(fliptClient)
 		fliptWriter := featureflags.NewFliptWriter(
-			cfg.FliptConfig.URL,
-			cfg.FliptConfig.Namespace,
+			cfg.Flipt.URL,
+			cfg.Flipt.Namespace,
 			httpClient,
 		)
 		featureFlagRepo = featureflags.NewFliptRepository(fliptClientProxy, fliptWriter)
 	}
 
-	registry := loader.NewRegistry(cfg.ProcessorConfig.LibraryBasePath)
+	registry := loader.NewRegistry(cfg.Processor.LibraryBasePath)
 	if err := registry.Discover(); err != nil {
 		log.Warn().
 			Err(err).
-			Str("library_path", cfg.ProcessorConfig.LibraryBasePath).
+			Str("library_path", cfg.Processor.LibraryBasePath).
 			Msg("Failed to discover processor libraries")
 	}
 
-	libInfo, err := registry.GetByVersion(cfg.ProcessorConfig.DefaultLibrary)
+	libInfo, err := registry.GetByVersion(cfg.Processor.DefaultLibrary)
 	if err != nil {
 		return nil, err
 	}
 
-	processorLoader, err := registry.LoadLibrary(cfg.ProcessorConfig.DefaultLibrary)
+	processorLoader, err := registry.LoadLibrary(cfg.Processor.DefaultLibrary)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func New(ctx context.Context) (*Container, error) {
 
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
-	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.StreamConfig)
+	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 	listInputsUseCase := application.NewListInputsUseCase()
 
 	return &Container{

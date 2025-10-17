@@ -1,11 +1,11 @@
 package config
 
 type ServerConfig struct {
-	HTTPPort         string
-	HTTPSPort        string
-	HotReloadEnabled bool
-	WebRootPath      string
-	DevServerURL     string
-	DevServerPaths   []string
-	TLSConfig        TLSConfig
+	HTTPPort         string    `mapstructure:"http_port"`
+	HTTPSPort        string    `mapstructure:"https_port"`
+	HotReloadEnabled bool      `mapstructure:"hot_reload_enabled"`
+	WebRootPath      string    `mapstructure:"web_root_path"`
+	DevServerURL     string    `mapstructure:"dev_server_url"`
+	DevServerPaths   []string  `mapstructure:"dev_server_paths"`
+	TLS              TLSConfig `mapstructure:"tls"`
 }

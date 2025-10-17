@@ -117,7 +117,7 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 	}
 	a.interceptors = append(a.interceptors, telemetry.TraceContextInterceptor())
 	traceProxy := httphandlers.NewTraceProxyHandler(
-		a.config.OtelCollectorEndpoint,
+		a.config.Observability.OtelCollectorEndpoint,
 		true,
 	)
 	mux.Handle("/api/traces", traceProxy)
@@ -148,7 +148,7 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 }
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
-	staticHandler := static_http.NewStaticHandler(a.config.ServerConfig, a.config.StreamConfig, a.useCase)
+	staticHandler := static_http.NewStaticHandler(a.config.Server, a.config.Stream, a.useCase)
 	staticHandler.RegisterRoutes(mux)
 }
 
@@ -166,25 +166,25 @@ func (a *App) Run() error {
 
 	go func() {
 		log.Info().
-			Str("port", a.config.ServerConfig.HTTPPort).
-			Bool("hot_reload", a.config.ServerConfig.HotReloadEnabled).
-			Str("transport", a.config.StreamConfig.TransportFormat).
+			Str("port", a.config.Server.HTTPPort).
+			Bool("hot_reload", a.config.Server.HotReloadEnabled).
+			Str("transport", a.config.Stream.TransportFormat).
 			Msg("Starting HTTP server")
-		if err := http.ListenAndServe(a.config.ServerConfig.HTTPPort, handler); err != nil {
+		if err := http.ListenAndServe(a.config.Server.HTTPPort, handler); err != nil {
 			errChan <- err
 		}
 	}()
 
-	if a.config.ServerConfig.TLSConfig.Enabled {
+	if a.config.Server.TLS.Enabled {
 		go func() {
 			log.Info().
-				Str("port", a.config.ServerConfig.HTTPSPort).
-				Str("cert", a.config.ServerConfig.TLSConfig.CertFile).
+				Str("port", a.config.Server.HTTPSPort).
+				Str("cert", a.config.Server.TLS.CertFile).
 				Msg("Starting HTTPS server")
 			if err := http.ListenAndServeTLS(
-				a.config.ServerConfig.HTTPSPort,
-				a.config.ServerConfig.TLSConfig.CertFile,
-				a.config.ServerConfig.TLSConfig.KeyFile,
+				a.config.Server.HTTPSPort,
+				a.config.Server.TLS.CertFile,
+				a.config.Server.TLS.KeyFile,
 				handler,
 			); err != nil {
 				errChan <- err

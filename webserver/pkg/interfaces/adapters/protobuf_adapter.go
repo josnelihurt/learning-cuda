@@ -26,7 +26,7 @@ func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterTy
 
 func (a *ProtobufAdapter) ToAccelerator(pbAccel pb.AcceleratorType) domain.AcceleratorType {
 	switch pbAccel {
-	case pb.AcceleratorType_ACCELERATOR_TYPE_GPU:
+	case pb.AcceleratorType_ACCELERATOR_TYPE_CUDA:
 		return domain.AcceleratorGPU
 	case pb.AcceleratorType_ACCELERATOR_TYPE_CPU:
 		return domain.AcceleratorCPU
@@ -71,4 +71,3 @@ func (a *ProtobufAdapter) ToProtobufResponse(img *domain.Image) *pb.ProcessImage
 		Channels:  int32(len(img.Data) / (img.Width * img.Height)),
 	}
 }
-

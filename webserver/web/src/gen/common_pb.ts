@@ -48,20 +48,26 @@ export enum AcceleratorType {
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: ACCELERATOR_TYPE_GPU = 1;
+   * @generated from enum value: ACCELERATOR_TYPE_CUDA = 1;
    */
-  GPU = 1,
+  CUDA = 1,
 
   /**
    * @generated from enum value: ACCELERATOR_TYPE_CPU = 2;
    */
   CPU = 2,
+
+  /**
+   * @generated from enum value: ACCELERATOR_TYPE_OPENCL = 3;
+   */
+  OPENCL = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(AcceleratorType)
 proto3.util.setEnumType(AcceleratorType, "cuda_learning.AcceleratorType", [
   { no: 0, name: "ACCELERATOR_TYPE_UNSPECIFIED" },
-  { no: 1, name: "ACCELERATOR_TYPE_GPU" },
+  { no: 1, name: "ACCELERATOR_TYPE_CUDA" },
   { no: 2, name: "ACCELERATOR_TYPE_CPU" },
+  { no: 3, name: "ACCELERATOR_TYPE_OPENCL" },
 ]);
 
 /**
@@ -166,6 +172,126 @@ export class TraceContext extends Message<TraceContext> {
 }
 
 /**
+ * Filter parameter definition
+ *
+ * @generated from message cuda_learning.FilterParameter
+ */
+export class FilterParameter extends Message<FilterParameter> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * @generated from field: string type = 5;
+   */
+  type = "";
+
+  /**
+   * @generated from field: repeated string options = 7;
+   */
+  options: string[] = [];
+
+  /**
+   * @generated from field: string default_value = 9 [json_name = "default_value"];
+   */
+  defaultValue = "";
+
+  constructor(data?: PartialMessage<FilterParameter>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.FilterParameter";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "options", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 9, name: "default_value", jsonName: "default_value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FilterParameter {
+    return new FilterParameter().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FilterParameter {
+    return new FilterParameter().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FilterParameter {
+    return new FilterParameter().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FilterParameter | PlainMessage<FilterParameter> | undefined, b: FilterParameter | PlainMessage<FilterParameter> | undefined): boolean {
+    return proto3.util.equals(FilterParameter, a, b);
+  }
+}
+
+/**
+ * Filter definition with supported accelerators
+ *
+ * @generated from message cuda_learning.FilterDefinition
+ */
+export class FilterDefinition extends Message<FilterDefinition> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * @generated from field: repeated cuda_learning.FilterParameter parameters = 5;
+   */
+  parameters: FilterParameter[] = [];
+
+  /**
+   * @generated from field: repeated cuda_learning.AcceleratorType supported_accelerators = 7 [json_name = "supported_accelerators"];
+   */
+  supportedAccelerators: AcceleratorType[] = [];
+
+  constructor(data?: PartialMessage<FilterDefinition>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.FilterDefinition";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "parameters", kind: "message", T: FilterParameter, repeated: true },
+    { no: 7, name: "supported_accelerators", jsonName: "supported_accelerators", kind: "enum", T: proto3.getEnumType(AcceleratorType), repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FilterDefinition {
+    return new FilterDefinition().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FilterDefinition {
+    return new FilterDefinition().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FilterDefinition {
+    return new FilterDefinition().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FilterDefinition | PlainMessage<FilterDefinition> | undefined, b: FilterDefinition | PlainMessage<FilterDefinition> | undefined): boolean {
+    return proto3.util.equals(FilterDefinition, a, b);
+  }
+}
+
+/**
  * Library capabilities (shared metadata)
  *
  * @generated from message cuda_learning.LibraryCapabilities
@@ -182,19 +308,9 @@ export class LibraryCapabilities extends Message<LibraryCapabilities> {
   libraryVersion = "";
 
   /**
-   * @generated from field: repeated string supported_filters = 5 [json_name = "supported_filters"];
+   * @generated from field: repeated cuda_learning.FilterDefinition filters = 5;
    */
-  supportedFilters: string[] = [];
-
-  /**
-   * @generated from field: repeated string supported_accelerators = 7 [json_name = "supported_accelerators"];
-   */
-  supportedAccelerators: string[] = [];
-
-  /**
-   * @generated from field: repeated string supported_algorithms = 9 [json_name = "supported_algorithms"];
-   */
-  supportedAlgorithms: string[] = [];
+  filters: FilterDefinition[] = [];
 
   /**
    * @generated from field: bool supports_streaming = 11 [json_name = "supports_streaming"];
@@ -221,9 +337,7 @@ export class LibraryCapabilities extends Message<LibraryCapabilities> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "library_version", jsonName: "library_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "supported_filters", jsonName: "supported_filters", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 7, name: "supported_accelerators", jsonName: "supported_accelerators", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 9, name: "supported_algorithms", jsonName: "supported_algorithms", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "filters", kind: "message", T: FilterDefinition, repeated: true },
     { no: 11, name: "supports_streaming", jsonName: "supports_streaming", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 13, name: "build_date", jsonName: "build_date", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "build_commit", jsonName: "build_commit", kind: "scalar", T: 9 /* ScalarType.STRING */ },

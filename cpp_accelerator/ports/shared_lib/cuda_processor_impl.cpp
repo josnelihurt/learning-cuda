@@ -69,9 +69,9 @@ extern "C" {
 
 processor_version_t processor_api_version(void) {
     processor_version_t version;
-    version.major = 1;
-    version.minor = 0;
-    version.patch = 0;
+    version.major = (PROCESSOR_API_VERNUM >> 16) & 0xFF;
+    version.minor = (PROCESSOR_API_VERNUM >> 8) & 0xFF;
+    version.patch = PROCESSOR_API_VERNUM & 0xFF;
     return version;
 }
 
@@ -160,7 +160,7 @@ bool processor_process_image(const uint8_t* request, int request_len, uint8_t** 
     // Get accelerator type (default to GPU if not specified)
     cuda_learning::AcceleratorType accelerator = proc_req.accelerator();
     if (accelerator == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
-        accelerator = cuda_learning::ACCELERATOR_TYPE_GPU;
+        accelerator = cuda_learning::ACCELERATOR_TYPE_CUDA;
     }
 
     // Get grayscale algorithm type (default to BT601 if not specified)
@@ -197,7 +197,7 @@ bool processor_process_image(const uint8_t* request, int request_len, uint8_t** 
             }
 
             if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
-                if (accelerator == cuda_learning::ACCELERATOR_TYPE_GPU) {
+                if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
                     scoped_span.AddEvent("Starting CUDA grayscale processing");
                     g_cuda_grayscale_processor->set_algorithm(
                         proto_to_cuda_algorithm(grayscale_type));
@@ -261,16 +261,8 @@ bool processor_get_capabilities(const uint8_t* request, int request_len, uint8_t
     resp.set_message("OK");
 
     auto* caps = resp.mutable_capabilities();
-    caps->set_api_version("1.0.0");
-    caps->set_library_version("1.0.0");
-    caps->add_supported_filters("grayscale");
-    caps->add_supported_accelerators("gpu");
-    caps->add_supported_accelerators("cpu");
-    caps->add_supported_algorithms("bt601");
-    caps->add_supported_algorithms("bt709");
-    caps->add_supported_algorithms("average");
-    caps->add_supported_algorithms("lightness");
-    caps->add_supported_algorithms("luminosity");
+    caps->set_api_version("2.0.0");
+    caps->set_library_version("2.0.0");
     caps->set_supports_streaming(false);
     caps->set_build_date(__DATE__);
 #ifdef BUILD_COMMIT
@@ -278,6 +270,23 @@ bool processor_get_capabilities(const uint8_t* request, int request_len, uint8_t
 #else
     caps->set_build_commit("unknown");
 #endif
+
+    auto* grayscale_filter = caps->add_filters();
+    grayscale_filter->set_id("grayscale");
+    grayscale_filter->set_name("Grayscale");
+    grayscale_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CUDA);
+    grayscale_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CPU);
+
+    auto* algorithm_param = grayscale_filter->add_parameters();
+    algorithm_param->set_id("algorithm");
+    algorithm_param->set_name("Algorithm");
+    algorithm_param->set_type("select");
+    algorithm_param->add_options("bt601");
+    algorithm_param->add_options("bt709");
+    algorithm_param->add_options("average");
+    algorithm_param->add_options("lightness");
+    algorithm_param->add_options("luminosity");
+    algorithm_param->set_default_value("bt601");
 
     *response = allocate_response(resp.SerializeAsString(), response_len);
     return true;

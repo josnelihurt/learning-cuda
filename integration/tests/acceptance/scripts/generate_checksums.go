@@ -53,7 +53,7 @@ func main() {
 
 	images := []string{"lena.png"}
 	filters := []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE, pb.FilterType_FILTER_TYPE_GRAYSCALE}
-	accelerators := []pb.AcceleratorType{pb.AcceleratorType_ACCELERATOR_TYPE_GPU, pb.AcceleratorType_ACCELERATOR_TYPE_CPU}
+	accelerators := []pb.AcceleratorType{pb.AcceleratorType_ACCELERATOR_TYPE_CUDA, pb.AcceleratorType_ACCELERATOR_TYPE_CPU}
 	grayscaleTypes := []pb.GrayscaleType{
 		pb.GrayscaleType_GRAYSCALE_TYPE_BT601,
 		pb.GrayscaleType_GRAYSCALE_TYPE_BT709,

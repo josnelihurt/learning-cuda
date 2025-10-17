@@ -4,6 +4,17 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### API 2.0.0 & Dynamic Filter Metadata (Oct 17, 2025)
+- [x] Upgrade processor API to version 2.0.0 (breaking change)
+- [x] Add FilterDefinition proto with filter metadata (id, name, parameters)
+- [x] Add FilterParameter proto for dynamic parameter discovery (type, options, default)
+- [x] Refactor LibraryCapabilities to include full filter definitions
+- [x] Rename ACCELERATOR_TYPE_GPU to ACCELERATOR_TYPE_CUDA for clarity
+- [x] Add ACCELERATOR_TYPE_OPENCL for future OpenCL support
+- [x] Implement processor_capabilities.feature with 4 BDD scenarios
+- [x] Update BDD tests to validate filter definitions and parameters
+- [x] Enable dynamic UI generation from filter metadata (future-ready)
+
 ### Plugin Architecture & Observability Stack (Oct 17, 2025)
 - [x] Migrate from CGO direct binding to dlopen-based plugin system
 - [x] Implement dynamic library loader with version compatibility checks

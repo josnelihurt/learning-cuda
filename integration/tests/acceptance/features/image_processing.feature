@@ -9,9 +9,9 @@ Feature: Image Processing via ConnectRPC
     And I have image "lena.png"
 
   Scenario: Process image with no filter using GPU
-    When I call ProcessImage with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_GPU", grayscale type ""
+    When I call ProcessImage with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type ""
     Then the processing should succeed
-    And the image checksum should match "lena.png" with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_GPU", grayscale ""
+    And the image checksum should match "lena.png" with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale ""
 
   Scenario: Process image with no filter using CPU
     When I call ProcessImage with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_CPU", grayscale type ""
@@ -19,29 +19,29 @@ Feature: Image Processing via ConnectRPC
     And the image checksum should match "lena.png" with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_CPU", grayscale ""
 
   Scenario: Process image with grayscale BT601 using GPU
-    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale type "GRAYSCALE_TYPE_BT601"
+    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type "GRAYSCALE_TYPE_BT601"
     Then the processing should succeed
-    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale "GRAYSCALE_TYPE_BT601"
+    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale "GRAYSCALE_TYPE_BT601"
 
   Scenario: Process image with grayscale BT709 using GPU
-    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale type "GRAYSCALE_TYPE_BT709"
+    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type "GRAYSCALE_TYPE_BT709"
     Then the processing should succeed
-    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale "GRAYSCALE_TYPE_BT709"
+    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale "GRAYSCALE_TYPE_BT709"
 
   Scenario: Process image with grayscale AVERAGE using GPU
-    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale type "GRAYSCALE_TYPE_AVERAGE"
+    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type "GRAYSCALE_TYPE_AVERAGE"
     Then the processing should succeed
-    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale "GRAYSCALE_TYPE_AVERAGE"
+    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale "GRAYSCALE_TYPE_AVERAGE"
 
   Scenario: Process image with grayscale LIGHTNESS using GPU
-    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale type "GRAYSCALE_TYPE_LIGHTNESS"
+    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type "GRAYSCALE_TYPE_LIGHTNESS"
     Then the processing should succeed
-    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale "GRAYSCALE_TYPE_LIGHTNESS"
+    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale "GRAYSCALE_TYPE_LIGHTNESS"
 
   Scenario: Process image with grayscale LUMINOSITY using GPU
-    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale type "GRAYSCALE_TYPE_LUMINOSITY"
+    When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type "GRAYSCALE_TYPE_LUMINOSITY"
     Then the processing should succeed
-    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_GPU", grayscale "GRAYSCALE_TYPE_LUMINOSITY"
+    And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale "GRAYSCALE_TYPE_LUMINOSITY"
 
   Scenario: Process image with grayscale BT601 using CPU
     When I call ProcessImage with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CPU", grayscale type "GRAYSCALE_TYPE_BT601"

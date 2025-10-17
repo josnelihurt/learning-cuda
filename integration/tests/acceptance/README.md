@@ -402,7 +402,7 @@ This will process test images with all combinations and save checksums to `testd
 - `FILTER_TYPE_GRAYSCALE` - Convert to grayscale
 
 **Accelerators:**
-- `ACCELERATOR_TYPE_GPU` - CUDA GPU processing
+- `ACCELERATOR_TYPE_CUDA` - CUDA GPU processing
 - `ACCELERATOR_TYPE_CPU` - CPU processing
 
 **Grayscale Algorithms:**

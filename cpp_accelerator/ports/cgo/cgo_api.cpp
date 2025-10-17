@@ -151,7 +151,7 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
     // Get accelerator type (default to GPU if not specified)
     cuda_learning::AcceleratorType accelerator = proc_req.accelerator();
     if (accelerator == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
-        accelerator = cuda_learning::ACCELERATOR_TYPE_GPU;
+        accelerator = cuda_learning::ACCELERATOR_TYPE_CUDA;
     }
 
     // Get grayscale algorithm type (default to BT601 if not specified)
@@ -188,7 +188,7 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
             }
 
             if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
-                if (accelerator == cuda_learning::ACCELERATOR_TYPE_GPU) {
+                if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
                     scoped_span.AddEvent("Starting CUDA grayscale processing");
                     g_cuda_grayscale_processor->set_algorithm(
                         proto_to_cuda_algorithm(grayscale_type));

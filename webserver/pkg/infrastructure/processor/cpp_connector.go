@@ -72,11 +72,11 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 	var protoAccelerator pb.AcceleratorType
 	switch accelerator {
 	case domain.AcceleratorGPU:
-		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_GPU
+		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
 	case domain.AcceleratorCPU:
 		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CPU
 	default:
-		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_GPU
+		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
 	}
 
 	var protoGrayscaleType pb.GrayscaleType

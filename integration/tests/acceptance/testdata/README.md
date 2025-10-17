@@ -50,7 +50,7 @@ This will:
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_NONE",
-      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "accelerator": "ACCELERATOR_TYPE_CUDA",
       "grayscale_type": "",
       "checksum": "abc123...",
       "width": 512,

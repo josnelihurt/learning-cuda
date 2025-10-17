@@ -21,8 +21,9 @@ enum FilterType {
 // Enum for accelerator types
 enum AcceleratorType {
   ACCELERATOR_TYPE_UNSPECIFIED = 0;
-  ACCELERATOR_TYPE_GPU = 1;
+  ACCELERATOR_TYPE_CUDA = 1;
   ACCELERATOR_TYPE_CPU = 2;
+  ACCELERATOR_TYPE_OPENCL = 3;
 }
 
 // Enum for grayscale conversion algorithms
@@ -35,13 +36,28 @@ enum GrayscaleType {
   GRAYSCALE_TYPE_LUMINOSITY = 5; // Luminosity: Y = 0.21R + 0.72G + 0.07B (similar to BT709)
 }
 
+// Filter parameter definition
+message FilterParameter {
+  string id = 1 [json_name = "id"];
+  string name = 3 [json_name = "name"];
+  string type = 5 [json_name = "type"];
+  repeated string options = 7 [json_name = "options"];
+  string default_value = 9 [json_name = "default_value"];
+}
+
+// Filter definition with supported accelerators
+message FilterDefinition {
+  string id = 1 [json_name = "id"];
+  string name = 3 [json_name = "name"];
+  repeated FilterParameter parameters = 5 [json_name = "parameters"];
+  repeated AcceleratorType supported_accelerators = 7 [json_name = "supported_accelerators"];
+}
+
 // Library capabilities (shared metadata)
 message LibraryCapabilities {
   string api_version = 1 [json_name = "api_version"];
   string library_version = 3 [json_name = "library_version"];
-  repeated string supported_filters = 5 [json_name = "supported_filters"];
-  repeated string supported_accelerators = 7 [json_name = "supported_accelerators"];
-  repeated string supported_algorithms = 9 [json_name = "supported_algorithms"];
+  repeated FilterDefinition filters = 5 [json_name = "filters"];
   bool supports_streaming = 11 [json_name = "supports_streaming"];
   string build_date = 13 [json_name = "build_date"];
   string build_commit = 15 [json_name = "build_commit"];

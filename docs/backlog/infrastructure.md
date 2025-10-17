@@ -21,6 +21,8 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Dynamic library loading with dlopen (plugin architecture)
 - [x] Processor versioning and API compatibility checks
 - [x] Processor registry with capability discovery
+- [x] API 2.0.0 with FilterDefinition and FilterParameter metadata
+- [x] Dynamic filter parameter discovery (type, options, defaults)
 - [x] Split Go build system (Makefile) from C++ (Bazel)
 - [ ] Service discovery (Consul optional)
 - [ ] Load balancing (round-robin, retry, circuit breaker)

@@ -10,7 +10,7 @@ Feature: WebSocket Image Processing
 
   Scenario: Process frame with JSON transport and no filter using GPU
     When I connect to WebSocket with transport format "json"
-    And I send WebSocket frame with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_GPU", grayscale type ""
+    And I send WebSocket frame with filter "FILTER_TYPE_NONE", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type ""
     Then the WebSocket response should be success
     And I close the WebSocket connection
 

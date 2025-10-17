@@ -63,13 +63,24 @@ bool MockGetCapabilities(const uint8_t* request, int request_len, uint8_t** resp
     resp.set_message("Mock capabilities");
 
     auto* caps = resp.mutable_capabilities();
-    caps->set_api_version("1.0.0");
+    caps->set_api_version("2.0.0");
     caps->set_library_version("mock");
-    caps->add_supported_filters("none");
-    caps->add_supported_accelerators("mock");
     caps->set_supports_streaming(false);
     caps->set_build_date(__DATE__);
     caps->set_build_commit("mock");
+
+    auto* grayscale_filter = caps->add_filters();
+    grayscale_filter->set_id("grayscale");
+    grayscale_filter->set_name("Grayscale");
+    grayscale_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CPU);
+
+    auto* algorithm_param = grayscale_filter->add_parameters();
+    algorithm_param->set_id("algorithm");
+    algorithm_param->set_name("Algorithm");
+    algorithm_param->set_type("select");
+    algorithm_param->add_options("bt601");
+    algorithm_param->add_options("bt709");
+    algorithm_param->set_default_value("bt601");
 
     *response = allocate_response(resp.SerializeAsString(), response_len);
     return true;
@@ -81,9 +92,9 @@ extern "C" {
 
 processor_version_t processor_api_version(void) {
     processor_version_t version;
-    version.major = 1;
-    version.minor = 0;
-    version.patch = 0;
+    version.major = (PROCESSOR_API_VERNUM >> 16) & 0xFF;
+    version.minor = (PROCESSOR_API_VERNUM >> 8) & 0xFF;
+    version.patch = PROCESSOR_API_VERNUM & 0xFF;
     return version;
 }
 

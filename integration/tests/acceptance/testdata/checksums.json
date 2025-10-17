@@ -4,7 +4,7 @@
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_NONE",
-      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "accelerator": "ACCELERATOR_TYPE_CUDA",
       "checksum": "f9d6e659deaf5380779b3b7602691fe668ac483b94ecbb35f544e9263b2fb656",
       "width": 512,
       "height": 512,
@@ -22,7 +22,7 @@
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_GRAYSCALE",
-      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "accelerator": "ACCELERATOR_TYPE_CUDA",
       "grayscale_type": "GRAYSCALE_TYPE_BT601",
       "checksum": "bae8a5e6b717586d88b6e2d18585ffd41be896e64e85bb0614695222596362f9",
       "width": 512,
@@ -32,7 +32,7 @@
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_GRAYSCALE",
-      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "accelerator": "ACCELERATOR_TYPE_CUDA",
       "grayscale_type": "GRAYSCALE_TYPE_BT709",
       "checksum": "fb104838b91a8cb91b334c2b642f0bc8dced2ee42d071b3689d62cee28e4ba2a",
       "width": 512,
@@ -42,7 +42,7 @@
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_GRAYSCALE",
-      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "accelerator": "ACCELERATOR_TYPE_CUDA",
       "grayscale_type": "GRAYSCALE_TYPE_AVERAGE",
       "checksum": "cd3cdb2dc3c53820943e8a4b763ac16d2f42ed8e41d5fdeb96b7641fd9dab29a",
       "width": 512,
@@ -52,7 +52,7 @@
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_GRAYSCALE",
-      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "accelerator": "ACCELERATOR_TYPE_CUDA",
       "grayscale_type": "GRAYSCALE_TYPE_LIGHTNESS",
       "checksum": "502acec9a0e5aec9edd5fdfb72a6acb11791d39ec3858fd6ed4dd8248988809e",
       "width": 512,
@@ -62,7 +62,7 @@
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_GRAYSCALE",
-      "accelerator": "ACCELERATOR_TYPE_GPU",
+      "accelerator": "ACCELERATOR_TYPE_CUDA",
       "grayscale_type": "GRAYSCALE_TYPE_LUMINOSITY",
       "checksum": "078c0e2c024e1fd352cb4752594509705e42d42bb6890e0a6eb756a645d821d4",
       "width": 512,

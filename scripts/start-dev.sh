@@ -91,7 +91,7 @@ echo "Stopping previous application services..."
 {
   "name": "CUDA Image Processor",
   "version": "${VERSION}",
-  "api_version": "1.0.0",
+  "api_version": "2.0.0",
   "type": "gpu",
   "build_date": "${DATE}",
   "build_commit": "${COMMIT}",
@@ -103,7 +103,7 @@ EOF
 {
   "name": "Mock Image Processor",
   "version": "mock",
-  "api_version": "1.0.0",
+  "api_version": "2.0.0",
   "type": "mock",
   "build_date": "${DATE}",
   "build_commit": "${COMMIT}",

@@ -26,26 +26,27 @@ import (
 )
 
 type BDDContext struct {
-	fliptAPI           *featureflags.FliptHTTPAPI
-	httpClient         *http.Client
-	serviceBaseURL     string
-	lastResponse       *http.Response
-	lastResponseBody   []byte
-	defaultFormat      string
-	defaultEndpoint    string
-	connectClient      genconnect.ImageProcessorServiceClient
-	currentImage       []byte
-	currentImagePNG    []byte
-	currentImageWidth  int32
-	currentImageHeight int32
-	currentChannels    int32
-	processedImage     []byte
-	wsConnection       *websocket.Conn
-	wsResponse         *pb.WebSocketFrameResponse
-	lastError          error
-	checksums          map[string]string
-	inputSources       []*pb.InputSource
-	configClient       genconnect.ConfigServiceClient
+	fliptAPI              *featureflags.FliptHTTPAPI
+	httpClient            *http.Client
+	serviceBaseURL        string
+	lastResponse          *http.Response
+	lastResponseBody      []byte
+	defaultFormat         string
+	defaultEndpoint       string
+	connectClient         genconnect.ImageProcessorServiceClient
+	currentImage          []byte
+	currentImagePNG       []byte
+	currentImageWidth     int32
+	currentImageHeight    int32
+	currentChannels       int32
+	processedImage        []byte
+	wsConnection          *websocket.Conn
+	wsResponse            *pb.WebSocketFrameResponse
+	lastError             error
+	checksums             map[string]string
+	inputSources          []*pb.InputSource
+	configClient          genconnect.ConfigServiceClient
+	processorCapabilities *pb.LibraryCapabilities
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -465,7 +466,7 @@ func (c *BDDContext) WhenICallProcessImageWithInvalidData(errorType string) erro
 			Height:      0,
 			Channels:    0,
 			Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_GPU,
+			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
 		}
 	case "zero_dimensions":
 		req = &pb.ProcessImageRequest{
@@ -474,7 +475,7 @@ func (c *BDDContext) WhenICallProcessImageWithInvalidData(errorType string) erro
 			Height:      0,
 			Channels:    c.currentChannels,
 			Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_GPU,
+			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
 		}
 	case "invalid_channels":
 		req = &pb.ProcessImageRequest{
@@ -483,7 +484,7 @@ func (c *BDDContext) WhenICallProcessImageWithInvalidData(errorType string) erro
 			Height:      c.currentImageHeight,
 			Channels:    0,
 			Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_GPU,
+			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
 		}
 	}
 
@@ -621,7 +622,7 @@ func (c *BDDContext) WhenISendInvalidWebSocketFrame(errorType string) error {
 				Height:      0,
 				Channels:    0,
 				Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-				Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_GPU,
+				Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
 			},
 		}
 	}
@@ -776,8 +777,8 @@ func parseFilterType(filter string) pb.FilterType {
 
 func parseAcceleratorType(accelerator string) pb.AcceleratorType {
 	switch accelerator {
-	case "ACCELERATOR_TYPE_GPU", "GPU":
-		return pb.AcceleratorType_ACCELERATOR_TYPE_GPU
+	case "ACCELERATOR_TYPE_CUDA", "CUDA", "GPU":
+		return pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
 	case "ACCELERATOR_TYPE_CPU", "CPU":
 		return pb.AcceleratorType_ACCELERATOR_TYPE_CPU
 	default:
@@ -851,4 +852,132 @@ func (c *BDDContext) ThenTheResponseShouldSucceed() error {
 	}
 
 	return nil
+}
+
+func (c *BDDContext) WhenICallGetProcessorStatus() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := c.configClient.GetProcessorStatus(ctx, connect.NewRequest(&pb.GetProcessorStatusRequest{}))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: 500}
+		return fmt.Errorf("failed to call GetProcessorStatus: %w", err)
+	}
+
+	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastError = nil
+	c.processorCapabilities = resp.Msg.Capabilities
+
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeCapabilities() error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheCapabilitiesShouldHaveAPIVersion(version string) error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	if c.processorCapabilities.ApiVersion != version {
+		return fmt.Errorf("expected API version %s, got %s", version, c.processorCapabilities.ApiVersion)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheCapabilitiesShouldHaveAtLeastNFilters(count int) error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	actualCount := len(c.processorCapabilities.Filters)
+	if actualCount < count {
+		return fmt.Errorf("expected at least %d filters, got %d", count, actualCount)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheFilterShouldBeDefined(filterId string) error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	for _, filter := range c.processorCapabilities.Filters {
+		if filter.Id == filterId {
+			return nil
+		}
+	}
+	return fmt.Errorf("filter '%s' not found in capabilities", filterId)
+}
+
+func (c *BDDContext) ThenTheFilterShouldHaveParameter(filterId, paramId string) error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	for _, filter := range c.processorCapabilities.Filters {
+		if filter.Id == filterId {
+			for _, param := range filter.Parameters {
+				if param.Id == paramId {
+					return nil
+				}
+			}
+			return fmt.Errorf("parameter '%s' not found in filter '%s'", paramId, filterId)
+		}
+	}
+	return fmt.Errorf("filter '%s' not found in capabilities", filterId)
+}
+
+func (c *BDDContext) ThenTheParameterShouldBeOfType(paramId, paramType string) error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	for _, filter := range c.processorCapabilities.Filters {
+		for _, param := range filter.Parameters {
+			if param.Id == paramId {
+				if param.Type != paramType {
+					return fmt.Errorf("expected parameter type '%s', got '%s'", paramType, param.Type)
+				}
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("parameter '%s' not found", paramId)
+}
+
+func (c *BDDContext) ThenTheParameterShouldHaveAtLeastNOptions(paramId string, count int) error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	for _, filter := range c.processorCapabilities.Filters {
+		for _, param := range filter.Parameters {
+			if param.Id == paramId {
+				actualCount := len(param.Options)
+				if actualCount < count {
+					return fmt.Errorf("expected at least %d options, got %d", count, actualCount)
+				}
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("parameter '%s' not found", paramId)
+}
+
+func (c *BDDContext) ThenTheFilterShouldSupportAccelerator(filterId, accelerator string) error {
+	if c.processorCapabilities == nil {
+		return fmt.Errorf("no capabilities in response")
+	}
+	for _, filter := range c.processorCapabilities.Filters {
+		if filter.Id == filterId {
+			expectedAccelType := parseAcceleratorType(accelerator)
+			for _, accel := range filter.SupportedAccelerators {
+				if accel == expectedAccelType {
+					return nil
+				}
+			}
+			return fmt.Errorf("accelerator '%s' not found in filter '%s' supported accelerators", accelerator, filterId)
+		}
+	}
+	return fmt.Errorf("filter '%s' not found in capabilities", filterId)
 }

@@ -47,9 +47,9 @@ logging:
 
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
-  default_library: "1.0.0"
+  default_library: "2.0.0"
   enable_hot_reload: false
   fallback_enabled: true
   fallback_chain:
-    - "1.0.0"
+    - "2.0.0"
     - "mock"

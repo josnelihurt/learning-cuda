@@ -1,5 +1,3 @@
-#include "cpp_accelerator/ports/cgo/cgo_api.h"
-
 #include <spdlog/spdlog.h>
 
 #include <cstring>
@@ -9,8 +7,9 @@
 #include "cpp_accelerator/core/telemetry.h"
 #include "cpp_accelerator/infrastructure/cpu/grayscale_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_processor.h"
-#include "cpp_accelerator/ports/cgo/image_buffer_adapter.h"
+#include "image_buffer_adapter.h"
 #include "image_processor_service.pb.h"
+#include "processor_api.h"
 
 namespace {
 
@@ -68,7 +67,16 @@ jrb::infrastructure::cpu::GrayscaleAlgorithm proto_to_cpu_algorithm(
 
 extern "C" {
 
-bool CudaInit(const uint8_t* request, int request_len, uint8_t** response, int* response_len) {
+processor_version_t processor_api_version(void) {
+    processor_version_t version;
+    version.major = 1;
+    version.minor = 0;
+    version.patch = 0;
+    return version;
+}
+
+bool processor_init(const uint8_t* request, int request_len, uint8_t** response,
+                    int* response_len) {
     cuda_learning::InitRequest init_req;
     cuda_learning::InitResponse init_resp;
 
@@ -110,7 +118,7 @@ bool CudaInit(const uint8_t* request, int request_len, uint8_t** response, int* 
     return true;
 }
 
-void CudaCleanup() {
+void processor_cleanup() {
     spdlog::info("Cleaning up CUDA context, CPU processors, and telemetry");
     g_cuda_grayscale_processor.reset();
     g_cpu_grayscale_processor.reset();
@@ -119,7 +127,8 @@ void CudaCleanup() {
     telemetry.Shutdown();
 }
 
-bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, int* response_len) {
+bool processor_process_image(const uint8_t* request, int request_len, uint8_t** response,
+                             int* response_len) {
     cuda_learning::ProcessImageRequest proc_req;
     cuda_learning::ProcessImageResponse proc_resp;
 
@@ -242,8 +251,8 @@ bool ProcessImage(const uint8_t* request, int request_len, uint8_t** response, i
     return true;
 }
 
-bool GetCapabilities(const uint8_t* request, int request_len, uint8_t** response,
-                     int* response_len) {
+bool processor_get_capabilities(const uint8_t* request, int request_len, uint8_t** response,
+                                int* response_len) {
     (void)request;
     (void)request_len;
 
@@ -274,7 +283,7 @@ bool GetCapabilities(const uint8_t* request, int request_len, uint8_t** response
     return true;
 }
 
-void FreeResponse(uint8_t* ptr) {
+void processor_free_response(uint8_t* ptr) {
     delete[] ptr;
 }
 

@@ -4,6 +4,24 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Plugin Architecture & Observability Stack (Oct 17, 2025)
+- [x] Migrate from CGO direct binding to dlopen-based plugin system
+- [x] Implement dynamic library loader with version compatibility checks
+- [x] Add processor plugin API with versioned C ABI (processor_api.h)
+- [x] Introduce processor registry for runtime plugin management
+- [x] Add InitRequest/InitResponse with capability discovery
+- [x] Implement mock_processor.cpp for GPU-less testing
+- [x] Split monolithic proto into common, config_service, image_processor_service
+- [x] Add library capabilities proto with filter/accelerator enumeration
+- [x] Integrate Grafana with Loki and Promtail for log aggregation
+- [x] Configure trace-to-logs correlation in Grafana dashboards
+- [x] Add structured logging with Promtail multi-line parsing
+- [x] Migrate Go webserver from Bazel to Makefile
+- [x] Add VERSION file (1.0.0) for C++ accelerator API tracking
+- [x] Add .prompts/ directory for AI-assisted testing workflows
+- [x] Create comprehensive manual testing suite for multi-source grid
+- [x] Simplify Docker documentation (remove redundant files)
+
 ### Multi-Source Video Processing (Oct 16, 2025)
 - [x] Implement ListInputs endpoint with BDD test coverage
 - [x] Create dynamic video grid component supporting up to 9 sources
@@ -132,13 +150,13 @@ Completed features extracted from git commit history, organized by category.
 - Interface-based design for processors
 
 ### Technology Stack
-- **Backend**: Go + CGO bridge to C++/CUDA
-- **Build**: Bazel with C++23 support
+- **Backend**: Go + dlopen plugin system for C++/CUDA
+- **Build**: Makefile (Go) + Bazel (C++/CUDA with C++23)
 - **Frontend**: Lit Web Components + TypeScript + Vite
-- **Testing**: GoogleTest/GMock for C++
+- **Testing**: GoogleTest/GMock (C++) + Godog BDD (Go)
 - **Containerization**: Docker with NVIDIA Container Toolkit
-- **Reverse Proxy**: Caddy (dev) + Traefik (production)
-- **Observability**: Jaeger + OpenTelemetry + distributed tracing
+- **Reverse Proxy**: Traefik with TLS termination
+- **Observability**: Jaeger + OpenTelemetry + Grafana + Loki + Promtail
 - **Feature Flags**: Flipt with automatic YAML synchronization
 
 ### Performance

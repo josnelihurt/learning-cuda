@@ -38,3 +38,18 @@ observability:
   service_version: "1.0.0"
   otel_collector_endpoint: "localhost:4317"
   trace_sampling_rate: 1.0
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+  include_caller: true
+
+processor:
+  library_base_path: ".ignore/lib/cuda_learning"
+  default_library: "1.0.0"
+  enable_hot_reload: false
+  fallback_enabled: true
+  fallback_chain:
+    - "1.0.0"
+    - "mock"

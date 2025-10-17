@@ -11,7 +11,6 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/container"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
 )
 
@@ -45,8 +44,7 @@ func main() {
 		}
 	}()
 
-	cppConnector := processor.New()
-	processImageUseCase := application.NewProcessImageUseCase(cppConnector)
+	processImageUseCase := application.NewProcessImageUseCase(di.CppConnector)
 
 	server := app.New(
 		ctx,
@@ -55,6 +53,9 @@ func main() {
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
 		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
 		app.WithListInputsUseCase(di.ListInputsUseCase),
+		app.WithProcessorRegistry(di.ProcessorRegistry),
+		app.WithProcessorLoader(&di.ProcessorLoader),
+		app.WithLoaderMutex(di.LoaderMutex),
 	)
 
 	errChan := make(chan error, 1)

@@ -69,13 +69,50 @@ echo "Stopping previous application services..."
 
 [ "$BUILD_FIRST" = true ] && {
     echo "Checking proto files..."
-    if [ ! -f "proto/gen/image_processing.pb.go" ]; then
+    if [ ! -f "proto/gen/image_processor_service.pb.go" ]; then
         echo "Generating proto files..."
         docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
     fi
     
-    echo "Building backend..."
-    bazel build //webserver/cmd/server:server //cpp_accelerator/ports/cgo:cgo_api
+    echo "Building C++ processor libraries..."
+    bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+    bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor_mock.so
+    
+    echo "Installing libraries..."
+    mkdir -p .ignore/lib/cuda_learning
+    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v$(cat cpp_accelerator/VERSION).so
+    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor_mock.so .ignore/lib/cuda_learning/
+    
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+    DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    VERSION=$(cat cpp_accelerator/VERSION)
+    
+    cat > .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so.json <<EOF
+{
+  "name": "CUDA Image Processor",
+  "version": "${VERSION}",
+  "api_version": "1.0.0",
+  "type": "gpu",
+  "build_date": "${DATE}",
+  "build_commit": "${COMMIT}",
+  "description": "CUDA-accelerated image processing with CPU fallback"
+}
+EOF
+
+    cat > .ignore/lib/cuda_learning/libcuda_processor_mock.so.json <<EOF
+{
+  "name": "Mock Image Processor",
+  "version": "mock",
+  "api_version": "1.0.0",
+  "type": "mock",
+  "build_date": "${DATE}",
+  "build_commit": "${COMMIT}",
+  "description": "Passthrough mock for fast development (no processing)"
+}
+EOF
+    
+    echo "Building backend with Go..."
+    cd webserver && make build && cd ..
 }
 
 cd webserver/web
@@ -104,7 +141,12 @@ sleep 2
 }
 
 echo "Starting Go server..."
-bazel-bin/webserver/cmd/server/server_/server &
+[ ! -f "bin/server" ] && {
+    echo "Server binary not found, building..."
+    cd webserver && make build && cd ..
+}
+
+./bin/server -webroot=webserver/web &
 GO_PID=$!
 
 sleep 2

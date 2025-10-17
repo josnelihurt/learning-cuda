@@ -49,3 +49,5 @@ data/
 
 #TODO: do I still need this?
 webserver/web/static/js/version.js
+bin/server
+bin/webserver

@@ -165,3 +165,84 @@ export class TraceContext extends Message<TraceContext> {
   }
 }
 
+/**
+ * Library capabilities (shared metadata)
+ *
+ * @generated from message cuda_learning.LibraryCapabilities
+ */
+export class LibraryCapabilities extends Message<LibraryCapabilities> {
+  /**
+   * @generated from field: string api_version = 1 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  /**
+   * @generated from field: string library_version = 3 [json_name = "library_version"];
+   */
+  libraryVersion = "";
+
+  /**
+   * @generated from field: repeated string supported_filters = 5 [json_name = "supported_filters"];
+   */
+  supportedFilters: string[] = [];
+
+  /**
+   * @generated from field: repeated string supported_accelerators = 7 [json_name = "supported_accelerators"];
+   */
+  supportedAccelerators: string[] = [];
+
+  /**
+   * @generated from field: repeated string supported_algorithms = 9 [json_name = "supported_algorithms"];
+   */
+  supportedAlgorithms: string[] = [];
+
+  /**
+   * @generated from field: bool supports_streaming = 11 [json_name = "supports_streaming"];
+   */
+  supportsStreaming = false;
+
+  /**
+   * @generated from field: string build_date = 13 [json_name = "build_date"];
+   */
+  buildDate = "";
+
+  /**
+   * @generated from field: string build_commit = 15 [json_name = "build_commit"];
+   */
+  buildCommit = "";
+
+  constructor(data?: PartialMessage<LibraryCapabilities>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.LibraryCapabilities";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "library_version", jsonName: "library_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "supported_filters", jsonName: "supported_filters", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 7, name: "supported_accelerators", jsonName: "supported_accelerators", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 9, name: "supported_algorithms", jsonName: "supported_algorithms", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 11, name: "supports_streaming", jsonName: "supports_streaming", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "build_date", jsonName: "build_date", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 15, name: "build_commit", jsonName: "build_commit", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LibraryCapabilities {
+    return new LibraryCapabilities().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LibraryCapabilities {
+    return new LibraryCapabilities().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LibraryCapabilities {
+    return new LibraryCapabilities().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LibraryCapabilities | PlainMessage<LibraryCapabilities> | undefined, b: LibraryCapabilities | PlainMessage<LibraryCapabilities> | undefined): boolean {
+    return proto3.util.equals(LibraryCapabilities, a, b);
+  }
+}
+

@@ -2,6 +2,8 @@ package container
 
 import (
 	"context"
+
+	"sync"
 	"time"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
@@ -10,6 +12,8 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
 	httpinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	flipt "go.flipt.io/flipt-client"
 )
 
@@ -24,6 +28,11 @@ type Container struct {
 	SyncFeatureFlagsUseCase    *application.SyncFeatureFlagsUseCase
 	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
 	ListInputsUseCase          *application.ListInputsUseCase
+
+	CppConnector      *processor.CppConnector
+	ProcessorRegistry *loader.Registry
+	ProcessorLoader   *loader.Loader
+	LoaderMutex       *sync.RWMutex
 
 	fliptClientProxy featureflags.FliptClientInterface
 }
@@ -69,6 +78,29 @@ func New(ctx context.Context) (*Container, error) {
 		featureFlagRepo = featureflags.NewFliptRepository(fliptClientProxy, fliptWriter)
 	}
 
+	registry := loader.NewRegistry(cfg.ProcessorConfig.LibraryBasePath)
+	if err := registry.Discover(); err != nil {
+		log.Warn().
+			Err(err).
+			Str("library_path", cfg.ProcessorConfig.LibraryBasePath).
+			Msg("Failed to discover processor libraries")
+	}
+
+	libInfo, err := registry.GetByVersion(cfg.ProcessorConfig.DefaultLibrary)
+	if err != nil {
+		return nil, err
+	}
+
+	processorLoader, err := registry.LoadLibrary(cfg.ProcessorConfig.DefaultLibrary)
+	if err != nil {
+		return nil, err
+	}
+
+	cppConnector, err := processor.New(libInfo.Path)
+	if err != nil {
+		return nil, err
+	}
+
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.StreamConfig)
@@ -82,12 +114,21 @@ func New(ctx context.Context) (*Container, error) {
 		SyncFeatureFlagsUseCase:    syncFFUseCase,
 		GetStreamConfigUseCase:     getStreamConfigUseCase,
 		ListInputsUseCase:          listInputsUseCase,
+		CppConnector:               cppConnector,
+		ProcessorRegistry:          registry,
+		ProcessorLoader:            processorLoader,
+		LoaderMutex:                &sync.RWMutex{},
 		fliptClientProxy:           fliptClientProxy,
 	}, nil
 }
 
 func (c *Container) Close(ctx context.Context) error {
 	log := logger.Global()
+
+	if c.CppConnector != nil {
+		c.CppConnector.Close()
+	}
+
 	if c.fliptClientProxy != nil {
 		closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()

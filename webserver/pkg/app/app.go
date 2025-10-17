@@ -3,11 +3,13 @@ package app
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/pkg/interfaces/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/static_http"
@@ -22,6 +24,9 @@ type App struct {
 	getStreamConfigUC *application.GetStreamConfigUseCase
 	syncFlagsUC       *application.SyncFeatureFlagsUseCase
 	listInputsUC      *application.ListInputsUseCase
+	registry          *loader.Registry
+	currentLoader     **loader.Loader
+	loaderMutex       *sync.RWMutex
 	interceptors      []connect.Interceptor
 }
 
@@ -69,6 +74,24 @@ func WithListInputsUseCase(uc *application.ListInputsUseCase) AppOption {
 	}
 }
 
+func WithProcessorRegistry(registry *loader.Registry) AppOption {
+	return func(a *App) {
+		a.registry = registry
+	}
+}
+
+func WithProcessorLoader(currentLoader **loader.Loader) AppOption {
+	return func(a *App) {
+		a.currentLoader = currentLoader
+	}
+}
+
+func WithLoaderMutex(mu *sync.RWMutex) AppOption {
+	return func(a *App) {
+		a.loaderMutex = mu
+	}
+}
+
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
 	if !a.config.IsObservabilityEnabled(a.appContext) {
 		return handler
@@ -107,13 +130,18 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 	}
 	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil {
-		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.interceptors...)
+		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC,
+			a.registry, a.currentLoader, a.loaderMutex, a.interceptors...)
 	} else {
 		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")
 	}
 }
 
 func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
+	// Health endpoint uses plain HTTP instead of ConnectRPC because:
+	// 1. Load balancers (k8s, Docker) require simple HTTP 200/503
+	// 2. No protobuf complexity needed for basic health checks
+	// 3. Industry standard for healthcheck endpoints
 	healthHandler := httphandlers.NewHealthHandler()
 	mux.Handle("/health", healthHandler)
 	logger.Global().Info().Msg("Health endpoint registered at /health")

@@ -1,4 +1,4 @@
-#include "cpp_accelerator/ports/cgo/image_buffer_adapter.h"
+#include "image_buffer_adapter.h"
 
 #include <cstring>
 

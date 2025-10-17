@@ -8,16 +8,14 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "cgo_api",
-    srcs = ["cgo_api.cpp"],
-    hdrs = ["cgo_api.h"],
-    visibility = ["//visibility:public"],
-    copts = [
-        "-Werror=unused-variable",
-        "-Werror=unused-parameter",
-        "-Wno-unused-but-set-variable",
+cc_binary(
+    name = "libcuda_processor.so",
+    srcs = [
+        "cuda_processor_impl.cpp",
+        "processor_api.h",
     ],
+    linkshared = True,
+    visibility = ["//visibility:public"],
     deps = [
         ":image_buffer_adapter",
         "//cpp_accelerator/core:telemetry",
@@ -27,5 +25,19 @@ cc_library(
         "//proto:image_processor_service_cc_proto",
         "@spdlog",
     ],
-    alwayslink = 1,
 )
+
+cc_binary(
+    name = "libcuda_processor_mock.so",
+    srcs = [
+        "mock_processor.cpp",
+        "processor_api.h",
+    ],
+    linkshared = True,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//proto:common_cc_proto",
+        "//proto:image_processor_service_cc_proto",
+    ],
+)
+

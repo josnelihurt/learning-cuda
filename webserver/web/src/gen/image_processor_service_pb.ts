@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { AcceleratorType, FilterType, GrayscaleType, TraceContext } from "./common_pb.js";
+import { AcceleratorType, FilterType, GrayscaleType, LibraryCapabilities, TraceContext } from "./common_pb.js";
 
 /**
  * Request: Go passes raw image buffer
@@ -70,6 +70,11 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
    */
   traceContext?: TraceContext;
 
+  /**
+   * @generated from field: string api_version = 23 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
   constructor(data?: PartialMessage<ProcessImageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -89,6 +94,7 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
     { no: 17, name: "span_id", jsonName: "span_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "trace_flags", jsonName: "trace_flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 21, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 23, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProcessImageRequest {
@@ -149,6 +155,11 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
    */
   traceContext?: TraceContext;
 
+  /**
+   * @generated from field: string api_version = 15 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
   constructor(data?: PartialMessage<ProcessImageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -164,6 +175,7 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
     { no: 9, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 11, name: "channels", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 13, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 15, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProcessImageResponse {
@@ -199,6 +211,11 @@ export class InitRequest extends Message<InitRequest> {
    */
   traceContext?: TraceContext;
 
+  /**
+   * @generated from field: string api_version = 5 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
   constructor(data?: PartialMessage<InitRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -209,6 +226,7 @@ export class InitRequest extends Message<InitRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "cuda_device_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 5, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitRequest {
@@ -247,6 +265,11 @@ export class InitResponse extends Message<InitResponse> {
    */
   traceContext?: TraceContext;
 
+  /**
+   * @generated from field: string api_version = 7 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
   constructor(data?: PartialMessage<InitResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -258,6 +281,7 @@ export class InitResponse extends Message<InitResponse> {
     { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 7, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitResponse {
@@ -386,6 +410,94 @@ export class WebSocketFrameResponse extends Message<WebSocketFrameResponse> {
 
   static equals(a: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined, b: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined): boolean {
     return proto3.util.equals(WebSocketFrameResponse, a, b);
+  }
+}
+
+/**
+ * Capabilities query (internal use)
+ *
+ * @generated from message cuda_learning.GetCapabilitiesRequest
+ */
+export class GetCapabilitiesRequest extends Message<GetCapabilitiesRequest> {
+  /**
+   * @generated from field: string api_version = 1 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  constructor(data?: PartialMessage<GetCapabilitiesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetCapabilitiesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCapabilitiesRequest {
+    return new GetCapabilitiesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCapabilitiesRequest {
+    return new GetCapabilitiesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCapabilitiesRequest {
+    return new GetCapabilitiesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetCapabilitiesRequest | PlainMessage<GetCapabilitiesRequest> | undefined, b: GetCapabilitiesRequest | PlainMessage<GetCapabilitiesRequest> | undefined): boolean {
+    return proto3.util.equals(GetCapabilitiesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GetCapabilitiesResponse
+ */
+export class GetCapabilitiesResponse extends Message<GetCapabilitiesResponse> {
+  /**
+   * @generated from field: int32 code = 1;
+   */
+  code = 0;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message = "";
+
+  /**
+   * @generated from field: cuda_learning.LibraryCapabilities capabilities = 5;
+   */
+  capabilities?: LibraryCapabilities;
+
+  constructor(data?: PartialMessage<GetCapabilitiesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetCapabilitiesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "capabilities", kind: "message", T: LibraryCapabilities },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCapabilitiesResponse {
+    return new GetCapabilitiesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCapabilitiesResponse {
+    return new GetCapabilitiesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCapabilitiesResponse {
+    return new GetCapabilitiesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetCapabilitiesResponse | PlainMessage<GetCapabilitiesResponse> | undefined, b: GetCapabilitiesResponse | PlainMessage<GetCapabilitiesResponse> | undefined): boolean {
+    return proto3.util.equals(GetCapabilitiesResponse, a, b);
   }
 }
 

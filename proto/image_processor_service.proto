@@ -22,6 +22,7 @@ message ProcessImageRequest {
   uint32 trace_flags = 19 [json_name = "trace_flags"];
   
   TraceContext trace_context = 21 [json_name = "trace_context"];
+  string api_version = 23 [json_name = "api_version"];
 }
 
 // Response: C++ returns processed image buffer
@@ -33,18 +34,21 @@ message ProcessImageResponse {
   int32 height = 9 [json_name = "height"];
   int32 channels = 11 [json_name = "channels"];
   TraceContext trace_context = 13 [json_name = "trace_context"];
+  string api_version = 15 [json_name = "api_version"];
 }
 
 // Lifecycle management
 message InitRequest {
   int32 cuda_device_id = 1;
   TraceContext trace_context = 3 [json_name = "trace_context"];
+  string api_version = 5 [json_name = "api_version"];
 }
 
 message InitResponse {
   int32 code = 1;
   string message = 3;
   TraceContext trace_context = 5 [json_name = "trace_context"];
+  string api_version = 7 [json_name = "api_version"];
 }
 
 // WebSocket stream messages
@@ -60,6 +64,17 @@ message WebSocketFrameResponse {
   string error = 5 [json_name = "error"];
   ProcessImageResponse response = 7 [json_name = "response"];
   TraceContext trace_context = 9 [json_name = "trace_context"];
+}
+
+// Capabilities query (internal use)
+message GetCapabilitiesRequest {
+  string api_version = 1 [json_name = "api_version"];
+}
+
+message GetCapabilitiesResponse {
+  int32 code = 1 [json_name = "code"];
+  string message = 3 [json_name = "message"];
+  LibraryCapabilities capabilities = 5 [json_name = "capabilities"];
 }
 
 service ImageProcessorService {

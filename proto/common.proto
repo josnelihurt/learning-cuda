@@ -35,3 +35,15 @@ enum GrayscaleType {
   GRAYSCALE_TYPE_LUMINOSITY = 5; // Luminosity: Y = 0.21R + 0.72G + 0.07B (similar to BT709)
 }
 
+// Library capabilities (shared metadata)
+message LibraryCapabilities {
+  string api_version = 1 [json_name = "api_version"];
+  string library_version = 3 [json_name = "library_version"];
+  repeated string supported_filters = 5 [json_name = "supported_filters"];
+  repeated string supported_accelerators = 7 [json_name = "supported_accelerators"];
+  repeated string supported_algorithms = 9 [json_name = "supported_algorithms"];
+  bool supports_streaming = 11 [json_name = "supports_streaming"];
+  string build_date = 13 [json_name = "build_date"];
+  string build_commit = 15 [json_name = "build_commit"];
+}
+

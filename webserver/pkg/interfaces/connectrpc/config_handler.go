@@ -2,12 +2,16 @@ package connectrpc
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -16,17 +20,26 @@ type ConfigHandler struct {
 	getStreamConfigUseCase *application.GetStreamConfigUseCase
 	syncFlagsUseCase       *application.SyncFeatureFlagsUseCase
 	listInputsUseCase      *application.ListInputsUseCase
+	registry               *loader.Registry
+	currentLoader          **loader.Loader
+	loaderMutex            *sync.RWMutex
 }
 
 func NewConfigHandler(
 	getStreamConfigUC *application.GetStreamConfigUseCase,
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
 	listInputsUC *application.ListInputsUseCase,
+	registry *loader.Registry,
+	currentLoader **loader.Loader,
+	loaderMutex *sync.RWMutex,
 ) *ConfigHandler {
 	return &ConfigHandler{
 		getStreamConfigUseCase: getStreamConfigUC,
 		syncFlagsUseCase:       syncFlagsUC,
 		listInputsUseCase:      listInputsUC,
+		registry:               registry,
+		currentLoader:          currentLoader,
+		loaderMutex:            loaderMutex,
 	}
 }
 
@@ -134,5 +147,79 @@ func (h *ConfigHandler) ListInputs(
 
 	return connect.NewResponse(&pb.ListInputsResponse{
 		Sources: pbSources,
+	}), nil
+}
+
+func (h *ConfigHandler) GetProcessorStatus(
+	ctx context.Context,
+	req *connect.Request[pb.GetProcessorStatusRequest],
+) (*connect.Response[pb.GetProcessorStatusResponse], error) {
+	span := trace.SpanFromContext(ctx)
+
+	h.loaderMutex.RLock()
+	currentLoader := *h.currentLoader
+	h.loaderMutex.RUnlock()
+
+	caps := currentLoader.CachedCapabilities()
+	availableLibs := h.registry.ListVersions()
+
+	allLibs := h.registry.GetAllLibraries()
+	if _, hasMock := allLibs["mock"]; hasMock {
+		availableLibs = append(availableLibs, "mock")
+	}
+
+	span.SetAttributes(
+		attribute.String("processor.current_version", currentLoader.GetVersion()),
+		attribute.Int("processor.available_count", len(availableLibs)),
+	)
+
+	return connect.NewResponse(&pb.GetProcessorStatusResponse{
+		CurrentLibrary:     currentLoader.GetVersion(),
+		ApiVersion:         loader.CurrentAPIVersion,
+		Capabilities:       caps,
+		AvailableLibraries: availableLibs,
+	}), nil
+}
+
+func (h *ConfigHandler) ReloadProcessor(
+	ctx context.Context,
+	req *connect.Request[pb.ReloadProcessorRequest],
+) (*connect.Response[pb.ReloadProcessorResponse], error) {
+	span := trace.SpanFromContext(ctx)
+
+	version := req.Msg.Version
+	if version == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument,
+			fmt.Errorf("version is required"))
+	}
+
+	newLoader, err := h.registry.LoadLibrary(version)
+	if err != nil {
+		span.RecordError(err)
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+
+	h.loaderMutex.Lock()
+	oldLoader := *h.currentLoader
+	*h.currentLoader = newLoader
+	h.loaderMutex.Unlock()
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		if oldLoader != nil {
+			oldLoader.Cleanup()
+		}
+	}()
+
+	span.SetAttributes(
+		attribute.String("processor.old_version", oldLoader.GetVersion()),
+		attribute.String("processor.new_version", version),
+	)
+
+	log.Printf("Processor library reloaded: %s -> %s", oldLoader.GetVersion(), version)
+
+	return connect.NewResponse(&pb.ReloadProcessorResponse{
+		Status:  "success",
+		Message: "Processor library reloaded to version " + version,
 	}), nil
 }

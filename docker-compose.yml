@@ -78,8 +78,10 @@ services:
     
     ports:
       - "16686:16686"
-      - "4317:4317"
-      - "4318:4318"
+    
+    expose:
+      - "4317"
+      - "4318"
     
     environment:
       - COLLECTOR_OTLP_ENABLED=true
@@ -148,6 +150,8 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_FEATURE_TOGGLES_ENABLE=traceToLogs
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_SERVER_ROOT_URL=https://localhost/grafana
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
     
     volumes:
       - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
@@ -169,6 +173,7 @@ services:
       - "traefik.http.routers.grafana.rule=PathPrefix(`/grafana`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.priority=100"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     
     healthcheck:
@@ -212,7 +217,7 @@ services:
     restart: unless-stopped
     
     expose:
-      - "9000"
+      - "8080"
     
     volumes:
       - ./.ignore/storage/flipt:/var/opt/flipt
@@ -225,12 +230,49 @@ services:
     networks:
       - traefik
     
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flipt.rule=PathPrefix(`/flipt`)"
+      - "traefik.http.routers.flipt.entrypoints=websecure"
+      - "traefik.http.routers.flipt.tls=true"
+      - "traefik.http.routers.flipt.priority=100"
+      - "traefik.http.services.flipt.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.flipt-stripprefix.stripprefix.prefixes=/flipt"
+      - "traefik.http.routers.flipt.middlewares=flipt-stripprefix"
+    
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  test-reports:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test-reports
+    image: cuda-learning-test-reports
+    container_name: test-reports
+    restart: unless-stopped
+    
+    expose:
+      - "8080"
+    
+    command: npx http-server /app/reports -p 8080
+    
+    networks:
+      - traefik
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.test-reports.rule=PathPrefix(`/reports`)"
+      - "traefik.http.routers.test-reports.entrypoints=websecure"
+      - "traefik.http.routers.test-reports.tls=true"
+      - "traefik.http.routers.test-reports.priority=100"
+      - "traefik.http.services.test-reports.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.test-reports-stripprefix.stripprefix.prefixes=/reports"
+      - "traefik.http.routers.test-reports.middlewares=test-reports-stripprefix"
 
 networks:
   traefik:

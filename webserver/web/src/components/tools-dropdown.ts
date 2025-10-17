@@ -90,7 +90,16 @@ export class ToolsDropdown extends LitElement {
     .dropdown-item-icon {
       font-size: 16px;
       width: 20px;
-      text-align: center;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dropdown-item-icon img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
     }
 
     .dropdown-item-text {
@@ -138,6 +147,34 @@ export class ToolsDropdown extends LitElement {
     this.isOpen = false;
   }
 
+  private getJaegerUrl(): string {
+    return 'http://localhost:16686';
+  }
+
+  private getGrafanaUrl(path: string): string {
+    const isDev = window.location.port === '3000' || window.location.port === '8443' || window.location.port === '8080';
+    if (isDev) {
+      return `http://localhost:3001${path}`;
+    }
+    return `${window.location.protocol}//${window.location.host}/grafana${path}`;
+  }
+
+  private getFliptUrl(): string {
+    const isDev = window.location.port === '3000' || window.location.port === '8443' || window.location.port === '8080';
+    if (isDev) {
+      return 'http://localhost:8081';
+    }
+    return `${window.location.protocol}//${window.location.host}/flipt`;
+  }
+
+  private getTestReportsUrl(): string {
+    const isDev = window.location.port === '3000' || window.location.port === '8443' || window.location.port === '8080';
+    if (isDev) {
+      return 'http://localhost:5050';
+    }
+    return `${window.location.protocol}//${window.location.host}/reports`;
+  }
+
   render() {
     return html`
       <button 
@@ -151,25 +188,31 @@ export class ToolsDropdown extends LitElement {
       <div class="dropdown-menu ${this.isOpen ? 'open' : ''}">
         <a 
           class="dropdown-item" 
-          @click=${() => this.openLink('http://localhost:16686')}
+          @click=${() => this.openLink(this.getJaegerUrl())}
         >
-          <span class="dropdown-item-icon">🔬</span>
+          <span class="dropdown-item-icon">
+            <img src="https://www.jaegertracing.io/img/jaeger-icon-reverse-color.svg" alt="Jaeger">
+          </span>
           <span class="dropdown-item-text">Jaeger Tracing</span>
         </a>
 
         <a 
           class="dropdown-item" 
-          @click=${() => this.openLink('http://localhost:3001/d/cuda-multi-layer-logs')}
+          @click=${() => this.openLink(this.getGrafanaUrl('/d/cuda-multi-layer-logs'))}
         >
-          <span class="dropdown-item-icon">📊</span>
+          <span class="dropdown-item-icon">
+            <img src="https://grafana.com/static/img/menu/grafana2.svg" alt="Grafana">
+          </span>
           <span class="dropdown-item-text">Logs Dashboard</span>
         </a>
 
         <a 
           class="dropdown-item" 
-          @click=${() => this.openLink('http://localhost:3001/explore')}
+          @click=${() => this.openLink(this.getGrafanaUrl('/explore'))}
         >
-          <span class="dropdown-item-icon">🔍</span>
+          <span class="dropdown-item-icon">
+            <img src="https://grafana.com/static/img/menu/grafana2.svg" alt="Grafana">
+          </span>
           <span class="dropdown-item-text">Grafana Explore</span>
         </a>
 
@@ -177,9 +220,11 @@ export class ToolsDropdown extends LitElement {
 
         <a 
           class="dropdown-item" 
-          @click=${() => this.openLink('http://localhost:8081')}
+          @click=${() => this.openLink(this.getFliptUrl())}
         >
-          <span class="dropdown-item-icon">🚩</span>
+          <span class="dropdown-item-icon">
+            <img src="https://www.flipt.io/images/favicon/favicon-32x32.png" alt="Flipt">
+          </span>
           <span class="dropdown-item-text">Flipt Feature Flags</span>
         </a>
 
@@ -187,7 +232,7 @@ export class ToolsDropdown extends LitElement {
           class="dropdown-item" 
           @click=${this.syncFlags}
         >
-          <span class="dropdown-item-icon">🔄</span>
+          <span class="dropdown-item-icon">↻</span>
           <span class="dropdown-item-text">Sync Feature Flags</span>
         </a>
 
@@ -195,9 +240,9 @@ export class ToolsDropdown extends LitElement {
 
         <a 
           class="dropdown-item" 
-          @click=${() => this.openLink('http://localhost:5050')}
+          @click=${() => this.openLink(this.getTestReportsUrl())}
         >
-          <span class="dropdown-item-icon">✅</span>
+          <span class="dropdown-item-icon">✓</span>
           <span class="dropdown-item-text">Test Reports (BDD)</span>
         </a>
       </div>

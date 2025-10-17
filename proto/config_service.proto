@@ -50,9 +50,35 @@ message ListInputsResponse {
   TraceContext trace_context = 3 [json_name = "trace_context"];
 }
 
+// Processor management
+message GetProcessorStatusRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message GetProcessorStatusResponse {
+  string current_library = 1 [json_name = "current_library"];
+  string api_version = 3 [json_name = "api_version"];
+  LibraryCapabilities capabilities = 5 [json_name = "capabilities"];
+  repeated string available_libraries = 7 [json_name = "available_libraries"];
+  TraceContext trace_context = 9 [json_name = "trace_context"];
+}
+
+message ReloadProcessorRequest {
+  string version = 1 [json_name = "version"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message ReloadProcessorResponse {
+  string status = 1 [json_name = "status"];
+  string message = 3 [json_name = "message"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
 service ConfigService {
   rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
   rpc SyncFeatureFlags(SyncFeatureFlagsRequest) returns (SyncFeatureFlagsResponse);
   rpc ListInputs(ListInputsRequest) returns (ListInputsResponse);
+  rpc GetProcessorStatus(GetProcessorStatusRequest) returns (GetProcessorStatusResponse);
+  rpc ReloadProcessor(ReloadProcessorRequest) returns (ReloadProcessorResponse);
 }
 

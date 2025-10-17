@@ -18,12 +18,18 @@ Microservices, observability, testing, and cloud deployment.
 - [ ] Add Connect-Web for browser clients
 
 ### Infrastructure
+- [x] Dynamic library loading with dlopen (plugin architecture)
+- [x] Processor versioning and API compatibility checks
+- [x] Processor registry with capability discovery
+- [x] Split Go build system (Makefile) from C++ (Bazel)
 - [ ] Service discovery (Consul optional)
 - [ ] Load balancing (round-robin, retry, circuit breaker)
 - [x] Clean arch: domain → application → infrastructure → interfaces
 - [ ] Circuit breaker for Flipt calls with fallback
-- [ ] Complete DI container (move cppConnector from main.go)
+- [ ] Complete DI container (move processor loader from main.go)
 - [ ] Connection pooling monitoring and metrics
+- [ ] Plugin hot-reloading without server restart
+- [ ] Multiple processor plugins loaded simultaneously
 
 ## Observability
 
@@ -71,6 +77,8 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Loki stack deployed (Loki + Promtail + Grafana)
 - [x] Trace-to-Logs correlation in Grafana
 - [x] Consistent log levels (debug/info/warn/error)
+- [x] Multi-line log parsing in Promtail
+- [x] Grafana dashboard and datasource provisioning
 - [ ] Add request correlation IDs across services
 - [ ] Detailed health checks with dependencies (readiness vs liveness)
 
@@ -137,6 +145,9 @@ Microservices, observability, testing, and cloud deployment.
 ## Code Quality
 
 ### Go Backend
+- [x] Extract processor loading logic into separate loader package
+- [x] Implement version compatibility validation
+- [x] Add proper error handling for plugin lifecycle
 - [ ] Add godoc documentation for all exported types/functions
 - [ ] Extract magic numbers to constants (timeouts, intervals, buffer sizes)
 - [ ] Refactor long functions (websocket.processFrame)

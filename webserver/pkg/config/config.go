@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -15,6 +16,7 @@ type Manager struct {
 	StreamConfig
 	ObservabilityConfig
 	LoggerConfig
+	ProcessorConfig
 }
 
 type FliptConfig struct {
@@ -60,9 +62,15 @@ func New() *Manager {
 	viper.SetDefault("logging.format", "json")
 	viper.SetDefault("logging.output", "stdout")
 	viper.SetDefault("logging.include_caller", true)
+	viper.SetDefault("processor.library_base_path", ".ignore/lib/cuda_learning")
+	viper.SetDefault("processor.default_library", "mock")
+	viper.SetDefault("processor.enable_hot_reload", false)
+	viper.SetDefault("processor.fallback_enabled", true)
+	viper.SetDefault("processor.fallback_chain", []string{"1.0.0", "mock"})
 
-	viper.AutomaticEnv()
 	viper.SetEnvPrefix("CUDA_PROCESSOR")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Warning: Config file not found, using defaults: %v", err)
@@ -103,6 +111,13 @@ func New() *Manager {
 			Format:        viper.GetString("logging.format"),
 			Output:        viper.GetString("logging.output"),
 			IncludeCaller: viper.GetBool("logging.include_caller"),
+		},
+		ProcessorConfig: ProcessorConfig{
+			LibraryBasePath: viper.GetString("processor.library_base_path"),
+			DefaultLibrary:  viper.GetString("processor.default_library"),
+			EnableHotReload: viper.GetBool("processor.enable_hot_reload"),
+			FallbackEnabled: viper.GetBool("processor.fallback_enabled"),
+			FallbackChain:   viper.GetStringSlice("processor.fallback_chain"),
 		},
 	}
 }

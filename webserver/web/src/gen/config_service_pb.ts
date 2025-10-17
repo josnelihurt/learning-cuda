@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { TraceContext } from "./common_pb.js";
+import { LibraryCapabilities, TraceContext } from "./common_pb.js";
 
 /**
  * Stream configuration
@@ -360,6 +360,198 @@ export class ListInputsResponse extends Message<ListInputsResponse> {
 
   static equals(a: ListInputsResponse | PlainMessage<ListInputsResponse> | undefined, b: ListInputsResponse | PlainMessage<ListInputsResponse> | undefined): boolean {
     return proto3.util.equals(ListInputsResponse, a, b);
+  }
+}
+
+/**
+ * Processor management
+ *
+ * @generated from message cuda_learning.GetProcessorStatusRequest
+ */
+export class GetProcessorStatusRequest extends Message<GetProcessorStatusRequest> {
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 1 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<GetProcessorStatusRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetProcessorStatusRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetProcessorStatusRequest {
+    return new GetProcessorStatusRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetProcessorStatusRequest {
+    return new GetProcessorStatusRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetProcessorStatusRequest {
+    return new GetProcessorStatusRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetProcessorStatusRequest | PlainMessage<GetProcessorStatusRequest> | undefined, b: GetProcessorStatusRequest | PlainMessage<GetProcessorStatusRequest> | undefined): boolean {
+    return proto3.util.equals(GetProcessorStatusRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GetProcessorStatusResponse
+ */
+export class GetProcessorStatusResponse extends Message<GetProcessorStatusResponse> {
+  /**
+   * @generated from field: string current_library = 1 [json_name = "current_library"];
+   */
+  currentLibrary = "";
+
+  /**
+   * @generated from field: string api_version = 3 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  /**
+   * @generated from field: cuda_learning.LibraryCapabilities capabilities = 5;
+   */
+  capabilities?: LibraryCapabilities;
+
+  /**
+   * @generated from field: repeated string available_libraries = 7 [json_name = "available_libraries"];
+   */
+  availableLibraries: string[] = [];
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 9 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<GetProcessorStatusResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetProcessorStatusResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "current_library", jsonName: "current_library", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "capabilities", kind: "message", T: LibraryCapabilities },
+    { no: 7, name: "available_libraries", jsonName: "available_libraries", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetProcessorStatusResponse {
+    return new GetProcessorStatusResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetProcessorStatusResponse {
+    return new GetProcessorStatusResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetProcessorStatusResponse {
+    return new GetProcessorStatusResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetProcessorStatusResponse | PlainMessage<GetProcessorStatusResponse> | undefined, b: GetProcessorStatusResponse | PlainMessage<GetProcessorStatusResponse> | undefined): boolean {
+    return proto3.util.equals(GetProcessorStatusResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ReloadProcessorRequest
+ */
+export class ReloadProcessorRequest extends Message<ReloadProcessorRequest> {
+  /**
+   * @generated from field: string version = 1;
+   */
+  version = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ReloadProcessorRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ReloadProcessorRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReloadProcessorRequest {
+    return new ReloadProcessorRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReloadProcessorRequest {
+    return new ReloadProcessorRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReloadProcessorRequest {
+    return new ReloadProcessorRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReloadProcessorRequest | PlainMessage<ReloadProcessorRequest> | undefined, b: ReloadProcessorRequest | PlainMessage<ReloadProcessorRequest> | undefined): boolean {
+    return proto3.util.equals(ReloadProcessorRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ReloadProcessorResponse
+ */
+export class ReloadProcessorResponse extends Message<ReloadProcessorResponse> {
+  /**
+   * @generated from field: string status = 1;
+   */
+  status = "";
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 5 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ReloadProcessorResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ReloadProcessorResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "status", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReloadProcessorResponse {
+    return new ReloadProcessorResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReloadProcessorResponse {
+    return new ReloadProcessorResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReloadProcessorResponse {
+    return new ReloadProcessorResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReloadProcessorResponse | PlainMessage<ReloadProcessorResponse> | undefined, b: ReloadProcessorResponse | PlainMessage<ReloadProcessorResponse> | undefined): boolean {
+    return proto3.util.equals(ReloadProcessorResponse, a, b);
   }
 }
 

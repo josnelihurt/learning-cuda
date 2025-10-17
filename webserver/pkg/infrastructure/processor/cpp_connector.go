@@ -1,85 +1,46 @@
 package processor
 
-/*
-#include "cpp_accelerator/ports/cgo/cgo_api.h"
-#include <stdlib.h>
-*/
-import "C"
 import (
 	"context"
 	"fmt"
-	"unsafe"
 
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/protobuf/proto"
 )
 
-// CppConnector connects to C++ CUDA processors via CGO
-type CppConnector struct{}
-
-// New creates a new C++ connector instance
-func New() *CppConnector {
-	return &CppConnector{}
+type CppConnector struct {
+	loader *loader.Loader
 }
 
-// init initializes the CUDA context when the package is loaded
-func init() {
-	// Create initialization request
-	initReq := &pb.InitRequest{
-		CudaDeviceId: 0, // Default CUDA device
-	}
-
-	// Marshal to bytes
-	reqBytes, err := proto.Marshal(initReq)
+func New(libraryPath string) (*CppConnector, error) {
+	l, err := loader.NewLoader(libraryPath)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to marshal InitRequest: %v", err))
+		return nil, fmt.Errorf("failed to load processor library: %w", err)
 	}
 
-	// Call C++ initialization
-	var response *C.uint8_t
-	var responseLen C.int
-	
-	// Safe pointer handling for CGO
-	var reqPtr *C.uint8_t
-	if len(reqBytes) > 0 {
-		reqPtr = (*C.uint8_t)(unsafe.Pointer(&reqBytes[0]))
+	initReq := &pb.InitRequest{
+		ApiVersion:   loader.CurrentAPIVersion,
+		CudaDeviceId: 0,
 	}
 
-	success := C.CudaInit(
-		reqPtr,
-		C.int(len(reqBytes)),
-		&response,
-		&responseLen,
-	)
-
-	// Always free the response
-	defer C.FreeResponse(response)
-
-	if !success {
-		// Parse error response
-		initResp := &pb.InitResponse{}
-		respBytes := C.GoBytes(unsafe.Pointer(response), responseLen)
-		if err := proto.Unmarshal(respBytes, initResp); err == nil {
-			panic(fmt.Sprintf("CUDA initialization failed: %s", initResp.Message))
-		}
-		panic("CUDA initialization failed with unknown error")
+	initResp, err := l.Init(initReq)
+	if err != nil {
+		l.Cleanup()
+		return nil, fmt.Errorf("initialization failed: %w", err)
 	}
 
-	// Parse success response
-	initResp := &pb.InitResponse{}
-	respBytes := C.GoBytes(unsafe.Pointer(response), responseLen)
-	if err := proto.Unmarshal(respBytes, initResp); err != nil {
-		panic(fmt.Sprintf("Failed to parse InitResponse: %v", err))
+	if initResp.Code != 0 {
+		l.Cleanup()
+		return nil, fmt.Errorf("init failed: %s", initResp.Message)
 	}
 
-	fmt.Printf("CUDA initialized: %s\n", initResp.Message)
+	return &CppConnector{loader: l}, nil
 }
 
-// ProcessImage processes an image using C++ CUDA or CPU kernels
 func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
 	tracer := otel.Tracer("cpp-connector")
 	ctx, span := tracer.Start(ctx, "CppConnector.ProcessImage",
@@ -92,12 +53,10 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		attribute.String("grayscale_type", string(grayscaleType)),
 	)
 
-	// Handle "none" filter or empty filters - return original image without processing
 	if len(filters) == 0 || (len(filters) == 1 && filters[0] == domain.FilterNone) {
 		return img, nil
 	}
-	
-	// Map filter types to protobuf
+
 	var protoFilters []pb.FilterType
 	for _, filter := range filters {
 		switch filter {
@@ -109,8 +68,7 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 			return nil, fmt.Errorf("unsupported filter type: %s", filter)
 		}
 	}
-	
-	// Map accelerator type to protobuf
+
 	var protoAccelerator pb.AcceleratorType
 	switch accelerator {
 	case domain.AcceleratorGPU:
@@ -118,10 +76,9 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 	case domain.AcceleratorCPU:
 		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CPU
 	default:
-		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_GPU // Default to GPU
+		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_GPU
 	}
-	
-	// Map grayscale type to protobuf
+
 	var protoGrayscaleType pb.GrayscaleType
 	switch grayscaleType {
 	case domain.GrayscaleBT601:
@@ -135,10 +92,9 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 	case domain.GrayscaleLuminosity:
 		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY
 	default:
-		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT601 // Default to BT601
+		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT601
 	}
 
-	// Extract trace context from current span
 	spanContext := trace.SpanContextFromContext(ctx)
 	var traceID, spanID string
 	var traceFlags uint32
@@ -152,12 +108,12 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		)
 	}
 
-	// Create process request
 	procReq := &pb.ProcessImageRequest{
+		ApiVersion:    loader.CurrentAPIVersion,
 		ImageData:     img.Data,
 		Width:         int32(img.Width),
 		Height:        int32(img.Height),
-		Channels:      int32(4), // Assuming RGBA format
+		Channels:      int32(4),
 		Filters:       protoFilters,
 		Accelerator:   protoAccelerator,
 		GrayscaleType: protoGrayscaleType,
@@ -166,54 +122,32 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		TraceFlags:    traceFlags,
 	}
 
-	// Marshal to bytes
-	reqBytes, err := proto.Marshal(procReq)
+	span.AddEvent("Dynamic library call started")
+	procResp, err := c.loader.ProcessImage(procReq)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		span.RecordError(err)
+		return nil, fmt.Errorf("processing failed: %w", err)
 	}
+	span.AddEvent("Dynamic library call completed")
 
-	// Call C++ processing
-	span.AddEvent("CGO call started")
-	var response *C.uint8_t
-	var responseLen C.int
-	
-	// Safe pointer handling for CGO
-	var reqPtr *C.uint8_t
-	if len(reqBytes) > 0 {
-		reqPtr = (*C.uint8_t)(unsafe.Pointer(&reqBytes[0]))
-	}
-
-	success := C.ProcessImage(
-		reqPtr,
-		C.int(len(reqBytes)),
-		&response,
-		&responseLen,
-	)
-	span.AddEvent("CGO call completed")
-
-	// Always free the response
-	defer C.FreeResponse(response)
-
-	// Parse response
-	procResp := &pb.ProcessImageResponse{}
-	respBytes := C.GoBytes(unsafe.Pointer(response), responseLen)
-	if err := proto.Unmarshal(respBytes, procResp); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if !success || procResp.Code != 0 {
+	if procResp.Code != 0 {
 		err := fmt.Errorf("processing failed: %s", procResp.Message)
 		span.RecordError(err)
 		return nil, err
 	}
 
-	// Build result image
 	result := &domain.Image{
 		Data:   procResp.ImageData,
 		Width:  int(procResp.Width),
 		Height: int(procResp.Height),
-		Format: img.Format, // Preserve original format metadata
+		Format: img.Format,
 	}
 
 	return result, nil
+}
+
+func (c *CppConnector) Close() {
+	if c.loader != nil {
+		c.loader.Cleanup()
+	}
 }

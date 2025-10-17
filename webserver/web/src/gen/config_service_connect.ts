@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetStreamConfigRequest, GetStreamConfigResponse, ListInputsRequest, ListInputsResponse, SyncFeatureFlagsRequest, SyncFeatureFlagsResponse } from "./config_service_pb.js";
+import { GetProcessorStatusRequest, GetProcessorStatusResponse, GetStreamConfigRequest, GetStreamConfigResponse, ListInputsRequest, ListInputsResponse, ReloadProcessorRequest, ReloadProcessorResponse, SyncFeatureFlagsRequest, SyncFeatureFlagsResponse } from "./config_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,24 @@ export const ConfigService = {
       name: "ListInputs",
       I: ListInputsRequest,
       O: ListInputsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.ConfigService.GetProcessorStatus
+     */
+    getProcessorStatus: {
+      name: "GetProcessorStatus",
+      I: GetProcessorStatusRequest,
+      O: GetProcessorStatusResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.ConfigService.ReloadProcessor
+     */
+    reloadProcessor: {
+      name: "ReloadProcessor",
+      I: ReloadProcessorRequest,
+      O: ReloadProcessorResponse,
       kind: MethodKind.Unary,
     },
   }

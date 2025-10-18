@@ -1,4 +1,4 @@
-package static_http
+package statichttp
 
 import (
 	"html/template"
@@ -10,6 +10,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/websocket"
 )
+
 type StaticHandler struct {
 	webRootPath      string
 	hotReloadEnabled bool
@@ -28,7 +29,7 @@ func NewStaticHandler(
 		templatePath := filepath.Join(serverConfig.WebRootPath, "templates", "index.html")
 		tmpl = template.Must(template.ParseFiles(templatePath))
 	}
-	
+
 	var assetHandler AssetHandler
 	if serverConfig.HotReloadEnabled {
 		assetHandler = NewDevelopmentAssetHandler(
@@ -38,7 +39,7 @@ func NewStaticHandler(
 	} else {
 		assetHandler = NewProductionAssetHandler(serverConfig.WebRootPath)
 	}
-	
+
 	return &StaticHandler{
 		webRootPath:      serverConfig.WebRootPath,
 		hotReloadEnabled: serverConfig.HotReloadEnabled,
@@ -54,7 +55,7 @@ func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 			mux.HandleFunc(prefix, h.ServeAsset)
 		}
 	}
-	
+
 	mux.HandleFunc("/", h.ServeIndex)
 	mux.HandleFunc("/static/", h.ServeStatic)
 	mux.HandleFunc("/data/", h.ServeData)
@@ -71,7 +72,7 @@ func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 	}{
 		ScriptTags: h.assetHandler.GetScriptTags(),
 	}
-	
+
 	tmpl := h.tmpl
 	if h.hotReloadEnabled {
 		templatePath := filepath.Join(h.webRootPath, "templates", "index.html")
@@ -82,39 +83,40 @@ func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
-	tmpl.Execute(w, data)
+
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, "Template execution failed", http.StatusInternalServerError)
+	}
 }
 
 func (h *StaticHandler) ServeStatic(w http.ResponseWriter, r *http.Request) {
 	filePath := r.URL.Path[len("/static/"):]
 	fullPath := filepath.Join(h.webRootPath, "static", filePath)
-	
+
 	if strings.HasSuffix(filePath, ".css") {
 		w.Header().Set("Content-Type", "text/css")
 	} else if strings.HasSuffix(filePath, ".js") {
 		w.Header().Set("Content-Type", "application/javascript")
 	}
-	
+
 	if !h.assetHandler.ShouldCacheAssets() {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
 	}
-	
+
 	http.ServeFile(w, r, fullPath)
 }
 
 func (h *StaticHandler) ServeData(w http.ResponseWriter, r *http.Request) {
 	filePath := r.URL.Path[len("/data/"):]
 	fullPath := filepath.Join("data", filePath)
-	
+
 	if strings.HasSuffix(filePath, ".png") {
 		w.Header().Set("Content-Type", "image/png")
 	} else if strings.HasSuffix(filePath, ".jpg") || strings.HasSuffix(filePath, ".jpeg") {
 		w.Header().Set("Content-Type", "image/jpeg")
 	}
-	
+
 	http.ServeFile(w, r, fullPath)
 }
-

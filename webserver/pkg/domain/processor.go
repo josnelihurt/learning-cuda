@@ -6,4 +6,3 @@ import "context"
 type ImageProcessor interface {
 	ProcessImage(ctx context.Context, img *Image, filters []FilterType, accelerator AcceleratorType, grayscaleType GrayscaleType) (*Image, error)
 }
-

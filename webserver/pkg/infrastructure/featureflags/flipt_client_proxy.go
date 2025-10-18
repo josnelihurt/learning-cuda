@@ -9,15 +9,15 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-type fliptClientProxy struct {
+type FliptClientProxy struct {
 	client *flipt.Client
 }
 
-func NewFliptClient(client *flipt.Client) *fliptClientProxy {
-	return &fliptClientProxy{client: client}
+func NewFliptClient(client *flipt.Client) *FliptClientProxy {
+	return &FliptClientProxy{client: client}
 }
 
-func (p *fliptClientProxy) EvaluateBoolean(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.BooleanEvaluationResponse, error) {
+func (p *FliptClientProxy) EvaluateBoolean(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.BooleanEvaluationResponse, error) {
 	tracer := otel.Tracer("featureflags.FliptClient")
 	ctx, span := tracer.Start(ctx, "EvaluateBoolean")
 	defer span.End()
@@ -39,7 +39,7 @@ func (p *fliptClientProxy) EvaluateBoolean(ctx context.Context, req *flipt.Evalu
 	return result, nil
 }
 
-func (p *fliptClientProxy) Close(ctx context.Context) error {
+func (p *FliptClientProxy) Close(ctx context.Context) error {
 	tracer := otel.Tracer("featureflags.FliptClient")
 	ctx, span := tracer.Start(ctx, "Close")
 	defer span.End()
@@ -55,7 +55,7 @@ func (p *fliptClientProxy) Close(ctx context.Context) error {
 	return nil
 }
 
-func (p *fliptClientProxy) EvaluateString(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.VariantEvaluationResponse, error) {
+func (p *FliptClientProxy) EvaluateString(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.VariantEvaluationResponse, error) {
 	tracer := otel.Tracer("featureflags.FliptClient")
 	ctx, span := tracer.Start(ctx, "EvaluateString")
 	defer span.End()

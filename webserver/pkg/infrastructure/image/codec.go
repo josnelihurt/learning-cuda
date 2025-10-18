@@ -10,13 +10,13 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 )
 
-type ImageCodec struct{}
+type Codec struct{}
 
-func NewImageCodec() *ImageCodec {
-	return &ImageCodec{}
+func NewImageCodec() *Codec {
+	return &Codec{}
 }
 
-func (c *ImageCodec) DecodeToRGBA(data []byte) (*domain.Image, error) {
+func (c *Codec) DecodeToRGBA(data []byte) (*domain.Image, error) {
 	img, err := png.Decode(bytes.NewReader(data))
 	if err != nil {
 		img, err = jpeg.Decode(bytes.NewReader(data))
@@ -41,9 +41,9 @@ func (c *ImageCodec) DecodeToRGBA(data []byte) (*domain.Image, error) {
 	}, nil
 }
 
-func (c *ImageCodec) EncodeToPNG(img *domain.Image, isGrayscale bool) ([]byte, error) {
+func (c *Codec) EncodeToPNG(img *domain.Image, isGrayscale bool) ([]byte, error) {
 	var buf bytes.Buffer
-	
+
 	if !isGrayscale {
 		resultImg := image.NewRGBA(image.Rect(0, 0, img.Width, img.Height))
 		resultImg.Pix = img.Data
@@ -60,4 +60,3 @@ func (c *ImageCodec) EncodeToPNG(img *domain.Image, isGrayscale bool) ([]byte, e
 
 	return buf.Bytes(), nil
 }
-

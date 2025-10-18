@@ -4,6 +4,41 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Code Quality & Modular Git Hooks (Oct 18, 2025)
+- [x] Modularize git hooks into separate scripts per layer
+- [x] Create pre-commit-cpp.sh for C++ tests (14 lines)
+- [x] Create pre-commit-go.sh for Go tests (14 lines)
+- [x] Create pre-commit-frontend.sh for frontend tests (14 lines)
+- [x] Create pre-commit-lint-cpp.sh for C++ linting (14 lines)
+- [x] Create pre-commit-lint-go.sh for golangci-lint (14 lines)
+- [x] Create pre-commit-lint-frontend.sh for TypeScript linting (19 lines)
+- [x] Refactor main pre-commit hook to orchestrate modular scripts (33 lines)
+- [x] Update .golangci.yml to disable deprecated exportloopref linter
+- [x] Configure govet to disable fieldalignment, enable shadow checks
+- [x] Add gosec exceptions for G114 (HTTP timeouts) and G115 (integer conversions)
+- [x] Add path-based linter exclusions for development_handler.go
+- [x] Rename static_http package to statichttp (Go naming convention)
+- [x] Remove unused interfaces.go file
+- [x] Clean up unused imports across 20+ Go files
+- [x] Fix code formatting and linter violations
+- [x] Update BDD test context and assertions
+- [x] Update docker-compose.dev.yml configuration
+- [x] All linters passing with zero warnings
+
+### Git Hooks & C++ Test Quality (Oct 18, 2025)
+- [x] Add pre-commit git hook with C++ tests, Go tests, linters, and frontend build
+- [x] Add pre-push git hook with full validation across all browsers
+- [x] Create setup-hooks.sh script for easy installation
+- [x] Refactor C++ tests to follow AAA pattern (Arrange/Act/Assert)
+- [x] Improve test readability with consistent indentation
+- [x] Update image paths in tests to use static_images directory
+- [x] Fix command_factory_test.cpp formatting (115 lines)
+- [x] Fix config_manager_test.cpp formatting and paths (164 lines)
+- [x] Fix image_loader_test.cpp formatting and expectations (117 lines)
+- [x] Update BUILD files with proper indentation
+- [x] Update README with git hooks documentation and usage
+- [x] Support --no-verify flag to skip hooks when needed
+
 ### Dynamic Static Image Selection (Oct 18, 2025)
 - [x] Implement StaticImage domain model with ID, DisplayName, Path, IsDefault fields
 - [x] Create StaticImageRepository interface in domain layer

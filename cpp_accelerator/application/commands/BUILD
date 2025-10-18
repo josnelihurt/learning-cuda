@@ -50,7 +50,7 @@ cc_test(
         "command_factory_test.cpp",
     ],
     data = [
-        "//data:lena.png",
+        "//data:static_images/lena.png",
     ],
     deps = [
         ":command_factory",

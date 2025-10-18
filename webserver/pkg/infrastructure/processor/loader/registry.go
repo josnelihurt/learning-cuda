@@ -62,17 +62,18 @@ func (r *Registry) Discover() error {
 			}
 		} else {
 			matches := pattern.FindStringSubmatch(entry.Name())
-			if len(matches) == 2 {
+			switch {
+			case len(matches) == 2:
 				metadata = LibraryMetadata{
 					Version: matches[1],
 					Type:    "gpu",
 				}
-			} else if entry.Name() == "libcuda_processor_mock.so" {
+			case entry.Name() == "libcuda_processor_mock.so":
 				metadata = LibraryMetadata{
 					Version: "mock",
 					Type:    "mock",
 				}
-			} else {
+			default:
 				continue
 			}
 		}

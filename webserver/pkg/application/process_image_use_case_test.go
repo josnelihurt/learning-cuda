@@ -204,7 +204,7 @@ func TestProcessImageUseCase_Execute_ContextCancellation(t *testing.T) {
 	result, err := sut.Execute(ctx, img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorCPU, domain.GrayscaleAverage)
 
 	// Assert
-	assert.Error(t, err, "expected error from cancelled context")
+	assert.Error(t, err, "expected error from canceled context")
 	assert.Nil(t, result, "expected nil result on context cancellation")
 	mockProc.AssertExpectations(t)
 }

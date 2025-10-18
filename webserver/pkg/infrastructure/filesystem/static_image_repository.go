@@ -24,7 +24,7 @@ func NewStaticImageRepository(directory string) *StaticImageRepository {
 
 func (r *StaticImageRepository) FindAll(ctx context.Context) ([]domain.StaticImage, error) {
 	tracer := otel.Tracer("static-image-repository")
-	ctx, span := tracer.Start(ctx, "StaticImageRepository.FindAll",
+	_, span := tracer.Start(ctx, "StaticImageRepository.FindAll",
 		trace.WithSpanKind(trace.SpanKindInternal),
 	)
 	defer span.End()
@@ -55,7 +55,7 @@ func (r *StaticImageRepository) FindAll(ctx context.Context) ([]domain.StaticIma
 		baseName := strings.TrimSuffix(name, ext)
 		id := strings.ToLower(baseName)
 
-		displayName := strings.Title(strings.ReplaceAll(baseName, "_", " "))
+		displayName := strings.ToUpper(baseName[:1]) + strings.ReplaceAll(baseName[1:], "_", " ")
 
 		isDefault := id == "lena"
 

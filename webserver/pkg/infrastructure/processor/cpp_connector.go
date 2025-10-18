@@ -41,6 +41,7 @@ func New(libraryPath string) (*CppConnector, error) {
 	return &CppConnector{loader: l}, nil
 }
 
+//nolint:gocyclo // Complex processing logic that needs to handle multiple filter types
 func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
 	tracer := otel.Tracer("cpp-connector")
 	ctx, span := tracer.Start(ctx, "CppConnector.ProcessImage",

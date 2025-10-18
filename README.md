@@ -88,6 +88,20 @@ The Docker setup uses:
 - Traefik for HTTPS termination
 - Full GPU passthrough to container
 
+## Git Hooks
+
+Install validation hooks:
+
+```bash
+./scripts/setup-hooks.sh
+```
+
+Hooks:
+- pre-commit: Unit tests + linters
+- pre-push: Full validation with all browsers
+
+Skip when needed: `git commit --no-verify` or `git push --no-verify`
+
 ## Tech
 
 - Go server with native HTTPS support handling WebSocket

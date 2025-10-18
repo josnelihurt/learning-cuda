@@ -34,4 +34,3 @@ const (
 	GrayscaleLightness  GrayscaleType = "lightness"  // (max + min) / 2
 	GrayscaleLuminosity GrayscaleType = "luminosity" // Weighted average
 )
-

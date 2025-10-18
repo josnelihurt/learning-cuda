@@ -54,7 +54,7 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	collectorURL := fmt.Sprintf("http://%s/v1/traces", collectorEndpoint)
 	log.Printf("Forwarding browser traces to: %s", collectorURL)
-	
+
 	proxyReq, err := http.NewRequest(http.MethodPost, collectorURL, bytes.NewReader(body))
 	if err != nil {
 		log.Printf("Error creating proxy request: %v", err)
@@ -78,16 +78,15 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
-	
+	respBody, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort response logging
+
 	log.Printf("Traces forwarded successfully, collector responded with status: %d", resp.StatusCode)
-	
+
 	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	
-	w.WriteHeader(resp.StatusCode)
-	w.Write(respBody)
-}
 
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(respBody) //nolint:errcheck // Best effort response write
+}

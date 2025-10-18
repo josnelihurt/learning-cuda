@@ -44,7 +44,7 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateBoolean(
 		return fallbackValue, nil
 	}
 
-	result := eval.Result.(bool)
+	result, _ := eval.Result.(bool) //nolint:errcheck // Type assertion
 	span.SetAttributes(
 		attribute.Bool("flag.result", result),
 		attribute.Bool("flag.used_fallback", false),
@@ -80,7 +80,7 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateVariant(
 		return fallbackValue, nil
 	}
 
-	result := eval.Result.(string)
+	result, _ := eval.Result.(string) //nolint:errcheck // Type assertion
 	span.SetAttributes(
 		attribute.String("flag.result", result),
 		attribute.Bool("flag.used_fallback", false),

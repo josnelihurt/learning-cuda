@@ -17,7 +17,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-
 type TracerProvider struct {
 	provider *sdktrace.TracerProvider
 	enabled  bool
@@ -42,9 +41,8 @@ func New(ctx context.Context, enabled bool, config config.ObservabilityConfig) (
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	conn, err := grpc.DialContext(ctx, config.OtelCollectorEndpoint,
+	conn, err := grpc.NewClient(config.OtelCollectorEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to OpenTelemetry collector at %s: %w", config.OtelCollectorEndpoint, err)
@@ -57,11 +55,12 @@ func New(ctx context.Context, enabled bool, config config.ObservabilityConfig) (
 
 	samplingRate := config.TraceSamplingRate
 	var sampler sdktrace.Sampler
-	if samplingRate >= 1.0 {
+	switch {
+	case samplingRate >= 1.0:
 		sampler = sdktrace.AlwaysSample()
-	} else if samplingRate <= 0.0 {
+	case samplingRate <= 0.0:
 		sampler = sdktrace.NeverSample()
-	} else {
+	default:
 		sampler = sdktrace.TraceIDRatioBased(samplingRate)
 	}
 
@@ -101,4 +100,3 @@ func (tp *TracerProvider) Shutdown(ctx context.Context) error {
 func (tp *TracerProvider) IsEnabled() bool {
 	return tp.enabled
 }
-

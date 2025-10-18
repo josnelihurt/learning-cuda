@@ -27,7 +27,7 @@ type Loader struct {
 }
 
 func NewLoader(libraryPath string) (*Loader, error) {
-	handle, err := dlopen(libraryPath, RTLD_NOW)
+	handle, err := dlopen(libraryPath, RtldNow)
 	if err != nil {
 		return nil, fmt.Errorf("dlopen failed for %s: %w", libraryPath, err)
 	}
@@ -37,27 +37,27 @@ func NewLoader(libraryPath string) (*Loader, error) {
 		libraryPath: libraryPath,
 	}
 
-	if err := loader.resolveSymbols(); err != nil {
-		dlclose(handle)
-		return nil, err
+	if resolveErr := loader.resolveSymbols(); resolveErr != nil {
+		_ = dlclose(handle) //nolint:errcheck // Best effort cleanup
+		return nil, resolveErr
 	}
 
 	version, err := loader.getAPIVersion()
 	if err != nil {
-		dlclose(handle)
+		_ = dlclose(handle) //nolint:errcheck // Best effort cleanup
 		return nil, err
 	}
 	loader.apiVersion = version
 
 	if !isCompatible(CurrentAPIVersion, version) {
-		dlclose(handle)
+		_ = dlclose(handle) //nolint:errcheck // Best effort cleanup
 		return nil, fmt.Errorf("API version mismatch: loader=%s, library=%s",
 			CurrentAPIVersion, version)
 	}
 
 	caps, err := loader.discoverCapabilities()
 	if err != nil {
-		dlclose(handle)
+		_ = dlclose(handle) //nolint:errcheck // Best effort cleanup
 		return nil, err
 	}
 	loader.capabilities = caps
@@ -251,7 +251,7 @@ func (l *Loader) Cleanup() {
 	callCleanupFn(l.cleanupFn)
 
 	if l.handle != 0 {
-		dlclose(l.handle)
+		_ = dlclose(l.handle) //nolint:errcheck // Best effort cleanup
 		l.handle = 0
 	}
 }
@@ -277,6 +277,6 @@ func getMajorVersion(version string) int {
 	if len(parts) == 0 {
 		return 0
 	}
-	major, _ := strconv.Atoi(parts[0])
+	major, _ := strconv.Atoi(parts[0]) //nolint:errcheck // Fallback to 0 on error is fine
 	return major
 }

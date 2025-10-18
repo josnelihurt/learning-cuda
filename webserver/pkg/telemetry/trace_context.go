@@ -40,4 +40,3 @@ func InjectToProtobuf(ctx context.Context) *pb.TraceContext {
 		Tracestate:  carrier["tracestate"],
 	}
 }
-

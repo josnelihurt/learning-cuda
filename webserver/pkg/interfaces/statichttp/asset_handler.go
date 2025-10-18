@@ -1,4 +1,4 @@
-package static_http
+package statichttp
 
 import "net/http"
 
@@ -13,4 +13,3 @@ type ScriptTag struct {
 	Src    string
 	Module bool
 }
-

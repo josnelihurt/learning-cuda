@@ -177,7 +177,7 @@ func (fw *FliptWriter) createBooleanFlag(ctx context.Context, flagKey string, de
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort error logging
 		log.Printf("Failed to create flag '%s': status %d, body: %s", flagKey, resp.StatusCode, string(bodyBytes))
 		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
@@ -260,7 +260,7 @@ func (fw *FliptWriter) createVariantFlag(ctx context.Context, flagKey string) er
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort error logging
 		log.Printf("Failed to create variant flag '%s': status %d, body: %s", flagKey, resp.StatusCode, string(bodyBytes))
 		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
@@ -275,7 +275,7 @@ func (fw *FliptWriter) createStringVariant(ctx context.Context, flagKey string, 
 
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags/%s/variants", fw.apiURL, fw.namespace, flagKey)
 
-	attachmentJSON, _ := json.Marshal(map[string]string{"value": value})
+	attachmentJSON, _ := json.Marshal(map[string]string{"value": value}) //nolint:errcheck // Best effort attachment
 
 	payload := map[string]interface{}{
 		"key":        value,
@@ -304,7 +304,7 @@ func (fw *FliptWriter) createStringVariant(ctx context.Context, flagKey string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort error logging
 		log.Printf("Failed to create string variant for '%s': status %d, body: %s", flagKey, resp.StatusCode, string(bodyBytes))
 		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
@@ -338,7 +338,7 @@ func (fw *FliptWriter) DeleteFlag(ctx context.Context, flagKey string) error {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort error logging
 		log.Printf("Failed to delete flag '%s': status %d, body: %s", flagKey, resp.StatusCode, string(bodyBytes))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
@@ -367,7 +367,7 @@ func (fw *FliptWriter) DeleteAllFlags(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort error logging
 		log.Printf("Failed to list flags: status %d, body: %s", resp.StatusCode, string(bodyBytes))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}

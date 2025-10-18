@@ -28,8 +28,8 @@ func (tc *TestContext) iCallGetAvailableTools() error {
 	return tc.WhenICallGetAvailableTools()
 }
 
-func (tc *TestContext) iFindTheTool(toolId string) error {
-	return tc.WhenIFindTheTool(toolId)
+func (tc *TestContext) iFindTheTool(toolID string) error {
+	return tc.WhenIFindTheTool(toolID)
 }
 
 func (tc *TestContext) iFindAnyToolWithAnIcon() error {

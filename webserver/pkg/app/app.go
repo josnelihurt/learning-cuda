@@ -12,7 +12,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/pkg/interfaces/http"
-	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/static_http"
+	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/statichttp"
 	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -31,9 +31,9 @@ type App struct {
 	interceptors          []connect.Interceptor
 }
 
-type AppOption func(*App)
+type Option func(*App)
 
-func New(appContext context.Context, opts ...AppOption) *App {
+func New(appContext context.Context, opts ...Option) *App {
 	app := &App{
 		appContext: appContext,
 	}
@@ -45,55 +45,55 @@ func New(appContext context.Context, opts ...AppOption) *App {
 	return app
 }
 
-func WithConfig(cfg *config.Manager) AppOption {
+func WithConfig(cfg *config.Manager) Option {
 	return func(a *App) {
 		a.config = cfg
 	}
 }
 
-func WithUseCase(useCase *application.ProcessImageUseCase) AppOption {
+func WithUseCase(useCase *application.ProcessImageUseCase) Option {
 	return func(a *App) {
 		a.useCase = useCase
 	}
 }
 
-func WithGetStreamConfigUseCase(uc *application.GetStreamConfigUseCase) AppOption {
+func WithGetStreamConfigUseCase(uc *application.GetStreamConfigUseCase) Option {
 	return func(a *App) {
 		a.getStreamConfigUC = uc
 	}
 }
 
-func WithSyncFlagsUseCase(uc *application.SyncFeatureFlagsUseCase) AppOption {
+func WithSyncFlagsUseCase(uc *application.SyncFeatureFlagsUseCase) Option {
 	return func(a *App) {
 		a.syncFlagsUC = uc
 	}
 }
 
-func WithListInputsUseCase(uc *application.ListInputsUseCase) AppOption {
+func WithListInputsUseCase(uc *application.ListInputsUseCase) Option {
 	return func(a *App) {
 		a.listInputsUC = uc
 	}
 }
 
-func WithListAvailableImagesUseCase(uc *application.ListAvailableImagesUseCase) AppOption {
+func WithListAvailableImagesUseCase(uc *application.ListAvailableImagesUseCase) Option {
 	return func(a *App) {
 		a.listAvailableImagesUC = uc
 	}
 }
 
-func WithProcessorRegistry(registry *loader.Registry) AppOption {
+func WithProcessorRegistry(registry *loader.Registry) Option {
 	return func(a *App) {
 		a.registry = registry
 	}
 }
 
-func WithProcessorLoader(currentLoader **loader.Loader) AppOption {
+func WithProcessorLoader(currentLoader **loader.Loader) Option {
 	return func(a *App) {
 		a.currentLoader = currentLoader
 	}
 }
 
-func WithLoaderMutex(mu *sync.RWMutex) AppOption {
+func WithLoaderMutex(mu *sync.RWMutex) Option {
 	return func(a *App) {
 		a.loaderMutex = mu
 	}
@@ -155,7 +155,7 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 }
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
-	staticHandler := static_http.NewStaticHandler(a.config.Server, a.config.Stream, a.useCase)
+	staticHandler := statichttp.NewStaticHandler(a.config.Server, a.config.Stream, a.useCase)
 	staticHandler.RegisterRoutes(mux)
 }
 

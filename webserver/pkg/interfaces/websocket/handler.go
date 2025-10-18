@@ -29,7 +29,7 @@ var upgrader = websocket.Upgrader{
 
 type Handler struct {
 	useCase      *application.ProcessImageUseCase
-	imageCodec   *imageinfra.ImageCodec
+	imageCodec   *imageinfra.Codec
 	adapter      *adapters.ProtobufAdapter
 	streamConfig config.StreamConfig
 	frameCounter int

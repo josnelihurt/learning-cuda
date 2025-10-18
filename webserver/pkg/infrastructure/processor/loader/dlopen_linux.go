@@ -91,7 +91,7 @@ func dlclose(handle uintptr) error {
 }
 
 const (
-	RTLD_NOW = C.RTLD_NOW
+	RtldNow = C.RTLD_NOW
 )
 
 func callVersionFn(fnPtr uintptr) string {

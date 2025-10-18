@@ -50,7 +50,7 @@ func New(ctx context.Context) (*Container, error) {
 	})
 
 	httpClient := httpinfra.NewInstrumentedClient(httpinfra.ClientConfig{
-		Timeout:         cfg.HttpClientTimeout,
+		Timeout:         cfg.HTTPClientTimeout,
 		MaxIdleConns:    100,
 		IdleConnTimeout: 90 * time.Second,
 	})
@@ -81,9 +81,9 @@ func New(ctx context.Context) (*Container, error) {
 	}
 
 	registry := loader.NewRegistry(cfg.Processor.LibraryBasePath)
-	if err := registry.Discover(); err != nil {
+	if discoverErr := registry.Discover(); discoverErr != nil {
 		log.Warn().
-			Err(err).
+			Err(discoverErr).
 			Str("library_path", cfg.Processor.LibraryBasePath).
 			Msg("Failed to discover processor libraries")
 	}

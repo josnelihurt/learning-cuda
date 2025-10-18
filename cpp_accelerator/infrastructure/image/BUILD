@@ -24,7 +24,7 @@ cc_test(
         "image_writer_test.cpp",
     ],
     data = [
-        "//data:lena.png",
+        "//data:static_images/lena.png",
     ],
     deps = [
         ":image_adapters",

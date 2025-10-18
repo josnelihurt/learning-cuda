@@ -27,19 +27,19 @@ func (h *ImageProcessorHandler) ProcessImage(
 	req *connect.Request[pb.ProcessImageRequest],
 ) (*connect.Response[pb.ProcessImageResponse], error) {
 	msg := req.Msg
-	
+
 	filters := h.adapter.ToFilters(msg.Filters)
 	accelerator := h.adapter.ToAccelerator(msg.Accelerator)
 	grayscaleType := h.adapter.ToGrayscaleType(msg.GrayscaleType)
 	domainImg := h.adapter.ToDomainImage(msg)
-	
+
 	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	
+
 	resp := h.adapter.ToProtobufResponse(processedImg)
-	
+
 	return connect.NewResponse(resp), nil
 }
 
@@ -52,4 +52,3 @@ func (h *ImageProcessorHandler) StreamProcessVideo(
 }
 
 var _ genconnect.ImageProcessorServiceHandler = (*ImageProcessorHandler)(nil)
-

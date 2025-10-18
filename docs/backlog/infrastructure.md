@@ -86,6 +86,20 @@ Microservices, observability, testing, and cloud deployment.
 
 ## Load Testing & BDD
 
+### Git Hooks & CI
+- [x] Create pre-commit hook (C++ tests, Go tests, linters, frontend build)
+- [x] Modularize pre-commit into layer-specific scripts (6 scripts)
+- [x] Create pre-commit-cpp.sh, pre-commit-go.sh, pre-commit-frontend.sh
+- [x] Create pre-commit-lint-cpp.sh, pre-commit-lint-go.sh, pre-commit-lint-frontend.sh
+- [x] Create pre-push hook (full validation with all browsers)
+- [x] Add setup-hooks.sh installation script
+- [x] Document git hooks in README
+- [x] Configure golangci-lint with gosec exceptions and govet tweaks
+- [ ] Add commit-msg hook for conventional commits validation
+- [ ] Add prepare-commit-msg for commit message templates
+- [ ] Integrate hooks with CI/CD pipeline
+- [ ] Add hooks performance metrics and timing
+
 ### Unit Tests
 - [x] Setup test coverage reporting infrastructure
 - [x] Add unit tests for ProcessImageUseCase with mocks (12 test cases, 211 lines)

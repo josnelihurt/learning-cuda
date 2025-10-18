@@ -10,7 +10,7 @@ import (
 )
 
 type Manager struct {
-	HttpClientTimeout time.Duration       `mapstructure:"http_client_timeout"`
+	HTTPClientTimeout time.Duration       `mapstructure:"http_client_timeout"`
 	Environment       string              `mapstructure:"environment"`
 	Flipt             FliptConfig         `mapstructure:"flipt"`
 	Server            ServerConfig        `mapstructure:"server"`

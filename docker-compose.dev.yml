@@ -259,14 +259,21 @@ services:
       - lint
 
   lint-golang:
-    image: golangci/golangci-lint:v1.55-alpine
+    image: golang:1.24-alpine
     container_name: lint-golang
     working_dir: /workspace
     volumes:
       - .:/workspace
       - go-cache:/root/.cache/go-build
       - go-mod-cache:/go/pkg/mod
-    command: golangci-lint run --timeout 5m ./...
+    environment:
+      - GOFLAGS=-buildvcs=false
+    command: sh -c "
+      apk add --no-cache git build-base &&
+      go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest &&
+      export PATH=$$PATH:$$(go env GOPATH)/bin &&
+      golangci-lint run --timeout 5m ./...
+      "
     profiles:
       - lint
 

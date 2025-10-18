@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+echo "Running pre-push validations..."
+echo ""
+
+echo "Running pre-commit validations..."
+"$SCRIPT_DIR/pre-commit.sh" || exit 1
+
+echo "BDD Integration Tests..."
+"$PROJECT_ROOT/scripts/run-docker-tests.sh" backend || {
+    echo "FAILED: BDD tests"
+    exit 1
+}
+
+echo ""
+echo "E2E Tests (all browsers)..."
+export PLAYWRIGHT_SCREENSHOTS=true
+export PLAYWRIGHT_VIDEO=true
+export PLAYWRIGHT_TRACE=true
+
+"$PROJECT_ROOT/scripts/run-e2e-tests.sh" || {
+    echo "FAILED: E2E tests"
+    echo ""
+    echo "Test evidence saved:"
+    echo "  - Screenshots: webserver/web/.ignore/test-results/"
+    echo "  - Playwright report: webserver/web/.ignore/playwright-report/"
+    echo ""
+    echo "View report:"
+    echo "  docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer"
+    echo "  Open: http://localhost:5051"
+    exit 1
+}
+
+echo ""
+echo "Pre-push validations passed"
+

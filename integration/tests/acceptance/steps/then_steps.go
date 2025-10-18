@@ -44,24 +44,24 @@ func (tc *TestContext) theCapabilitiesShouldHaveAtLeastNFilters(count int) error
 	return tc.ThenTheCapabilitiesShouldHaveAtLeastNFilters(count)
 }
 
-func (tc *TestContext) theFilterShouldBeDefined(filterId string) error {
-	return tc.ThenTheFilterShouldBeDefined(filterId)
+func (tc *TestContext) theFilterShouldBeDefined(filterID string) error {
+	return tc.ThenTheFilterShouldBeDefined(filterID)
 }
 
-func (tc *TestContext) theFilterShouldHaveParameter(filterId, paramId string) error {
-	return tc.ThenTheFilterShouldHaveParameter(filterId, paramId)
+func (tc *TestContext) theFilterShouldHaveParameter(filterID, paramID string) error {
+	return tc.ThenTheFilterShouldHaveParameter(filterID, paramID)
 }
 
-func (tc *TestContext) theParameterShouldBeOfType(paramId, paramType string) error {
-	return tc.ThenTheParameterShouldBeOfType(paramId, paramType)
+func (tc *TestContext) theParameterShouldBeOfType(paramID, paramType string) error {
+	return tc.ThenTheParameterShouldBeOfType(paramID, paramType)
 }
 
-func (tc *TestContext) theParameterShouldHaveAtLeastNOptions(paramId string, count int) error {
-	return tc.ThenTheParameterShouldHaveAtLeastNOptions(paramId, count)
+func (tc *TestContext) theParameterShouldHaveAtLeastNOptions(paramID string, count int) error {
+	return tc.ThenTheParameterShouldHaveAtLeastNOptions(paramID, count)
 }
 
-func (tc *TestContext) theFilterShouldSupportAccelerator(filterId, accelerator string) error {
-	return tc.ThenTheFilterShouldSupportAccelerator(filterId, accelerator)
+func (tc *TestContext) theFilterShouldSupportAccelerator(filterID, accelerator string) error {
+	return tc.ThenTheFilterShouldSupportAccelerator(filterID, accelerator)
 }
 
 func (tc *TestContext) theResponseShouldContainToolCategories() error {
@@ -80,16 +80,16 @@ func (tc *TestContext) toolsWithTypeShouldHaveField(toolType, fieldName string) 
 	return tc.ThenToolsWithTypeShouldHaveField(toolType, fieldName)
 }
 
-func (tc *TestContext) theUrlShouldNotBeEmpty() error {
-	return tc.ThenTheUrlShouldNotBeEmpty()
+func (tc *TestContext) theURLShouldNotBeEmpty() error {
+	return tc.ThenTheURLShouldNotBeEmpty()
 }
 
 func (tc *TestContext) theActionShouldMatchKnownActions() error {
 	return tc.ThenTheActionShouldMatchKnownActions()
 }
 
-func (tc *TestContext) theToolUrlShouldContain(substring string) error {
-	return tc.ThenTheToolUrlShouldContain(substring)
+func (tc *TestContext) theToolURLShouldContain(substring string) error {
+	return tc.ThenTheToolURLShouldContain(substring)
 }
 
 func (tc *TestContext) theIconPathShouldStartWith(prefix string) error {
@@ -116,8 +116,8 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the categories should include "([^"]*)"$`, tc.theCategoriesShouldInclude)
 	ctx.Step(`^each tool should have an? "([^"]*)"$`, tc.eachToolShouldHaveField)
 	ctx.Step(`^tools with type "([^"]*)" should have an? "([^"]*)" field$`, tc.toolsWithTypeShouldHaveField)
-	ctx.Step(`^the url should not be empty$`, tc.theUrlShouldNotBeEmpty)
+	ctx.Step(`^the url should not be empty$`, tc.theURLShouldNotBeEmpty)
 	ctx.Step(`^the action should match known actions$`, tc.theActionShouldMatchKnownActions)
-	ctx.Step(`^the tool url should contain "([^"]*)"$`, tc.theToolUrlShouldContain)
+	ctx.Step(`^the tool url should contain "([^"]*)"$`, tc.theToolURLShouldContain)
 	ctx.Step(`^the icon_path should start with "([^"]*)"$`, tc.theIconPathShouldStartWith)
 }

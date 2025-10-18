@@ -16,8 +16,7 @@ func TraceContextInterceptor() connect.UnaryInterceptorFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 			// Extract from protobuf TraceContext if present
 			if msg := req.Any(); msg != nil {
-				switch v := msg.(type) {
-				case interface{ GetTraceContext() *pb.TraceContext }:
+				if v, ok := msg.(interface{ GetTraceContext() *pb.TraceContext }); ok {
 					if tc := v.GetTraceContext(); tc != nil {
 						ctx = ExtractFromProtobuf(ctx, tc)
 					}
@@ -43,4 +42,3 @@ func TraceContextInterceptor() connect.UnaryInterceptorFunc {
 		}
 	}
 }
-

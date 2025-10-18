@@ -1,4 +1,4 @@
-package static_http
+package statichttp
 
 import (
 	"encoding/json"
@@ -26,17 +26,16 @@ func (m ViteManifest) GetEntryFile() string {
 
 func loadAssetManifest(webRootPath string) AssetManifest {
 	manifestPath := filepath.Join(webRootPath, "static", "js", "dist", ".vite", "manifest.json")
-	
+
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return ViteManifest{}
 	}
-	
+
 	var manifest ViteManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return ViteManifest{}
 	}
-	
+
 	return manifest
 }
-

@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	_ "image/png"
+	_ "image/png" // Required for PNG image encoding/decoding
 	"io"
 	"net/http"
 	"os"
@@ -519,7 +519,7 @@ func (c *BDDContext) WhenIConnectToWebSocket(transportFormat string) error {
 	} else {
 		wsURL = "ws" + wsURL[4:]
 	}
-	wsURL = wsURL + "/ws"
+	wsURL += "/ws"
 
 	dialer := websocket.Dialer{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -574,8 +574,8 @@ func (c *BDDContext) WhenISendWebSocketFrame(filter, accelerator, grayscaleType 
 	}
 
 	c.wsConnection.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if err := c.wsConnection.WriteMessage(messageType, messageData); err != nil {
-		return fmt.Errorf("failed to send websocket message: %w", err)
+	if writeErr := c.wsConnection.WriteMessage(messageType, messageData); writeErr != nil {
+		return fmt.Errorf("failed to send websocket message: %w", writeErr)
 	}
 
 	c.wsConnection.SetReadDeadline(time.Now().Add(10 * time.Second))
@@ -649,8 +649,8 @@ func (c *BDDContext) WhenISendInvalidWebSocketFrame(errorType string) error {
 	}
 
 	c.wsConnection.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if err := c.wsConnection.WriteMessage(messageType, messageData); err != nil {
-		return fmt.Errorf("failed to send websocket message: %w", err)
+	if writeErr := c.wsConnection.WriteMessage(messageType, messageData); writeErr != nil {
+		return fmt.Errorf("failed to send websocket message: %w", writeErr)
 	}
 
 	c.wsConnection.SetReadDeadline(time.Now().Add(10 * time.Second))
@@ -942,42 +942,42 @@ func (c *BDDContext) ThenTheCapabilitiesShouldHaveAtLeastNFilters(count int) err
 	return nil
 }
 
-func (c *BDDContext) ThenTheFilterShouldBeDefined(filterId string) error {
+func (c *BDDContext) ThenTheFilterShouldBeDefined(filterID string) error {
 	if c.processorCapabilities == nil {
 		return fmt.Errorf("no capabilities in response")
 	}
 	for _, filter := range c.processorCapabilities.Filters {
-		if filter.Id == filterId {
+		if filter.Id == filterID {
 			return nil
 		}
 	}
-	return fmt.Errorf("filter '%s' not found in capabilities", filterId)
+	return fmt.Errorf("filter '%s' not found in capabilities", filterID)
 }
 
-func (c *BDDContext) ThenTheFilterShouldHaveParameter(filterId, paramId string) error {
+func (c *BDDContext) ThenTheFilterShouldHaveParameter(filterID, paramID string) error {
 	if c.processorCapabilities == nil {
 		return fmt.Errorf("no capabilities in response")
 	}
 	for _, filter := range c.processorCapabilities.Filters {
-		if filter.Id == filterId {
+		if filter.Id == filterID {
 			for _, param := range filter.Parameters {
-				if param.Id == paramId {
+				if param.Id == paramID {
 					return nil
 				}
 			}
-			return fmt.Errorf("parameter '%s' not found in filter '%s'", paramId, filterId)
+			return fmt.Errorf("parameter '%s' not found in filter '%s'", paramID, filterID)
 		}
 	}
-	return fmt.Errorf("filter '%s' not found in capabilities", filterId)
+	return fmt.Errorf("filter '%s' not found in capabilities", filterID)
 }
 
-func (c *BDDContext) ThenTheParameterShouldBeOfType(paramId, paramType string) error {
+func (c *BDDContext) ThenTheParameterShouldBeOfType(paramID, paramType string) error {
 	if c.processorCapabilities == nil {
 		return fmt.Errorf("no capabilities in response")
 	}
 	for _, filter := range c.processorCapabilities.Filters {
 		for _, param := range filter.Parameters {
-			if param.Id == paramId {
+			if param.Id == paramID {
 				if param.Type != paramType {
 					return fmt.Errorf("expected parameter type '%s', got '%s'", paramType, param.Type)
 				}
@@ -985,16 +985,16 @@ func (c *BDDContext) ThenTheParameterShouldBeOfType(paramId, paramType string) e
 			}
 		}
 	}
-	return fmt.Errorf("parameter '%s' not found", paramId)
+	return fmt.Errorf("parameter '%s' not found", paramID)
 }
 
-func (c *BDDContext) ThenTheParameterShouldHaveAtLeastNOptions(paramId string, count int) error {
+func (c *BDDContext) ThenTheParameterShouldHaveAtLeastNOptions(paramID string, count int) error {
 	if c.processorCapabilities == nil {
 		return fmt.Errorf("no capabilities in response")
 	}
 	for _, filter := range c.processorCapabilities.Filters {
 		for _, param := range filter.Parameters {
-			if param.Id == paramId {
+			if param.Id == paramID {
 				actualCount := len(param.Options)
 				if actualCount < count {
 					return fmt.Errorf("expected at least %d options, got %d", count, actualCount)
@@ -1003,25 +1003,25 @@ func (c *BDDContext) ThenTheParameterShouldHaveAtLeastNOptions(paramId string, c
 			}
 		}
 	}
-	return fmt.Errorf("parameter '%s' not found", paramId)
+	return fmt.Errorf("parameter '%s' not found", paramID)
 }
 
-func (c *BDDContext) ThenTheFilterShouldSupportAccelerator(filterId, accelerator string) error {
+func (c *BDDContext) ThenTheFilterShouldSupportAccelerator(filterID, accelerator string) error {
 	if c.processorCapabilities == nil {
 		return fmt.Errorf("no capabilities in response")
 	}
 	for _, filter := range c.processorCapabilities.Filters {
-		if filter.Id == filterId {
+		if filter.Id == filterID {
 			expectedAccelType := parseAcceleratorType(accelerator)
 			for _, accel := range filter.SupportedAccelerators {
 				if accel == expectedAccelType {
 					return nil
 				}
 			}
-			return fmt.Errorf("accelerator '%s' not found in filter '%s' supported accelerators", accelerator, filterId)
+			return fmt.Errorf("accelerator '%s' not found in filter '%s' supported accelerators", accelerator, filterID)
 		}
 	}
-	return fmt.Errorf("filter '%s' not found in capabilities", filterId)
+	return fmt.Errorf("filter '%s' not found in capabilities", filterID)
 }
 
 func (c *BDDContext) WhenICallGetAvailableTools() error {
@@ -1121,7 +1121,7 @@ func (c *BDDContext) ThenToolsWithTypeShouldHaveField(toolType, fieldName string
 	return nil
 }
 
-func (c *BDDContext) ThenTheUrlShouldNotBeEmpty() error {
+func (c *BDDContext) ThenTheURLShouldNotBeEmpty() error {
 	return nil
 }
 
@@ -1146,22 +1146,22 @@ func (c *BDDContext) ThenTheActionShouldMatchKnownActions() error {
 	return nil
 }
 
-func (c *BDDContext) WhenIFindTheTool(toolId string) error {
+func (c *BDDContext) WhenIFindTheTool(toolID string) error {
 	if c.toolsResponse == nil {
 		return fmt.Errorf("no tools response available")
 	}
 	for _, cat := range c.toolsResponse.Categories {
 		for _, tool := range cat.Tools {
-			if tool.Id == toolId {
+			if tool.Id == toolID {
 				c.currentTool = tool
 				return nil
 			}
 		}
 	}
-	return fmt.Errorf("tool '%s' not found", toolId)
+	return fmt.Errorf("tool '%s' not found", toolID)
 }
 
-func (c *BDDContext) ThenTheToolUrlShouldContain(substring string) error {
+func (c *BDDContext) ThenTheToolURLShouldContain(substring string) error {
 	if c.currentTool == nil {
 		return fmt.Errorf("no current tool set")
 	}

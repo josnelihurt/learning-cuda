@@ -24,7 +24,7 @@ func NewListInputsUseCase() *ListInputsUseCase {
 
 func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error) {
 	tracer := otel.Tracer("list-inputs")
-	ctx, span := tracer.Start(ctx, "ListInputs",
+	_, span := tracer.Start(ctx, "ListInputs",
 		trace.WithSpanKind(trace.SpanKindInternal),
 	)
 	defer span.End()

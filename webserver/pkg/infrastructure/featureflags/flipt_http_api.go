@@ -49,7 +49,7 @@ func (api *FliptHTTPAPI) GetFlag(ctx context.Context, flagKey string) (*Flag, er
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort error logging
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -79,7 +79,7 @@ func (api *FliptHTTPAPI) ListFlags(ctx context.Context) ([]Flag, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort error logging
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 

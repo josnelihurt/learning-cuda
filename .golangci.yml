@@ -22,7 +22,6 @@ linters:
     - gocritic
     - gocyclo
     - gosec
-    - exportloopref
     - nilerr
     - nolintlint
     - stylecheck
@@ -33,8 +32,10 @@ linters-settings:
     check-blank: true
   
   govet:
-    check-shadowing: true
-    enable-all: true
+    disable:
+      - fieldalignment
+    enable:
+      - shadow
   
   gocyclo:
     min-complexity: 15
@@ -89,12 +90,23 @@ issues:
       linters:
         - errcheck
         - goconst
+        - gosec
+    - path: development_handler\.go
+      linters:
+        - gosec
+    - text: "G115:" # Integer overflow conversions are acceptable for protobuf int32
+      linters:
+        - gosec
+    - text: "G114:" # HTTP serve timeouts are handled at server level
+      linters:
+        - gosec
 
   max-issues-per-linter: 0
   max-same-issues: 0
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
 

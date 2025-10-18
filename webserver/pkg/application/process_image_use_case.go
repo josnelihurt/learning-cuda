@@ -59,4 +59,3 @@ func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, f
 
 	return result, nil
 }
-

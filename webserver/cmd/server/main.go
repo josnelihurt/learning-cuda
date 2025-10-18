@@ -21,7 +21,6 @@ func main() {
 	if err != nil {
 		logger.Global().Fatal().Err(err).Msg("Failed to initialize container")
 	}
-	defer di.Close(ctx)
 
 	log := logger.Global()
 
@@ -33,16 +32,6 @@ func main() {
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to initialize telemetry")
 	}
-
-	defer func() {
-		if tracerProvider != nil {
-			shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
-				log.Error().Err(err).Msg("Error shutting down tracer provider")
-			}
-		}
-	}()
 
 	processImageUseCase := application.NewProcessImageUseCase(di.CppConnector)
 
@@ -70,9 +59,27 @@ func main() {
 	select {
 	case err := <-errChan:
 		if err != nil {
-			log.Fatal().Err(err).Msg("Server error")
+			log.Error().Err(err).Msg("Server error")
+			di.Close(ctx)
+			if tracerProvider != nil {
+				shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				if shutdownErr := tracerProvider.Shutdown(shutdownCtx); shutdownErr != nil {
+					log.Error().Err(shutdownErr).Msg("Error shutting down tracer provider")
+				}
+				cancel()
+			}
+			os.Exit(1)
 		}
 	case sig := <-sigChan:
 		log.Info().Str("signal", sig.String()).Msg("Received signal, shutting down gracefully")
+	}
+
+	di.Close(ctx)
+	if tracerProvider != nil {
+		shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
+			log.Error().Err(err).Msg("Error shutting down tracer provider")
+		}
 	}
 }

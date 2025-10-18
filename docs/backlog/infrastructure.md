@@ -88,12 +88,19 @@ Microservices, observability, testing, and cloud deployment.
 
 ### Unit Tests
 - [x] Setup test coverage reporting infrastructure
-- [x] Add unit tests for ProcessImageUseCase with mocks (12 test cases)
-- [x] Add unit tests for ToastContainer frontend component (8 test suites)
-- [ ] Add unit tests for remaining use cases (table-driven tests)
+- [x] Add unit tests for ProcessImageUseCase with mocks (12 test cases, 211 lines)
+- [x] Add unit tests for EvaluateFeatureFlagUseCase (7 test cases, 240 lines)
+- [x] Add unit tests for GetStreamConfigUseCase (3 test cases, 113 lines)
+- [x] Add unit tests for ListInputsUseCase (2 test cases, 87 lines)
+- [x] Add unit tests for SyncFeatureFlagsUseCase (3 test cases, 110 lines)
+- [x] Add unit tests for ToastContainer frontend component (8 test suites, 199 lines)
+- [x] Create mocks for FeatureFlagRepository interface
+- [x] Create mocks for ImageProcessor interface
+- [x] Total application layer coverage: 5 use cases tested (27+ test cases, 761 lines)
 - [ ] Add unit tests for handlers (ConnectRPC, WebSocket, HTTP)
 - [ ] Add unit tests for repositories (mock Flipt client)
-- [ ] Mock all domain interfaces for comprehensive testing
+- [ ] Add unit tests for infrastructure layer services
+- [ ] Mock all remaining domain interfaces
 
 ### K6 Load Tests
 - [ ] Single user baseline (30 FPS for 30s)

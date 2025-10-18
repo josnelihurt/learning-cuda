@@ -4,6 +4,22 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Go Application Layer Unit Tests (Oct 18, 2025)
+- [x] Implement EvaluateFeatureFlagUseCase tests with 7 comprehensive test cases (240 lines)
+- [x] Test boolean flag evaluation with success and error scenarios
+- [x] Test variant flag evaluation with multiple variant types
+- [x] Implement GetStreamConfigUseCase tests with 3 test cases (113 lines)
+- [x] Test stream configuration retrieval and error handling
+- [x] Implement ListInputsUseCase tests with 2 test cases (87 lines)
+- [x] Test input source listing with service integration
+- [x] Implement SyncFeatureFlagsUseCase tests with 3 test cases (110 lines)
+- [x] Test feature flag synchronization with Flipt repository
+- [x] Create comprehensive mocks for FeatureFlagRepository interface
+- [x] Add table-driven test patterns for maintainability
+- [x] Total: 9 test functions with 15+ test cases across 4 use cases (546 lines)
+- [x] All tests using testify/mock and testify/assert for assertions
+- [x] Complete coverage of success paths and error scenarios
+
 ### Code Quality & Testing Infrastructure (Oct 18, 2025)
 - [x] Configure comprehensive linting for all languages (C++, Go, TypeScript)
 - [x] Add clang-tidy configuration with 50+ checks for C++ code quality

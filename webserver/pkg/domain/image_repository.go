@@ -11,4 +11,5 @@ type StaticImage struct {
 
 type StaticImageRepository interface {
 	FindAll(ctx context.Context) ([]StaticImage, error)
+	Save(ctx context.Context, filename string, data []byte) (*StaticImage, error)
 }

@@ -96,6 +96,18 @@ func (tc *TestContext) theIconPathShouldStartWith(prefix string) error {
 	return tc.ThenTheIconPathShouldStartWith(prefix)
 }
 
+func (tc *TestContext) theUploadShouldSucceed() error {
+	return tc.ThenTheUploadShouldSucceed()
+}
+
+func (tc *TestContext) theUploadShouldFailWithError(expectedError string) error {
+	return tc.ThenTheUploadShouldFailWithError(expectedError)
+}
+
+func (tc *TestContext) theResponseShouldContainUploadedImageDetails() error {
+	return tc.ThenTheResponseShouldContainUploadedImageDetails()
+}
+
 func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain transport format "([^"]*)"$`, tc.theResponseShouldContainTransportFormat)
 	ctx.Step(`^the response should contain endpoint "([^"]*)"$`, tc.theResponseShouldContainEndpoint)
@@ -120,4 +132,7 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the action should match known actions$`, tc.theActionShouldMatchKnownActions)
 	ctx.Step(`^the tool url should contain "([^"]*)"$`, tc.theToolURLShouldContain)
 	ctx.Step(`^the icon_path should start with "([^"]*)"$`, tc.theIconPathShouldStartWith)
+	ctx.Step(`^the upload should succeed$`, tc.theUploadShouldSucceed)
+	ctx.Step(`^the upload should fail with "([^"]*)" error$`, tc.theUploadShouldFailWithError)
+	ctx.Step(`^the response should contain the uploaded image details$`, tc.theResponseShouldContainUploadedImageDetails)
 }

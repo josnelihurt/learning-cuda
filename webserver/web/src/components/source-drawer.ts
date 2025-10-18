@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { InputSource } from '../gen/config_service_pb';
 import { telemetryService } from '../services/telemetry-service';
+import './image-upload';
 
 @customElement('source-drawer')
 export class SourceDrawer extends LitElement {
@@ -150,6 +151,21 @@ export class SourceDrawer extends LitElement {
             font-size: 11px;
             font-weight: 600;
         }
+
+        .upload-section {
+            padding: 0 0 16px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     `;
 
     render() {
@@ -161,6 +177,11 @@ export class SourceDrawer extends LitElement {
                     <button class="close-btn" @click=${this.close} data-testid="drawer-close">×</button>
                 </div>
                 <div class="drawer-content">
+                    <div class="upload-section">
+                        <div class="section-title">Upload Image</div>
+                        <image-upload @image-uploaded=${this.handleImageUploaded}></image-upload>
+                    </div>
+                    <div class="section-title">Select Source</div>
                     <div class="source-list">
                         ${this.availableSources.map(source => this.renderSourceItem(source))}
                     </div>
@@ -210,6 +231,22 @@ export class SourceDrawer extends LitElement {
         }));
 
         this.close();
+    }
+
+    private handleImageUploaded(event: CustomEvent): void {
+        const span = telemetryService.createSpan('SourceDrawer.handleImageUploaded');
+        const { image } = event.detail;
+
+        console.log('Image uploaded in drawer:', image.id);
+        span?.setAttribute('image.id', image.id);
+
+        this.dispatchEvent(new CustomEvent('image-uploaded', {
+            bubbles: true,
+            composed: true,
+            detail: { image }
+        }));
+
+        span?.end();
     }
 }
 

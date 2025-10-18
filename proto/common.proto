@@ -63,3 +63,20 @@ message LibraryCapabilities {
   string build_commit = 15 [json_name = "build_commit"];
 }
 
+// Static image metadata (shared across services)
+message StaticImage {
+  string id = 1 [json_name = "id"];
+  string display_name = 3 [json_name = "display_name"];
+  string path = 5 [json_name = "path"];
+  bool is_default = 7 [json_name = "is_default"];
+}
+
+message ListAvailableImagesRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message ListAvailableImagesResponse {
+  repeated StaticImage images = 1 [json_name = "images"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+

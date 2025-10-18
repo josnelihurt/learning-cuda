@@ -6,6 +6,7 @@ Microservices, observability, testing, and cloud deployment.
 
 ### Services to Build
 - [x] Image Processing Service (ProcessImage endpoint implemented)
+- [x] File Service (ListAvailableImages, UploadImage implemented)
 - [ ] StreamProcessVideo implementation (defined but returns Unimplemented)
 - [ ] Video Management Service (ListVideos, StreamVideo, Upload)
 - [ ] Model Inference Service (Predict, StreamInference)
@@ -83,6 +84,26 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Grafana dashboard and datasource provisioning
 - [ ] Add request correlation IDs across services
 - [ ] Detailed health checks with dependencies (readiness vs liveness)
+
+### File Upload Service
+- [x] Create FileService proto with upload and list operations
+- [x] Implement UploadImage RPC with file validation
+- [x] PNG format validation (magic number check)
+- [x] File size limit enforcement (10MB max)
+- [x] Save uploaded files to static_images directory
+- [x] Drag-and-drop UI component with progress indicator
+- [x] Frontend file validation before upload
+- [x] BDD tests for upload scenarios (4 scenarios)
+- [x] Unit tests for upload use case (6 test cases)
+- [x] E2E tests for upload workflow (6 tests)
+- [x] OpenTelemetry tracing for upload operations
+- [ ] Support additional image formats (JPEG, WebP)
+- [ ] Image compression before storage
+- [ ] Thumbnail generation on upload
+- [ ] Image metadata extraction (dimensions, format)
+- [ ] Upload progress tracking with streaming
+- [ ] Batch upload support for multiple files
+- [ ] Image preview before upload confirmation
 
 ## Load Testing & BDD
 

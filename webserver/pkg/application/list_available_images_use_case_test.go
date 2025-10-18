@@ -22,6 +22,14 @@ func (m *MockStaticImageRepository) FindAll(ctx context.Context) ([]domain.Stati
 	return args.Get(0).([]domain.StaticImage), args.Error(1)
 }
 
+func (m *MockStaticImageRepository) Save(ctx context.Context, filename string, data []byte) (*domain.StaticImage, error) {
+	args := m.Called(ctx, filename, data)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.StaticImage), args.Error(1)
+}
+
 func TestNewListAvailableImagesUseCase(t *testing.T) {
 	mockRepo := new(MockStaticImageRepository)
 	sut := NewListAvailableImagesUseCase(mockRepo)

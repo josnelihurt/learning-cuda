@@ -4,6 +4,35 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Image Upload with FileService (Oct 18, 2025)
+- [x] Create FileService proto with ListAvailableImages and UploadImage RPCs
+- [x] Refactor ListAvailableImages from ConfigService to FileService
+- [x] Implement FileHandler with upload and list capabilities (103 lines)
+- [x] Create UploadImageUseCase with file validation (91 lines)
+- [x] Add PNG format validation (magic number check)
+- [x] Enforce 10MB file size limit with validation
+- [x] Extend StaticImageRepository with Save method (38 lines)
+- [x] Add repository unit tests for Save method (2 test cases)
+- [x] Create ImageUpload web component with drag-and-drop (258 lines)
+- [x] Implement upload progress indicator with visual feedback
+- [x] Add file validation in frontend (format and size)
+- [x] Display user-friendly error messages for validation failures
+- [x] Integrate upload component in SourceDrawer
+- [x] Update InputSourceService to use FileService client
+- [x] Create FileService TypeScript client with tracing (93 lines)
+- [x] Add 4 BDD scenarios for upload validation in upload_images.feature
+- [x] Implement comprehensive BDD step definitions (170 lines)
+- [x] Create UploadImageUseCase unit tests with 6 test cases (201 lines)
+- [x] Add frontend unit tests for ImageUpload component (4 tests)
+- [x] Create E2E tests for upload workflow (6 test scenarios, 133 lines)
+- [x] Wire FileService in server registration and container
+- [x] Update main.go with UploadImageUseCase dependency
+- [x] Add OpenTelemetry tracing to all upload operations
+- [x] Total implementation: ~1,090 lines across 15 files
+- [x] Uploaded images saved to /data/static_images directory
+- [x] All backend unit tests passing (10+ new tests)
+- [x] Frontend builds successfully with new components
+
 ### Code Quality & Modular Git Hooks (Oct 18, 2025)
 - [x] Modularize git hooks into separate scripts per layer
 - [x] Create pre-commit-cpp.sh for C++ tests (14 lines)

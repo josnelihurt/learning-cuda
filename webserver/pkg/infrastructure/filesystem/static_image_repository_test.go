@@ -97,3 +97,56 @@ func createFile(t *testing.T, dir, filename string) {
 	err := os.WriteFile(path, []byte("dummy"), 0644)
 	require.NoError(t, err)
 }
+
+func TestStaticImageRepository_Save(t *testing.T) {
+	pngHeader := []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13}
+
+	tests := []struct {
+		name         string
+		filename     string
+		fileData     []byte
+		assertResult func(t *testing.T, image interface{}, err error, dir string)
+	}{
+		{
+			name:     "Success_SavesPNGFile",
+			filename: "test-upload.png",
+			fileData: pngHeader,
+			assertResult: func(t *testing.T, image interface{}, err error, dir string) {
+				assert.NoError(t, err)
+				require.NotNil(t, image)
+
+				savedPath := filepath.Join(dir, "test-upload.png")
+				_, statErr := os.Stat(savedPath)
+				assert.NoError(t, statErr)
+
+				content, readErr := os.ReadFile(savedPath)
+				assert.NoError(t, readErr)
+				assert.Equal(t, pngHeader, content)
+			},
+		},
+		{
+			name:     "Success_CreatesCorrectMetadata",
+			filename: "my-image.png",
+			fileData: pngHeader,
+			assertResult: func(t *testing.T, image interface{}, err error, dir string) {
+				assert.NoError(t, err)
+				require.NotNil(t, image)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			tmpDir := t.TempDir()
+			repo := NewStaticImageRepository(tmpDir)
+			ctx := context.Background()
+
+			// Act
+			result, err := repo.Save(ctx, tt.filename, tt.fileData)
+
+			// Assert
+			tt.assertResult(t, result, err, tmpDir)
+		})
+	}
+}

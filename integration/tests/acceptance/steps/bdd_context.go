@@ -47,9 +47,11 @@ type BDDContext struct {
 	inputSources          []*pb.InputSource
 	availableImages       []*pb.StaticImage
 	configClient          genconnect.ConfigServiceClient
+	fileClient            genconnect.FileServiceClient
 	processorCapabilities *pb.LibraryCapabilities
 	toolsResponse         *pb.GetAvailableToolsResponse
 	currentTool           *pb.Tool
+	uploadedImage         *pb.StaticImage
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -64,6 +66,7 @@ func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDCont
 
 	connectClient := genconnect.NewImageProcessorServiceClient(httpClient, serviceBaseURL)
 	configClient := genconnect.NewConfigServiceClient(httpClient, serviceBaseURL)
+	fileClient := genconnect.NewFileServiceClient(httpClient, serviceBaseURL)
 
 	ctx := &BDDContext{
 		fliptAPI:       featureflags.NewFliptHTTPAPI(fliptBaseURL, fliptNamespace, httpClient),
@@ -71,6 +74,7 @@ func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDCont
 		serviceBaseURL: serviceBaseURL,
 		connectClient:  connectClient,
 		configClient:   configClient,
+		fileClient:     fileClient,
 		checksums:      make(map[string]string),
 	}
 
@@ -849,7 +853,7 @@ func (c *BDDContext) WhenICallListAvailableImages() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := c.configClient.ListAvailableImages(ctx, connect.NewRequest(&pb.ListAvailableImagesRequest{}))
+	resp, err := c.fileClient.ListAvailableImages(ctx, connect.NewRequest(&pb.ListAvailableImagesRequest{}))
 	if err != nil {
 		c.lastError = err
 		c.lastResponse = &http.Response{StatusCode: 500}
@@ -1194,4 +1198,172 @@ func (c *BDDContext) ThenTheIconPathShouldStartWith(prefix string) error {
 		return fmt.Errorf("icon_path '%s' does not start with '%s'", c.currentTool.IconPath, prefix)
 	}
 	return nil
+}
+
+func (c *BDDContext) WhenIUploadValidPNGImage(filename string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	testImageData := createTestPNGImage(100, 100)
+
+	req := &pb.UploadImageRequest{
+		FileData: testImageData,
+		Filename: filename,
+	}
+
+	resp, err := c.fileClient.UploadImage(ctx, connect.NewRequest(req))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: 500}
+		return nil
+	}
+
+	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastError = nil
+	c.uploadedImage = resp.Msg.Image
+
+	return nil
+}
+
+func (c *BDDContext) WhenIUploadLargePNGImage() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	largeImageData := make([]byte, 11*1024*1024)
+
+	req := &pb.UploadImageRequest{
+		FileData: largeImageData,
+		Filename: "large-test.png",
+	}
+
+	_, err := c.fileClient.UploadImage(ctx, connect.NewRequest(req))
+	c.lastError = err
+	if err != nil {
+		c.lastResponse = &http.Response{StatusCode: 400}
+	}
+
+	return nil
+}
+
+func (c *BDDContext) WhenIUploadNonPNGFile(filename string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	jpegData := []byte{0xFF, 0xD8, 0xFF, 0xE0}
+
+	req := &pb.UploadImageRequest{
+		FileData: jpegData,
+		Filename: filename,
+	}
+
+	_, err := c.fileClient.UploadImage(ctx, connect.NewRequest(req))
+	c.lastError = err
+	if err != nil {
+		c.lastResponse = &http.Response{StatusCode: 400}
+	}
+
+	return nil
+}
+
+func (c *BDDContext) ThenTheUploadShouldSucceed() error {
+	if c.lastError != nil {
+		return fmt.Errorf("expected success but got error: %v", c.lastError)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheUploadShouldFailWithError(expectedError string) error {
+	if c.lastError == nil {
+		return fmt.Errorf("expected error containing '%s' but upload succeeded", expectedError)
+	}
+	errorStr := c.lastError.Error()
+	if !bytes.Contains([]byte(errorStr), []byte(expectedError)) {
+		return fmt.Errorf("expected error containing '%s', got: %v", expectedError, c.lastError)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldContainUploadedImageDetails() error {
+	if c.uploadedImage == nil {
+		return fmt.Errorf("no uploaded image in response")
+	}
+	if c.uploadedImage.Id == "" {
+		return fmt.Errorf("uploaded image has empty id")
+	}
+	if c.uploadedImage.DisplayName == "" {
+		return fmt.Errorf("uploaded image has empty display name")
+	}
+	if c.uploadedImage.Path == "" {
+		return fmt.Errorf("uploaded image has empty path")
+	}
+	return nil
+}
+
+func createTestPNGImage(width, height int) []byte {
+	var buf bytes.Buffer
+
+	buf.Write([]byte{137, 80, 78, 71, 13, 10, 26, 10})
+
+	ihdr := make([]byte, 13)
+	ihdr[0] = byte(width >> 24)
+	ihdr[1] = byte(width >> 16)
+	ihdr[2] = byte(width >> 8)
+	ihdr[3] = byte(width)
+	ihdr[4] = byte(height >> 24)
+	ihdr[5] = byte(height >> 16)
+	ihdr[6] = byte(height >> 8)
+	ihdr[7] = byte(height)
+	ihdr[8] = 8
+	ihdr[9] = 2
+	ihdr[10] = 0
+	ihdr[11] = 0
+	ihdr[12] = 0
+
+	writeChunk(&buf, "IHDR", ihdr)
+	writeChunk(&buf, "IEND", []byte{})
+
+	return buf.Bytes()
+}
+
+func writeChunk(buf *bytes.Buffer, chunkType string, data []byte) {
+	length := uint32(len(data))
+	buf.WriteByte(byte(length >> 24))
+	buf.WriteByte(byte(length >> 16))
+	buf.WriteByte(byte(length >> 8))
+	buf.WriteByte(byte(length))
+
+	buf.WriteString(chunkType)
+	buf.Write(data)
+
+	crc := crc32Checksum(append([]byte(chunkType), data...))
+	buf.WriteByte(byte(crc >> 24))
+	buf.WriteByte(byte(crc >> 16))
+	buf.WriteByte(byte(crc >> 8))
+	buf.WriteByte(byte(crc))
+}
+
+func crc32Checksum(data []byte) uint32 {
+	crc := ^uint32(0)
+	for _, b := range data {
+		crc = crc32Table[(crc^uint32(b))&0xFF] ^ (crc >> 8)
+	}
+	return ^crc
+}
+
+var crc32Table = makeCRC32Table()
+
+func makeCRC32Table() []uint32 {
+	table := make([]uint32, 256)
+	for i := 0; i < 256; i++ {
+		c := uint32(i)
+		for j := 0; j < 8; j++ {
+			if c&1 == 1 {
+				c = 0xEDB88320 ^ (c >> 1)
+			} else {
+				c >>= 1
+			}
+		}
+		table[i] = c
+	}
+	return table
 }

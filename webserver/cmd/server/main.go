@@ -43,6 +43,7 @@ func main() {
 		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
 		app.WithListInputsUseCase(di.ListInputsUseCase),
 		app.WithListAvailableImagesUseCase(di.ListAvailableImagesUseCase),
+		app.WithUploadImageUseCase(di.UploadImageUseCase),
 		app.WithProcessorRegistry(di.ProcessorRegistry),
 		app.WithProcessorLoader(&di.ProcessorLoader),
 		app.WithLoaderMutex(di.LoaderMutex),

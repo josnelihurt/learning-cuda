@@ -1,6 +1,7 @@
 import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '../gen/config_service_connect';
+import { FileService } from '../gen/file_service_connect';
 import { InputSource, StaticImage } from '../gen/config_service_pb';
 import { telemetryService } from './telemetry-service';
 
@@ -13,7 +14,8 @@ const tracingInterceptor: Interceptor = (next) => async (req) => {
 };
 
 class InputSourceService {
-    private client: PromiseClient<typeof ConfigService>;
+    private configClient: PromiseClient<typeof ConfigService>;
+    private fileClient: PromiseClient<typeof FileService>;
     private sources: InputSource[] = [];
     private initPromise: Promise<void> | null = null;
 
@@ -23,7 +25,8 @@ class InputSourceService {
             interceptors: [tracingInterceptor],
         });
 
-        this.client = createPromiseClient(ConfigService, transport);
+        this.configClient = createPromiseClient(ConfigService, transport);
+        this.fileClient = createPromiseClient(FileService, transport);
     }
 
     async initialize(): Promise<void> {
@@ -41,7 +44,7 @@ class InputSourceService {
             async (span) => {
                 try {
                     span?.addEvent('Fetching input sources');
-                    const response = await this.client.listInputs({});
+                    const response = await this.configClient.listInputs({});
                     
                     this.sources = response.sources || [];
                     
@@ -84,13 +87,13 @@ class InputSourceService {
             'InputSourceService.listAvailableImages',
             {
                 'http.method': 'POST',
-                'rpc.service': 'ConfigService',
+                'rpc.service': 'FileService',
                 'rpc.method': 'listAvailableImages',
             },
             async (span) => {
                 try {
                     span?.addEvent('Fetching available images');
-                    const response = await this.client.listAvailableImages({});
+                    const response = await this.fileClient.listAvailableImages({});
                     
                     const images = response.images || [];
                     

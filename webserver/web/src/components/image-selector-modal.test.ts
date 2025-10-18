@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { fixture, html } from '@open-wc/testing-helpers';
 import './image-selector-modal';
 import type { ImageSelectorModal } from './image-selector-modal';
-import { StaticImage } from '../gen/config_service_pb';
+import { StaticImage } from '../gen/common_pb';
 
 describe('ImageSelectorModal', () => {
   let element: ImageSelectorModal;
@@ -27,8 +27,8 @@ describe('ImageSelectorModal', () => {
   describe('Opening modal', () => {
     it('should show modal when open is called', async () => {
       const images = [
-        new StaticImage({ id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true }),
-        new StaticImage({ id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false }),
+        { id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true } as StaticImage,
+        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
       ];
 
       element.open(images);
@@ -39,9 +39,9 @@ describe('ImageSelectorModal', () => {
 
     it('should display all provided images', async () => {
       const images = [
-        new StaticImage({ id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true }),
-        new StaticImage({ id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false }),
-        new StaticImage({ id: 'peppers', displayName: 'Peppers', path: '/data/peppers.png', isDefault: false }),
+        { id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true } as StaticImage,
+        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
+        { id: 'peppers', displayName: 'Peppers', path: '/data/peppers.png', isDefault: false } as StaticImage,
       ];
 
       element.open(images);
@@ -64,7 +64,7 @@ describe('ImageSelectorModal', () => {
   describe('Closing modal', () => {
     it('should close when close method is called', async () => {
       const images = [
-        new StaticImage({ id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true }),
+        { id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true } as StaticImage,
       ];
 
       element.open(images);
@@ -78,7 +78,7 @@ describe('ImageSelectorModal', () => {
 
     it('should emit image-selected event when image is clicked', async () => {
       const images = [
-        new StaticImage({ id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false }),
+        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
       ];
 
       let eventFired = false;
@@ -107,8 +107,8 @@ describe('ImageSelectorModal', () => {
   describe('Default badge', () => {
     it('should show default badge on default image', async () => {
       const images = [
-        new StaticImage({ id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true }),
-        new StaticImage({ id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false }),
+        { id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true } as StaticImage,
+        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
       ];
 
       element.open(images);

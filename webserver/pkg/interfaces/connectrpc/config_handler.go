@@ -18,35 +18,32 @@ import (
 )
 
 type ConfigHandler struct {
-	getStreamConfigUseCase     *application.GetStreamConfigUseCase
-	syncFlagsUseCase           *application.SyncFeatureFlagsUseCase
-	listInputsUseCase          *application.ListInputsUseCase
-	listAvailableImagesUseCase *application.ListAvailableImagesUseCase
-	registry                   *loader.Registry
-	currentLoader              **loader.Loader
-	loaderMutex                *sync.RWMutex
-	configManager              *config.Manager
+	getStreamConfigUseCase *application.GetStreamConfigUseCase
+	syncFlagsUseCase       *application.SyncFeatureFlagsUseCase
+	listInputsUseCase      *application.ListInputsUseCase
+	registry               *loader.Registry
+	currentLoader          **loader.Loader
+	loaderMutex            *sync.RWMutex
+	configManager          *config.Manager
 }
 
 func NewConfigHandler(
 	getStreamConfigUC *application.GetStreamConfigUseCase,
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
 	listInputsUC *application.ListInputsUseCase,
-	listAvailableImagesUC *application.ListAvailableImagesUseCase,
 	registry *loader.Registry,
 	currentLoader **loader.Loader,
 	loaderMutex *sync.RWMutex,
 	configManager *config.Manager,
 ) *ConfigHandler {
 	return &ConfigHandler{
-		getStreamConfigUseCase:     getStreamConfigUC,
-		syncFlagsUseCase:           syncFlagsUC,
-		listInputsUseCase:          listInputsUC,
-		listAvailableImagesUseCase: listAvailableImagesUC,
-		registry:                   registry,
-		currentLoader:              currentLoader,
-		loaderMutex:                loaderMutex,
-		configManager:              configManager,
+		getStreamConfigUseCase: getStreamConfigUC,
+		syncFlagsUseCase:       syncFlagsUC,
+		listInputsUseCase:      listInputsUC,
+		registry:               registry,
+		currentLoader:          currentLoader,
+		loaderMutex:            loaderMutex,
+		configManager:          configManager,
 	}
 }
 
@@ -154,38 +151,6 @@ func (h *ConfigHandler) ListInputs(
 
 	return connect.NewResponse(&pb.ListInputsResponse{
 		Sources: pbSources,
-	}), nil
-}
-
-func (h *ConfigHandler) ListAvailableImages(
-	ctx context.Context,
-	req *connect.Request[pb.ListAvailableImagesRequest],
-) (*connect.Response[pb.ListAvailableImagesResponse], error) {
-	span := trace.SpanFromContext(ctx)
-
-	images, err := h.listAvailableImagesUseCase.Execute(ctx)
-	if err != nil {
-		span.RecordError(err)
-		log.Printf("Failed to list available images: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
-	pbImages := make([]*pb.StaticImage, 0, len(images))
-	for _, img := range images {
-		pbImages = append(pbImages, &pb.StaticImage{
-			Id:          img.ID,
-			DisplayName: img.DisplayName,
-			Path:        img.Path,
-			IsDefault:   img.IsDefault,
-		})
-	}
-
-	span.SetAttributes(
-		attribute.Int("available_images.count", len(pbImages)),
-	)
-
-	return connect.NewResponse(&pb.ListAvailableImagesResponse{
-		Images: pbImages,
 	}), nil
 }
 

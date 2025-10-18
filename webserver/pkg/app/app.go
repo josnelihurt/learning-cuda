@@ -25,6 +25,7 @@ type App struct {
 	syncFlagsUC           *application.SyncFeatureFlagsUseCase
 	listInputsUC          *application.ListInputsUseCase
 	listAvailableImagesUC *application.ListAvailableImagesUseCase
+	uploadImageUC         *application.UploadImageUseCase
 	registry              *loader.Registry
 	currentLoader         **loader.Loader
 	loaderMutex           *sync.RWMutex
@@ -78,6 +79,12 @@ func WithListInputsUseCase(uc *application.ListInputsUseCase) Option {
 func WithListAvailableImagesUseCase(uc *application.ListAvailableImagesUseCase) Option {
 	return func(a *App) {
 		a.listAvailableImagesUC = uc
+	}
+}
+
+func WithUploadImageUseCase(uc *application.UploadImageUseCase) Option {
+	return func(a *App) {
+		a.uploadImageUC = uc
 	}
 }
 
@@ -136,11 +143,16 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
 		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 	}
-	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil && a.listAvailableImagesUC != nil {
-		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.listAvailableImagesUC,
+	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil {
+		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC,
 			a.registry, a.currentLoader, a.loaderMutex, a.config, a.interceptors...)
 	} else {
 		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")
+	}
+	if a.listAvailableImagesUC != nil && a.uploadImageUC != nil {
+		connectrpc.RegisterFileService(mux, a.listAvailableImagesUC, a.uploadImageUC, a.interceptors...)
+	} else {
+		logger.Global().Warn().Msg("File service not registered (use cases unavailable)")
 	}
 }
 

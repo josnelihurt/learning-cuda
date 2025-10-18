@@ -30,6 +30,7 @@ type Container struct {
 	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
 	ListInputsUseCase          *application.ListInputsUseCase
 	ListAvailableImagesUseCase *application.ListAvailableImagesUseCase
+	UploadImageUseCase         *application.UploadImageUseCase
 
 	CppConnector      *processor.CppConnector
 	ProcessorRegistry *loader.Registry
@@ -110,6 +111,7 @@ func New(ctx context.Context) (*Container, error) {
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
 	listAvailableImagesUseCase := application.NewListAvailableImagesUseCase(staticImageRepo)
+	uploadImageUseCase := application.NewUploadImageUseCase(staticImageRepo)
 
 	return &Container{
 		Config:                     cfg,
@@ -120,6 +122,7 @@ func New(ctx context.Context) (*Container, error) {
 		GetStreamConfigUseCase:     getStreamConfigUseCase,
 		ListInputsUseCase:          listInputsUseCase,
 		ListAvailableImagesUseCase: listAvailableImagesUseCase,
+		UploadImageUseCase:         uploadImageUseCase,
 		CppConnector:               cppConnector,
 		ProcessorRegistry:          registry,
 		ProcessorLoader:            processorLoader,

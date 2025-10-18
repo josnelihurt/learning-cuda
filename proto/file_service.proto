@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package cuda_learning;
+
+import "common.proto";
+
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
+
+message UploadImageRequest {
+  bytes file_data = 1 [json_name = "file_data"];
+  string filename = 3 [json_name = "filename"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+message UploadImageResponse {
+  StaticImage image = 1 [json_name = "image"];
+  string message = 3 [json_name = "message"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+service FileService {
+  rpc ListAvailableImages(ListAvailableImagesRequest) returns (ListAvailableImagesResponse);
+  rpc UploadImage(UploadImageRequest) returns (UploadImageResponse);
+}
+

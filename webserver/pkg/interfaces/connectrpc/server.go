@@ -32,14 +32,13 @@ func RegisterConfigService(
 	getStreamConfigUC *application.GetStreamConfigUseCase,
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
 	listInputsUC *application.ListInputsUseCase,
-	listAvailableImagesUC *application.ListAvailableImagesUseCase,
 	registry *loader.Registry,
 	currentLoader **loader.Loader,
 	loaderMutex *sync.RWMutex,
 	configManager *config.Manager,
 	interceptors ...connect.Interceptor,
 ) {
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, listAvailableImagesUC, registry, currentLoader, loaderMutex, configManager)
+	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, registry, currentLoader, loaderMutex, configManager)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {
@@ -47,5 +46,22 @@ func RegisterConfigService(
 	}
 
 	path, rpcHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
+	mux.Handle(path, rpcHandler)
+}
+
+func RegisterFileService(
+	mux *http.ServeMux,
+	listAvailableImagesUC *application.ListAvailableImagesUseCase,
+	uploadImageUC *application.UploadImageUseCase,
+	interceptors ...connect.Interceptor,
+) {
+	fileHandler := NewFileHandler(listAvailableImagesUC, uploadImageUC)
+
+	var opts []connect.HandlerOption
+	if len(interceptors) > 0 {
+		opts = append(opts, connect.WithInterceptors(interceptors...))
+	}
+
+	path, rpcHandler := genconnect.NewFileServiceHandler(fileHandler, opts...)
 	mux.Handle(path, rpcHandler)
 }

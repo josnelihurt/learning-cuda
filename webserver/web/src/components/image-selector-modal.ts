@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { StaticImage } from '../gen/config_service_pb';
+import { StaticImage } from '../gen/common_pb';
 import { telemetryService } from '../services/telemetry-service';
 
 @customElement('image-selector-modal')

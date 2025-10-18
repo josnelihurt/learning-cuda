@@ -36,6 +36,18 @@ func (tc *TestContext) iFindAnyToolWithAnIcon() error {
 	return tc.WhenIFindAnyToolWithAnIcon()
 }
 
+func (tc *TestContext) iUploadValidPNGImage(filename string) error {
+	return tc.WhenIUploadValidPNGImage(filename)
+}
+
+func (tc *TestContext) iUploadLargePNGImage() error {
+	return tc.WhenIUploadLargePNGImage()
+}
+
+func (tc *TestContext) iUploadNonPNGFile(filename string) error {
+	return tc.WhenIUploadNonPNGFile(filename)
+}
+
 func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I call the GetStreamConfig endpoint$`, tc.iCallTheGetStreamConfigEndpoint)
 	ctx.Step(`^I call the SyncFeatureFlags endpoint$`, tc.iCallTheSyncFeatureFlagsEndpoint)
@@ -45,4 +57,7 @@ func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I call GetAvailableTools$`, tc.iCallGetAvailableTools)
 	ctx.Step(`^I find the tool "([^"]*)"$`, tc.iFindTheTool)
 	ctx.Step(`^I find any tool with an icon$`, tc.iFindAnyToolWithAnIcon)
+	ctx.Step(`^I upload a valid PNG image named "([^"]*)"$`, tc.iUploadValidPNGImage)
+	ctx.Step(`^I upload a PNG image larger than 10MB$`, tc.iUploadLargePNGImage)
+	ctx.Step(`^I upload a non-PNG file named "([^"]*)"$`, tc.iUploadNonPNGFile)
 }

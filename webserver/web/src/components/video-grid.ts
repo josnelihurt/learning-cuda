@@ -231,6 +231,29 @@ export class VideoGrid extends LitElement {
         console.log('Source removed from grid:', sourceId, 'Remaining:', this.sources.length);
     }
 
+    changeSourceImage(sourceNumber: number, newImagePath: string): void {
+        const source = this.sources.find(s => s.number === sourceNumber);
+        if (!source) {
+            console.error('Source not found:', sourceNumber);
+            return;
+        }
+
+        if (source.type === 'camera') {
+            console.warn('Cannot change image of camera source');
+            return;
+        }
+
+        source.imagePath = newImagePath;
+        source.originalImageSrc = newImagePath;
+        
+        if (source.imageElement) {
+            source.imageElement.src = newImagePath;
+        }
+
+        this.requestUpdate();
+        console.log('Source image changed:', sourceNumber, newImagePath);
+    }
+
     selectSource(sourceId: string): void {
         const source = this.sources.find(s => s.id === sourceId);
         if (!source) return;

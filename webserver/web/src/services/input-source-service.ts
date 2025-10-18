@@ -1,7 +1,7 @@
 import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '../gen/config_service_connect';
-import { InputSource } from '../gen/config_service_pb';
+import { InputSource, StaticImage } from '../gen/config_service_pb';
 import { telemetryService } from './telemetry-service';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
@@ -77,6 +77,37 @@ class InputSourceService {
 
     isInitialized(): boolean {
         return this.sources.length > 0;
+    }
+
+    async listAvailableImages(): Promise<StaticImage[]> {
+        return telemetryService.withSpanAsync(
+            'InputSourceService.listAvailableImages',
+            {
+                'http.method': 'POST',
+                'rpc.service': 'ConfigService',
+                'rpc.method': 'listAvailableImages',
+            },
+            async (span) => {
+                try {
+                    span?.addEvent('Fetching available images');
+                    const response = await this.client.listAvailableImages({});
+                    
+                    const images = response.images || [];
+                    
+                    span?.setAttribute('available_images.count', images.length);
+                    span?.addEvent('Available images loaded successfully');
+                    
+                    console.log('Available images loaded:', images);
+                    return images;
+                } catch (error) {
+                    span?.addEvent('Failed to load available images');
+                    span?.setAttribute('error', true);
+                    
+                    console.error('Failed to load available images:', error);
+                    return [];
+                }
+            }
+        );
     }
 }
 

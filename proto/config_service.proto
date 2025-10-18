@@ -50,6 +50,23 @@ message ListInputsResponse {
   TraceContext trace_context = 3 [json_name = "trace_context"];
 }
 
+// Available static images
+message StaticImage {
+  string id = 1 [json_name = "id"];
+  string display_name = 3 [json_name = "display_name"];
+  string path = 5 [json_name = "path"];
+  bool is_default = 7 [json_name = "is_default"];
+}
+
+message ListAvailableImagesRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message ListAvailableImagesResponse {
+  repeated StaticImage images = 1 [json_name = "images"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
 // Processor management
 message GetProcessorStatusRequest {
   TraceContext trace_context = 1 [json_name = "trace_context"];
@@ -103,6 +120,7 @@ service ConfigService {
   rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
   rpc SyncFeatureFlags(SyncFeatureFlagsRequest) returns (SyncFeatureFlagsResponse);
   rpc ListInputs(ListInputsRequest) returns (ListInputsResponse);
+  rpc ListAvailableImages(ListAvailableImagesRequest) returns (ListAvailableImagesResponse);
   rpc GetProcessorStatus(GetProcessorStatusRequest) returns (GetProcessorStatusResponse);
   rpc ReloadProcessor(ReloadProcessorRequest) returns (ReloadProcessorResponse);
   rpc GetAvailableTools(GetAvailableToolsRequest) returns (GetAvailableToolsResponse);

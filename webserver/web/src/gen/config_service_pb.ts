@@ -364,6 +364,143 @@ export class ListInputsResponse extends Message<ListInputsResponse> {
 }
 
 /**
+ * Available static images
+ *
+ * @generated from message cuda_learning.StaticImage
+ */
+export class StaticImage extends Message<StaticImage> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string display_name = 3 [json_name = "display_name"];
+   */
+  displayName = "";
+
+  /**
+   * @generated from field: string path = 5;
+   */
+  path = "";
+
+  /**
+   * @generated from field: bool is_default = 7 [json_name = "is_default"];
+   */
+  isDefault = false;
+
+  constructor(data?: PartialMessage<StaticImage>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StaticImage";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "display_name", jsonName: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "is_default", jsonName: "is_default", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StaticImage {
+    return new StaticImage().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StaticImage {
+    return new StaticImage().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StaticImage {
+    return new StaticImage().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StaticImage | PlainMessage<StaticImage> | undefined, b: StaticImage | PlainMessage<StaticImage> | undefined): boolean {
+    return proto3.util.equals(StaticImage, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListAvailableImagesRequest
+ */
+export class ListAvailableImagesRequest extends Message<ListAvailableImagesRequest> {
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 1 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ListAvailableImagesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListAvailableImagesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAvailableImagesRequest {
+    return new ListAvailableImagesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListAvailableImagesRequest {
+    return new ListAvailableImagesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListAvailableImagesRequest {
+    return new ListAvailableImagesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListAvailableImagesRequest | PlainMessage<ListAvailableImagesRequest> | undefined, b: ListAvailableImagesRequest | PlainMessage<ListAvailableImagesRequest> | undefined): boolean {
+    return proto3.util.equals(ListAvailableImagesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListAvailableImagesResponse
+ */
+export class ListAvailableImagesResponse extends Message<ListAvailableImagesResponse> {
+  /**
+   * @generated from field: repeated cuda_learning.StaticImage images = 1;
+   */
+  images: StaticImage[] = [];
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ListAvailableImagesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListAvailableImagesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "images", kind: "message", T: StaticImage, repeated: true },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAvailableImagesResponse {
+    return new ListAvailableImagesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListAvailableImagesResponse {
+    return new ListAvailableImagesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListAvailableImagesResponse {
+    return new ListAvailableImagesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListAvailableImagesResponse | PlainMessage<ListAvailableImagesResponse> | undefined, b: ListAvailableImagesResponse | PlainMessage<ListAvailableImagesResponse> | undefined): boolean {
+    return proto3.util.equals(ListAvailableImagesResponse, a, b);
+  }
+}
+
+/**
  * Processor management
  *
  * @generated from message cuda_learning.GetProcessorStatusRequest

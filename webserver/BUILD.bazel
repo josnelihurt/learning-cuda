@@ -28,7 +28,10 @@ pkg_tar(
     name = "data_layer",
     srcs = [
         "web/templates/index.html",
-        "//data:lena.png",
+        "//data:static_images/lena.png",
+        "//data:static_images/mandrill.png",
+        "//data:static_images/peppers.png",
+        "//data:static_images/barbara.png",
     ],
     package_dir = "/app",
 )

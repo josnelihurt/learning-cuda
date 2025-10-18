@@ -1,1 +1,12 @@
-exports_files(["lena.png"])
+exports_files([
+    "static_images/lena.png",
+    "static_images/mandrill.png",
+    "static_images/peppers.png",
+    "static_images/barbara.png",
+    "static_images/cameraman.png",
+    "static_images/airplane.png",
+    "static_images/sailboat.png",
+    "static_images/couple.png",
+    "static_images/goldhill.png",
+    "static_images/house.png",
+])

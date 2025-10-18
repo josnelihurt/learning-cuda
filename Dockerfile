@@ -236,10 +236,11 @@ USER ${USER_ID}:${GROUP_ID}
 ENV HOME=/home/testuser
 ENV NODE_ENV=test
 ENV PLAYWRIGHT_BASE_URL=https://localhost:8443
+ENV CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
 
 WORKDIR /workspace/webserver/web
 
-CMD ["npx", "playwright", "test"]
+ENTRYPOINT ["sh", "-c", "npx playwright test ${PLAYWRIGHT_OPTS}"]
 
 #################################################################################
 #                       TEST REPORTS GENERATOR STAGE                            #

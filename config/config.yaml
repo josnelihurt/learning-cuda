@@ -56,6 +56,9 @@ processor:
     - "2.0.0"
     - "mock"
 
+static_images:
+  directory: "data/static_images"
+
 tools:
   observability:
     - id: "jaeger"

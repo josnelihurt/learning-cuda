@@ -19,6 +19,7 @@ type Manager struct {
 	Logging           LoggerConfig        `mapstructure:"logging"`
 	Processor         ProcessorConfig     `mapstructure:"processor"`
 	Tools             ToolsConfig         `mapstructure:"tools"`
+	StaticImages      StaticImagesConfig  `mapstructure:"static_images"`
 }
 
 type FliptConfig struct {
@@ -45,6 +46,10 @@ type ToolDefinition struct {
 	URLDev   string `mapstructure:"url_dev"`
 	URLProd  string `mapstructure:"url_prod"`
 	Action   string `mapstructure:"action"`
+}
+
+type StaticImagesConfig struct {
+	Directory string `mapstructure:"directory"`
 }
 
 func (m *Manager) IsObservabilityEnabled(ctx context.Context) bool {
@@ -119,6 +124,8 @@ func setDefaults(v *viper.Viper) {
 		"processor.enable_hot_reload": false,
 		"processor.fallback_enabled":  true,
 		"processor.fallback_chain":    []string{"1.0.0", "mock"},
+
+		"static_images.directory": "/data/static_images",
 	}
 
 	for key, value := range defaults {

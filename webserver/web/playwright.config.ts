@@ -2,11 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: !process.env.CI,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
-  timeout: 30000,
+  workers: process.env.PLAYWRIGHT_WORKERS ? parseInt(process.env.PLAYWRIGHT_WORKERS) : (process.env.CI ? 4 : 25),
+  timeout: 20000,
   
   reporter: [
     ['html', { outputFolder: '.ignore/playwright-report', open: 'never' }],
@@ -17,10 +17,12 @@ export default defineConfig({
   
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://localhost:8443',
-    trace: process.env.PLAYWRIGHT_TRACE === 'true' ? 'on' : 'off',
-    screenshot: process.env.PLAYWRIGHT_SCREENSHOTS === 'true' ? 'only-on-failure' : 'off',
+    trace: process.env.PLAYWRIGHT_TRACE === 'true' ? 'on' : 'on-first-retry',
+    screenshot: process.env.PLAYWRIGHT_SCREENSHOTS === 'true' ? 'only-on-failure' : 'only-on-failure',
     video: process.env.PLAYWRIGHT_VIDEO === 'true' ? 'retain-on-failure' : 'off',
     ignoreHTTPSErrors: true,
+    actionTimeout: 10000,
+    navigationTimeout: 15000,
   },
 
   projects: process.env.PLAYWRIGHT_SINGLE_BROWSER === 'true'

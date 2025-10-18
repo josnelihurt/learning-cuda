@@ -38,7 +38,7 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error)
 			ID:          "lena",
 			DisplayName: "Lena",
 			Type:        "static",
-			ImagePath:   "/data/lena.png",
+			ImagePath:   "/data/static_images/lena.png",
 			IsDefault:   true,
 		},
 		{

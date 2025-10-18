@@ -10,6 +10,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/filesystem"
 	httpinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
@@ -28,6 +29,7 @@ type Container struct {
 	SyncFeatureFlagsUseCase    *application.SyncFeatureFlagsUseCase
 	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
 	ListInputsUseCase          *application.ListInputsUseCase
+	ListAvailableImagesUseCase *application.ListAvailableImagesUseCase
 
 	CppConnector      *processor.CppConnector
 	ProcessorRegistry *loader.Registry
@@ -106,6 +108,9 @@ func New(ctx context.Context) (*Container, error) {
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 	listInputsUseCase := application.NewListInputsUseCase()
 
+	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
+	listAvailableImagesUseCase := application.NewListAvailableImagesUseCase(staticImageRepo)
+
 	return &Container{
 		Config:                     cfg,
 		HTTPClient:                 httpClient,
@@ -114,6 +119,7 @@ func New(ctx context.Context) (*Container, error) {
 		SyncFeatureFlagsUseCase:    syncFFUseCase,
 		GetStreamConfigUseCase:     getStreamConfigUseCase,
 		ListInputsUseCase:          listInputsUseCase,
+		ListAvailableImagesUseCase: listAvailableImagesUseCase,
 		CppConnector:               cppConnector,
 		ProcessorRegistry:          registry,
 		ProcessorLoader:            processorLoader,

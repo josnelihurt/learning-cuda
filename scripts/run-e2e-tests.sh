@@ -6,12 +6,88 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_ROOT"
 
+BROWSER=""
+PLAYWRIGHT_OPTS=""
+SHOW_HELP=false
+WORKERS=""
+
+for arg in "$@"; do
+    case $arg in
+        --chromium|--chrome|-c)
+            BROWSER="chromium"
+            ;;
+        --firefox|-f)
+            BROWSER="firefox"
+            ;;
+        --webkit|--safari|-w)
+            BROWSER="webkit"
+            ;;
+        --headed)
+            PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS --headed"
+            ;;
+        --debug)
+            PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS --debug"
+            ;;
+        --ui)
+            PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS --ui"
+            ;;
+        --workers=*)
+            WORKERS="${arg#*=}"
+            ;;
+        --help|-h)
+            SHOW_HELP=true
+            ;;
+        *)
+            PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS $arg"
+            ;;
+    esac
+done
+
+if [ "$SHOW_HELP" = true ]; then
+    echo "Usage: ./scripts/run-e2e-tests.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --chromium, -c      Run tests only in Chromium"
+    echo "  --firefox, -f       Run tests only in Firefox"
+    echo "  --webkit, -w        Run tests only in WebKit/Safari"
+    echo "  --workers=N         Number of parallel workers (default: 25)"
+    echo "  --headed            Run tests in headed mode (visible browser)"
+    echo "  --debug             Run tests in debug mode"
+    echo "  --ui                Run tests in UI mode"
+    echo "  --help, -h          Show this help message"
+    echo ""
+    echo "Environment:"
+    echo "  CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock (enforced)"
+    echo "  System CPUs: $(nproc) cores detected"
+    echo ""
+    echo "Examples:"
+    echo "  ./scripts/run-e2e-tests.sh --chromium              # Fast: Chromium only, 25 workers"
+    echo "  ./scripts/run-e2e-tests.sh --chromium --workers=30 # Ultra fast: 30 workers"
+    echo "  ./scripts/run-e2e-tests.sh --headed                # All browsers, visible"
+    echo "  ./scripts/run-e2e-tests.sh --chromium --debug      # Debug Chromium tests"
+    exit 0
+fi
+
 export USER_ID=$(id -u)
 export GROUP_ID=$(id -g)
 export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
 
+if [ -n "$BROWSER" ]; then
+    PLAYWRIGHT_OPTS="--project=$BROWSER $PLAYWRIGHT_OPTS"
+fi
+
+if [ -n "$WORKERS" ]; then
+    export PLAYWRIGHT_WORKERS="$WORKERS"
+    PLAYWRIGHT_OPTS="--workers=$WORKERS $PLAYWRIGHT_OPTS"
+fi
+
 echo "Starting E2E tests..."
 echo "User: $USER_ID:$GROUP_ID"
+echo "Processor Library: mock (enforced)"
+echo "System CPUs: $(nproc) cores"
+[ -n "$WORKERS" ] && echo "Workers: $WORKERS" || echo "Workers: 25 (default)"
+[ -n "$BROWSER" ] && echo "Browser: $BROWSER" || echo "Browsers: All (chromium, firefox, webkit)"
+[ -n "$PLAYWRIGHT_OPTS" ] && echo "Playwright Options: $PLAYWRIGHT_OPTS"
 echo ""
 
 mkdir -p webserver/web/.ignore/test-results
@@ -52,8 +128,13 @@ docker compose -f docker-compose.dev.yml --profile testing build e2e-tests
 
 echo ""
 echo "Running E2E tests..."
+echo "Command: npx playwright test $PLAYWRIGHT_OPTS"
+echo ""
+
 docker compose -f docker-compose.dev.yml --profile testing run \
   --rm \
+  -e PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS" \
+  -e PLAYWRIGHT_WORKERS="${PLAYWRIGHT_WORKERS:-25}" \
   e2e-tests
 
 EXIT_CODE=$?

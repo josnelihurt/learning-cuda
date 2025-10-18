@@ -4,6 +4,27 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Dynamic Static Image Selection (Oct 18, 2025)
+- [x] Implement StaticImage domain model with ID, DisplayName, Path, IsDefault fields
+- [x] Create StaticImageRepository interface in domain layer
+- [x] Implement filesystem-based StaticImageRepository with directory scanning (75 lines)
+- [x] Support .png, .jpg, and .jpeg image formats
+- [x] Add ListAvailableImagesUseCase with OpenTelemetry tracing (40 lines)
+- [x] Add ListAvailableImages RPC endpoint to ConfigService proto
+- [x] Create ImageSelectorModal web component with animated UI (227 lines)
+- [x] Add "Change Image" button to static video source cards
+- [x] Implement modal with image grid, preview thumbnails, and selection
+- [x] Add BDD feature: available_images with 3 scenarios
+- [x] Implement 8 Playwright E2E tests for image selection flow (137 lines)
+- [x] Implement 8 Vitest unit tests for ImageSelectorModal (128 lines)
+- [x] Add infrastructure tests for StaticImageRepository (99 lines)
+- [x] Add application layer tests for ListAvailableImagesUseCase (96 lines)
+- [x] Configure static_images directory in config.yaml
+- [x] Add images: lena, mandrill, peppers, barbara to data directory
+- [x] Update Docker configuration to mount static images
+- [x] Total: 19 tests (3 BDD + 8 E2E + 8 unit) across 4 test files (460 lines)
+- [x] All BDD scenarios passing, E2E tests validated across browsers
+
 ### Go Application Layer Unit Tests (Oct 18, 2025)
 - [x] Implement EvaluateFeatureFlagUseCase tests with 7 comprehensive test cases (240 lines)
 - [x] Test boolean flag evaluation with success and error scenarios

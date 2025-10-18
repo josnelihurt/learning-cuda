@@ -81,3 +81,77 @@ func (tc *TestContext) atLeastOneInputSourceShouldBeDefault() error {
 
 	return fmt.Errorf("no input source is marked as default")
 }
+
+func InitializeAvailableImagesSteps(ctx *godog.ScenarioContext, tc *TestContext) {
+	ctx.Step(`^I call ListAvailableImages endpoint$`, tc.iCallListAvailableImagesEndpoint)
+	ctx.Step(`^the response should contain image "([^"]*)"$`, tc.theResponseShouldContainImage)
+	ctx.Step(`^each image should have a non-empty id$`, tc.eachImageShouldHaveNonEmptyID)
+	ctx.Step(`^each image should have a non-empty display name$`, tc.eachImageShouldHaveNonEmptyDisplayName)
+	ctx.Step(`^each image should have a non-empty path$`, tc.eachImageShouldHaveNonEmptyPath)
+	ctx.Step(`^at least one image should be marked as default$`, tc.atLeastOneImageShouldBeDefault)
+}
+
+func (tc *TestContext) iCallListAvailableImagesEndpoint() error {
+	return tc.WhenICallListAvailableImages()
+}
+
+func (tc *TestContext) theResponseShouldContainImage(id string) error {
+	return tc.ThenResponseShouldContainImage(id)
+}
+
+func (tc *TestContext) eachImageShouldHaveNonEmptyID() error {
+	images, err := tc.GetImagesFromResponse()
+	if err != nil {
+		return err
+	}
+
+	for _, img := range images {
+		if img.Id == "" {
+			return fmt.Errorf("found image with empty id")
+		}
+	}
+	return nil
+}
+
+func (tc *TestContext) eachImageShouldHaveNonEmptyDisplayName() error {
+	images, err := tc.GetImagesFromResponse()
+	if err != nil {
+		return err
+	}
+
+	for _, img := range images {
+		if img.DisplayName == "" {
+			return fmt.Errorf("image %s has empty display name", img.Id)
+		}
+	}
+	return nil
+}
+
+func (tc *TestContext) eachImageShouldHaveNonEmptyPath() error {
+	images, err := tc.GetImagesFromResponse()
+	if err != nil {
+		return err
+	}
+
+	for _, img := range images {
+		if img.Path == "" {
+			return fmt.Errorf("image %s has empty path", img.Id)
+		}
+	}
+	return nil
+}
+
+func (tc *TestContext) atLeastOneImageShouldBeDefault() error {
+	images, err := tc.GetImagesFromResponse()
+	if err != nil {
+		return err
+	}
+
+	for _, img := range images {
+		if img.IsDefault {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no image is marked as default")
+}

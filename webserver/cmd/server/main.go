@@ -53,6 +53,7 @@ func main() {
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
 		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
 		app.WithListInputsUseCase(di.ListInputsUseCase),
+		app.WithListAvailableImagesUseCase(di.ListAvailableImagesUseCase),
 		app.WithProcessorRegistry(di.ProcessorRegistry),
 		app.WithProcessorLoader(&di.ProcessorLoader),
 		app.WithLoaderMutex(di.LoaderMutex),

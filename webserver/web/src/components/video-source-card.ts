@@ -57,6 +57,34 @@ export class VideoSourceCard extends LitElement {
             z-index: 10;
         }
 
+        .change-image-btn {
+            position: absolute;
+            top: 8px;
+            right: 40px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .card:hover .change-image-btn {
+            opacity: 1;
+        }
+
+        .change-image-btn:hover {
+            background: rgba(33, 150, 243, 0.9);
+        }
+
         .close-btn {
             position: absolute;
             top: 8px;
@@ -113,6 +141,14 @@ export class VideoSourceCard extends LitElement {
                 data-source-id="${this.sourceId}"
             >
                 <div class="source-number">${this.sourceNumber}</div>
+                ${this.sourceType === 'static' ? html`
+                    <button 
+                        class="change-image-btn" 
+                        @click=${this.handleChangeImage}
+                        title="Change image"
+                        data-testid="change-image-button"
+                    >⟳</button>
+                ` : ''}
                 <button 
                     class="close-btn" 
                     @click=${this.handleClose}
@@ -132,6 +168,18 @@ export class VideoSourceCard extends LitElement {
         console.log('Card selected:', this.sourceId, this.sourceNumber);
 
         this.dispatchEvent(new CustomEvent('source-selected', {
+            bubbles: true,
+            composed: true,
+            detail: { sourceId: this.sourceId, sourceNumber: this.sourceNumber }
+        }));
+    }
+
+    private handleChangeImage(e: Event): void {
+        e.stopPropagation();
+        
+        console.log('Change image requested:', this.sourceId, this.sourceNumber);
+
+        this.dispatchEvent(new CustomEvent('change-image-requested', {
             bubbles: true,
             composed: true,
             detail: { sourceId: this.sourceId, sourceNumber: this.sourceNumber }

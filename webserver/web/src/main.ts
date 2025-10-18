@@ -7,6 +7,7 @@ import './components/tools-dropdown';
 import './components/video-grid';
 import './components/source-drawer';
 import './components/add-source-fab';
+import './components/image-selector-modal';
 import { streamConfigService } from './services/config-service';
 import { telemetryService } from './services/telemetry-service';
 import { inputSourceService } from './services/input-source-service';
@@ -15,6 +16,7 @@ import { toolsService } from './services/tools-service';
 import type { VideoGrid } from './components/video-grid';
 import type { SourceDrawer } from './components/source-drawer';
 import type { ToolsDropdown } from './components/tools-dropdown';
+import type { ImageSelectorModal } from './components/image-selector-modal';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 
@@ -25,6 +27,8 @@ const app = {
     videoGrid: null as VideoGrid | null,
     sourceDrawer: null as SourceDrawer | null,
     toolsDropdown: null as ToolsDropdown | null,
+    imageSelectorModal: null as ImageSelectorModal | null,
+    currentSourceNumberForImageChange: null as number | null,
     
     selectedAccelerator: 'gpu',
     selectedResolution: 'original',
@@ -46,6 +50,7 @@ const app = {
         await customElements.whenDefined('source-drawer');
         await customElements.whenDefined('add-source-fab');
         await customElements.whenDefined('tools-dropdown');
+        await customElements.whenDefined('image-selector-modal');
         
         this.toastManager = document.querySelector('toast-container');
         this.toastManager.configure({ duration: 7000 });
@@ -55,6 +60,7 @@ const app = {
         this.videoGrid = document.querySelector('video-grid');
         this.sourceDrawer = document.querySelector('source-drawer');
         this.toolsDropdown = document.querySelector('tools-dropdown');
+        this.imageSelectorModal = document.querySelector('image-selector-modal');
         
         if (this.filterManager && processorCapabilitiesService.isInitialized()) {
             this.filterManager.filters = processorCapabilitiesService.getFilters();
@@ -123,6 +129,26 @@ const app = {
             this.sourceDrawer.addEventListener('source-selected', ((e: CustomEvent) => {
                 if (this.videoGrid) {
                     this.videoGrid.addSource(e.detail.source);
+                }
+            }) as EventListener);
+        }
+        
+        if (this.videoGrid) {
+            this.videoGrid.addEventListener('change-image-requested', (async (e: CustomEvent) => {
+                this.currentSourceNumberForImageChange = e.detail.sourceNumber;
+                if (this.imageSelectorModal) {
+                    const images = await inputSourceService.listAvailableImages();
+                    this.imageSelectorModal.open(images);
+                }
+            }) as EventListener);
+        }
+        
+        if (this.imageSelectorModal) {
+            this.imageSelectorModal.addEventListener('image-selected', ((e: CustomEvent) => {
+                if (this.videoGrid && this.currentSourceNumberForImageChange !== null) {
+                    const imagePath = e.detail.image.path;
+                    this.videoGrid.changeSourceImage(this.currentSourceNumberForImageChange, imagePath);
+                    this.currentSourceNumberForImageChange = null;
                 }
             }) as EventListener);
         }

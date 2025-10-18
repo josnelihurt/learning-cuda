@@ -18,16 +18,17 @@ import (
 )
 
 type App struct {
-	config            *config.Manager
-	appContext        context.Context
-	useCase           *application.ProcessImageUseCase
-	getStreamConfigUC *application.GetStreamConfigUseCase
-	syncFlagsUC       *application.SyncFeatureFlagsUseCase
-	listInputsUC      *application.ListInputsUseCase
-	registry          *loader.Registry
-	currentLoader     **loader.Loader
-	loaderMutex       *sync.RWMutex
-	interceptors      []connect.Interceptor
+	config                *config.Manager
+	appContext            context.Context
+	useCase               *application.ProcessImageUseCase
+	getStreamConfigUC     *application.GetStreamConfigUseCase
+	syncFlagsUC           *application.SyncFeatureFlagsUseCase
+	listInputsUC          *application.ListInputsUseCase
+	listAvailableImagesUC *application.ListAvailableImagesUseCase
+	registry              *loader.Registry
+	currentLoader         **loader.Loader
+	loaderMutex           *sync.RWMutex
+	interceptors          []connect.Interceptor
 }
 
 type AppOption func(*App)
@@ -71,6 +72,12 @@ func WithSyncFlagsUseCase(uc *application.SyncFeatureFlagsUseCase) AppOption {
 func WithListInputsUseCase(uc *application.ListInputsUseCase) AppOption {
 	return func(a *App) {
 		a.listInputsUC = uc
+	}
+}
+
+func WithListAvailableImagesUseCase(uc *application.ListAvailableImagesUseCase) AppOption {
+	return func(a *App) {
+		a.listAvailableImagesUC = uc
 	}
 }
 
@@ -129,8 +136,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
 		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 	}
-	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil {
-		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC,
+	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil && a.listAvailableImagesUC != nil {
+		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.listAvailableImagesUC,
 			a.registry, a.currentLoader, a.loaderMutex, a.config, a.interceptors...)
 	} else {
 		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")

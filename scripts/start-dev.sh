@@ -7,10 +7,41 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 BUILD_FIRST=false
+USE_MOCK=false
+SHOW_HELP=false
 
 for arg in "$@"; do
-    [[ "$arg" == "--build" ]] || [[ "$arg" == "-b" ]] && BUILD_FIRST=true
+    case "$arg" in
+        --build|-b)
+            BUILD_FIRST=true
+            ;;
+        --mock|-m)
+            USE_MOCK=true
+            ;;
+        --help|-h)
+            SHOW_HELP=true
+            ;;
+    esac
 done
+
+if [ "$SHOW_HELP" = true ]; then
+    echo "Usage: ./scripts/start-dev.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --build, -b    Build C++ libraries and Go backend before starting"
+    echo "  --mock, -m     Use mock processor library (default: real CUDA library)"
+    echo "  --help, -h     Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  ./scripts/start-dev.sh                # Start with real CUDA library"
+    echo "  ./scripts/start-dev.sh --build        # Build + start with real CUDA"
+    echo "  ./scripts/start-dev.sh --mock         # Start with mock (no CUDA)"
+    echo "  ./scripts/start-dev.sh --build --mock # Build + start with mock"
+    echo ""
+    echo "Default processor library: 2.0.0 (real CUDA)"
+    echo "With --mock: mock (passthrough, fast development)"
+    exit 0
+fi
 
 [ ! -f ".secrets/localhost+2.pem" ] && {
     echo "Error: SSL certificates not found."
@@ -146,7 +177,14 @@ echo "Starting Go server..."
     cd webserver && make build && cd ..
 }
 
-./bin/server -webroot=webserver/web &
+if [ "$USE_MOCK" = true ]; then
+    echo "Using MOCK processor library (fast, no CUDA)"
+    export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
+    ./bin/server -webroot=webserver/web &
+else
+    echo "Using REAL CUDA processor library (version 2.0.0)"
+    ./bin/server -webroot=webserver/web &
+fi
 GO_PID=$!
 
 sleep 2
@@ -166,6 +204,12 @@ echo "  Flipt:  http://localhost:8081"
 echo ""
 echo "Dev mode - hot reload enabled"
 echo "Observability & Feature Flags enabled"
+if [ "$USE_MOCK" = true ]; then
+    echo "Processor: MOCK (passthrough, no CUDA)"
+else
+    echo "Processor: REAL CUDA (version 2.0.0)"
+fi
+echo ""
 echo "Press Ctrl+C to stop"
 
 wait $VITE_PID $GO_PID

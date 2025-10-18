@@ -93,13 +93,18 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Add unit tests for GetStreamConfigUseCase (3 test cases, 113 lines)
 - [x] Add unit tests for ListInputsUseCase (2 test cases, 87 lines)
 - [x] Add unit tests for SyncFeatureFlagsUseCase (3 test cases, 110 lines)
+- [x] Add unit tests for ListAvailableImagesUseCase (2 test cases, 96 lines)
+- [x] Add unit tests for StaticImageRepository infrastructure (2 test cases, 99 lines)
 - [x] Add unit tests for ToastContainer frontend component (8 test suites, 199 lines)
+- [x] Add unit tests for ImageSelectorModal frontend component (8 test suites, 128 lines)
 - [x] Create mocks for FeatureFlagRepository interface
 - [x] Create mocks for ImageProcessor interface
-- [x] Total application layer coverage: 5 use cases tested (27+ test cases, 761 lines)
+- [x] Create mocks for StaticImageRepository interface
+- [x] Total application layer coverage: 6 use cases tested (29+ test cases, 857 lines)
+- [x] Total infrastructure layer coverage: 1 repository tested (99 lines)
 - [ ] Add unit tests for handlers (ConnectRPC, WebSocket, HTTP)
 - [ ] Add unit tests for repositories (mock Flipt client)
-- [ ] Add unit tests for infrastructure layer services
+- [ ] Add unit tests for remaining infrastructure services
 - [ ] Mock all remaining domain interfaces
 
 ### K6 Load Tests
@@ -117,10 +122,11 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Feature: Input sources (3 scenarios)
 - [x] Feature: Processor capabilities (4 scenarios)
 - [x] Feature: Tools configuration (6 scenarios)
+- [x] Feature: Available images (3 scenarios)
 - [x] Step definitions in Go
 - [x] CI integration with dockerized tests
 - [x] Cucumber HTML reports at port 5050
-- [x] 37 scenarios passing with dynamic filter and tools validation
+- [x] 40 scenarios passing with dynamic filter, tools, and image selection validation
 
 ### Playwright E2E Tests (Frontend)
 - [x] Setup Playwright with TypeScript
@@ -134,10 +140,12 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Test: Source removal (2 tests)
 - [x] Test: UI validation (8 tests)
 - [x] Test: WebSocket management (2 tests)
+- [x] Test: Image selection (8 tests)
 - [x] Create reusable test helpers
 - [x] Add data-testid attributes to components
 - [x] Docker integration for CI/CD
 - [x] Test artifacts and HTML reports
+- [x] Total: 10 test suites with 45 E2E tests
 - [ ] Visual regression testing with screenshots
 - [ ] Performance testing with Lighthouse
 - [ ] Accessibility testing with axe-core
@@ -221,7 +229,11 @@ Microservices, observability, testing, and cloud deployment.
 - [ ] Organize config files by environment (dev, prod, test)
 
 ### Input Sources
-- [ ] Load static images dynamically from /data directory
+- [x] Load static images dynamically from /data directory
+- [x] Implement StaticImageRepository with filesystem scanning
+- [x] Support .png, .jpg, .jpeg image formats
+- [x] Add UI for selecting and changing static images
+- [x] ListAvailableImages endpoint with image metadata
 - [ ] Support multiple server-side cameras
 - [ ] Support video files as input sources
 - [ ] Support remote stream URLs (RTSP, HLS)

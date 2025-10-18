@@ -45,6 +45,7 @@ type BDDContext struct {
 	lastError             error
 	checksums             map[string]string
 	inputSources          []*pb.InputSource
+	availableImages       []*pb.StaticImage
 	configClient          genconnect.ConfigServiceClient
 	processorCapabilities *pb.LibraryCapabilities
 	toolsResponse         *pb.GetAvailableToolsResponse
@@ -842,6 +843,45 @@ func (c *BDDContext) GetInputSourcesFromResponse() ([]*pb.InputSource, error) {
 		return nil, fmt.Errorf("no input sources in response")
 	}
 	return c.inputSources, nil
+}
+
+func (c *BDDContext) WhenICallListAvailableImages() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := c.configClient.ListAvailableImages(ctx, connect.NewRequest(&pb.ListAvailableImagesRequest{}))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: 500}
+		return fmt.Errorf("failed to call ListAvailableImages: %w", err)
+	}
+
+	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastError = nil
+	c.availableImages = resp.Msg.Images
+
+	return nil
+}
+
+func (c *BDDContext) ThenResponseShouldContainImage(id string) error {
+	if c.availableImages == nil {
+		return fmt.Errorf("no images in response")
+	}
+
+	for _, img := range c.availableImages {
+		if img.Id == id {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("image %s not found in response", id)
+}
+
+func (c *BDDContext) GetImagesFromResponse() ([]*pb.StaticImage, error) {
+	if c.availableImages == nil {
+		return nil, fmt.Errorf("no images in response")
+	}
+	return c.availableImages, nil
 }
 
 func (c *BDDContext) ThenTheResponseShouldSucceed() error {

@@ -86,12 +86,14 @@ Microservices, observability, testing, and cloud deployment.
 
 ## Load Testing & BDD
 
-### Unit Tests (Go)
-- [ ] Add unit tests for use cases (table-driven tests)
+### Unit Tests
+- [x] Setup test coverage reporting infrastructure
+- [x] Add unit tests for ProcessImageUseCase with mocks (12 test cases)
+- [x] Add unit tests for ToastContainer frontend component (8 test suites)
+- [ ] Add unit tests for remaining use cases (table-driven tests)
 - [ ] Add unit tests for handlers (ConnectRPC, WebSocket, HTTP)
 - [ ] Add unit tests for repositories (mock Flipt client)
-- [ ] Mock domain interfaces for testing
-- [ ] Setup test coverage reporting
+- [ ] Mock all domain interfaces for comprehensive testing
 
 ### K6 Load Tests
 - [ ] Single user baseline (30 FPS for 30s)
@@ -169,6 +171,31 @@ Microservices, observability, testing, and cloud deployment.
 - [ ] Custom domain errors with proper error codes
 
 ## Code Quality
+
+### Linters & Formatters
+- [x] Configure clang-tidy for C++ with 50+ code quality checks
+- [x] Configure golangci-lint with 20+ linters for Go
+- [x] Configure ESLint + Prettier for TypeScript/Lit frontend
+- [x] Create unified run-linters.sh script (supports --fix mode)
+- [x] Add Docker services for all linters (lint-frontend, lint-golang, lint-cpp)
+- [x] Enhanced .clang-format with comprehensive formatting rules
+- [x] Configure linter exclusions for tests, proto, and generated code
+- [ ] Pre-commit hooks for automatic linting
+- [ ] CI/CD integration for linting on pull requests
+
+### Testing & Coverage
+- [x] Setup Vitest for frontend unit tests with coverage
+- [x] Create run-coverage.sh script for all test coverage
+- [x] Add coverage-report-viewer Docker service (port 5052)
+- [x] Configure coverage thresholds (80% for all metrics)
+- [x] Implement Go unit tests for ProcessImageUseCase (12 test cases)
+- [x] Implement frontend unit tests for ToastContainer (8 test suites)
+- [x] Coverage reports: Frontend (HTML/JSON/LCOV), Go (HTML), C++ (LCOV)
+- [ ] Increase Go test coverage to 80%
+- [ ] Add unit tests for all use cases
+- [ ] Add unit tests for all handlers
+- [ ] Add unit tests for repositories
+- [ ] Integration tests for processor plugins
 
 ### Go Backend
 - [x] Extract processor loading logic into separate loader package

@@ -1,0 +1,9 @@
+node_modules
+static
+tests
+*.config.ts
+proto
+coverage
+dist
+
+

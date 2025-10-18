@@ -133,8 +133,35 @@ The app includes a dynamic tools dropdown that adapts to your environment:
 
 **Testing:**
 - BDD Test Reports - Cucumber test results
+- Code Coverage Reports - Unit test coverage dashboard
 
 Tool URLs automatically resolve based on environment (`CUDA_PROCESSOR_ENVIRONMENT`). Development mode points to localhost services, production mode uses reverse proxy paths. Add new tools by editing `config/config.yaml`, no code changes needed.
+
+## Testing & Code Quality
+
+Comprehensive testing and quality assurance across all layers:
+
+```bash
+# Run all coverage tests (Frontend, Golang, C++)
+./scripts/run-coverage.sh
+
+# Run all linters (ESLint, golangci-lint, clang-tidy)
+./scripts/run-linters.sh
+
+# Auto-fix linting issues
+./scripts/run-linters.sh --fix
+
+# View coverage reports
+docker-compose -f docker-compose.dev.yml --profile coverage up coverage-report-viewer
+# Visit: http://localhost:5052
+```
+
+**Testing Stack:**
+- **Frontend**: Vitest + ESLint + Prettier
+- **Golang**: go test + golangci-lint
+- **C++**: GoogleTest + Bazel + clang-tidy + clang-format
+
+See [Testing & Coverage Documentation](docs/TESTING_AND_COVERAGE.md) for detailed information.
 
 ## Code structure
 

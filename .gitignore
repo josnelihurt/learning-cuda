@@ -56,3 +56,10 @@ data/
 webserver/web/static/js/version.js
 bin/server
 bin/webserver
+
+# Coverage reports
+coverage/
+!coverage/index.html
+
+# Node modules
+webserver/web/node_modules/

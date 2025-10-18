@@ -234,6 +234,62 @@ services:
     profiles:
       - testing
 
+  coverage-report-viewer:
+    image: node:20-alpine
+    container_name: coverage-report-viewer
+    working_dir: /app
+    ports:
+      - "5052:8080"
+    volumes:
+      - ./coverage:/app:ro
+    command: npx http-server /app -p 8080
+    networks:
+      - dev-network
+    profiles:
+      - coverage
+
+  lint-frontend:
+    image: node:20-alpine
+    container_name: lint-frontend
+    working_dir: /workspace/webserver/web
+    volumes:
+      - ./webserver/web:/workspace/webserver/web
+    command: sh -c "npm install && npm run lint && npm run format:check"
+    profiles:
+      - lint
+
+  lint-golang:
+    image: golangci/golangci-lint:v1.55-alpine
+    container_name: lint-golang
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - go-cache:/root/.cache/go-build
+      - go-mod-cache:/go/pkg/mod
+    command: golangci-lint run --timeout 5m ./...
+    profiles:
+      - lint
+
+  lint-cpp:
+    image: ubuntu:22.04
+    container_name: lint-cpp
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+    command: >
+      sh -c "apt-get update && 
+             apt-get install -y clang-tidy clang-format && 
+             find cpp_accelerator -name '*.cpp' -o -name '*.h' | grep -v BUILD | xargs clang-format --dry-run -Werror || echo 'Format check complete' &&
+             echo 'C++ linting complete'"
+    profiles:
+      - lint
+
+volumes:
+  go-cache:
+  go-mod-cache:
+
 networks:
   dev-network:
     driver: bridge

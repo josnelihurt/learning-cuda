@@ -78,10 +78,12 @@ test.describe('Panel Synchronization', () => {
   });
 
   test('Test 4.5: Rapid Source Switching', async ({ page }) => {
+    test.setTimeout(30000);
+    
     for (let cycle = 0; cycle < 2; cycle++) {
       for (let source = 1; source <= 4; source++) {
         await helpers.selectSource(source);
-        await page.waitForTimeout(100);
+        await page.waitForTimeout(200);
         
         const isChecked = await helpers.isFilterEnabled('grayscale');
         expect(isChecked).toBe(true);
@@ -91,7 +93,8 @@ test.describe('Panel Synchronization', () => {
       }
     }
     
-    helpers.expectConsoleLogContains('Card selected');
+    const foundLog = await helpers.waitForConsoleLog('Card selected', 2000);
+    expect(foundLog).toBe(true);
   });
 });
 

@@ -75,7 +75,7 @@ RUN npm run build
 #################################################################################
 # Compile CUDA C++ shared libraries (.so) using Bazel + NVIDIA compiler
 # Requires: CUDA toolkit, Bazel, protobuf definitions
-# Output: libcuda_processor_v1.0.0.so and libcuda_processor_mock.so
+# Output: libcuda_processor_v{VERSION}.so and libcuda_processor_mock.so (VERSION from cpp_accelerator/VERSION)
 #################################################################################
 
 FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS cpp-builder
@@ -115,8 +115,9 @@ RUN bazel build \
     //cpp_accelerator/ports/shared_lib:libcuda_processor.so \
     //cpp_accelerator/ports/shared_lib:libcuda_processor_mock.so
 
-RUN mkdir -p /artifacts/lib && \
-    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v1.0.0.so && \
+RUN VERSION=$(cat cpp_accelerator/VERSION) && \
+    mkdir -p /artifacts/lib && \
+    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so && \
     cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor_mock.so /artifacts/lib/
 
 #################################################################################

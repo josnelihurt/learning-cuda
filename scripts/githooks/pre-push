@@ -5,12 +5,140 @@ SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+SERVICES_STARTED=false
+CLEANUP_NEEDED=false
+
+cleanup() {
+    if [ "$CLEANUP_NEEDED" = true ]; then
+        echo ""
+        echo "Cleaning up services..."
+        "$PROJECT_ROOT/scripts/kill-services.sh" 2>/dev/null || true
+        
+        if [ "$SERVICES_STARTED" = true ]; then
+            echo "Stopping Docker services..."
+            cd "$PROJECT_ROOT"
+            docker compose -f docker-compose.dev.yml down 2>/dev/null || true
+        fi
+    fi
+}
+
+trap cleanup EXIT INT TERM
+
 echo "Running pre-push validations..."
 echo ""
 
 echo "Running pre-commit validations..."
 "$SCRIPT_DIR/pre-commit.sh" || exit 1
 
+echo ""
+echo "Checking if services are already running..."
+SERVICES_RUNNING=false
+if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1 && \
+   curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
+    echo "Services already running, using existing instances"
+    SERVICES_RUNNING=true
+else
+    echo "Services not running, starting them..."
+    SERVICES_STARTED=true
+    CLEANUP_NEEDED=true
+    
+    cd "$PROJECT_ROOT"
+    
+    echo "Starting Docker services (Flipt, Jaeger, OTel)..."
+    docker compose -f docker-compose.dev.yml up -d
+    
+    echo "Waiting for Flipt to be ready..."
+    timeout=30
+    while [ $timeout -gt 0 ]; do
+        if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
+            echo "Flipt is ready!"
+            break
+        fi
+        sleep 1
+        timeout=$((timeout - 1))
+    done
+    if [ $timeout -eq 0 ]; then
+        echo "ERROR: Flipt failed to start"
+        exit 1
+    fi
+    
+    echo "Building C++ libraries with mock..."
+    if [ ! -f "proto/gen/image_processor_service.pb.go" ]; then
+        echo "Generating proto files..."
+        docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate 2>/dev/null || true
+    fi
+    
+    bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor_mock.so
+    
+    mkdir -p .ignore/lib/cuda_learning
+    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor_mock.so .ignore/lib/cuda_learning/
+    
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+    DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    cat > .ignore/lib/cuda_learning/libcuda_processor_mock.so.json <<EOF
+{
+  "name": "Mock Image Processor",
+  "version": "mock",
+  "api_version": "2.0.0",
+  "type": "mock",
+  "build_date": "${DATE}",
+  "build_commit": "${COMMIT}",
+  "description": "Passthrough mock for fast development (no processing)"
+}
+EOF
+    
+    if [ ! -f "bin/server" ]; then
+        echo "Building Go server..."
+        cd webserver && make build && cd ..
+    fi
+    
+    cd webserver/web
+    [ ! -d "node_modules" ] && npm install
+    cd "$PROJECT_ROOT"
+    
+    echo "Starting Vite..."
+    cd webserver/web
+    npm run dev > /tmp/vite-prepush.log 2>&1 &
+    VITE_PID=$!
+    cd "$PROJECT_ROOT"
+    sleep 2
+    
+    if ! kill -0 $VITE_PID 2>/dev/null; then
+        echo "Error: Vite failed to start"
+        cat /tmp/vite-prepush.log
+        exit 1
+    fi
+    
+    echo "Starting Go server with MOCK library..."
+    export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
+    ./bin/server -webroot=webserver/web > /tmp/server-prepush.log 2>&1 &
+    GO_PID=$!
+    sleep 3
+    
+    if ! kill -0 $GO_PID 2>/dev/null; then
+        echo "Error: Go server failed to start"
+        cat /tmp/server-prepush.log
+        exit 1
+    fi
+    
+    echo "Waiting for server to be ready..."
+    timeout=30
+    while [ $timeout -gt 0 ]; do
+        if curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+        fi
+        sleep 1
+        timeout=$((timeout - 1))
+    done
+    if [ $timeout -eq 0 ]; then
+        echo "ERROR: Server failed to become ready"
+        exit 1
+    fi
+fi
+
+echo ""
 echo "BDD Integration Tests..."
 "$PROJECT_ROOT/scripts/run-docker-tests.sh" backend || {
     echo "FAILED: BDD tests"
@@ -35,6 +163,10 @@ export PLAYWRIGHT_TRACE=true
     echo "  Open: http://localhost:5051"
     exit 1
 }
+
+if [ "$SERVICES_RUNNING" = false ]; then
+    CLEANUP_NEEDED=true
+fi
 
 echo ""
 echo "Pre-push validations passed"

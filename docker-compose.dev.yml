@@ -187,6 +187,7 @@ services:
       - ./webserver/web/playwright.config.ts:/workspace/webserver/web/playwright.config.ts:ro
       - ./webserver/web/tsconfig.json:/workspace/webserver/web/tsconfig.json:ro
       - ./webserver/web/.ignore:/workspace/webserver/web/.ignore
+      - ./data:/workspace/data:ro
     
     depends_on:
       - flipt

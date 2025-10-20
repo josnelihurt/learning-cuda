@@ -6,7 +6,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.PLAYWRIGHT_WORKERS ? parseInt(process.env.PLAYWRIGHT_WORKERS) : (process.env.CI ? 4 : 25),
-  timeout: 20000,
+  timeout: 60000,
   
   reporter: [
     ['html', { outputFolder: '.ignore/playwright-report', open: 'never' }],

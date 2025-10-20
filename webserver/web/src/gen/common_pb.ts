@@ -418,82 +418,65 @@ export class StaticImage extends Message<StaticImage> {
 }
 
 /**
- * @generated from message cuda_learning.ListAvailableImagesRequest
+ * Static video metadata (shared across services)
+ *
+ * @generated from message cuda_learning.StaticVideo
  */
-export class ListAvailableImagesRequest extends Message<ListAvailableImagesRequest> {
+export class StaticVideo extends Message<StaticVideo> {
   /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 1 [json_name = "trace_context"];
+   * @generated from field: string id = 1;
    */
-  traceContext?: TraceContext;
+  id = "";
 
-  constructor(data?: PartialMessage<ListAvailableImagesRequest>) {
+  /**
+   * @generated from field: string display_name = 3 [json_name = "display_name"];
+   */
+  displayName = "";
+
+  /**
+   * @generated from field: string path = 5;
+   */
+  path = "";
+
+  /**
+   * @generated from field: string preview_image_path = 7 [json_name = "preview_image_path"];
+   */
+  previewImagePath = "";
+
+  /**
+   * @generated from field: bool is_default = 9 [json_name = "is_default"];
+   */
+  isDefault = false;
+
+  constructor(data?: PartialMessage<StaticVideo>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.ListAvailableImagesRequest";
+  static readonly typeName = "cuda_learning.StaticVideo";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "display_name", jsonName: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "preview_image_path", jsonName: "preview_image_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "is_default", jsonName: "is_default", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAvailableImagesRequest {
-    return new ListAvailableImagesRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StaticVideo {
+    return new StaticVideo().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListAvailableImagesRequest {
-    return new ListAvailableImagesRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StaticVideo {
+    return new StaticVideo().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListAvailableImagesRequest {
-    return new ListAvailableImagesRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StaticVideo {
+    return new StaticVideo().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListAvailableImagesRequest | PlainMessage<ListAvailableImagesRequest> | undefined, b: ListAvailableImagesRequest | PlainMessage<ListAvailableImagesRequest> | undefined): boolean {
-    return proto3.util.equals(ListAvailableImagesRequest, a, b);
-  }
-}
-
-/**
- * @generated from message cuda_learning.ListAvailableImagesResponse
- */
-export class ListAvailableImagesResponse extends Message<ListAvailableImagesResponse> {
-  /**
-   * @generated from field: repeated cuda_learning.StaticImage images = 1;
-   */
-  images: StaticImage[] = [];
-
-  /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
-   */
-  traceContext?: TraceContext;
-
-  constructor(data?: PartialMessage<ListAvailableImagesResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.ListAvailableImagesResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "images", kind: "message", T: StaticImage, repeated: true },
-    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAvailableImagesResponse {
-    return new ListAvailableImagesResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListAvailableImagesResponse {
-    return new ListAvailableImagesResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListAvailableImagesResponse {
-    return new ListAvailableImagesResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ListAvailableImagesResponse | PlainMessage<ListAvailableImagesResponse> | undefined, b: ListAvailableImagesResponse | PlainMessage<ListAvailableImagesResponse> | undefined): boolean {
-    return proto3.util.equals(ListAvailableImagesResponse, a, b);
+  static equals(a: StaticVideo | PlainMessage<StaticVideo> | undefined, b: StaticVideo | PlainMessage<StaticVideo> | undefined): boolean {
+    return proto3.util.equals(StaticVideo, a, b);
   }
 }
 

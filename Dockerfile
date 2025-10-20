@@ -75,7 +75,7 @@ RUN npm run build
 #################################################################################
 # Compile CUDA C++ shared libraries (.so) using Bazel + NVIDIA compiler
 # Requires: CUDA toolkit, Bazel, protobuf definitions
-# Output: libcuda_processor_v{VERSION}.so and libcuda_processor_mock.so (VERSION from cpp_accelerator/VERSION)
+# Output: libcuda_processor_v{VERSION}.so (VERSION from cpp_accelerator/VERSION)
 #################################################################################
 
 FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS cpp-builder
@@ -111,14 +111,11 @@ COPY buf.yaml buf.lock buf.gen.yaml ./
 # Copy generated protobuf code from proto-generator stage
 COPY --from=proto-generator /workspace/proto/gen/ ./proto/gen/
 
-RUN bazel build \
-    //cpp_accelerator/ports/shared_lib:libcuda_processor.so \
-    //cpp_accelerator/ports/shared_lib:libcuda_processor_mock.so
+RUN bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
 
 RUN VERSION=$(cat cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/lib && \
-    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so && \
-    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor_mock.so /artifacts/lib/
+    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so
 
 #################################################################################
 #                          GO WEBSERVER BUILDER STAGE                           #
@@ -128,7 +125,17 @@ RUN VERSION=$(cat cpp_accelerator/VERSION) && \
 # Output: /artifacts/bin/server executable
 #################################################################################
 
-FROM golang:1.24-bullseye AS go-builder
+FROM golang:1.24-bookworm AS go-builder
+
+RUN apt-get update && apt-get install -y \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libavfilter-dev \
+    libavdevice-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
@@ -237,7 +244,7 @@ USER ${USER_ID}:${GROUP_ID}
 ENV HOME=/home/testuser
 ENV NODE_ENV=test
 ENV PLAYWRIGHT_BASE_URL=https://localhost:8443
-ENV CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
+ENV CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=2.0.0
 
 WORKDIR /workspace/webserver/web
 
@@ -292,10 +299,16 @@ FROM nvidia/cuda:12.5.1-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install minimal runtime dependencies
+# Install minimal runtime dependencies including FFmpeg libraries
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libavfilter-dev \
+    libavdevice-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -15,6 +15,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/video"
 	flipt "go.flipt.io/flipt-client"
 )
 
@@ -23,6 +24,7 @@ type Container struct {
 	HTTPClient *httpinfra.ClientProxy
 
 	FeatureFlagRepo domain.FeatureFlagRepository
+	VideoRepository domain.VideoRepository
 
 	ProcessImageUseCase        *application.ProcessImageUseCase
 	EvaluateFeatureFlagUseCase *application.EvaluateFeatureFlagUseCase
@@ -31,6 +33,8 @@ type Container struct {
 	ListInputsUseCase          *application.ListInputsUseCase
 	ListAvailableImagesUseCase *application.ListAvailableImagesUseCase
 	UploadImageUseCase         *application.UploadImageUseCase
+	ListVideosUseCase          *application.ListVideosUseCase
+	UploadVideoUseCase         *application.UploadVideoUseCase
 
 	CppConnector      *processor.CppConnector
 	ProcessorRegistry *loader.Registry
@@ -107,22 +111,30 @@ func New(ctx context.Context) (*Container, error) {
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
-	listInputsUseCase := application.NewListInputsUseCase()
+
+	videoRepo := video.NewFileVideoRepository("data/videos", "data/video_previews")
+	listInputsUseCase := application.NewListInputsUseCase(videoRepo)
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
 	listAvailableImagesUseCase := application.NewListAvailableImagesUseCase(staticImageRepo)
 	uploadImageUseCase := application.NewUploadImageUseCase(staticImageRepo)
 
+	listVideosUseCase := application.NewListVideosUseCase(videoRepo)
+	uploadVideoUseCase := application.NewUploadVideoUseCase(videoRepo, "data/videos", "data/video_previews")
+
 	return &Container{
 		Config:                     cfg,
 		HTTPClient:                 httpClient,
 		FeatureFlagRepo:            featureFlagRepo,
+		VideoRepository:            videoRepo,
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
 		SyncFeatureFlagsUseCase:    syncFFUseCase,
 		GetStreamConfigUseCase:     getStreamConfigUseCase,
 		ListInputsUseCase:          listInputsUseCase,
 		ListAvailableImagesUseCase: listAvailableImagesUseCase,
 		UploadImageUseCase:         uploadImageUseCase,
+		ListVideosUseCase:          listVideosUseCase,
+		UploadVideoUseCase:         uploadVideoUseCase,
 		CppConnector:               cppConnector,
 		ProcessorRegistry:          registry,
 		ProcessorLoader:            processorLoader,

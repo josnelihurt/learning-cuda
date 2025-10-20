@@ -47,7 +47,11 @@ func (h *ImageProcessorHandler) StreamProcessVideo(
 	ctx context.Context,
 	stream *connect.BidiStream[pb.ProcessImageRequest, pb.ProcessImageResponse],
 ) error {
-	// TODO: Implement video streaming using Connect-RPC bidirectional streaming
+	// TODO: Implement this to replace WebSocket handler
+	// This should replace: webserver/pkg/interfaces/websocket/handler.go HandleWebSocket method
+	// Benefits: Type-safe streaming, unified protocol (Connect-RPC), better error handling
+	// Implementation: Use stream.Receive() loop, call useCase.Execute, stream.Send() responses
+	// Add tracing, handle context cancellation, manage backpressure
 	return connect.NewError(connect.CodeUnimplemented, nil)
 }
 

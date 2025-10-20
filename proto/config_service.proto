@@ -39,6 +39,8 @@ message InputSource {
   string type = 5 [json_name = "type"];
   string image_path = 7 [json_name = "image_path"];
   bool is_default = 9 [json_name = "is_default"];
+  string video_path = 11 [json_name = "video_path"];
+  string preview_image_path = 13 [json_name = "preview_image_path"];
 }
 
 message ListInputsRequest {

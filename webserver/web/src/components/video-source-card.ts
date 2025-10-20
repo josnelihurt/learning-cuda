@@ -9,6 +9,7 @@ export class VideoSourceCard extends LitElement {
     @property({ type: String }) sourceName = '';
     @property({ type: String }) sourceType = '';
     @property({ type: Boolean }) isSelected = false;
+    @property({ type: String }) imageSrc = '';
 
     static styles = css`
         :host {
@@ -17,6 +18,8 @@ export class VideoSourceCard extends LitElement {
             width: 100%;
             height: 100%;
             min-height: 0;
+            padding: 2px;
+            box-sizing: border-box;
         }
 
         .card {
@@ -122,6 +125,12 @@ export class VideoSourceCard extends LitElement {
             overflow: hidden;
         }
 
+        .content img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         ::slotted(img),
         ::slotted(video),
         ::slotted(camera-preview) {
@@ -156,7 +165,13 @@ export class VideoSourceCard extends LitElement {
                     data-testid="source-close-button"
                 >×</button>
                 <div class="content">
-                    <slot></slot>
+                    ${this.imageSrc ? html`
+                        <img 
+                            src="${this.imageSrc}" 
+                            alt="${this.sourceName}"
+                            crossorigin="anonymous"
+                        />
+                    ` : html`<slot></slot>`}
                 </div>
             </div>
         `;

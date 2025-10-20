@@ -3,23 +3,30 @@ package application
 import (
 	"context"
 
+	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type InputSource struct {
-	ID          string
-	DisplayName string
-	Type        string
-	ImagePath   string
-	IsDefault   bool
+	ID               string
+	DisplayName      string
+	Type             string
+	ImagePath        string
+	IsDefault        bool
+	VideoPath        string
+	PreviewImagePath string
 }
 
-type ListInputsUseCase struct{}
+type ListInputsUseCase struct {
+	videoRepository domain.VideoRepository
+}
 
-func NewListInputsUseCase() *ListInputsUseCase {
-	return &ListInputsUseCase{}
+func NewListInputsUseCase(videoRepository domain.VideoRepository) *ListInputsUseCase {
+	return &ListInputsUseCase{
+		videoRepository: videoRepository,
+	}
 }
 
 func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error) {
@@ -29,10 +36,6 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error)
 	)
 	defer span.End()
 
-	// TODO: Load static images dynamically from /data directory scan
-	// TODO: Support multiple connected cameras (server-side cameras)
-	// TODO: Support stored video files as input sources
-	// TODO: Support remote stream URLs (RTSP, HLS, etc.)
 	sources := []InputSource{
 		{
 			ID:          "lena",
@@ -50,13 +53,31 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error)
 		},
 	}
 
+	videos, err := uc.videoRepository.List(ctx)
+	if err == nil {
+		for _, vid := range videos {
+			sources = append(sources, InputSource{
+				ID:               vid.ID,
+				DisplayName:      vid.DisplayName,
+				Type:             "video",
+				VideoPath:        vid.Path,
+				PreviewImagePath: vid.PreviewImagePath,
+				IsDefault:        vid.IsDefault,
+			})
+		}
+	}
+
 	staticCount := 0
 	cameraCount := 0
+	videoCount := 0
 	for _, src := range sources {
-		if src.Type == "static" {
+		switch src.Type {
+		case "static":
 			staticCount++
-		} else if src.Type == "camera" {
+		case "camera":
 			cameraCount++
+		case "video":
+			videoCount++
 		}
 	}
 
@@ -64,6 +85,7 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error)
 		attribute.Int("input_sources.count", len(sources)),
 		attribute.Int("input_sources.static_count", staticCount),
 		attribute.Int("input_sources.camera_count", cameraCount),
+		attribute.Int("input_sources.video_count", videoCount),
 	)
 
 	return sources, nil

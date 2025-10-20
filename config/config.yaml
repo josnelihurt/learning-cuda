@@ -51,10 +51,9 @@ processor:
   library_base_path: ".ignore/lib/cuda_learning"
   default_library: "2.0.0"
   enable_hot_reload: false
-  fallback_enabled: true
+  fallback_enabled: false
   fallback_chain:
     - "2.0.0"
-    - "mock"
 
 static_images:
   directory: "data/static_images"

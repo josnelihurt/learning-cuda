@@ -57,7 +57,7 @@ func (tc *TestContext) eachInputSourceShouldHaveValidType() error {
 		return err
 	}
 
-	validTypes := map[string]bool{"static": true, "camera": true}
+	validTypes := map[string]bool{"static": true, "camera": true, "video": true}
 
 	for _, src := range sources {
 		if !validTypes[src.Type] {

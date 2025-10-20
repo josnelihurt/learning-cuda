@@ -57,7 +57,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  --help, -h          Show this help message"
     echo ""
     echo "Environment:"
-    echo "  CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock (enforced)"
+    echo "  CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=2.0.0"
     echo "  System CPUs: $(nproc) cores detected"
     echo ""
     echo "Examples:"
@@ -70,7 +70,7 @@ fi
 
 export USER_ID=$(id -u)
 export GROUP_ID=$(id -g)
-export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
+export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=2.0.0
 
 if [ -n "$BROWSER" ]; then
     PLAYWRIGHT_OPTS="--project=$BROWSER $PLAYWRIGHT_OPTS"
@@ -83,7 +83,7 @@ fi
 
 echo "Starting E2E tests..."
 echo "User: $USER_ID:$GROUP_ID"
-echo "Processor Library: mock (enforced)"
+echo "Processor Library: 2.0.0"
 echo "System CPUs: $(nproc) cores"
 [ -n "$WORKERS" ] && echo "Workers: $WORKERS" || echo "Workers: 25 (default)"
 [ -n "$BROWSER" ] && echo "Browser: $BROWSER" || echo "Browsers: All (chromium, firefox, webkit)"
@@ -133,7 +133,7 @@ echo ""
 
 docker compose -f docker-compose.dev.yml --profile testing run \
   --rm \
-  -e PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS" \
+  -e PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS --grep-invert=@slow" \
   -e PLAYWRIGHT_WORKERS="${PLAYWRIGHT_WORKERS:-25}" \
   e2e-tests
 

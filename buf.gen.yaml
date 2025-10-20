@@ -23,4 +23,3 @@ plugins:
       - target=ts
 inputs:
   - directory: proto
-

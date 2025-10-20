@@ -2,7 +2,8 @@ import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/con
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '../gen/config_service_connect';
 import { FileService } from '../gen/file_service_connect';
-import { InputSource, StaticImage } from '../gen/config_service_pb';
+import { InputSource } from '../gen/config_service_pb';
+import { StaticImage, StaticVideo } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
@@ -107,6 +108,37 @@ class InputSourceService {
                     span?.setAttribute('error', true);
                     
                     console.error('Failed to load available images:', error);
+                    return [];
+                }
+            }
+        );
+    }
+
+    async listAvailableVideos(): Promise<StaticVideo[]> {
+        return telemetryService.withSpanAsync(
+            'InputSourceService.listAvailableVideos',
+            {
+                'http.method': 'POST',
+                'rpc.service': 'FileService',
+                'rpc.method': 'listAvailableVideos',
+            },
+            async (span) => {
+                try {
+                    span?.addEvent('Fetching available videos');
+                    const response = await this.fileClient.listAvailableVideos({});
+                    
+                    const videos = response.videos || [];
+                    
+                    span?.setAttribute('available_videos.count', videos.length);
+                    span?.addEvent('Available videos loaded successfully');
+                    
+                    console.log('Available videos loaded:', videos);
+                    return videos;
+                } catch (error) {
+                    span?.addEvent('Failed to load available videos');
+                    span?.setAttribute('error', true);
+                    
+                    console.error('Failed to load available videos:', error);
                     return [];
                 }
             }

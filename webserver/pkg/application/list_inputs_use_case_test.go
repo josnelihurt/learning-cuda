@@ -4,13 +4,18 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewListInputsUseCase(t *testing.T) {
-	// Arrange & Act
-	sut := NewListInputsUseCase()
+	// Arrange
+	mockRepo := new(MockVideoRepository)
+
+	// Act
+	sut := NewListInputsUseCase(mockRepo)
 
 	// Assert
 	require.NotNil(t, sut)
@@ -73,7 +78,9 @@ func TestListInputsUseCase_Execute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			sut := NewListInputsUseCase()
+			mockRepo := new(MockVideoRepository)
+			mockRepo.On("List", mock.Anything).Return([]domain.Video{}, nil)
+			sut := NewListInputsUseCase(mockRepo)
 			ctx := context.Background()
 
 			// Act
@@ -81,6 +88,7 @@ func TestListInputsUseCase_Execute(t *testing.T) {
 
 			// Assert
 			tt.assertResult(t, result, err)
+			mockRepo.AssertExpectations(t)
 		})
 	}
 }

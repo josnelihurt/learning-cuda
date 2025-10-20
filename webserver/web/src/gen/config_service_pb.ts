@@ -251,6 +251,16 @@ export class InputSource extends Message<InputSource> {
    */
   isDefault = false;
 
+  /**
+   * @generated from field: string video_path = 11 [json_name = "video_path"];
+   */
+  videoPath = "";
+
+  /**
+   * @generated from field: string preview_image_path = 13 [json_name = "preview_image_path"];
+   */
+  previewImagePath = "";
+
   constructor(data?: PartialMessage<InputSource>) {
     super();
     proto3.util.initPartial(data, this);
@@ -264,6 +274,8 @@ export class InputSource extends Message<InputSource> {
     { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "image_path", jsonName: "image_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "is_default", jsonName: "is_default", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 11, name: "video_path", jsonName: "video_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 13, name: "preview_image_path", jsonName: "preview_image_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InputSource {

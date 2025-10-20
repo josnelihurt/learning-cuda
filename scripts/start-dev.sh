@@ -107,12 +107,10 @@ echo "Stopping previous application services..."
     
     echo "Building C++ processor libraries..."
     bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
-    bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor_mock.so
     
     echo "Installing libraries..."
     mkdir -p .ignore/lib/cuda_learning
     cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v$(cat cpp_accelerator/VERSION).so
-    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor_mock.so .ignore/lib/cuda_learning/
     
     COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
     DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -129,18 +127,6 @@ echo "Stopping previous application services..."
   "description": "CUDA-accelerated image processing with CPU fallback"
 }
 EOF
-
-    cat > .ignore/lib/cuda_learning/libcuda_processor_mock.so.json <<EOF
-{
-  "name": "Mock Image Processor",
-  "version": "mock",
-  "api_version": "2.0.0",
-  "type": "mock",
-  "build_date": "${DATE}",
-  "build_commit": "${COMMIT}",
-  "description": "Passthrough mock for fast development (no processing)"
-}
-EOF
     
     echo "Building backend with Go..."
     cd webserver && make build && cd ..
@@ -150,13 +136,13 @@ cd webserver/web
 [ ! -d "node_modules" ] && npm install
 cd "$PROJECT_ROOT"
 
-cleanup() {
-    echo "Stopping services..."
+cleanup_on_error() {
+    echo "Error detected, stopping services..."
     kill $VITE_PID $GO_PID 2>/dev/null
     wait $VITE_PID $GO_PID 2>/dev/null
 }
 
-trap cleanup EXIT INT TERM
+trap cleanup_on_error INT TERM
 
 echo "Starting Vite (hot reload)..."
 cd webserver/web
@@ -180,10 +166,10 @@ echo "Starting Go server..."
 if [ "$USE_MOCK" = true ]; then
     echo "Using MOCK processor library (fast, no CUDA)"
     export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
-    ./bin/server -webroot=webserver/web &
+    ./bin/server -webroot=webserver/web > /tmp/goserver.log 2>&1 &
 else
     echo "Using REAL CUDA processor library (version 2.0.0)"
-    ./bin/server -webroot=webserver/web &
+    ./bin/server -webroot=webserver/web > /tmp/goserver.log 2>&1 &
 fi
 GO_PID=$!
 
@@ -210,7 +196,12 @@ else
     echo "Processor: REAL CUDA (version 2.0.0)"
 fi
 echo ""
-echo "Press Ctrl+C to stop"
-
-wait $VITE_PID $GO_PID
+echo "Services running in background"
+echo "  Vite PID: $VITE_PID"
+echo "  Go Server PID: $GO_PID"
+echo ""
+echo "To stop services, run: ./scripts/kill-services.sh"
+echo "To view logs:"
+echo "  Vite:      tail -f /tmp/vite.log"
+echo "  Go Server: docker logs -f \$(docker ps -q --filter ancestor=cuda-learning)"
 

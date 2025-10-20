@@ -27,17 +27,3 @@ cc_binary(
     ],
 )
 
-cc_binary(
-    name = "libcuda_processor_mock.so",
-    srcs = [
-        "mock_processor.cpp",
-        "processor_api.h",
-    ],
-    linkshared = True,
-    visibility = ["//visibility:public"],
-    deps = [
-        "//proto:common_cc_proto",
-        "//proto:image_processor_service_cc_proto",
-    ],
-)
-

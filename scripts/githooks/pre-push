@@ -68,14 +68,12 @@ else
         docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate 2>/dev/null || true
     fi
     
-    echo "Building real CUDA library (required for BDD tests)..."
+    echo "Building CUDA library (required for BDD tests)..."
     bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
-    bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor_mock.so
     
     mkdir -p .ignore/lib/cuda_learning
     VERSION=$(cat cpp_accelerator/VERSION)
     cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
-    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor_mock.so .ignore/lib/cuda_learning/
     
     COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
     DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -89,18 +87,6 @@ else
   "build_date": "${DATE}",
   "build_commit": "${COMMIT}",
   "description": "CUDA-accelerated image processing with CPU fallback"
-}
-EOF
-
-    cat > .ignore/lib/cuda_learning/libcuda_processor_mock.so.json <<EOF
-{
-  "name": "Mock Image Processor",
-  "version": "mock",
-  "api_version": "2.0.0",
-  "type": "mock",
-  "build_date": "${DATE}",
-  "build_commit": "${COMMIT}",
-  "description": "Passthrough mock for fast development (no processing)"
 }
 EOF
     

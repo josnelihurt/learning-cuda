@@ -108,6 +108,90 @@ func (tc *TestContext) theResponseShouldContainUploadedImageDetails() error {
 	return tc.ThenTheResponseShouldContainUploadedImageDetails()
 }
 
+func (tc *TestContext) theResponseShouldContainVideoNamed(id string) error {
+	return tc.ThenResponseShouldContainVideo(id)
+}
+
+func (tc *TestContext) responseShouldContainVideoNamed(id string) error {
+	return tc.ThenResponseShouldContainVideo(id)
+}
+
+func (tc *TestContext) eachVideoShouldHaveANonEmptyID() error {
+	return tc.eachVideoShouldHaveNonEmptyID()
+}
+
+func (tc *TestContext) eachVideoShouldHaveANonEmptyDisplayName() error {
+	return tc.eachVideoShouldHaveNonEmptyDisplayName()
+}
+
+func (tc *TestContext) eachVideoShouldHaveANonEmptyPath() error {
+	return tc.eachVideoShouldHaveNonEmptyPath()
+}
+
+func (tc *TestContext) eachVideoShouldHaveANonEmptyPreviewImagePath() error {
+	return tc.eachVideoShouldHaveNonEmptyPreviewImagePath()
+}
+
+func (tc *TestContext) atLeastOneVideoShouldBeMarkedDefault() error {
+	return tc.atLeastOneVideoShouldBeMarkedAsDefault()
+}
+
+func (tc *TestContext) theResponseShouldContainUploadedVideoDetails() error {
+	return tc.ThenTheResponseShouldContainUploadedVideoDetails()
+}
+
+func (tc *TestContext) theResponseShouldContainPreviewImagePath() error {
+	return tc.ThenTheResponseShouldContainPreviewImagePath()
+}
+
+func (tc *TestContext) thePreviewFileShouldExistOnFilesystem() error {
+	return tc.ThenThePreviewFileShouldExistOnFilesystem()
+}
+
+func (tc *TestContext) thePreviewShouldBeAValidPNGImage() error {
+	return tc.ThenThePreviewShouldBeAValidPNGImage()
+}
+
+func (tc *TestContext) theVideoShouldHavePreviewImagePath(videoID string) error {
+	return tc.ThenTheVideoShouldHavePreviewImagePath(videoID)
+}
+
+func (tc *TestContext) theFrameShouldHaveField(fieldName string) error {
+	return tc.ThenTheFrameShouldHaveField(fieldName)
+}
+
+func (tc *TestContext) theFrameIDShouldBe(expectedID int) error {
+	return tc.ThenTheFrameIDShouldBe(expectedID)
+}
+
+func (tc *TestContext) allFrameIDsShouldBeSequentialStartingFrom(startID int) error {
+	return tc.ThenAllFrameIDsShouldBeSequentialStartingFrom(startID)
+}
+
+func (tc *TestContext) frameIDShouldComeBeforeFrameID(firstID, secondID int) error {
+	return tc.ThenFrameIDShouldComeBeforeFrameID(firstID, secondID)
+}
+
+func (tc *TestContext) frameIDShouldBeTheLastCollectedFrameID(frameID int) error {
+	return tc.ThenFrameIDShouldBeTheLastCollectedFrameID(frameID)
+}
+
+func (tc *TestContext) eachFramesFrameIDShouldMatchItsFrameNumber() error {
+	return tc.ThenEachFramesFrameIDShouldMatchItsFrameNumber()
+}
+
+func (tc *TestContext) theMetadataShouldContainFrames(frameCount int) error {
+	return tc.ThenTheMetadataShouldContainFrames(frameCount)
+}
+
+func (tc *TestContext) frameShouldHaveASHA256Hash(frameID int) error {
+	return tc.ThenFrameShouldHaveASHA256Hash(frameID)
+}
+
+func (tc *TestContext) iCanRetrieveMetadataForFrameID(frameID int) error {
+	return tc.ThenICanRetrieveMetadataForFrameID(frameID)
+}
+
 func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain transport format "([^"]*)"$`, tc.theResponseShouldContainTransportFormat)
 	ctx.Step(`^the response should contain endpoint "([^"]*)"$`, tc.theResponseShouldContainEndpoint)
@@ -135,4 +219,26 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the upload should succeed$`, tc.theUploadShouldSucceed)
 	ctx.Step(`^the upload should fail with "([^"]*)" error$`, tc.theUploadShouldFailWithError)
 	ctx.Step(`^the response should contain the uploaded image details$`, tc.theResponseShouldContainUploadedImageDetails)
+	ctx.Step(`^the response should contain video "([^"]*)"$`, tc.theResponseShouldContainVideoNamed)
+	ctx.Step(`^response should contain video "([^"]*)"$`, tc.responseShouldContainVideoNamed)
+	ctx.Step(`^each video should have a non-empty id$`, tc.eachVideoShouldHaveANonEmptyID)
+	ctx.Step(`^each video should have a non-empty display name$`, tc.eachVideoShouldHaveANonEmptyDisplayName)
+	ctx.Step(`^each video should have a non-empty path$`, tc.eachVideoShouldHaveANonEmptyPath)
+	ctx.Step(`^each video should have a non-empty preview image path$`, tc.eachVideoShouldHaveANonEmptyPreviewImagePath)
+	ctx.Step(`^at least one video should be marked as default$`, tc.atLeastOneVideoShouldBeMarkedDefault)
+	ctx.Step(`^the response should contain the uploaded video details$`, tc.theResponseShouldContainUploadedVideoDetails)
+	ctx.Step(`^the response should contain input source "([^"]*)" with type "([^"]*)"$`, tc.theResponseShouldContainInputSourceWithType)
+	ctx.Step(`^the response should contain preview image path$`, tc.theResponseShouldContainPreviewImagePath)
+	ctx.Step(`^the preview file should exist on filesystem$`, tc.thePreviewFileShouldExistOnFilesystem)
+	ctx.Step(`^the preview should be a valid PNG image$`, tc.thePreviewShouldBeAValidPNGImage)
+	ctx.Step(`^the video "([^"]*)" should have a preview image path$`, tc.theVideoShouldHavePreviewImagePath)
+	ctx.Step(`^the frame should have field "([^"]*)"$`, tc.theFrameShouldHaveField)
+	ctx.Step(`^the frame_id should be (\d+)$`, tc.theFrameIDShouldBe)
+	ctx.Step(`^all frame_ids should be sequential starting from (\d+)$`, tc.allFrameIDsShouldBeSequentialStartingFrom)
+	ctx.Step(`^frame_id (\d+) should come before frame_id (\d+)$`, tc.frameIDShouldComeBeforeFrameID)
+	ctx.Step(`^frame_id (\d+) should be the last collected frame_id$`, tc.frameIDShouldBeTheLastCollectedFrameID)
+	ctx.Step(`^each frame's frame_id should match its frame_number$`, tc.eachFramesFrameIDShouldMatchItsFrameNumber)
+	ctx.Step(`^the metadata should contain (\d+) frames$`, tc.theMetadataShouldContainFrames)
+	ctx.Step(`^frame (\d+) should have a SHA256 hash$`, tc.frameShouldHaveASHA256Hash)
+	ctx.Step(`^I can retrieve metadata for frame_id (\d+)$`, tc.iCanRetrieveMetadataForFrameID)
 }

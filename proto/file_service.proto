@@ -6,6 +6,15 @@ import "common.proto";
 
 option go_package = "github.com/jrb/cuda-learning/proto/gen";
 
+message ListAvailableImagesRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message ListAvailableImagesResponse {
+  repeated StaticImage images = 1 [json_name = "images"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
 message UploadImageRequest {
   bytes file_data = 1 [json_name = "file_data"];
   string filename = 3 [json_name = "filename"];
@@ -18,8 +27,31 @@ message UploadImageResponse {
   TraceContext trace_context = 5 [json_name = "trace_context"];
 }
 
+message ListAvailableVideosRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message ListAvailableVideosResponse {
+  repeated StaticVideo videos = 1 [json_name = "videos"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message UploadVideoRequest {
+  bytes file_data = 1 [json_name = "file_data"];
+  string filename = 3 [json_name = "filename"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+message UploadVideoResponse {
+  StaticVideo video = 1 [json_name = "video"];
+  string message = 3 [json_name = "message"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
 service FileService {
   rpc ListAvailableImages(ListAvailableImagesRequest) returns (ListAvailableImagesResponse);
   rpc UploadImage(UploadImageRequest) returns (UploadImageResponse);
+  rpc ListAvailableVideos(ListAvailableVideosRequest) returns (ListAvailableVideosResponse);
+  rpc UploadVideo(UploadVideoRequest) returns (UploadVideoResponse);
 }
 

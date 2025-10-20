@@ -49,8 +49,16 @@ proto/gen/
 
 #TODO: Caddy, I want to replace this with docker and traefik
 caddy.log
-data/
+data/*
+!data/test-data
+data/test-data/*
+!data/test-data/videos
+data/test-data/videos/*
+!data/test-data/videos/e2e-test.mp4
+!data/test-data/videos/README.md
+data/test-data/video-frames/
 .caddy/
+.tmp/
 
 #TODO: do I still need this?
 webserver/web/static/js/version.js
@@ -61,5 +69,7 @@ bin/webserver
 coverage/
 !coverage/index.html
 
-# Node modules
-webserver/web/node_modules/
+# Node modules (any location)
+**/node_modules/
+node_modules/
+webserver/server

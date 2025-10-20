@@ -20,6 +20,7 @@ require (
 )
 
 require (
+	github.com/3d0c/gmf v0.0.0-20220906170454-be727bc5b56c // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cucumber/gherkin/go/v26 v26.2.0 // indirect
 	github.com/cucumber/messages/go/v21 v21.0.1 // indirect

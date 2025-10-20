@@ -31,7 +31,10 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !h.enabled {
-		http.Error(w, "Tracing disabled", http.StatusServiceUnavailable)
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(`{"success":true,"message":"tracing disabled"}`)); err != nil {
+			log.Printf("Error writing response: %v", err)
+		}
 		return
 	}
 

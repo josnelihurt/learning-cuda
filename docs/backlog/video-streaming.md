@@ -33,10 +33,16 @@ Research and POC tasks for improving video transport from current WebSocket + ba
 - [x] Created dynamic video grid component supporting up to 9 sources
 - [x] Added drawer UI for source selection with real-time updates
 - [x] Support per-source filter and resolution configuration
+- [x] Extended FileService with video upload/list capabilities (9 scenarios)
+- [x] Implemented video repository and use cases with 24 unit tests
+- [x] Created frontend video components (selector, upload) with tabs
+- [x] Added WebSocket video session manager for frame streaming
 
 #### Pending
+- [ ] Integrate video decoding library (gmf/ffmpeg) for actual frame extraction
+- [ ] Generate preview images from first video frame
 - [ ] Implement StreamProcessVideo bidirectional streaming (currently returns Unimplemented)
-- [ ] Update frontend to use Connect-RPC instead of WebSocket for video streaming
+- [ ] Complete video playback loop with frame-by-frame filter application
 - [ ] Benchmark latency vs current WebSocket
 - [ ] Add grpc-web support for browser compatibility
 

@@ -16,12 +16,13 @@ interface GridSource {
     type: string;
     imagePath: string;
     originalImageSrc: string;
-    imageElement: HTMLImageElement | null;
+    currentImageSrc: string;
     ws: WebSocketService | null;
     cameraPreview: CameraPreview | null;
     filters: string[];
     grayscaleType: string;
     resolution: string;
+    videoId?: string;
 }
 
 @customElement('video-grid')
@@ -39,27 +40,39 @@ export class VideoGrid extends LitElement {
             display: block;
             width: 100%;
             height: 100%;
-            padding: var(--spacing-xl);
+            padding: var(--spacing-md);
             overflow: hidden;
+            box-sizing: border-box;
         }
 
         .grid-container {
             display: grid;
-            gap: 16px;
+            gap: 0;
             width: 100%;
             height: 100%;
-            grid-auto-rows: 1fr;
         }
 
-        .grid-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
-        .grid-2 { grid-template-columns: 1fr; grid-template-rows: repeat(2, 1fr); }
-        .grid-3 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
-        .grid-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
-        .grid-5 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
-        .grid-6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
-        .grid-7 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
-        .grid-8 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
-        .grid-9 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+        /* Grid layouts that scale to fit viewport - NO SCROLLBARS */
+        .grid-1 { 
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+        .grid-2 { 
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(2, 1fr);
+        }
+        .grid-3, .grid-4 { 
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+        }
+        .grid-5, .grid-6 { 
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+        }
+        .grid-7, .grid-8, .grid-9 { 
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+        }
     `;
 
     render() {
@@ -79,16 +92,13 @@ export class VideoGrid extends LitElement {
                 .sourceNumber=${source.number}
                 .sourceName=${source.name}
                 .sourceType=${source.type}
+                .imageSrc=${source.currentImageSrc || source.imagePath}
                 .isSelected=${this.selectedSourceId === source.id}
                 @source-selected=${() => this.selectSource(source.id)}
                 @source-closed=${() => this.removeSource(source.id)}
                 data-testid="video-source-card"
                 data-source-id="${source.id}"
             >
-                ${source.imageElement 
-                    ? source.imageElement
-                    : html`<img src="${source.imagePath}" alt="${source.name}" />`
-                }
             </video-source-card>
         `;
     }
@@ -109,7 +119,6 @@ export class VideoGrid extends LitElement {
         
         let cameraPreview: CameraPreview | null = null;
         let ws: WebSocketService | null = null;
-        let imageElement: HTMLImageElement | null = null;
 
         if (inputSource.type === 'camera') {
             cameraPreview = document.createElement('camera-preview') as CameraPreview;
@@ -125,15 +134,17 @@ export class VideoGrid extends LitElement {
             ws.connect();
 
             ws.onFrameResult((data) => {
-                const source = this.sources.find(s => s.number === number);
-                if (source && source.imageElement && data.response) {
+                const sourceIndex = this.sources.findIndex(s => s.number === number);
+                if (sourceIndex !== -1 && data.response) {
                     let binary = '';
                     const len = data.response.imageData.byteLength;
                     for (let i = 0; i < len; i++) {
                         binary += String.fromCharCode(data.response.imageData[i]);
                     }
                     const imageData = btoa(binary);
-                    source.imageElement.src = `data:image/png;base64,${imageData}`;
+                    this.sources[sourceIndex].currentImageSrc = `data:image/png;base64,${imageData}`;
+                    this.sources = [...this.sources];
+                    this.requestUpdate();
                 }
             });
 
@@ -147,10 +158,47 @@ export class VideoGrid extends LitElement {
                     }
                 }
             }, 500);
-        } else {
-            imageElement = new Image();
-            imageElement.crossOrigin = 'anonymous';
+        } else if (inputSource.type === 'video') {
+            ws = new WebSocketService(
+                this.statsManager!,
+                document.createElement('camera-preview') as CameraPreview,
+                this.toastManager!
+            );
+            ws.connect();
+
+            ws.onFrameResult((data) => {
+                const sourceIndex = this.sources.findIndex(s => s.number === number);
+                if (sourceIndex !== -1) {
+                    const frameData = data.videoFrame || data.response;
+                    if (!frameData) return;
+                    
+                    let binary = '';
+                    const len = frameData.imageData?.byteLength || frameData.frameData?.byteLength || 0;
+                    const imageBytes = frameData.imageData || frameData.frameData;
+                    if (!imageBytes) return;
+                    
+                    for (let i = 0; i < len; i++) {
+                        binary += String.fromCharCode(imageBytes[i]);
+                    }
+                    const imageData = btoa(binary);
+                    const newSrc = `data:image/png;base64,${imageData}`;
+                    this.sources[sourceIndex].currentImageSrc = newSrc;
+                    this.sources = [...this.sources];
+                    this.requestUpdate();
+                }
+            });
             
+            const tryStartVideo = () => {
+                if (ws!.isConnected()) {
+                    console.log('WebSocket is connected, starting video:', inputSource.id);
+                    ws!.sendStartVideo(inputSource.id, ['none'], 'gpu', 'bt601');
+                } else {
+                    console.log('WebSocket not ready, retrying in 100ms...');
+                    setTimeout(tryStartVideo, 100);
+                }
+            };
+            setTimeout(tryStartVideo, 100);
+        } else {
             ws = new WebSocketService(
                 this.statsManager!,
                 document.createElement('camera-preview') as CameraPreview,
@@ -160,8 +208,8 @@ export class VideoGrid extends LitElement {
 
             ws.onFrameResult((data) => {
                 console.log('Frame result for source', number, 'success:', data.success);
-                const source = this.sources.find(s => s.number === number);
-                if (source && source.imageElement && data.response) {
+                const sourceIndex = this.sources.findIndex(s => s.number === number);
+                if (sourceIndex !== -1 && data.response) {
                     let binary = '';
                     const len = data.response.imageData.byteLength;
                     for (let i = 0; i < len; i++) {
@@ -170,32 +218,31 @@ export class VideoGrid extends LitElement {
                     const imageData = btoa(binary);
                     const newSrc = `data:image/png;base64,${imageData}`;
                     console.log('Updating image for source', number);
-                    source.imageElement.src = newSrc;
+                    this.sources[sourceIndex].currentImageSrc = newSrc;
+                    this.sources = [...this.sources];
                     this.requestUpdate();
                 }
             });
-
-            imageElement.onload = () => {
-                console.log('Image loaded for source:', inputSource.id, imageElement!.naturalWidth, 'x', imageElement!.naturalHeight);
-                this.requestUpdate();
-            };
-            
-            imageElement.src = inputSource.imagePath;
         }
 
+        const sourceImagePath = inputSource.type === 'video' 
+            ? (inputSource.previewImagePath || '') 
+            : inputSource.imagePath;
+        
         const newSource: GridSource = {
             id: uniqueId,
             number,
             name: inputSource.displayName,
             type: inputSource.type,
-            imagePath: inputSource.imagePath,
-            originalImageSrc: inputSource.imagePath,
-            imageElement,
+            imagePath: sourceImagePath,
+            originalImageSrc: sourceImagePath,
+            currentImageSrc: sourceImagePath,
             ws,
             cameraPreview,
             filters: [],
             grayscaleType: 'bt601',
             resolution: 'original',
+            videoId: inputSource.type === 'video' ? inputSource.id : undefined,
         };
 
         this.sources = [...this.sources, newSource];
@@ -232,24 +279,21 @@ export class VideoGrid extends LitElement {
     }
 
     changeSourceImage(sourceNumber: number, newImagePath: string): void {
-        const source = this.sources.find(s => s.number === sourceNumber);
-        if (!source) {
+        const sourceIndex = this.sources.findIndex(s => s.number === sourceNumber);
+        if (sourceIndex === -1) {
             console.error('Source not found:', sourceNumber);
             return;
         }
 
-        if (source.type === 'camera') {
+        if (this.sources[sourceIndex].type === 'camera') {
             console.warn('Cannot change image of camera source');
             return;
         }
 
-        source.imagePath = newImagePath;
-        source.originalImageSrc = newImagePath;
-        
-        if (source.imageElement) {
-            source.imageElement.src = newImagePath;
-        }
-
+        this.sources[sourceIndex].imagePath = newImagePath;
+        this.sources[sourceIndex].originalImageSrc = newImagePath;
+        this.sources[sourceIndex].currentImageSrc = newImagePath;
+        this.sources = [...this.sources];
         this.requestUpdate();
         console.log('Source image changed:', sourceNumber, newImagePath);
     }
@@ -288,8 +332,8 @@ export class VideoGrid extends LitElement {
 
     async applyFilterToSelected(filters: string[], accelerator: string, grayscaleType: string, resolution: string = 'original'): Promise<void> {
         const selectedSource = this.getSelectedSource();
-        if (!selectedSource || selectedSource.type !== 'static') {
-            console.log('applyFilter: skipping non-static source');
+        if (!selectedSource) {
+            console.log('applyFilter: no source selected');
             return;
         }
 
@@ -297,10 +341,34 @@ export class VideoGrid extends LitElement {
         selectedSource.grayscaleType = grayscaleType;
         selectedSource.resolution = resolution;
 
-        console.log('Applying filter to source', selectedSource.number, ':', filters, grayscaleType, 'resolution:', resolution);
+        console.log('Applying filter to source', selectedSource.number, 'type:', selectedSource.type, 'filters:', filters, grayscaleType, 'resolution:', resolution);
 
         if (!selectedSource.ws || !selectedSource.ws.isConnected()) {
             console.error('WebSocket not connected for source', selectedSource.number);
+            return;
+        }
+
+        if (selectedSource.type === 'video') {
+            try {
+                const videoId = selectedSource.videoId || selectedSource.name;
+                console.log('Restarting video with new filters:', videoId, 'filters:', filters, 'accelerator:', accelerator, 'grayscale:', grayscaleType);
+                selectedSource.ws.sendStopVideo(videoId);
+                
+                setTimeout(() => {
+                    if (selectedSource.ws && selectedSource.ws.isConnected()) {
+                        console.log('Starting video with filters:', filters);
+                        selectedSource.ws.sendStartVideo(videoId, filters, accelerator, grayscaleType);
+                    }
+                }, 200);
+            } catch (error) {
+                console.error('Error updating video filters:', error);
+                this.toastManager?.error('Filter Error', 'Failed to update video filters');
+            }
+            return;
+        }
+
+        if (selectedSource.type === 'camera') {
+            console.log('Camera filter update not yet implemented');
             return;
         }
 
@@ -355,7 +423,7 @@ export class VideoGrid extends LitElement {
                 grayscaleType
             );
 
-            if (response.success && response.response && selectedSource.imageElement) {
+            if (response.success && response.response) {
                 console.log('Filter applied, updating image for source', selectedSource.number);
                 let binary = '';
                 const len = response.response.imageData.byteLength;
@@ -363,8 +431,12 @@ export class VideoGrid extends LitElement {
                     binary += String.fromCharCode(response.response.imageData[i]);
                 }
                 const processedImageData = btoa(binary);
-                selectedSource.imageElement.src = `data:image/png;base64,${processedImageData}`;
-                this.requestUpdate();
+                const sourceIndex = this.sources.findIndex(s => s.id === selectedSource.id);
+                if (sourceIndex !== -1) {
+                    this.sources[sourceIndex].currentImageSrc = `data:image/png;base64,${processedImageData}`;
+                    this.sources = [...this.sources];
+                    this.requestUpdate();
+                }
             }
         } catch (error) {
             console.error('Error applying filter:', error);

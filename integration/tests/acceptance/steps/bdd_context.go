@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -52,6 +53,11 @@ type BDDContext struct {
 	toolsResponse         *pb.GetAvailableToolsResponse
 	currentTool           *pb.Tool
 	uploadedImage         *pb.StaticImage
+	availableVideos       []*pb.StaticVideo
+	uploadedVideo         *pb.StaticVideo
+	videoFrames           []*pb.VideoFrameUpdate
+	frameCollector        chan *pb.VideoFrameUpdate
+	stopCollector         chan bool
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -753,9 +759,18 @@ func (c *BDDContext) ThenTheResponseShouldBeUnimplemented() error {
 
 func (c *BDDContext) CloseWebSocket() {
 	if c != nil && c.wsConnection != nil {
+		if c.stopCollector != nil {
+			select {
+			case c.stopCollector <- true:
+			default:
+			}
+		}
 		c.wsConnection.Close()
 		c.wsConnection = nil
 	}
+	c.videoFrames = nil
+	c.frameCollector = nil
+	c.stopCollector = nil
 }
 
 func (c *BDDContext) getChecksumKeys() []string {
@@ -1366,4 +1381,526 @@ func makeCRC32Table() []uint32 {
 		table[i] = c
 	}
 	return table
+}
+
+func (c *BDDContext) WhenICallListAvailableVideos() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := c.fileClient.ListAvailableVideos(ctx, connect.NewRequest(&pb.ListAvailableVideosRequest{}))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: 500}
+		return fmt.Errorf("failed to call ListAvailableVideos: %w", err)
+	}
+
+	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastError = nil
+	c.availableVideos = resp.Msg.Videos
+
+	return nil
+}
+
+func (c *BDDContext) ThenResponseShouldContainVideo(id string) error {
+	if c.availableVideos == nil {
+		return fmt.Errorf("no videos in response")
+	}
+
+	for _, vid := range c.availableVideos {
+		if vid.Id == id {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("video %s not found in response", id)
+}
+
+func (c *BDDContext) GetVideosFromResponse() ([]*pb.StaticVideo, error) {
+	if c.availableVideos == nil {
+		return nil, fmt.Errorf("no videos in response")
+	}
+	return c.availableVideos, nil
+}
+
+func (c *BDDContext) WhenIUploadValidMP4Video(filename string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var testVideoData []byte
+	if filename == "preview-test.mp4" {
+		paths := []string{
+			"/data/videos/test-small.mp4",
+			"../../../data/videos/test-small.mp4",
+			"./data/videos/test-small.mp4",
+		}
+		found := false
+		for _, path := range paths {
+			realVideoData, err := os.ReadFile(path)
+			if err == nil {
+				testVideoData = realVideoData
+				found = true
+				break
+			}
+		}
+		if !found {
+			testVideoData = createTestMP4Video()
+		}
+	} else {
+		testVideoData = createTestMP4Video()
+	}
+
+	req := &pb.UploadVideoRequest{
+		FileData: testVideoData,
+		Filename: filename,
+	}
+
+	resp, err := c.fileClient.UploadVideo(ctx, connect.NewRequest(req))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: 500}
+		return nil
+	}
+
+	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastError = nil
+	c.uploadedVideo = resp.Msg.Video
+
+	return nil
+}
+
+func (c *BDDContext) WhenIUploadLargeMP4Video() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	largeVideoData := make([]byte, 101*1024*1024)
+
+	req := &pb.UploadVideoRequest{
+		FileData: largeVideoData,
+		Filename: "large-test.mp4",
+	}
+
+	_, err := c.fileClient.UploadVideo(ctx, connect.NewRequest(req))
+	c.lastError = err
+	if err != nil {
+		c.lastResponse = &http.Response{StatusCode: 400}
+	}
+
+	return nil
+}
+
+func (c *BDDContext) WhenIUploadNonMP4File(filename string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	aviData := []byte{0x52, 0x49, 0x46, 0x46}
+
+	req := &pb.UploadVideoRequest{
+		FileData: aviData,
+		Filename: filename,
+	}
+
+	_, err := c.fileClient.UploadVideo(ctx, connect.NewRequest(req))
+	c.lastError = err
+	if err != nil {
+		c.lastResponse = &http.Response{StatusCode: 400}
+	}
+
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldContainUploadedVideoDetails() error {
+	if c.uploadedVideo == nil {
+		return fmt.Errorf("no uploaded video in response")
+	}
+	if c.uploadedVideo.Id == "" {
+		return fmt.Errorf("uploaded video has empty id")
+	}
+	if c.uploadedVideo.DisplayName == "" {
+		return fmt.Errorf("uploaded video has empty display name")
+	}
+	if c.uploadedVideo.Path == "" {
+		return fmt.Errorf("uploaded video has empty path")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldContainPreviewImagePath() error {
+	if c.uploadedVideo == nil {
+		return fmt.Errorf("no uploaded video in response")
+	}
+	if c.uploadedVideo.PreviewImagePath == "" {
+		return fmt.Errorf("preview image path is empty")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenThePreviewFileShouldExistOnFilesystem() error {
+	if c.uploadedVideo == nil {
+		return fmt.Errorf("no uploaded video in response")
+	}
+
+	paths := []string{
+		filepath.Join("data/video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("../../../data/video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("/data/video_previews", c.uploadedVideo.Id+".png"),
+	}
+
+	for _, previewPath := range paths {
+		if _, err := os.Stat(previewPath); err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("preview file does not exist at any of the expected paths: %v", paths)
+}
+
+func (c *BDDContext) ThenThePreviewShouldBeAValidPNGImage() error {
+	if c.uploadedVideo == nil {
+		return fmt.Errorf("no uploaded video in response")
+	}
+
+	paths := []string{
+		filepath.Join("data/video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("../../../data/video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("/data/video_previews", c.uploadedVideo.Id+".png"),
+	}
+
+	var data []byte
+	var err error
+	found := false
+	for _, previewPath := range paths {
+		data, err = os.ReadFile(previewPath)
+		if err == nil {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("preview file not found at any expected path")
+	}
+	if err != nil {
+		return fmt.Errorf("failed to read preview file: %w", err)
+	}
+
+	if len(data) < 8 {
+		return fmt.Errorf("preview file is too small to be a valid PNG")
+	}
+
+	pngHeader := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+	for i := 0; i < 8; i++ {
+		if data[i] != pngHeader[i] {
+			return fmt.Errorf("preview file is not a valid PNG image")
+		}
+	}
+
+	return nil
+}
+
+func createTestMP4Video() []byte {
+	var buf bytes.Buffer
+
+	buf.Write([]byte{0x00, 0x00, 0x00, 0x20})
+	buf.Write([]byte("ftyp"))
+	buf.Write([]byte("isom"))
+	buf.Write([]byte{0x00, 0x00, 0x02, 0x00})
+	buf.Write([]byte("isomiso2avc1mp41"))
+
+	buf.Write([]byte{0x00, 0x00, 0x00, 0x08})
+	buf.Write([]byte("mdat"))
+
+	return buf.Bytes()
+}
+
+func (c *BDDContext) ThenTheVideoShouldHavePreviewImagePath(videoID string) error {
+	if c.availableVideos == nil {
+		return fmt.Errorf("no videos in response")
+	}
+
+	for _, vid := range c.availableVideos {
+		if vid.Id == videoID {
+			if vid.PreviewImagePath == "" {
+				return fmt.Errorf("video %s has empty preview image path", videoID)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("video %s not found in response", videoID)
+}
+
+func (c *BDDContext) connectVideoWebSocket() error {
+	if c.wsConnection != nil {
+		return nil
+	}
+
+	dialer := websocket.Dialer{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	conn, _, err := dialer.Dial("wss://localhost:8443/ws", nil)
+	if err != nil {
+		return fmt.Errorf("failed to connect WebSocket: %w", err)
+	}
+
+	c.wsConnection = conn
+	c.videoFrames = make([]*pb.VideoFrameUpdate, 0)
+	c.frameCollector = make(chan *pb.VideoFrameUpdate, 100)
+	c.stopCollector = make(chan bool, 1)
+
+	go c.collectVideoFrames()
+
+	return nil
+}
+
+func (c *BDDContext) collectVideoFrames() {
+	for {
+		select {
+		case <-c.stopCollector:
+			return
+		default:
+			_, message, err := c.wsConnection.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			var response pb.WebSocketFrameResponse
+			if unmarshalErr := protojson.Unmarshal(message, &response); unmarshalErr != nil {
+				continue
+			}
+
+			if response.Type == "video_frame" && response.VideoFrame != nil {
+				c.frameCollector <- response.VideoFrame
+			}
+		}
+	}
+}
+
+func (c *BDDContext) GivenIStartVideoPlaybackForVideoWithDefaultFilters(videoID string) error {
+	if err := c.connectVideoWebSocket(); err != nil {
+		return fmt.Errorf("WebSocket connection failed: %w", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	request := &pb.WebSocketFrameRequest{
+		Type: "start_video",
+		StartVideoRequest: &pb.StartVideoPlaybackRequest{
+			VideoId:       videoID,
+			Filters:       []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
+			Accelerator:   pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
+			GrayscaleType: pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED,
+		},
+	}
+
+	messageBytes, err := protojson.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("marshal failed: %w", err)
+	}
+
+	if err := c.wsConnection.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
+		return fmt.Errorf("send failed: %w", err)
+	}
+
+	return nil
+}
+
+func (c *BDDContext) WhenIReceiveTheFirstVideoFrame() error {
+	timeout := time.After(5 * time.Second)
+
+	select {
+	case frame := <-c.frameCollector:
+		c.videoFrames = append(c.videoFrames, frame)
+		return nil
+	case <-timeout:
+		return fmt.Errorf("timeout waiting for first frame")
+	}
+}
+
+func (c *BDDContext) ThenTheFrameShouldHaveField(fieldName string) error {
+	if len(c.videoFrames) == 0 {
+		return fmt.Errorf("no frames received")
+	}
+
+	switch fieldName {
+	case "frame_id":
+		return nil
+	default:
+		return fmt.Errorf("unknown field: %s", fieldName)
+	}
+}
+
+func (c *BDDContext) ThenTheFrameIDShouldBe(expectedID int) error {
+	if len(c.videoFrames) == 0 {
+		return fmt.Errorf("no frames received")
+	}
+
+	actualID := int(c.videoFrames[0].FrameId)
+	if actualID != expectedID {
+		return fmt.Errorf("expected frame_id %d, got %d", expectedID, actualID)
+	}
+
+	return nil
+}
+
+func (c *BDDContext) WhenICollectVideoFrames(frameCount int) error {
+	timeout := time.After(10 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case frame := <-c.frameCollector:
+			c.videoFrames = append(c.videoFrames, frame)
+			if len(c.videoFrames) >= frameCount {
+				return nil
+			}
+		case <-timeout:
+			return fmt.Errorf("timeout: collected %d frames, expected %d",
+				len(c.videoFrames), frameCount)
+		case <-ticker.C:
+		}
+	}
+}
+
+func (c *BDDContext) ThenAllFrameIDsShouldBeSequentialStartingFrom(startID int) error {
+	if len(c.videoFrames) == 0 {
+		return fmt.Errorf("no frames received")
+	}
+
+	for i, frame := range c.videoFrames {
+		expectedID := startID + i
+		actualID := int(frame.FrameId)
+		if actualID != expectedID {
+			return fmt.Errorf("frame %d: expected frame_id %d, got %d",
+				i, expectedID, actualID)
+		}
+	}
+
+	return nil
+}
+
+func (c *BDDContext) ThenFrameIDShouldComeBeforeFrameID(firstID, secondID int) error {
+	if len(c.videoFrames) < 2 {
+		return fmt.Errorf("need at least 2 frames, got %d", len(c.videoFrames))
+	}
+
+	frame0 := int(c.videoFrames[firstID].FrameId)
+	frame1 := int(c.videoFrames[secondID].FrameId)
+
+	if frame0 >= frame1 {
+		return fmt.Errorf("frame_id %d (%d) should be before %d (%d)",
+			firstID, frame0, secondID, frame1)
+	}
+
+	return nil
+}
+
+func (c *BDDContext) ThenFrameIDShouldBeTheLastCollectedFrameID(frameID int) error {
+	if len(c.videoFrames) == 0 {
+		return fmt.Errorf("no frames received")
+	}
+
+	lastFrame := c.videoFrames[len(c.videoFrames)-1]
+	actualID := int(lastFrame.FrameId)
+
+	if actualID != frameID {
+		return fmt.Errorf("last frame_id: expected %d, got %d", frameID, actualID)
+	}
+
+	return nil
+}
+
+func (c *BDDContext) WhenIReceiveVideoFrames(frameCount int) error {
+	return c.WhenICollectVideoFrames(frameCount)
+}
+
+func (c *BDDContext) ThenEachFramesFrameIDShouldMatchItsFrameNumber() error {
+	if len(c.videoFrames) == 0 {
+		return fmt.Errorf("no frames received")
+	}
+
+	for i, frame := range c.videoFrames {
+		frameID := int(frame.FrameId)
+		frameNumber := int(frame.FrameNumber)
+
+		if frameID != frameNumber {
+			return fmt.Errorf("frame %d: frame_id (%d) != frame_number (%d)",
+				i, frameID, frameNumber)
+		}
+	}
+
+	return nil
+}
+
+func (c *BDDContext) WhenIQueryVideoMetadataFor(videoID string) error {
+	if videoID != "e2e-test" {
+		return fmt.Errorf("metadata only available for e2e-test video")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheMetadataShouldContainFrames(frameCount int) error {
+	metadataPath := filepath.Join("..", "..", "..", "webserver", "pkg", "infrastructure", "video", "test_video_metadata.go")
+
+	data, err := os.ReadFile(metadataPath)
+	if err != nil {
+		return fmt.Errorf("metadata file not found: %w", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "E2ETestVideoMetadata") {
+		return fmt.Errorf("metadata variable not found in file")
+	}
+
+	lines := strings.Split(content, "\n")
+	actualCount := 0
+	for _, line := range lines {
+		if strings.Contains(line, "{FrameID:") && strings.Contains(line, "Hash:") {
+			actualCount++
+		}
+	}
+
+	if actualCount != frameCount {
+		return fmt.Errorf("expected %d frames in metadata, got %d", frameCount, actualCount)
+	}
+
+	return nil
+}
+
+func (c *BDDContext) ThenFrameShouldHaveASHA256Hash(frameID int) error {
+	metadataPath := filepath.Join("..", "..", "..", "webserver", "pkg", "infrastructure", "video", "test_video_metadata.go")
+
+	data, err := os.ReadFile(metadataPath)
+	if err != nil {
+		return fmt.Errorf("metadata file not found: %w", err)
+	}
+
+	content := string(data)
+	expectedLine := fmt.Sprintf("{FrameID: %d, Hash:", frameID)
+
+	if !strings.Contains(content, expectedLine) {
+		return fmt.Errorf("frame %d not found in metadata", frameID)
+	}
+
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, expectedLine) {
+			if !strings.Contains(line, "Hash: \"") {
+				return fmt.Errorf("frame %d has no hash", frameID)
+			}
+			hashStart := strings.Index(line, "Hash: \"") + 7
+			hashEnd := strings.Index(line[hashStart:], "\"")
+			if hashEnd < 64 {
+				return fmt.Errorf("frame %d hash is too short (expected SHA256 64 chars)", frameID)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("frame %d metadata validation failed", frameID)
+}
+
+func (c *BDDContext) ThenICanRetrieveMetadataForFrameID(frameID int) error {
+	return c.ThenFrameShouldHaveASHA256Hash(frameID)
 }

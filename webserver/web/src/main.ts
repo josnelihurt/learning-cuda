@@ -7,12 +7,16 @@ import './components/tools-dropdown';
 import './components/video-grid';
 import './components/source-drawer';
 import './components/add-source-fab';
+import './components/version-footer';
 import './components/image-selector-modal';
+import './components/video-selector';
+import './components/video-upload';
 import { streamConfigService } from './services/config-service';
 import { telemetryService } from './services/telemetry-service';
 import { inputSourceService } from './services/input-source-service';
 import { processorCapabilitiesService } from './services/processor-capabilities-service';
 import { toolsService } from './services/tools-service';
+import { videoService } from './services/video-service';
 import type { VideoGrid } from './components/video-grid';
 import type { SourceDrawer } from './components/source-drawer';
 import type { ToolsDropdown } from './components/tools-dropdown';
@@ -41,6 +45,7 @@ const app = {
         await inputSourceService.initialize();
         await processorCapabilitiesService.initialize();
         await toolsService.initialize();
+        await videoService.initialize();
         
         await customElements.whenDefined('camera-preview');
         await customElements.whenDefined('toast-container');
@@ -51,6 +56,8 @@ const app = {
         await customElements.whenDefined('add-source-fab');
         await customElements.whenDefined('tools-dropdown');
         await customElements.whenDefined('image-selector-modal');
+        await customElements.whenDefined('video-selector');
+        await customElements.whenDefined('video-upload');
         
         this.toastManager = document.querySelector('toast-container');
         this.toastManager.configure({ duration: 7000 });

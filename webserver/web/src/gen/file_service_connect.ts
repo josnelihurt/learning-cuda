@@ -3,9 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListAvailableImagesRequest, ListAvailableImagesResponse } from "./common_pb.js";
+import { ListAvailableImagesRequest, ListAvailableImagesResponse, ListAvailableVideosRequest, ListAvailableVideosResponse, UploadImageRequest, UploadImageResponse, UploadVideoRequest, UploadVideoResponse } from "./file_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { UploadImageRequest, UploadImageResponse } from "./file_service_pb.js";
 
 /**
  * @generated from service cuda_learning.FileService
@@ -29,6 +28,24 @@ export const FileService = {
       name: "UploadImage",
       I: UploadImageRequest,
       O: UploadImageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.FileService.ListAvailableVideos
+     */
+    listAvailableVideos: {
+      name: "ListAvailableVideos",
+      I: ListAvailableVideosRequest,
+      O: ListAvailableVideosResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.FileService.UploadVideo
+     */
+    uploadVideo: {
+      name: "UploadVideo",
+      I: UploadVideoRequest,
+      O: UploadVideoResponse,
       kind: MethodKind.Unary,
     },
   }

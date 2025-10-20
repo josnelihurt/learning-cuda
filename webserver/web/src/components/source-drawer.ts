@@ -3,12 +3,15 @@ import { customElement, state } from 'lit/decorators.js';
 import { InputSource } from '../gen/config_service_pb';
 import { telemetryService } from '../services/telemetry-service';
 import './image-upload';
+import './video-upload';
+import './video-selector';
 
 @customElement('source-drawer')
 export class SourceDrawer extends LitElement {
     @state() private isOpen = false;
     @state() private availableSources: InputSource[] = [];
     @state() private selectedSourceIds: Set<string> = new Set();
+    @state() private activeTab: 'images' | 'videos' = 'images';
 
     static styles = css`
         :host {
@@ -166,6 +169,34 @@ export class SourceDrawer extends LitElement {
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
     `;
 
     render() {
@@ -177,21 +208,53 @@ export class SourceDrawer extends LitElement {
                     <button class="close-btn" @click=${this.close} data-testid="drawer-close">×</button>
                 </div>
                 <div class="drawer-content">
-                    <div class="upload-section">
-                        <div class="section-title">Upload Image</div>
-                        <image-upload @image-uploaded=${this.handleImageUploaded}></image-upload>
+                    <div class="tabs">
+                        <button 
+                            class="tab ${this.activeTab === 'images' ? 'active' : ''}"
+                            @click=${() => this.activeTab = 'images'}
+                            data-testid="tab-images"
+                        >
+                            Images
+                        </button>
+                        <button 
+                            class="tab ${this.activeTab === 'videos' ? 'active' : ''}"
+                            @click=${() => this.activeTab = 'videos'}
+                            data-testid="tab-videos"
+                        >
+                            Videos
+                        </button>
                     </div>
-                    <div class="section-title">Select Source</div>
-                    <div class="source-list">
-                        ${this.availableSources.map(source => this.renderSourceItem(source))}
-                    </div>
+
+                    ${this.activeTab === 'images' ? html`
+                        <div class="upload-section">
+                            <div class="section-title">Upload Image</div>
+                            <image-upload @image-uploaded=${this.handleImageUploaded}></image-upload>
+                        </div>
+                    ` : html`
+                        <div class="upload-section">
+                            <div class="section-title">Upload Video</div>
+                            <video-upload @video-uploaded=${this.handleVideoUploaded}></video-upload>
+                        </div>
+                    `}
+
+                    ${this.activeTab === 'images' ? html`
+                        <div class="section-title">Select Source</div>
+                        <div class="source-list">
+                            ${this.availableSources
+                                .filter(s => s.type === 'static' || s.type === 'camera')
+                                .map(source => this.renderSourceItem(source))}
+                        </div>
+                    ` : html`
+                        <div class="section-title">Select Video</div>
+                        <video-selector @video-selected=${this.handleVideoSelected}></video-selector>
+                    `}
                 </div>
             </div>
         `;
     }
 
     private renderSourceItem(source: InputSource) {
-        const icon = source.type === 'camera' ? '●' : '▣';
+        const icon = source.type === 'camera' ? '●' : source.type === 'video' ? '▶' : '▣';
 
         return html`
             <div 
@@ -245,6 +308,44 @@ export class SourceDrawer extends LitElement {
             composed: true,
             detail: { image }
         }));
+
+        span?.end();
+    }
+
+    private handleVideoUploaded(event: CustomEvent): void {
+        const span = telemetryService.createSpan('SourceDrawer.handleVideoUploaded');
+        const { video } = event.detail;
+
+        console.log('Video uploaded in drawer:', video.id);
+        span?.setAttribute('video.id', video.id);
+
+        this.dispatchEvent(new CustomEvent('video-uploaded', {
+            bubbles: true,
+            composed: true,
+            detail: { video }
+        }));
+
+        span?.end();
+    }
+
+    private handleVideoSelected(event: CustomEvent): void {
+        const span = telemetryService.createSpan('SourceDrawer.handleVideoSelected');
+        const { video } = event.detail;
+
+        console.log('Video selected in drawer:', video.id);
+        span?.setAttribute('video.id', video.id);
+
+        const videoSource: InputSource = {
+            id: video.id,
+            displayName: video.displayName,
+            type: 'video',
+            imagePath: '',
+            isDefault: video.isDefault,
+            videoPath: video.path,
+            previewImagePath: video.previewImagePath,
+        };
+
+        this.selectSource(videoSource);
 
         span?.end();
     }

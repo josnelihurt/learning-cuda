@@ -4,6 +4,79 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### Video Frame ID and Test Infrastructure (Oct 20, 2025) - 6 BDD scenarios (pending implementation)
+- [x] Generated optimized E2E test video (480x360, 10fps, 20s, 200 frames, 464KB)
+- [x] Extracted 200 frames as PNG with SHA256 hash metadata
+- [x] Created embedded Go metadata (webserver/pkg/infrastructure/video/test_video_metadata.go)
+- [x] Extended VideoFrameUpdate proto with frame_id field
+- [x] Updated video streaming to include sequential frame_id (0-199)
+- [x] Created scripts for video generation and frame extraction
+- [x] Added helper functions: GetFrameMetadata(), ValidateFrameHash()
+- [x] Created BDD feature file with 6 scenarios for frame_id validation
+- [x] Implemented stub BDD step definitions (awaiting WebSocket frame collection)
+- [x] Added E2E Playwright test for frame_id sequential validation
+- [x] Fixed frame_id capture in E2E tests using console.log parsing
+- [x] Updated all video E2E tests to use e2e-test.mp4 instead of sample.mp4
+- [x] Adjusted pixel difference threshold from 50% to 10% for smaller video
+- [x] Fixed Firefox preview loading with proper wait states
+- [x] Generated preview image for e2e-test.mp4
+- [x] Excluded PNG frames from repository (62MB, generated on-demand)
+- [x] Updated scripts to verify existence before generating frames
+- [x] Added automatic frame extraction in metadata generation tool
+- [x] Updated .gitignore to include test video but exclude PNG frames
+- [x] Documented on-demand frame generation process in README
+
+**Benefits:**
+- Small test video suitable for repository (<500KB vs 158MB)
+- Deterministic frame validation with pre-calculated hashes
+- Better E2E test reliability with frame_id tracking
+- Metadata versioned as code for easy access
+
+**Test Infrastructure:**
+- Video: data/test-data/videos/e2e-test.mp4
+- Frames: data/test-data/video-frames/e2e-test/*.png (200 frames)
+- Metadata: Embedded in webserver/pkg/infrastructure/video/test_video_metadata.go
+- Scripts: generate-test-video.sh, extract-video-frames.sh, generate-video-metadata
+
+### WebSocket Handler Refactoring (Oct 20, 2025)
+- [x] Commented non-functional video player code pending FFmpeg integration
+- [x] Added TODO comments documenting planned migration from WebSocket to gRPC streaming
+- [x] Updated trace proxy handler to return JSON success when tracing disabled
+- [x] Fixed linter issues in websocket and http handlers
+- [x] Prepared video session management infrastructure for future implementation
+- [x] All tests passing (Go, C++, BDD, E2E: 186 scenarios across 3 browsers)
+
+**Migration Path**: WebSocket → Connect-RPC bidirectional streaming
+- Documented in: `webserver/pkg/interfaces/websocket/handler.go`
+- Target: `webserver/pkg/interfaces/connectrpc/handler.go StreamProcessVideo`
+- Benefits: Type-safe protocol, unified API, better error handling
+
+### Video Playback Infrastructure (Oct 19, 2025) - 9 BDD scenarios
+- [x] Extended FileService proto with video upload/list RPCs (ListAvailableVideos, UploadVideo)
+- [x] Created StaticVideo message in common.proto with preview image support
+- [x] Extended InputSource with video_path and preview_image_path fields
+- [x] Implemented VideoRepository interface and FileVideoRepository (100 lines + 80 test lines)
+- [x] Created VideoPlayer interface and GoVideoPlayer (120 lines + 60 test lines)
+- [x] Implemented ListVideosUseCase with telemetry (47 lines + 75 test lines)
+- [x] Implemented UploadVideoUseCase with validation (104 lines + 120 test lines)
+- [x] Created VideoPlaybackUseCase for frame processing coordination (90 lines)
+- [x] Extended ListInputsUseCase to include video sources
+- [x] Extended FileHandler with ListAvailableVideos and UploadVideo RPCs
+- [x] Updated ConfigHandler to support video fields in InputSource
+- [x] Integrated video components in DI container, app, and main
+- [x] Created VideoService frontend with upload/list methods (155 lines)
+- [x] Implemented VideoSelector component with preview grid (180 lines)
+- [x] Implemented VideoUpload component with drag-drop (220 lines)
+- [x] Extended SourceDrawer with Images/Videos tabs
+- [x] Added WebSocket VideoSessionManager for frame streaming (130 lines)
+- [x] Created BDD feature file with 9 scenarios for video functionality
+- [x] Implemented BDD step definitions for video upload/list/validation
+- [x] Created E2E tests for video UI components (6 test cases)
+- [x] MP4 format support with size validation (100MB limit)
+- [x] Telemetry integration for video operations
+
+## October 2025
+
 ### Image Upload with FileService (Oct 18, 2025)
 - [x] Create FileService proto with ListAvailableImages and UploadImage RPCs
 - [x] Refactor ListAvailableImages from ConfigService to FileService

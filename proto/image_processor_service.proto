@@ -55,6 +55,8 @@ message InitResponse {
 message WebSocketFrameRequest {
   string type = 1 [json_name = "type"];
   ProcessImageRequest request = 3 [json_name = "request"];
+  StartVideoPlaybackRequest start_video_request = 4 [json_name = "startVideoRequest"];
+  StopVideoPlaybackRequest stop_video_request = 6 [json_name = "stopVideoRequest"];
   TraceContext trace_context = 5 [json_name = "trace_context"];
 }
 
@@ -64,6 +66,29 @@ message WebSocketFrameResponse {
   string error = 5 [json_name = "error"];
   ProcessImageResponse response = 7 [json_name = "response"];
   TraceContext trace_context = 9 [json_name = "trace_context"];
+  VideoFrameUpdate video_frame = 11 [json_name = "video_frame"];
+}
+
+message StartVideoPlaybackRequest {
+  string video_id = 1 [json_name = "videoId"];
+  repeated FilterType filters = 3 [json_name = "filters"];
+  AcceleratorType accelerator = 5 [json_name = "accelerator"];
+  GrayscaleType grayscale_type = 7 [json_name = "grayscaleType"];
+  TraceContext trace_context = 9 [json_name = "trace_context"];
+}
+
+message StopVideoPlaybackRequest {
+  string session_id = 1 [json_name = "sessionId"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message VideoFrameUpdate {
+  string session_id = 1 [json_name = "session_id"];
+  bytes frame_data = 3 [json_name = "frame_data"];
+  int32 frame_number = 5 [json_name = "frame_number"];
+  int64 timestamp_ms = 7 [json_name = "timestamp_ms"];
+  bool is_last_frame = 9 [json_name = "is_last_frame"];
+  int32 frame_id = 11 [json_name = "frame_id"];
 }
 
 // Capabilities query (internal use)

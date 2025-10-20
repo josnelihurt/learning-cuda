@@ -1,7 +1,7 @@
 import type { StatsPanel } from '../components/stats-panel';
 import type { CameraPreview } from '../components/camera-preview';
 import type { ToastContainer } from '../components/toast-container';
-import { WebSocketFrameRequest, WebSocketFrameResponse, ProcessImageRequest } from '../gen/image_processor_service_pb';
+import { WebSocketFrameRequest, WebSocketFrameResponse, ProcessImageRequest, StartVideoPlaybackRequest, StopVideoPlaybackRequest } from '../gen/image_processor_service_pb';
 import { FilterType, AcceleratorType, GrayscaleType, TraceContext } from '../gen/common_pb';
 import { streamConfigService } from './config-service';
 import { telemetryService } from './telemetry-service';
@@ -18,6 +18,12 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     return btoa(binary);
 }
 
+// TODO: To be replaced by Connect-RPC bidirectional streaming client
+// Target replacement: Use createPromiseClient with ImageProcessorService.streamProcessVideo
+// Reference implementation: webserver/pkg/interfaces/connectrpc/handler.go StreamProcessVideo method
+// Migration: Use @connectrpc/connect-web streaming API instead of native WebSocket
+// Benefits: Type-safe, automatic reconnection, unified with other RPC calls, better error handling
+// Keep during migration for backward compatibility
 export class WebSocketService {
     private ws: WebSocket | null = null;
     private reconnectTimeout = 3000;
@@ -54,7 +60,7 @@ export class WebSocketService {
                     data = WebSocketFrameResponse.fromJsonString(event.data);
                 }
 
-                if (data.type === 'frame_result') {
+                if (data.type === 'frame_result' || data.type === 'video_frame') {
                     if (data.success) {
                         const sendTime = this.cameraManager.getLastFrameTime();
                         const processingTime = receiveTime - sendTime;
@@ -63,6 +69,10 @@ export class WebSocketService {
 
                         if (this.onFrameResultCallback) {
                             this.onFrameResultCallback(data);
+                        }
+                        
+                        if (data.type === 'video_frame' && data.videoFrame) {
+                            console.log('Video frame received:', data.videoFrame.frameNumber, 'frame_id:', data.videoFrame.frameId);
                         }
                     } else {
                         console.error('Frame processing error:', data.error);
@@ -202,6 +212,92 @@ export class WebSocketService {
             this.ws.close();
             this.ws = null;
             this.statsManager.updateWebSocketStatus('disconnected', 'Disconnected');
+        }
+    }
+
+    sendStartVideo(videoId: string, filters: string[], accelerator: string, grayscaleType: string): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket not connected');
+            return;
+        }
+
+        const span = telemetryService.createSpan('sendStartVideo');
+        
+        try {
+            const filterTypes = filters.map(f => {
+                if (f === 'none') return FilterType.NONE;
+                if (f === 'grayscale') return FilterType.GRAYSCALE;
+                return FilterType.NONE;
+            });
+
+            const acceleratorType = accelerator === 'gpu' ? AcceleratorType.GPU : AcceleratorType.CPU;
+            const grayscaleTypeEnum = grayscaleType === 'bt709' ? GrayscaleType.BT709 : GrayscaleType.BT601;
+
+            const startVideoRequest = new StartVideoPlaybackRequest({
+                videoId,
+                filters: filterTypes,
+                accelerator: acceleratorType,
+                grayscaleType: grayscaleTypeEnum,
+            });
+
+            const frameRequest = new WebSocketFrameRequest({
+                type: 'start_video',
+                startVideoRequest,
+            });
+
+            const transportFormat = streamConfigService.getTransportFormat();
+            let messageData: string | Uint8Array;
+
+            if (transportFormat === 'binary') {
+                messageData = frameRequest.toBinary();
+            } else {
+                messageData = frameRequest.toJsonString();
+            }
+
+            this.ws.send(messageData);
+            console.log('Start video message sent:', videoId);
+            
+        } finally {
+            if (span) {
+                span.end();
+            }
+        }
+    }
+
+    sendStopVideo(videoId: string): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket not connected');
+            return;
+        }
+
+        const span = telemetryService.createSpan('sendStopVideo');
+        
+        try {
+            const stopVideoRequest = new StopVideoPlaybackRequest({
+                sessionId: videoId,
+            });
+
+            const frameRequest = new WebSocketFrameRequest({
+                type: 'stop_video',
+                stopVideoRequest,
+            });
+
+            const transportFormat = streamConfigService.getTransportFormat();
+            let messageData: string | Uint8Array;
+
+            if (transportFormat === 'binary') {
+                messageData = frameRequest.toBinary();
+            } else {
+                messageData = frameRequest.toJsonString();
+            }
+
+            this.ws.send(messageData);
+            console.log('Stop video message sent:', videoId);
+            
+        } finally {
+            if (span) {
+                span.end();
+            }
         }
     }
 }

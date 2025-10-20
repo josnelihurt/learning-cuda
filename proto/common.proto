@@ -71,12 +71,12 @@ message StaticImage {
   bool is_default = 7 [json_name = "is_default"];
 }
 
-message ListAvailableImagesRequest {
-  TraceContext trace_context = 1 [json_name = "trace_context"];
-}
-
-message ListAvailableImagesResponse {
-  repeated StaticImage images = 1 [json_name = "images"];
-  TraceContext trace_context = 3 [json_name = "trace_context"];
+// Static video metadata (shared across services)
+message StaticVideo {
+  string id = 1 [json_name = "id"];
+  string display_name = 3 [json_name = "display_name"];
+  string path = 5 [json_name = "path"];
+  string preview_image_path = 7 [json_name = "preview_image_path"];
+  bool is_default = 9 [json_name = "is_default"];
 }
 

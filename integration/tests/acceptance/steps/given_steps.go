@@ -36,6 +36,10 @@ func (tc *TestContext) theEnvironmentIs(environment string) error {
 	return nil
 }
 
+func (tc *TestContext) iStartVideoPlaybackForVideoWithDefaultFilters(videoID string) error {
+	return tc.GivenIStartVideoPlaybackForVideoWithDefaultFilters(videoID)
+}
+
 func InitializeGivenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^Flipt is running at "([^"]*)" with namespace "([^"]*)"$`, tc.fliptIsRunningAt)
 	ctx.Step(`^the service is running at "([^"]*)"$`, tc.theServiceIsRunningAt)
@@ -43,4 +47,5 @@ func InitializeGivenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^default config has transport format "([^"]*)" and endpoint "([^"]*)"$`, tc.defaultConfigHasTransportFormatAndEndpoint)
 	ctx.Step(`^flags are already synced to Flipt$`, tc.flagsAreAlreadySyncedToFlipt)
 	ctx.Step(`^the environment is "([^"]*)"$`, tc.theEnvironmentIs)
+	ctx.Step(`^I start video playback for "([^"]*)" with default filters$`, tc.iStartVideoPlaybackForVideoWithDefaultFilters)
 }

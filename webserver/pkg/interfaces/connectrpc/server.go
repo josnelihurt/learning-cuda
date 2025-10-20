@@ -53,9 +53,11 @@ func RegisterFileService(
 	mux *http.ServeMux,
 	listAvailableImagesUC *application.ListAvailableImagesUseCase,
 	uploadImageUC *application.UploadImageUseCase,
+	listVideosUC *application.ListVideosUseCase,
+	uploadVideoUC *application.UploadVideoUseCase,
 	interceptors ...connect.Interceptor,
 ) {
-	fileHandler := NewFileHandler(listAvailableImagesUC, uploadImageUC)
+	fileHandler := NewFileHandler(listAvailableImagesUC, uploadImageUC, listVideosUC, uploadVideoUC)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

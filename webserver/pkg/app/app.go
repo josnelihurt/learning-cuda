@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
@@ -26,6 +27,9 @@ type App struct {
 	listInputsUC          *application.ListInputsUseCase
 	listAvailableImagesUC *application.ListAvailableImagesUseCase
 	uploadImageUC         *application.UploadImageUseCase
+	listVideosUC          *application.ListVideosUseCase
+	uploadVideoUC         *application.UploadVideoUseCase
+	videoRepository       domain.VideoRepository
 	registry              *loader.Registry
 	currentLoader         **loader.Loader
 	loaderMutex           *sync.RWMutex
@@ -85,6 +89,24 @@ func WithListAvailableImagesUseCase(uc *application.ListAvailableImagesUseCase) 
 func WithUploadImageUseCase(uc *application.UploadImageUseCase) Option {
 	return func(a *App) {
 		a.uploadImageUC = uc
+	}
+}
+
+func WithListVideosUseCase(uc *application.ListVideosUseCase) Option {
+	return func(a *App) {
+		a.listVideosUC = uc
+	}
+}
+
+func WithUploadVideoUseCase(uc *application.UploadVideoUseCase) Option {
+	return func(a *App) {
+		a.uploadVideoUC = uc
+	}
+}
+
+func WithVideoRepository(repo domain.VideoRepository) Option {
+	return func(a *App) {
+		a.videoRepository = repo
 	}
 }
 
@@ -149,8 +171,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	} else {
 		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")
 	}
-	if a.listAvailableImagesUC != nil && a.uploadImageUC != nil {
-		connectrpc.RegisterFileService(mux, a.listAvailableImagesUC, a.uploadImageUC, a.interceptors...)
+	if a.listAvailableImagesUC != nil && a.uploadImageUC != nil && a.listVideosUC != nil && a.uploadVideoUC != nil {
+		connectrpc.RegisterFileService(mux, a.listAvailableImagesUC, a.uploadImageUC, a.listVideosUC, a.uploadVideoUC, a.interceptors...)
 	} else {
 		logger.Global().Warn().Msg("File service not registered (use cases unavailable)")
 	}
@@ -167,7 +189,7 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 }
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
-	staticHandler := statichttp.NewStaticHandler(a.config.Server, a.config.Stream, a.useCase)
+	staticHandler := statichttp.NewStaticHandler(a.config.Server, a.config.Stream, a.useCase, a.videoRepository)
 	staticHandler.RegisterRoutes(mux)
 }
 

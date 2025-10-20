@@ -8,6 +8,7 @@ import (
 
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/websocket"
 )
 
@@ -23,6 +24,7 @@ func NewStaticHandler(
 	serverConfig config.ServerConfig,
 	streamConfig config.StreamConfig,
 	useCase *application.ProcessImageUseCase,
+	videoRepo domain.VideoRepository,
 ) *StaticHandler {
 	var tmpl *template.Template
 	if !serverConfig.HotReloadEnabled {
@@ -44,7 +46,7 @@ func NewStaticHandler(
 		webRootPath:      serverConfig.WebRootPath,
 		hotReloadEnabled: serverConfig.HotReloadEnabled,
 		tmpl:             tmpl,
-		wsHandler:        websocket.NewHandler(useCase, streamConfig),
+		wsHandler:        websocket.NewHandler(useCase, streamConfig, videoRepo),
 		assetHandler:     assetHandler,
 	}
 }

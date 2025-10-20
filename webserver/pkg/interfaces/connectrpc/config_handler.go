@@ -137,11 +137,13 @@ func (h *ConfigHandler) ListInputs(
 	pbSources := make([]*pb.InputSource, len(sources))
 	for i, src := range sources {
 		pbSources[i] = &pb.InputSource{
-			Id:          src.ID,
-			DisplayName: src.DisplayName,
-			Type:        src.Type,
-			ImagePath:   src.ImagePath,
-			IsDefault:   src.IsDefault,
+			Id:               src.ID,
+			DisplayName:      src.DisplayName,
+			Type:             src.Type,
+			ImagePath:        src.ImagePath,
+			IsDefault:        src.IsDefault,
+			VideoPath:        src.VideoPath,
+			PreviewImagePath: src.PreviewImagePath,
 		}
 	}
 

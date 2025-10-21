@@ -1,44 +1,28 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { LoggerProvider, BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
-import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import { Resource } from '@opentelemetry/resources';
 import { telemetryService } from './telemetry-service';
 
 type LogAttributes = Record<string, string | number | boolean>;
 
 class OtelLogger {
-    private logger: any = null;
-    private loggerProvider: LoggerProvider | null = null;
     private consoleEnabled: boolean = true;
     private minLogLevel: SeverityNumber = SeverityNumber.INFO;
     private initialized = false;
+    private logQueue: any[] = [];
+    private flushTimer: number | null = null;
 
     initialize(logLevel: string, consoleEnabled: boolean): void {
-        this.consoleEnabled = consoleEnabled;
-        this.minLogLevel = this.parseLogLevel(logLevel);
-        
-        const resource = new Resource({
-            'service.name': 'cuda-image-processor-web',
-            'service.version': '1.0.0',
-        });
-
-        this.loggerProvider = new LoggerProvider({ resource });
-
-        const logExporter = new OTLPLogExporter({
-            url: `${window.location.origin}/api/logs`,
-            headers: {},
-        });
-
-        this.loggerProvider.addLogRecordProcessor(
-            new BatchLogRecordProcessor(logExporter, {
-                maxQueueSize: 100,
-                scheduledDelayMillis: 5000,
-                maxExportBatchSize: 100,
-            })
-        );
-
-        this.logger = this.loggerProvider.getLogger('frontend-logger');
-        this.initialized = true;
+        try {
+            this.consoleEnabled = consoleEnabled;
+            this.minLogLevel = this.parseLogLevel(logLevel);
+            this.initialized = true;
+            
+            this.flushTimer = window.setInterval(() => {
+                this.flushLogs();
+            }, 5000);
+        } catch (error) {
+            console.warn('Failed to initialize logger:', error);
+            this.initialized = false;
+        }
     }
 
     debug(message: string, attributes?: LogAttributes): void {
@@ -62,8 +46,40 @@ class OtelLogger {
     }
 
     async shutdown(): Promise<void> {
-        if (this.loggerProvider) {
-            await this.loggerProvider.shutdown();
+        if (this.flushTimer) {
+            clearInterval(this.flushTimer);
+        }
+        await this.flushLogs();
+    }
+
+    async flush(): Promise<void> {
+        await this.flushLogs();
+    }
+
+    private async flushLogs(): Promise<void> {
+        if (this.logQueue.length === 0) {
+            return;
+        }
+
+        const logsToSend = [...this.logQueue];
+        this.logQueue = [];
+
+        try {
+            await fetch(`${window.location.origin}/api/logs`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    resourceLogs: [{
+                        scopeLogs: [{
+                            logRecords: logsToSend
+                        }]
+                    }]
+                }),
+            });
+        } catch (error) {
+            console.warn('Failed to send logs:', error);
         }
     }
 
@@ -98,12 +114,20 @@ class OtelLogger {
             logAttributes['trace.tracestate'] = traceHeaders['tracestate'];
         }
 
-        this.logger?.emit({
+        this.logQueue.push({
+            timeUnixNano: Date.now() * 1000000,
             severityNumber,
             severityText,
-            body: message,
-            attributes: logAttributes,
+            body: { stringValue: message },
+            attributes: Object.entries(logAttributes).map(([key, value]) => ({
+                key,
+                value: { stringValue: String(value) }
+            }))
         });
+
+        if (this.logQueue.length >= 100) {
+            this.flushLogs();
+        }
     }
 
     private logToConsole(

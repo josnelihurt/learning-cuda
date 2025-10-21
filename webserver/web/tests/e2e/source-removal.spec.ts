@@ -8,6 +8,7 @@ test.describe('Source Removal', () => {
     helpers = new TestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await helpers.enableDebugLogging();
   });
 
   test('Test 6.1: Remove Middle Source', async ({ page }) => {

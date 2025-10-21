@@ -23,6 +23,15 @@ export class TestHelpers {
     });
   }
 
+  async enableDebugLogging(): Promise<void> {
+    await this.page.evaluate(() => {
+      const logger = (window as any).logger;
+      if (logger && typeof logger.initialize === 'function') {
+        logger.initialize('DEBUG', true);
+      }
+    });
+  }
+
   getConsoleLogs(): ConsoleLog[] {
     return this.consoleLogs;
   }

@@ -289,7 +289,7 @@ export class SourceDrawer extends LitElement {
     }
 
     private selectSource(source: InputSource): void {
-        logger.debug('Source selected', {
+        logger.debug(`Source selected: ${source.id}`, {
             'source.id': source.id,
             'source.type': source.type,
         });

@@ -8,6 +8,7 @@ test.describe('Multi-Source Management', () => {
     helpers = new TestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await helpers.enableDebugLogging();
   });
 
   test('Test 2.1: Add Multiple Sources', async ({ page }) => {

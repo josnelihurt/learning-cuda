@@ -8,6 +8,7 @@ test.describe('Drawer Functionality', () => {
     helpers = new TestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await helpers.enableDebugLogging();
   });
 
   test('Test 7.1: Open Drawer', async ({ page }) => {

@@ -8,6 +8,7 @@ test.describe('Independent Filter Configuration', () => {
     helpers = new TestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await helpers.enableDebugLogging();
     
     const currentCount = await helpers.getSourceCount();
     const needed = 4 - currentCount;

@@ -64,7 +64,7 @@ export class WebSocketService {
                         }
                         
                         if (data.type === 'video_frame' && data.videoFrame) {
-                            logger.debug('Video frame received', {
+                            logger.debug(`Video frame received: ${data.videoFrame.frameNumber} frame_id: ${data.videoFrame.frameId}`, {
                                 'video.frame_number': data.videoFrame.frameNumber,
                                 'video.frame_id': data.videoFrame.frameId,
                             });

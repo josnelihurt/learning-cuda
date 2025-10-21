@@ -39,8 +39,6 @@ const app = {
     selectedResolution: 'original',
     
     async init() {
-        logger.info('Initializing dashboard...');
-        
         await telemetryService.initialize();
         await streamConfigService.initialize();
         
@@ -48,6 +46,8 @@ const app = {
             streamConfigService.getLogLevel(),
             streamConfigService.getConsoleLogging()
         );
+        
+        logger.info('Initializing dashboard...');
         
         await inputSourceService.initialize();
         await processorCapabilitiesService.initialize();
@@ -195,6 +195,8 @@ const app = {
 };
 
 (window as any).app = app;
+(window as any).logger = logger;
+(window as any).streamConfigService = streamConfigService;
 
 (window as any).setAccelerator = function(type: string) {
     app.selectedAccelerator = type;

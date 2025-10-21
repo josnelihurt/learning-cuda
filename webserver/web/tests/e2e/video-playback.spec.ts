@@ -31,6 +31,13 @@ test.describe('Video Playback', () => {
     });
 
     test('should render video frames when video is added - PIXEL VALIDATION', async ({ page }) => {
+        await page.evaluate(() => {
+            const logger = (window as any).logger;
+            if (logger && typeof logger.initialize === 'function') {
+                logger.initialize('DEBUG', true);
+            }
+        });
+
         let frameCount = 0;
 
         page.on('console', msg => {
@@ -738,6 +745,13 @@ test.describe('Video Playback', () => {
     });
 
     test('should validate frame IDs are sequential for e2e-test video', async ({ page }) => {
+        await page.evaluate(() => {
+            const logger = (window as any).logger;
+            if (logger && typeof logger.initialize === 'function') {
+                logger.initialize('DEBUG', true);
+            }
+        });
+
         const receivedFrameIds: number[] = [];
         
         page.on('console', msg => {

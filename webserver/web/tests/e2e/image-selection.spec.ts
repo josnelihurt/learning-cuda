@@ -8,6 +8,7 @@ test.describe('Image Selection', () => {
     helpers = new TestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await helpers.enableDebugLogging();
   });
 
   test('Test 8.1: Change image button visible only on static sources', async ({ page }) => {

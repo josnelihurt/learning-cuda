@@ -258,7 +258,7 @@ export class VideoGrid extends LitElement {
             this.selectSource(uniqueId);
         }
 
-        logger.debug('Source added to grid', {
+        logger.debug(`Source added to grid. Total: ${this.sources.length}`, {
             'source.id': uniqueId,
             'grid.total': this.sources.length,
         });
@@ -285,7 +285,7 @@ export class VideoGrid extends LitElement {
             this.selectSource(this.sources[0].id);
         }
 
-        logger.debug('Source removed from grid', {
+        logger.debug(`Source removed. Remaining: ${this.sources.length}`, {
             'source.id': sourceId,
             'grid.remaining': this.sources.length,
         });
@@ -321,6 +321,11 @@ export class VideoGrid extends LitElement {
         if (!source) return;
 
         this.selectedSourceId = sourceId;
+
+        logger.debug('Card selected', {
+            'source.number': source.number,
+            'source.id': sourceId,
+        });
 
         this.dispatchEvent(new CustomEvent('source-selection-changed', {
             bubbles: true,
@@ -359,7 +364,7 @@ export class VideoGrid extends LitElement {
         selectedSource.grayscaleType = grayscaleType;
         selectedSource.resolution = resolution;
 
-        logger.debug('Applying filter to source', {
+        logger.debug(`Applying filter to source ${selectedSource.number} ${grayscaleType}`, {
             'source.number': selectedSource.number,
             'source.type': selectedSource.type,
             'filters': filters.join(','),
@@ -447,7 +452,7 @@ export class VideoGrid extends LitElement {
             ctx.drawImage(originalImg, 0, 0, targetWidth, targetHeight);
             const imageData = canvas.toDataURL('image/png');
 
-            logger.debug('Sending image', {
+            logger.debug(`Sending image ${targetWidth} x ${targetHeight}`, {
                 'image.original_width': originalWidth,
                 'image.original_height': originalHeight,
                 'image.target_width': targetWidth,

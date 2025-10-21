@@ -210,7 +210,7 @@ export class ImageSelectorModal extends LitElement {
     }
 
     private selectImage(image: StaticImage): void {
-        logger.debug('Image selected', {
+        logger.debug(`Image selected: ${image.id}`, {
             'image.id': image.id,
         });
 

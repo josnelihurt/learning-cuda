@@ -8,6 +8,7 @@ test.describe('UI Validation', () => {
     helpers = new TestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await helpers.enableDebugLogging();
   });
 
   test('Validate Page Title and Header', async ({ page }) => {

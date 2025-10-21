@@ -158,7 +158,9 @@ export class UIService {
                 window.history.pushState({}, '', newUrl);
 
             } catch (error) {
-                console.error('Error applying filter:', error);
+                logger.error('Error applying filter', {
+                    'error.message': error instanceof Error ? error.message : String(error),
+                });
                 this.toastManager.error('Filter Error', 'Failed to apply filter. Please try again.');
                 this.statsManager.updateWebSocketStatus('disconnected', 'Error processing');
                 throw error;

@@ -173,7 +173,9 @@ export class VideoUpload extends LitElement {
                 } catch (err: any) {
                     this.error = err.message || 'Upload failed';
                     span?.setAttribute('error', true);
-                    console.error('Upload error:', err);
+                    logger.error('Upload error', {
+                        'error.message': err instanceof Error ? err.message : String(err),
+                    });
                 } finally {
                     this.uploading = false;
                     setTimeout(() => {

@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { StaticImage } from '../gen/common_pb';
 import { telemetryService } from '../services/telemetry-service';
+import { logger } from '../services/otel-logger';
 
 @customElement('image-selector-modal')
 export class ImageSelectorModal extends LitElement {
@@ -194,7 +195,9 @@ export class ImageSelectorModal extends LitElement {
     }
 
     open(images: StaticImage[]): void {
-        console.log('Image selector opened:', { available: images.length });
+        logger.debug('Image selector opened', {
+            'images.available': images.length,
+        });
         
         this.availableImages = images;
         this.isOpen = true;
@@ -207,7 +210,9 @@ export class ImageSelectorModal extends LitElement {
     }
 
     private selectImage(image: StaticImage): void {
-        console.log('Image selected:', image.id);
+        logger.debug('Image selected', {
+            'image.id': image.id,
+        });
 
         this.dispatchEvent(new CustomEvent('image-selected', {
             bubbles: true,

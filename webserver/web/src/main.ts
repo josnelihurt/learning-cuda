@@ -13,6 +13,7 @@ import './components/video-selector';
 import './components/video-upload';
 import { streamConfigService } from './services/config-service';
 import { telemetryService } from './services/telemetry-service';
+import { logger } from './services/otel-logger';
 import { inputSourceService } from './services/input-source-service';
 import { processorCapabilitiesService } from './services/processor-capabilities-service';
 import { toolsService } from './services/tools-service';
@@ -38,10 +39,16 @@ const app = {
     selectedResolution: 'original',
     
     async init() {
-        console.log('Initializing dashboard...');
+        logger.info('Initializing dashboard...');
         
         await telemetryService.initialize();
         await streamConfigService.initialize();
+        
+        logger.initialize(
+            streamConfigService.getLogLevel(),
+            streamConfigService.getConsoleLogging()
+        );
+        
         await inputSourceService.initialize();
         await processorCapabilitiesService.initialize();
         await toolsService.initialize();
@@ -167,7 +174,7 @@ const app = {
         
         this.statsManager.reset();
         
-        console.log('Dashboard initialized');
+        logger.info('Dashboard initialized');
     },
 
     updateSelectedSourceIndicator(sourceNumber: number, sourceId: string) {
@@ -211,5 +218,9 @@ const app = {
 
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
+});
+
+window.addEventListener('beforeunload', () => {
+    logger.shutdown();
 });
 

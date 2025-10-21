@@ -54,20 +54,22 @@ class ProcessorCapabilitiesService {
                         span?.setAttribute('capabilities.api_version', response.capabilities.apiVersion);
                         span?.addEvent('Processor capabilities loaded successfully');
                         
-                        console.log('Processor capabilities loaded:', {
-                            apiVersion: response.capabilities.apiVersion,
-                            libraryVersion: response.capabilities.libraryVersion,
-                            filterCount: this.filterDefinitions.length,
-                            filters: this.filters.map(f => f.name)
+                        logger.info('Processor capabilities loaded', {
+                            'capabilities.api_version': response.capabilities.apiVersion,
+                            'capabilities.library_version': response.capabilities.libraryVersion,
+                            'capabilities.filter_count': this.filterDefinitions.length,
+                            'capabilities.filters': this.filters.map(f => f.name).join(','),
                         });
                     } else {
                         span?.addEvent('No capabilities in response');
-                        console.warn('No capabilities in response');
+                        logger.warn('No capabilities in response');
                     }
                 } catch (error) {
                     span?.addEvent('Failed to load processor capabilities');
                     span?.setAttribute('error', true);
-                    console.error('Failed to load processor capabilities:', error);
+                    logger.error('Failed to load processor capabilities', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                 }
             }
         );

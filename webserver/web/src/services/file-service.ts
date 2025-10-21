@@ -3,6 +3,7 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { FileService } from '../gen/file_service_connect';
 import type { StaticImage } from '../gen/config_service_pb';
 import { telemetryService } from './telemetry-service';
+import { logger } from './otel-logger';
 
 class FileServiceClient {
     private client;
@@ -22,7 +23,7 @@ class FileServiceClient {
 
         const span = telemetryService.createSpan('FileService.initialize');
         try {
-            console.log('File service initialized');
+            logger.debug('File service initialized');
             this.isInit = true;
             span?.end();
         } catch (error) {
@@ -71,7 +72,9 @@ class FileServiceClient {
             span?.setAttribute('upload.message', response.message);
             span?.end();
 
-            console.log('Image uploaded successfully:', response.image.id);
+            logger.info('Image uploaded successfully', {
+                'image.id': response.image.id,
+            });
             return response.image;
         } catch (error) {
             span?.recordException(error as Error);

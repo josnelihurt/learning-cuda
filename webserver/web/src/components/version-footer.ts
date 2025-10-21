@@ -57,7 +57,9 @@ export class VersionFooter extends LitElement {
                 this.goVersion = data.capabilities.apiVersion || '?';
             }
         } catch (e) {
-            console.warn('Failed to load backend versions', e);
+            logger.warn('Failed to load backend versions', {
+                'error.message': e instanceof Error ? e.message : String(e),
+            });
         }
     }
 

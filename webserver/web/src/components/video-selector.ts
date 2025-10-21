@@ -3,6 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { StaticVideo } from '../gen/common_pb';
 import { videoService } from '../services/video-service';
 import { telemetryService } from '../services/telemetry-service';
+import { logger } from '../services/otel-logger';
 
 @customElement('video-selector')
 export class VideoSelector extends LitElement {
@@ -119,7 +120,9 @@ export class VideoSelector extends LitElement {
                 } catch (err) {
                     this.error = 'Failed to load videos';
                     span?.setAttribute('error', true);
-                    console.error('Error loading videos:', err);
+                    logger.error('Error loading videos', {
+                        'error.message': err instanceof Error ? err.message : String(err),
+                    });
                 } finally {
                     this.loading = false;
                 }

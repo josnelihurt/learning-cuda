@@ -1,14 +1,16 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 interface ToastConfig {
     duration?: number;
     maxToasts?: number;
+    skipAnimations?: boolean;
 }
 
-interface Toast {
+export interface Toast {
     id: string;
     type: ToastType;
     title: string;
@@ -25,7 +27,8 @@ export class ToastContainer extends LitElement {
     
     private config: Required<ToastConfig> = {
         duration: DEFAULT_DURATION,
-        maxToasts: MAX_TOASTS
+        maxToasts: MAX_TOASTS,
+        skipAnimations: false
     };
     
     static styles = css`
@@ -126,7 +129,7 @@ export class ToastContainer extends LitElement {
 
     render() {
         return html`
-            ${this.toasts.map(toast => html`
+            ${repeat(this.toasts, (toast) => toast.id, (toast) => html`
                 <div 
                     class="toast toast-${toast.type} ${toast.show ? 'show' : ''}"
                     @animationend=${() => this.handleAnimationEnd(toast.id)}
@@ -168,14 +171,24 @@ export class ToastContainer extends LitElement {
         };
 
         this.toasts = [...this.toasts, toast];
+        this.requestUpdate();
 
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
+        if (this.config.skipAnimations) {
+            setTimeout(() => {
                 this.toasts = this.toasts.map(t => 
                     t.id === id ? { ...t, show: true } : t
                 );
+                this.requestUpdate();
+            }, 0);
+        } else {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    this.toasts = this.toasts.map(t => 
+                        t.id === id ? { ...t, show: true } : t
+                    );
+                });
             });
-        });
+        }
 
         const dismissDuration = duration !== null ? duration : this.config.duration;
         if (dismissDuration > 0) {
@@ -220,6 +233,14 @@ export class ToastContainer extends LitElement {
 
     setDuration(duration: number): void {
         this.config.duration = duration;
+    }
+
+    getToastCount(): number {
+        return this.toasts.length;
+    }
+
+    getToasts(): Toast[] {
+        return this.toasts;
     }
 
     private getIcon(type: ToastType): string {

@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { logger } from '../services/otel-logger';
 import { telemetryService } from '../services/telemetry-service';
 
 @customElement('video-source-card')
@@ -180,7 +181,10 @@ export class VideoSourceCard extends LitElement {
     private handleCardClick(e: Event): void {
         e.stopPropagation();
         
-        console.log('Card selected:', this.sourceId, this.sourceNumber);
+        logger.debug('Card selected', {
+            'source.id': this.sourceId,
+            'source.number': this.sourceNumber,
+        });
 
         this.dispatchEvent(new CustomEvent('source-selected', {
             bubbles: true,
@@ -192,7 +196,10 @@ export class VideoSourceCard extends LitElement {
     private handleChangeImage(e: Event): void {
         e.stopPropagation();
         
-        console.log('Change image requested:', this.sourceId, this.sourceNumber);
+        logger.debug('Change image requested', {
+            'source.id': this.sourceId,
+            'source.number': this.sourceNumber,
+        });
 
         this.dispatchEvent(new CustomEvent('change-image-requested', {
             bubbles: true,
@@ -204,7 +211,10 @@ export class VideoSourceCard extends LitElement {
     private handleClose(e: Event): void {
         e.stopPropagation();
         
-        console.log('Card closed:', this.sourceId, this.sourceNumber);
+        logger.debug('Card closed', {
+            'source.id': this.sourceId,
+            'source.number': this.sourceNumber,
+        });
 
         this.dispatchEvent(new CustomEvent('source-closed', {
             bubbles: true,

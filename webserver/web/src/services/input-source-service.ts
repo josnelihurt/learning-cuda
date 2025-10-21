@@ -5,6 +5,7 @@ import { FileService } from '../gen/file_service_connect';
 import { InputSource } from '../gen/config_service_pb';
 import { StaticImage, StaticVideo } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
+import { logger } from './otel-logger';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
     const headers = telemetryService.getTraceHeaders();
@@ -53,12 +54,16 @@ class InputSourceService {
                     span?.setAttribute('sources.loaded', true);
                     span?.addEvent('Input sources loaded successfully');
                     
-                    console.log('Input sources loaded:', this.sources);
+                    logger.info('Input sources loaded', {
+                        'sources.count': this.sources.length,
+                    });
                 } catch (error) {
                     span?.addEvent('Failed to load input sources');
                     span?.setAttribute('error', true);
                     
-                    console.error('Failed to load input sources:', error);
+                    logger.error('Failed to load input sources', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                     this.sources = [];
                 }
             }
@@ -101,13 +106,17 @@ class InputSourceService {
                     span?.setAttribute('available_images.count', images.length);
                     span?.addEvent('Available images loaded successfully');
                     
-                    console.log('Available images loaded:', images);
+                    logger.debug('Available images loaded', {
+                        'images.count': images.length,
+                    });
                     return images;
                 } catch (error) {
                     span?.addEvent('Failed to load available images');
                     span?.setAttribute('error', true);
                     
-                    console.error('Failed to load available images:', error);
+                    logger.error('Failed to load available images', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                     return [];
                 }
             }
@@ -132,13 +141,17 @@ class InputSourceService {
                     span?.setAttribute('available_videos.count', videos.length);
                     span?.addEvent('Available videos loaded successfully');
                     
-                    console.log('Available videos loaded:', videos);
+                    logger.debug('Available videos loaded', {
+                        'videos.count': videos.length,
+                    });
                     return videos;
                 } catch (error) {
                     span?.addEvent('Failed to load available videos');
                     span?.setAttribute('error', true);
                     
-                    console.error('Failed to load available videos:', error);
+                    logger.error('Failed to load available videos', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                     return [];
                 }
             }

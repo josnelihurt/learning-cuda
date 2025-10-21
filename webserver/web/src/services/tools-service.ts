@@ -20,12 +20,18 @@ class ToolsService {
             const response = await this.client.getAvailableTools({});
             this.categories = response.categories;
             this.initialized = true;
-            console.log(`Tools service initialized: ${this.categories.length} categories loaded`);
+            logger.info('Tools service initialized', {
+                'categories.count': this.categories.length,
+            });
             
             const totalTools = this.categories.reduce((sum, cat) => sum + cat.tools.length, 0);
-            console.log(`Total tools: ${totalTools}`);
+            logger.debug('Total tools', {
+                'tools.count': totalTools,
+            });
         } catch (error) {
-            console.error('Failed to initialize tools service:', error);
+            logger.error('Failed to initialize tools service', {
+                'error.message': error instanceof Error ? error.message : String(error),
+            });
             this.initialized = false;
         }
     }

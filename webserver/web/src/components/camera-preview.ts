@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
+import { logger } from '../services/otel-logger';
 
 interface StatsManager {
     updateCameraStatus(status: string, type: 'success' | 'error' | 'warning' | 'inactive'): void;
@@ -91,7 +92,10 @@ export class CameraPreview extends LitElement {
             await this.videoElement.play();
             await new Promise<void>(resolve => setTimeout(resolve, 500));
             
-            console.log(`Camera ready: ${this.videoElement.videoWidth}x${this.videoElement.videoHeight}`);
+            logger.info('Camera ready', {
+                'camera.width': this.videoElement.videoWidth,
+                'camera.height': this.videoElement.videoHeight,
+            });
             
             this.statsManager?.updateCameraStatus('Active', 'success');
             
@@ -102,7 +106,9 @@ export class CameraPreview extends LitElement {
             
             return true;
         } catch (error) {
-            console.error('Camera error:', error);
+            logger.error('Camera error', {
+                'error.message': error instanceof Error ? error.message : String(error),
+            });
             
             let errorTitle = 'Camera Error';
             let errorMsg = '';
@@ -164,7 +170,10 @@ export class CameraPreview extends LitElement {
         this.canvasElement.width = this.width;
         this.canvasElement.height = this.height;
         
-        console.log(`Starting capture at ${this.width}x${this.height}`);
+        logger.info('Starting capture', {
+            'capture.width': this.width,
+            'capture.height': this.height,
+        });
         
         this.frameInterval = window.setInterval(() => {
             if (!this.videoElement.videoWidth || this.isProcessing) return;

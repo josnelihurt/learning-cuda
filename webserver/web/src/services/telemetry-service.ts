@@ -4,6 +4,7 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { Resource } from '@opentelemetry/resources';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { W3CTraceContextPropagator } from '@opentelemetry/core';
+import { logger } from './otel-logger';
 
 class TelemetryService {
     private enabled: boolean = false;
@@ -14,7 +15,7 @@ class TelemetryService {
             this.enabled = true;
 
             if (!this.enabled) {
-                console.log('Telemetry disabled by configuration');
+                logger.info('Telemetry disabled by configuration');
                 return;
             }
 
@@ -51,9 +52,11 @@ class TelemetryService {
 
             this.tracer = trace.getTracer('cuda-image-processor-web');
 
-            console.log('OpenTelemetry initialized for browser');
+            logger.info('OpenTelemetry initialized for browser');
         } catch (error) {
-            console.warn('Failed to initialize telemetry:', error);
+            logger.warn('Failed to initialize telemetry', {
+                'error.message': error instanceof Error ? error.message : String(error),
+            });
             this.enabled = false;
         }
     }

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package cuda_learning;
+
+import "common.proto";
+
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
+
+message FeatureFlag {
+  string key = 1 [json_name = "key"];
+  string value = 3 [json_name = "value"];
+  string type = 5 [json_name = "type"];
+}
+
+message GetFeatureFlagsRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message GetFeatureFlagsResponse {
+  repeated FeatureFlag flags = 1 [json_name = "flags"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+service FeatureFlagsService {
+  rpc GetFeatureFlags(GetFeatureFlagsRequest) returns (GetFeatureFlagsResponse);
+}
+

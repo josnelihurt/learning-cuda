@@ -232,7 +232,9 @@ export class ImageUpload extends LitElement {
                 span?.setAttribute('image.id', image.id);
                 span?.end();
 
-                console.log('Image upload complete:', image.id);
+                logger.info('Image upload complete', {
+                    'image.id': image.id,
+                });
             }, 300);
 
         } catch (error) {
@@ -244,7 +246,9 @@ export class ImageUpload extends LitElement {
             span?.setAttribute('upload.status', 'failed');
             span?.end();
 
-            console.error('Image upload failed:', error);
+            logger.error('Image upload failed', {
+                'error.message': error instanceof Error ? error.message : String(error),
+            });
         }
     }
 }

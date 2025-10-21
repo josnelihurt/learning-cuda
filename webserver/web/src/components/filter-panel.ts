@@ -165,7 +165,9 @@ export class FilterPanel extends LitElement {
         this.filters = newFilters;
         this.draggedIndex = null;
 
-        console.log('Filter order:', this.filters.map(f => f.id));
+        logger.debug('Filter order', {
+            'filters': this.filters.map(f => f.id).join(','),
+        });
     }
 
     private dispatchFilterChange() {

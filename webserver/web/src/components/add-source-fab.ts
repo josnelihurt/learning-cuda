@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { telemetryService } from '../services/telemetry-service';
+import { logger } from '../services/otel-logger';
 
 @customElement('add-source-fab')
 export class AddSourceFab extends LitElement {
@@ -67,7 +68,7 @@ export class AddSourceFab extends LitElement {
     }
 
     private handleClick(): void {
-        console.log('FAB clicked - opening drawer');
+        logger.debug('FAB clicked - opening drawer');
 
         this.dispatchEvent(new CustomEvent('open-drawer', {
             bubbles: true,

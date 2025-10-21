@@ -3,6 +3,7 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { FileService } from '../gen/file_service_connect';
 import { StaticVideo } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
+import { logger } from './otel-logger';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
     const headers = telemetryService.getTraceHeaders();
@@ -49,12 +50,16 @@ class VideoService {
                     span?.setAttribute('videos.loaded', true);
                     span?.addEvent('Videos loaded successfully');
                     
-                    console.log('Available videos loaded:', this.videos);
+                    logger.debug('Available videos loaded', {
+                        'videos.count': this.videos.length,
+                    });
                 } catch (error) {
                     span?.addEvent('Failed to load videos');
                     span?.setAttribute('error', true);
                     
-                    console.error('Failed to load videos:', error);
+                    logger.error('Failed to load videos', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                     this.videos = [];
                 }
             }
@@ -97,13 +102,17 @@ class VideoService {
                     span?.setAttribute('videos.count', videos.length);
                     span?.addEvent('Videos loaded successfully');
                     
-                    console.log('Available videos:', videos);
+                    logger.debug('Available videos', {
+                        'videos.count': videos.length,
+                    });
                     return videos;
                 } catch (error) {
                     span?.addEvent('Failed to load videos');
                     span?.setAttribute('error', true);
                     
-                    console.error('Failed to load videos:', error);
+                    logger.error('Failed to load videos', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                     return [];
                 }
             }
@@ -146,7 +155,9 @@ class VideoService {
                     span?.addEvent('Video upload failed');
                     span?.setAttribute('error', true);
                     
-                    console.error('Failed to upload video:', error);
+                    logger.error('Failed to upload video', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                     throw error;
                 }
             }

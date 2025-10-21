@@ -5,18 +5,10 @@ import { WebSocketFrameRequest, WebSocketFrameResponse, ProcessImageRequest, Sta
 import { FilterType, AcceleratorType, GrayscaleType, TraceContext } from '../gen/common_pb';
 import { streamConfigService } from './config-service';
 import { telemetryService } from './telemetry-service';
+import { logger } from './otel-logger';
 import { context, propagation } from '@opentelemetry/api';
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
-
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-}
 
 // TODO: To be replaced by Connect-RPC bidirectional streaming client
 // Target replacement: Use createPromiseClient with ImageProcessorService.streamProcessVideo
@@ -42,7 +34,7 @@ export class WebSocketService {
 
         this.ws.onopen = () => {
             this.statsManager.updateWebSocketStatus('connected', 'Connected');
-            console.log('WebSocket connected');
+            logger.info('WebSocket connected');
         };
 
         this.ws.onmessage = async (event) => {
@@ -72,28 +64,37 @@ export class WebSocketService {
                         }
                         
                         if (data.type === 'video_frame' && data.videoFrame) {
-                            console.log('Video frame received:', data.videoFrame.frameNumber, 'frame_id:', data.videoFrame.frameId);
+                            logger.debug('Video frame received', {
+                                'video.frame_number': data.videoFrame.frameNumber,
+                                'video.frame_id': data.videoFrame.frameId,
+                            });
                         }
                     } else {
-                        console.error('Frame processing error:', data.error);
+                        logger.error('Frame processing error', {
+                            'error.message': data.error || 'Unknown error',
+                        });
                         this.toastManager.error('Processing Error', data.error || 'Unknown error');
                         this.statsManager.updateCameraStatus('Processing failed', 'error');
                     }
                 }
             } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
+                logger.error('Error parsing WebSocket message', {
+                    'error.message': error instanceof Error ? error.message : String(error),
+                });
             }
         };
 
         this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            logger.error('WebSocket error', {
+                'error.type': error.type,
+            });
             this.toastManager.warning('WebSocket Error', 'Connection error, attempting to reconnect...');
             this.statsManager.updateWebSocketStatus('disconnected', 'Connection error');
             this.cameraManager.setProcessing(false);
         };
 
         this.ws.onclose = () => {
-            console.log('WebSocket closed - Reconnecting...');
+            logger.info('WebSocket closed - Reconnecting...');
             this.statsManager.updateWebSocketStatus('connecting', 'Reconnecting...');
             setTimeout(() => this.connect(), this.reconnectTimeout);
         };
@@ -217,7 +218,7 @@ export class WebSocketService {
 
     sendStartVideo(videoId: string, filters: string[], accelerator: string, grayscaleType: string): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket not connected');
+            logger.error('WebSocket not connected');
             return;
         }
 
@@ -255,7 +256,9 @@ export class WebSocketService {
             }
 
             this.ws.send(messageData);
-            console.log('Start video message sent:', videoId);
+            logger.debug('Start video message sent', {
+                'video.id': videoId,
+            });
             
         } finally {
             if (span) {
@@ -266,7 +269,7 @@ export class WebSocketService {
 
     sendStopVideo(videoId: string): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('WebSocket not connected');
+            logger.error('WebSocket not connected');
             return;
         }
 
@@ -292,7 +295,9 @@ export class WebSocketService {
             }
 
             this.ws.send(messageData);
-            console.log('Stop video message sent:', videoId);
+            logger.debug('Stop video message sent', {
+                'video.id': videoId,
+            });
             
         } finally {
             if (span) {

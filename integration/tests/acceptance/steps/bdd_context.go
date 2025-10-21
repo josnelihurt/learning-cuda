@@ -27,37 +27,40 @@ import (
 )
 
 type BDDContext struct {
-	fliptAPI              *featureflags.FliptHTTPAPI
-	httpClient            *http.Client
-	serviceBaseURL        string
-	lastResponse          *http.Response
-	lastResponseBody      []byte
-	defaultFormat         string
-	defaultEndpoint       string
-	connectClient         genconnect.ImageProcessorServiceClient
-	currentImage          []byte
-	currentImagePNG       []byte
-	currentImageWidth     int32
-	currentImageHeight    int32
-	currentChannels       int32
-	processedImage        []byte
-	wsConnection          *websocket.Conn
-	wsResponse            *pb.WebSocketFrameResponse
-	lastError             error
-	checksums             map[string]string
-	inputSources          []*pb.InputSource
-	availableImages       []*pb.StaticImage
-	configClient          genconnect.ConfigServiceClient
-	fileClient            genconnect.FileServiceClient
-	processorCapabilities *pb.LibraryCapabilities
-	toolsResponse         *pb.GetAvailableToolsResponse
-	currentTool           *pb.Tool
-	uploadedImage         *pb.StaticImage
-	availableVideos       []*pb.StaticVideo
-	uploadedVideo         *pb.StaticVideo
-	videoFrames           []*pb.VideoFrameUpdate
-	frameCollector        chan *pb.VideoFrameUpdate
-	stopCollector         chan bool
+	fliptAPI               *featureflags.FliptHTTPAPI
+	httpClient             *http.Client
+	serviceBaseURL         string
+	lastResponse           *http.Response
+	lastResponseBody       []byte
+	defaultFormat          string
+	defaultEndpoint        string
+	connectClient          genconnect.ImageProcessorServiceClient
+	currentImage           []byte
+	currentImagePNG        []byte
+	currentImageWidth      int32
+	currentImageHeight     int32
+	currentChannels        int32
+	processedImage         []byte
+	wsConnection           *websocket.Conn
+	wsResponse             *pb.WebSocketFrameResponse
+	lastError              error
+	checksums              map[string]string
+	inputSources           []*pb.InputSource
+	availableImages        []*pb.StaticImage
+	configClient           genconnect.ConfigServiceClient
+	fileClient             genconnect.FileServiceClient
+	processorCapabilities  *pb.LibraryCapabilities
+	toolsResponse          *pb.GetAvailableToolsResponse
+	currentTool            *pb.Tool
+	uploadedImage          *pb.StaticImage
+	availableVideos        []*pb.StaticVideo
+	uploadedVideo          *pb.StaticVideo
+	videoFrames            []*pb.VideoFrameUpdate
+	frameCollector         chan *pb.VideoFrameUpdate
+	stopCollector          chan bool
+	receivedLogLevel       string
+	receivedConsoleLogging bool
+	otlpLogsReceived       bool
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -1903,4 +1906,80 @@ func (c *BDDContext) ThenFrameShouldHaveASHA256Hash(frameID int) error {
 
 func (c *BDDContext) ThenICanRetrieveMetadataForFrameID(frameID int) error {
 	return c.ThenFrameShouldHaveASHA256Hash(frameID)
+}
+
+func (c *BDDContext) WhenTheClientRequestsStreamConfiguration() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := c.configClient.GetStreamConfig(ctx, connect.NewRequest(&pb.GetStreamConfigRequest{}))
+	if err != nil {
+		return fmt.Errorf("failed to get stream config: %w", err)
+	}
+
+	if len(resp.Msg.Endpoints) > 0 {
+		c.receivedLogLevel = resp.Msg.Endpoints[0].LogLevel
+		c.receivedConsoleLogging = resp.Msg.Endpoints[0].ConsoleLogging
+	}
+
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeLogLevel(expectedLevel string) error {
+	if c.receivedLogLevel != expectedLevel {
+		return fmt.Errorf("expected log level %s, got %s", expectedLevel, c.receivedLogLevel)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeConsoleLoggingEnabled() error {
+	if !c.receivedConsoleLogging {
+		return fmt.Errorf("expected console logging to be enabled, but it was disabled")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeConsoleLoggingDisabled() error {
+	if c.receivedConsoleLogging {
+		return fmt.Errorf("expected console logging to be disabled, but it was enabled")
+	}
+	return nil
+}
+
+func (c *BDDContext) WhenTheBackendReceivesOTLPLogsAt(endpoint string) error {
+	url := fmt.Sprintf("%s%s", c.serviceBaseURL, endpoint)
+	body := []byte(`{"resourceLogs":[]}`)
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	c.lastResponse = resp
+	c.otlpLogsReceived = resp.StatusCode == 200
+	return nil
+}
+
+func (c *BDDContext) ThenTheLogsShouldBeWrittenToBackendLogger() error {
+	if !c.otlpLogsReceived {
+		return fmt.Errorf("logs were not successfully received by backend")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldReturnHTTP200() error {
+	if c.lastResponse == nil {
+		return fmt.Errorf("no HTTP response received")
+	}
+	if c.lastResponse.StatusCode != 200 {
+		return fmt.Errorf("expected HTTP 200, got %d", c.lastResponse.StatusCode)
+	}
+	return nil
 }

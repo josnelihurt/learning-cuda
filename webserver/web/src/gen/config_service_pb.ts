@@ -28,6 +28,16 @@ export class StreamEndpoint extends Message<StreamEndpoint> {
    */
   transportFormat = "";
 
+  /**
+   * @generated from field: string log_level = 7 [json_name = "log_level"];
+   */
+  logLevel = "";
+
+  /**
+   * @generated from field: bool console_logging = 9 [json_name = "console_logging"];
+   */
+  consoleLogging = false;
+
   constructor(data?: PartialMessage<StreamEndpoint>) {
     super();
     proto3.util.initPartial(data, this);
@@ -39,6 +49,8 @@ export class StreamEndpoint extends Message<StreamEndpoint> {
     { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "endpoint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "transport_format", jsonName: "transport_format", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "log_level", jsonName: "log_level", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "console_logging", jsonName: "console_logging", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StreamEndpoint {

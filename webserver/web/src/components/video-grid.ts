@@ -190,10 +190,12 @@ export class VideoGrid extends LitElement {
             
             const tryStartVideo = () => {
                 if (ws!.isConnected()) {
-                    console.log('WebSocket is connected, starting video:', inputSource.id);
+                    logger.debug('WebSocket is connected, starting video', {
+                        'video.id': inputSource.id,
+                    });
                     ws!.sendStartVideo(inputSource.id, ['none'], 'gpu', 'bt601');
                 } else {
-                    console.log('WebSocket not ready, retrying in 100ms...');
+                    logger.debug('WebSocket not ready, retrying in 100ms...');
                     setTimeout(tryStartVideo, 100);
                 }
             };
@@ -207,7 +209,10 @@ export class VideoGrid extends LitElement {
             ws.connect();
 
             ws.onFrameResult((data) => {
-                console.log('Frame result for source', number, 'success:', data.success);
+                logger.debug('Frame result for source', {
+                    'source.number': number,
+                    'frame.success': data.success,
+                });
                 const sourceIndex = this.sources.findIndex(s => s.number === number);
                 if (sourceIndex !== -1 && data.response) {
                     let binary = '';
@@ -217,7 +222,9 @@ export class VideoGrid extends LitElement {
                     }
                     const imageData = btoa(binary);
                     const newSrc = `data:image/png;base64,${imageData}`;
-                    console.log('Updating image for source', number);
+                    logger.debug('Updating image for source', {
+                        'source.number': number,
+                    });
                     this.sources[sourceIndex].currentImageSrc = newSrc;
                     this.sources = [...this.sources];
                     this.requestUpdate();
@@ -251,7 +258,10 @@ export class VideoGrid extends LitElement {
             this.selectSource(uniqueId);
         }
 
-        console.log('Source added to grid:', uniqueId, 'Total:', this.sources.length);
+        logger.debug('Source added to grid', {
+            'source.id': uniqueId,
+            'grid.total': this.sources.length,
+        });
 
         this.requestUpdate();
         return true;
@@ -275,18 +285,23 @@ export class VideoGrid extends LitElement {
             this.selectSource(this.sources[0].id);
         }
 
-        console.log('Source removed from grid:', sourceId, 'Remaining:', this.sources.length);
+        logger.debug('Source removed from grid', {
+            'source.id': sourceId,
+            'grid.remaining': this.sources.length,
+        });
     }
 
     changeSourceImage(sourceNumber: number, newImagePath: string): void {
         const sourceIndex = this.sources.findIndex(s => s.number === sourceNumber);
         if (sourceIndex === -1) {
-            console.error('Source not found:', sourceNumber);
+            logger.error('Source not found', {
+                'source.number': sourceNumber,
+            });
             return;
         }
 
         if (this.sources[sourceIndex].type === 'camera') {
-            console.warn('Cannot change image of camera source');
+            logger.warn('Cannot change image of camera source');
             return;
         }
 
@@ -295,7 +310,10 @@ export class VideoGrid extends LitElement {
         this.sources[sourceIndex].currentImageSrc = newImagePath;
         this.sources = [...this.sources];
         this.requestUpdate();
-        console.log('Source image changed:', sourceNumber, newImagePath);
+        logger.debug('Source image changed', {
+            'source.number': sourceNumber,
+            'image.path': newImagePath,
+        });
     }
 
     selectSource(sourceId: string): void {
@@ -333,7 +351,7 @@ export class VideoGrid extends LitElement {
     async applyFilterToSelected(filters: string[], accelerator: string, grayscaleType: string, resolution: string = 'original'): Promise<void> {
         const selectedSource = this.getSelectedSource();
         if (!selectedSource) {
-            console.log('applyFilter: no source selected');
+            logger.debug('applyFilter: no source selected');
             return;
         }
 
@@ -341,34 +359,51 @@ export class VideoGrid extends LitElement {
         selectedSource.grayscaleType = grayscaleType;
         selectedSource.resolution = resolution;
 
-        console.log('Applying filter to source', selectedSource.number, 'type:', selectedSource.type, 'filters:', filters, grayscaleType, 'resolution:', resolution);
+        logger.debug('Applying filter to source', {
+            'source.number': selectedSource.number,
+            'source.type': selectedSource.type,
+            'filters': filters.join(','),
+            'grayscale_type': grayscaleType,
+            'resolution': resolution,
+        });
 
         if (!selectedSource.ws || !selectedSource.ws.isConnected()) {
-            console.error('WebSocket not connected for source', selectedSource.number);
+            logger.error('WebSocket not connected for source', {
+                'source.number': selectedSource.number,
+            });
             return;
         }
 
         if (selectedSource.type === 'video') {
             try {
                 const videoId = selectedSource.videoId || selectedSource.name;
-                console.log('Restarting video with new filters:', videoId, 'filters:', filters, 'accelerator:', accelerator, 'grayscale:', grayscaleType);
+                logger.debug('Restarting video with new filters', {
+                    'video.id': videoId,
+                    'filters': filters.join(','),
+                    'accelerator': accelerator,
+                    'grayscale_type': grayscaleType,
+                });
                 selectedSource.ws.sendStopVideo(videoId);
                 
                 setTimeout(() => {
                     if (selectedSource.ws && selectedSource.ws.isConnected()) {
-                        console.log('Starting video with filters:', filters);
+                        logger.debug('Starting video with filters', {
+                            'filters': filters.join(','),
+                        });
                         selectedSource.ws.sendStartVideo(videoId, filters, accelerator, grayscaleType);
                     }
                 }, 200);
             } catch (error) {
-                console.error('Error updating video filters:', error);
+                logger.error('Error updating video filters', {
+                    'error.message': error instanceof Error ? error.message : String(error),
+                });
                 this.toastManager?.error('Filter Error', 'Failed to update video filters');
             }
             return;
         }
 
         if (selectedSource.type === 'camera') {
-            console.log('Camera filter update not yet implemented');
+            logger.debug('Camera filter update not yet implemented');
             return;
         }
 
@@ -412,7 +447,12 @@ export class VideoGrid extends LitElement {
             ctx.drawImage(originalImg, 0, 0, targetWidth, targetHeight);
             const imageData = canvas.toDataURL('image/png');
 
-            console.log('Sending image:', originalWidth, 'x', originalHeight, '→', targetWidth, 'x', targetHeight);
+            logger.debug('Sending image', {
+                'image.original_width': originalWidth,
+                'image.original_height': originalHeight,
+                'image.target_width': targetWidth,
+                'image.target_height': targetHeight,
+            });
 
             const response = await selectedSource.ws.sendSingleFrame(
                 imageData,
@@ -424,7 +464,9 @@ export class VideoGrid extends LitElement {
             );
 
             if (response.success && response.response) {
-                console.log('Filter applied, updating image for source', selectedSource.number);
+                logger.debug('Filter applied, updating image for source', {
+                    'source.number': selectedSource.number,
+                });
                 let binary = '';
                 const len = response.response.imageData.byteLength;
                 for (let i = 0; i < len; i++) {
@@ -439,7 +481,9 @@ export class VideoGrid extends LitElement {
                 }
             }
         } catch (error) {
-            console.error('Error applying filter:', error);
+            logger.error('Error applying filter', {
+                'error.message': error instanceof Error ? error.message : String(error),
+            });
             this.toastManager?.error('Filter Error', 'Failed to apply filter');
         }
     }

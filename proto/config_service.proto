@@ -11,6 +11,8 @@ message StreamEndpoint {
   string type = 1 [json_name = "type"];
   string endpoint = 3 [json_name = "endpoint"];
   string transport_format = 5 [json_name = "transport_format"];
+  string log_level = 7 [json_name = "log_level"];
+  bool console_logging = 9 [json_name = "console_logging"];
 }
 
 message GetStreamConfigRequest {

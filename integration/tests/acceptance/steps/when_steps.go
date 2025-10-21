@@ -88,6 +88,14 @@ func (tc *TestContext) iQueryVideoMetadataFor(videoID string) error {
 	return tc.WhenIQueryVideoMetadataFor(videoID)
 }
 
+func (tc *TestContext) theClientRequestsStreamConfiguration() error {
+	return tc.WhenTheClientRequestsStreamConfiguration()
+}
+
+func (tc *TestContext) theBackendReceivesOTLPLogsAt(endpoint string) error {
+	return tc.WhenTheBackendReceivesOTLPLogsAt(endpoint)
+}
+
 func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I call the GetStreamConfig endpoint$`, tc.iCallTheGetStreamConfigEndpoint)
 	ctx.Step(`^I call the SyncFeatureFlags endpoint$`, tc.iCallTheSyncFeatureFlagsEndpoint)
@@ -110,4 +118,6 @@ func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I receive (\d+) video frames$`, tc.iReceiveVideoFrames)
 	ctx.Step(`^I receive the first (\d+) video frames$`, tc.iReceiveTheFirstVideoFrames)
 	ctx.Step(`^I query video metadata for "([^"]*)"$`, tc.iQueryVideoMetadataFor)
+	ctx.Step(`^the client requests stream configuration$`, tc.theClientRequestsStreamConfiguration)
+	ctx.Step(`^the backend receives OTLP logs at "([^"]*)"$`, tc.theBackendReceivesOTLPLogsAt)
 }

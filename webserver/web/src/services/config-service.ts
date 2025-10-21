@@ -3,6 +3,7 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService as ConfigServiceClient } from '../gen/image_processing_connect';
 import { StreamEndpoint } from '../gen/image_processing_pb';
 import { telemetryService } from './telemetry-service';
+import { logger } from './otel-logger';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
     const headers = telemetryService.getTraceHeaders();
@@ -16,6 +17,8 @@ class StreamConfigService {
     private client: PromiseClient<typeof ConfigServiceClient>;
     private config: StreamEndpoint | null = null;
     private initPromise: Promise<void> | null = null;
+    private logLevel: string = 'INFO';
+    private consoleLogging: boolean = true;
 
     constructor() {
         const transport = createConnectTransport({
@@ -46,22 +49,28 @@ class StreamConfigService {
                     
                     if (response.endpoints && response.endpoints.length > 0) {
                         this.config = response.endpoints[0];
+                        this.logLevel = this.config.logLevel || 'INFO';
+                        this.consoleLogging = this.config.consoleLogging !== false;
                         
                         span?.setAttribute('config.endpoint_count', response.endpoints.length);
                         span?.setAttribute('config.type', this.config.type);
                         span?.setAttribute('config.endpoint', this.config.endpoint);
                         span?.setAttribute('config.transport_format', this.config.transportFormat);
+                        span?.setAttribute('config.log_level', this.logLevel);
+                        span?.setAttribute('config.console_logging', this.consoleLogging);
                         
                         span?.addEvent('Stream configuration loaded successfully');
                         
-                        console.log('Stream configuration loaded:', {
-                            type: this.config.type,
-                            endpoint: this.config.endpoint,
-                            transportFormat: this.config.transportFormat,
+                        logger.info('Stream configuration loaded', {
+                            'config.type': this.config.type,
+                            'config.endpoint': this.config.endpoint,
+                            'config.transport_format': this.config.transportFormat,
+                            'config.log_level': this.logLevel,
+                            'config.console_logging': String(this.consoleLogging),
                         });
                     } else {
                         span?.addEvent('No endpoints configured, using defaults');
-                        console.warn('No stream endpoints configured, using defaults');
+                        logger.warn('No stream endpoints configured, using defaults');
                         this.config = new StreamEndpoint({
                             type: 'websocket',
                             endpoint: '/ws',
@@ -72,7 +81,9 @@ class StreamConfigService {
                     span?.addEvent('Failed to load stream config, using defaults');
                     span?.setAttribute('error', true);
                     
-                    console.error('Failed to load stream config, using defaults:', error);
+                    logger.error('Failed to load stream config, using defaults', {
+                        'error.message': error instanceof Error ? error.message : String(error),
+                    });
                     this.config = new StreamEndpoint({
                         type: 'websocket',
                         endpoint: '/ws',
@@ -87,7 +98,7 @@ class StreamConfigService {
 
     getTransportFormat(): 'json' | 'binary' {
         if (!this.config) {
-            console.warn('Config not initialized, returning default: json');
+            logger.warn('Config not initialized, returning default: json');
             return 'json';
         }
         return this.config.transportFormat === 'binary' ? 'binary' : 'json';
@@ -95,7 +106,7 @@ class StreamConfigService {
 
     getWebSocketEndpoint(): string {
         if (!this.config) {
-            console.warn('Config not initialized, returning default: /ws');
+            logger.warn('Config not initialized, returning default: /ws');
             return '/ws';
         }
         return this.config.endpoint;
@@ -103,6 +114,22 @@ class StreamConfigService {
 
     isInitialized(): boolean {
         return this.config !== null;
+    }
+
+    getLogLevel(): string {
+        return this.logLevel;
+    }
+
+    getConsoleLogging(): boolean {
+        return this.consoleLogging;
+    }
+
+    setLogLevel(level: string): void {
+        this.logLevel = level;
+    }
+
+    setConsoleLogging(enabled: boolean): void {
+        this.consoleLogging = enabled;
     }
 }
 

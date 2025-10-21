@@ -192,6 +192,26 @@ func (tc *TestContext) iCanRetrieveMetadataForFrameID(frameID int) error {
 	return tc.ThenICanRetrieveMetadataForFrameID(frameID)
 }
 
+func (tc *TestContext) theResponseShouldIncludeLogLevel(expectedLevel string) error {
+	return tc.ThenTheResponseShouldIncludeLogLevel(expectedLevel)
+}
+
+func (tc *TestContext) theResponseShouldIncludeConsoleLoggingEnabled() error {
+	return tc.ThenTheResponseShouldIncludeConsoleLoggingEnabled()
+}
+
+func (tc *TestContext) theResponseShouldIncludeConsoleLoggingDisabled() error {
+	return tc.ThenTheResponseShouldIncludeConsoleLoggingDisabled()
+}
+
+func (tc *TestContext) theLogsShouldBeWrittenToBackendLogger() error {
+	return tc.ThenTheLogsShouldBeWrittenToBackendLogger()
+}
+
+func (tc *TestContext) theResponseShouldReturnHTTP(code int) error {
+	return tc.ThenTheResponseShouldReturnHTTP200()
+}
+
 func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain transport format "([^"]*)"$`, tc.theResponseShouldContainTransportFormat)
 	ctx.Step(`^the response should contain endpoint "([^"]*)"$`, tc.theResponseShouldContainEndpoint)
@@ -241,4 +261,9 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the metadata should contain (\d+) frames$`, tc.theMetadataShouldContainFrames)
 	ctx.Step(`^frame (\d+) should have a SHA256 hash$`, tc.frameShouldHaveASHA256Hash)
 	ctx.Step(`^I can retrieve metadata for frame_id (\d+)$`, tc.iCanRetrieveMetadataForFrameID)
+	ctx.Step(`^the response should include log level "([^"]*)"$`, tc.theResponseShouldIncludeLogLevel)
+	ctx.Step(`^the response should include console logging enabled$`, tc.theResponseShouldIncludeConsoleLoggingEnabled)
+	ctx.Step(`^the response should include console logging disabled$`, tc.theResponseShouldIncludeConsoleLoggingDisabled)
+	ctx.Step(`^the logs should be written to backend logger$`, tc.theLogsShouldBeWrittenToBackendLogger)
+	ctx.Step(`^the response should return HTTP (\d+)$`, tc.theResponseShouldReturnHTTP)
 }

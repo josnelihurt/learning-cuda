@@ -97,7 +97,9 @@ export class SyncFlagsButton extends LitElement {
                         span.setAttribute('flipt.message', response.message);
 
                         this.showToast('success', response.message);
-                        console.log('✓ Flags synced successfully:', response.message);
+                        logger.info('Flags synced successfully', {
+                            'message': response.message,
+                        });
                         
                         span.addEvent('Sync completed successfully');
                     } catch (error) {
@@ -108,10 +110,10 @@ export class SyncFlagsButton extends LitElement {
                             span.setAttribute('error.message', error.message);
                             span.recordException(error);
                             
-                            console.error('Failed to sync flags (ConnectError):', {
-                                code: error.code,
-                                message: error.message,
-                                details: error.rawMessage,
+                            logger.error('Failed to sync flags ConnectError', {
+                                'error.code': String(error.code),
+                                'error.message': error.message,
+                                'error.details': error.rawMessage,
                             });
                             
                             this.showToast('error', `Sync failed: ${error.message}`);
@@ -120,7 +122,9 @@ export class SyncFlagsButton extends LitElement {
                             span.setAttribute('error.message', errorMsg);
                             span.recordException(error as Error);
                             
-                            console.error('Failed to sync flags:', error);
+                            logger.error('Failed to sync flags', {
+                                'error.message': error instanceof Error ? error.message : String(error),
+                            });
                             this.showToast('error', 'Failed to connect to server');
                         }
                         

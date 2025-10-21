@@ -42,6 +42,7 @@ func main() {
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
 		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
 		app.WithListInputsUseCase(di.ListInputsUseCase),
+		app.WithEvaluateFFUseCase(di.EvaluateFeatureFlagUseCase),
 		app.WithListAvailableImagesUseCase(di.ListAvailableImagesUseCase),
 		app.WithUploadImageUseCase(di.UploadImageUseCase),
 		app.WithListVideosUseCase(di.ListVideosUseCase),

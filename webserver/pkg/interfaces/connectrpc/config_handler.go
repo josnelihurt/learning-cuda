@@ -21,6 +21,7 @@ type ConfigHandler struct {
 	getStreamConfigUseCase *application.GetStreamConfigUseCase
 	syncFlagsUseCase       *application.SyncFeatureFlagsUseCase
 	listInputsUseCase      *application.ListInputsUseCase
+	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
 	registry               *loader.Registry
 	currentLoader          **loader.Loader
 	loaderMutex            *sync.RWMutex
@@ -31,6 +32,7 @@ func NewConfigHandler(
 	getStreamConfigUC *application.GetStreamConfigUseCase,
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
 	listInputsUC *application.ListInputsUseCase,
+	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
 	registry *loader.Registry,
 	currentLoader **loader.Loader,
 	loaderMutex *sync.RWMutex,
@@ -40,6 +42,7 @@ func NewConfigHandler(
 		getStreamConfigUseCase: getStreamConfigUC,
 		syncFlagsUseCase:       syncFlagsUC,
 		listInputsUseCase:      listInputsUC,
+		evaluateFFUseCase:      evaluateFFUC,
 		registry:               registry,
 		currentLoader:          currentLoader,
 		loaderMutex:            loaderMutex,
@@ -60,17 +63,31 @@ func (h *ConfigHandler) GetStreamConfig(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
+	logLevel, err := h.evaluateFFUseCase.EvaluateVariant(ctx, "frontend_log_level", "default", "INFO")
+	if err != nil || logLevel == "" {
+		logLevel = "INFO"
+	}
+
+	consoleLogging, err := h.evaluateFFUseCase.EvaluateBoolean(ctx, "frontend_console_logging", "default", true)
+	if err != nil {
+		consoleLogging = true
+	}
+
 	endpoints := []*pb.StreamEndpoint{
 		{
 			Type:            "websocket",
 			Endpoint:        streamConfig.WebsocketEndpoint,
 			TransportFormat: streamConfig.TransportFormat,
+			LogLevel:        logLevel,
+			ConsoleLogging:  consoleLogging,
 		},
 	}
 
 	span.SetAttributes(
 		attribute.String("config.endpoint", streamConfig.WebsocketEndpoint),
 		attribute.String("config.transport_format", streamConfig.TransportFormat),
+		attribute.String("config.log_level", logLevel),
+		attribute.Bool("config.console_logging", consoleLogging),
 		attribute.Int("config.endpoint_count", len(endpoints)),
 	)
 
@@ -96,6 +113,20 @@ func (h *ConfigHandler) SyncFeatureFlags(
 		{
 			Key:          "observability_enabled",
 			Name:         "Observability Enabled",
+			Type:         domain.BooleanFlagType,
+			Enabled:      true,
+			DefaultValue: true,
+		},
+		{
+			Key:          "frontend_log_level",
+			Name:         "Frontend Log Level",
+			Type:         domain.VariantFlagType,
+			Enabled:      true,
+			DefaultValue: "INFO",
+		},
+		{
+			Key:          "frontend_console_logging",
+			Name:         "Frontend Console Logging",
 			Type:         domain.BooleanFlagType,
 			Enabled:      true,
 			DefaultValue: true,

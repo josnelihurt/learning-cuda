@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { InputSource } from '../gen/config_service_pb';
 import { telemetryService } from '../services/telemetry-service';
+import { logger } from '../services/otel-logger';
 import './image-upload';
 import './video-upload';
 import './video-selector';
@@ -273,7 +274,10 @@ export class SourceDrawer extends LitElement {
     }
 
     open(sources: InputSource[], selectedIds: Set<string>): void {
-        console.log('Drawer opened:', { available: sources.length, selected: selectedIds.size });
+        logger.debug('Drawer opened', {
+            'sources.available': sources.length,
+            'sources.selected': selectedIds.size,
+        });
         
         this.availableSources = sources;
         this.selectedSourceIds = selectedIds;
@@ -285,7 +289,10 @@ export class SourceDrawer extends LitElement {
     }
 
     private selectSource(source: InputSource): void {
-        console.log('Source selected:', source.id, source.type);
+        logger.debug('Source selected', {
+            'source.id': source.id,
+            'source.type': source.type,
+        });
 
         this.dispatchEvent(new CustomEvent('source-selected', {
             bubbles: true,
@@ -300,7 +307,9 @@ export class SourceDrawer extends LitElement {
         const span = telemetryService.createSpan('SourceDrawer.handleImageUploaded');
         const { image } = event.detail;
 
-        console.log('Image uploaded in drawer:', image.id);
+        logger.info('Image uploaded in drawer', {
+            'image.id': image.id,
+        });
         span?.setAttribute('image.id', image.id);
 
         this.dispatchEvent(new CustomEvent('image-uploaded', {
@@ -316,7 +325,9 @@ export class SourceDrawer extends LitElement {
         const span = telemetryService.createSpan('SourceDrawer.handleVideoUploaded');
         const { video } = event.detail;
 
-        console.log('Video uploaded in drawer:', video.id);
+        logger.info('Video uploaded in drawer', {
+            'video.id': video.id,
+        });
         span?.setAttribute('video.id', video.id);
 
         this.dispatchEvent(new CustomEvent('video-uploaded', {
@@ -332,7 +343,9 @@ export class SourceDrawer extends LitElement {
         const span = telemetryService.createSpan('SourceDrawer.handleVideoSelected');
         const { video } = event.detail;
 
-        console.log('Video selected in drawer:', video.id);
+        logger.debug('Video selected in drawer', {
+            'video.id': video.id,
+        });
         span?.setAttribute('video.id', video.id);
 
         const videoSource: InputSource = {

@@ -25,6 +25,7 @@ type App struct {
 	getStreamConfigUC     *application.GetStreamConfigUseCase
 	syncFlagsUC           *application.SyncFeatureFlagsUseCase
 	listInputsUC          *application.ListInputsUseCase
+	evaluateFFUC          *application.EvaluateFeatureFlagUseCase
 	listAvailableImagesUC *application.ListAvailableImagesUseCase
 	uploadImageUC         *application.UploadImageUseCase
 	listVideosUC          *application.ListVideosUseCase
@@ -77,6 +78,12 @@ func WithSyncFlagsUseCase(uc *application.SyncFeatureFlagsUseCase) Option {
 func WithListInputsUseCase(uc *application.ListInputsUseCase) Option {
 	return func(a *App) {
 		a.listInputsUC = uc
+	}
+}
+
+func WithEvaluateFFUseCase(uc *application.EvaluateFeatureFlagUseCase) Option {
+	return func(a *App) {
+		a.evaluateFFUC = uc
 	}
 }
 
@@ -158,6 +165,13 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 	)
 	mux.Handle("/api/traces", traceProxy)
 	log.Info().Msg("Trace proxy endpoint registered at /api/traces")
+
+	logsProxy := httphandlers.NewLogsProxyHandler(
+		a.config.Observability.OtelCollectorEndpoint,
+		true,
+	)
+	mux.Handle("/api/logs", logsProxy)
+	log.Info().Msg("Logs proxy endpoint registered at /api/logs")
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
@@ -165,8 +179,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
 		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 	}
-	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil {
-		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC,
+	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil && a.evaluateFFUC != nil {
+		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.evaluateFFUC,
 			a.registry, a.currentLoader, a.loaderMutex, a.config, a.interceptors...)
 	} else {
 		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")

@@ -44,9 +44,12 @@
   },
   "dependencies": {
     "@opentelemetry/api": "1.9.0",
+    "@opentelemetry/api-logs": "^0.206.0",
     "@opentelemetry/core": "1.28.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.206.0",
     "@opentelemetry/exporter-trace-otlp-http": "0.55.0",
     "@opentelemetry/resources": "1.28.0",
+    "@opentelemetry/sdk-logs": "^0.206.0",
     "@opentelemetry/sdk-trace-base": "1.28.0",
     "@opentelemetry/sdk-trace-web": "1.28.0",
     "lit": "^3.1.0"

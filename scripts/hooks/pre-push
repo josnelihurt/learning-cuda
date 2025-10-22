@@ -37,6 +37,10 @@ if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1 && \
    curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
     echo "Services already running, using existing instances"
     SERVICES_RUNNING=true
+    
+    # Wait for Flipt to be fully stable (even if already running)
+    echo "Verifying Flipt is stable..."
+    sleep 3
 else
     echo "Services not running, starting them..."
     SERVICES_STARTED=true

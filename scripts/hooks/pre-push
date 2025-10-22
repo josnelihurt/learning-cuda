@@ -12,7 +12,7 @@ cleanup() {
     if [ "$CLEANUP_NEEDED" = true ]; then
         echo ""
         echo "Cleaning up services..."
-        "$PROJECT_ROOT/scripts/kill-services.sh" 2>/dev/null || true
+        "$PROJECT_ROOT/scripts/dev/stop.sh" 2>/dev/null || true
         
         if [ "$SERVICES_STARTED" = true ]; then
             echo "Stopping Docker services..."

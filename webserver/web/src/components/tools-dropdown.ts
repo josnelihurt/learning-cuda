@@ -1,3 +1,4 @@
+// emoji-allowed
 import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import type { ToolCategory } from '../gen/config_service_pb';
@@ -136,8 +137,10 @@ export class ToolsDropdown extends LitElement {
   }
 
   private handleToolClick(tool: any) {
-    if (tool.type === 'url' && tool.url) {
-      window.open(tool.url, '_blank');
+    if (tool.type === 'url' && (tool.url_dev || tool.url_prod || tool.url)) {
+      // Determine which URL to use based on environment
+      const url = tool.url || (window.location.hostname === 'localhost' ? tool.url_dev : tool.url_prod);
+      window.open(url, '_blank');
     } else if (tool.type === 'action') {
       this.executeAction(tool.action);
     }

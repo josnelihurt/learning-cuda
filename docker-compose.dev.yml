@@ -48,6 +48,7 @@ services:
     image: flipt/flipt:latest
     container_name: flipt-dev
     restart: unless-stopped
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     
     ports:
       - "8081:8080"

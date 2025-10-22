@@ -48,6 +48,9 @@ else
     echo "Skipping Frontend tests and linting (no changes detected)"
 fi
 
+echo ""
+"$SCRIPT_DIR/pre-commit-lint-language.sh" || exit 1
+
 cd "$PROJECT_ROOT"
 echo ""
 echo "Pre-commit validations passed"

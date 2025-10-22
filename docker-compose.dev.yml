@@ -294,6 +294,18 @@ services:
     profiles:
       - lint
 
+  lint-language:
+    build:
+      context: .
+      dockerfile: scripts/linters/language.dockerfile
+    container_name: lint-language
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - ./.git:/workspace/.git:ro
+    profiles:
+      - lint
+
 volumes:
   go-cache:
   go-mod-cache:

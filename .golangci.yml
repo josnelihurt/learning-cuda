@@ -25,6 +25,20 @@ linters:
     - nilerr
     - nolintlint
     - stylecheck
+    - dupl
+    - godox
+    - prealloc
+    - bodyclose
+    - asasalint
+    - contextcheck
+    - errorlint
+    - exhaustive
+    - makezero
+    - nilnil
+    - predeclared
+    - reassign
+    - usestdlibvars
+    - wastedassign
 
 linters-settings:
   errcheck:
@@ -75,6 +89,28 @@ linters-settings:
   
   stylecheck:
     checks: ["all", "-ST1000"]
+  
+  dupl:
+    threshold: 150
+  
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+      - experimental
+      - opinionated
+    disabled-checks:
+      - commentedOutCode
+      - whyNoLint
+  
+  godox:
+    keywords:
+      - TODO
+      - FIXME
+      - BUG
+      - HACK
+      - XXX
 
 issues:
   exclude-rules:

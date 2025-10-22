@@ -14,37 +14,21 @@ Built with Go web server that loads C++ accelerator libraries via dlopen. Filter
 
 ### Development Mode
 
-**Prerequisites:** SSL certificates for HTTPS (required for webcam access):
-
-```bash
-# Install mkcert (first time only)
-wget -O /tmp/mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64
-chmod +x /tmp/mkcert
-sudo mv /tmp/mkcert /usr/local/bin/
-mkcert -install
-
-# Generate certificates
-mkdir -p .secrets
-cd .secrets
-mkcert localhost 127.0.0.1 ::1
-cd ..
-```
-
 **Start Development Server:**
 
 ```bash
 # First time or after C++/Go changes
-./scripts/start-dev.sh --build
+./scripts/dev/start.sh --build
 
 # Subsequent runs (hot reload enabled for frontend)
-./scripts/start-dev.sh
+./scripts/dev/start.sh
 ```
 
 **Access the application:**
 - **HTTPS (recommended):** https://localhost:8443
 - **HTTP:** http://localhost:8080
 
-The development server provides both HTTP and HTTPS endpoints for flexibility during local development.
+The development server provides both HTTP and HTTPS endpoints. SSL certificates are generated automatically using Docker.
 
 ### Docker Deployment
 
@@ -52,7 +36,7 @@ Production-ready deployment with GPU acceleration using Docker Compose and Traef
 
 ```bash
 # Validate environment (checks SSL certs, Docker, NVIDIA Container Toolkit, GPU)
-./scripts/validate-docker-env.sh
+./scripts/docker/validate-env.sh
 
 # Build and run
 docker compose up --build
@@ -87,7 +71,7 @@ docker compose down
 Install validation hooks:
 
 ```bash
-./scripts/setup-hooks.sh
+./scripts/hooks/install.sh
 ```
 
 Hooks:
@@ -119,9 +103,9 @@ Can switch between them in the UI. Honestly can't tell much difference except Av
 ## Commands
 
 ```bash
-./scripts/start-dev.sh --build  # start dev environment (first time)
-./scripts/start-dev.sh          # start dev environment
-./scripts/kill-services.sh      # kill all processes
+./scripts/dev/start.sh --build  # start dev environment (first time)
+./scripts/dev/start.sh          # start dev environment
+./scripts/dev/stop.sh           # kill all processes
 ```
 
 Frontend hot reloads with Vite. For C++/Go you gotta rebuild.
@@ -151,13 +135,13 @@ Comprehensive testing and quality assurance across all layers:
 
 ```bash
 # Run all coverage tests (Frontend, Golang, C++)
-./scripts/run-coverage.sh
+./scripts/test/coverage.sh
 
 # Run all linters (ESLint, golangci-lint, clang-tidy)
-./scripts/run-linters.sh
+./scripts/test/linters.sh
 
 # Auto-fix linting issues
-./scripts/run-linters.sh --fix
+./scripts/test/linters.sh --fix
 
 # View coverage reports
 docker-compose -f docker-compose.dev.yml --profile coverage up coverage-report-viewer
@@ -183,7 +167,7 @@ webserver/
   cmd/server/          - main.go
   web/                 - static files
 
-scripts/               - bash stuff
+scripts/               - organized scripts (dev/, test/, docker/, tools/, hooks/)
 ```
 
 ## How it works

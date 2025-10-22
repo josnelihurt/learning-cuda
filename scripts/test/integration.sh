@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
@@ -30,18 +30,18 @@ mkdir -p webserver/web/.ignore/test-results
 mkdir -p webserver/web/.ignore/playwright-report
 
 echo "Note: Tests require local services running (Flipt + App)"
-echo "Make sure you've run: ./scripts/start-dev.sh"
+echo "Make sure you've run: ./scripts/dev/start.sh"
 echo ""
 
 if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
     echo "ERROR: Flipt is not accessible at http://localhost:8081"
-    echo "Please start services with: ./scripts/start-dev.sh"
+    echo "Please start services with: ./scripts/dev/start.sh"
     exit 1
 fi
 
 if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
     echo "ERROR: Service is not accessible at https://localhost:8443"
-    echo "Please start services with: ./scripts/start-dev.sh"
+    echo "Please start services with: ./scripts/dev/start.sh"
     exit 1
 fi
 

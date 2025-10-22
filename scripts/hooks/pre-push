@@ -64,8 +64,7 @@ else
     
     echo "Building C++ libraries..."
     if [ ! -f "proto/gen/image_processor_service.pb.go" ]; then
-        echo "Generating proto files..."
-        docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate 2>/dev/null || true
+        "$PROJECT_ROOT/scripts/build/protos.sh"
     fi
     
     echo "Building CUDA library (required for BDD tests)..."
@@ -141,7 +140,7 @@ fi
 
 echo ""
 echo "BDD Integration Tests..."
-"$PROJECT_ROOT/scripts/run-docker-tests.sh" backend || {
+"$PROJECT_ROOT/scripts/test/integration.sh" backend || {
     echo "FAILED: BDD tests"
     exit 1
 }
@@ -152,7 +151,7 @@ export PLAYWRIGHT_SCREENSHOTS=false
 export PLAYWRIGHT_VIDEO=false
 export PLAYWRIGHT_TRACE=false
 
-"$PROJECT_ROOT/scripts/run-e2e-tests.sh" --chromium || {
+"$PROJECT_ROOT/scripts/test/e2e.sh" --chromium || {
     echo "FAILED: E2E tests"
     echo ""
     echo "Test evidence saved:"

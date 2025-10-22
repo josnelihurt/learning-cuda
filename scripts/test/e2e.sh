@@ -2,9 +2,26 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
+
+echo "Validating test prerequisites..."
+REQUIRED_VIDEO="$PROJECT_ROOT/data/test-data/videos/e2e-test.mp4"
+if [ ! -f "$REQUIRED_VIDEO" ]; then
+    echo "ERROR: Test video not found: $REQUIRED_VIDEO"
+    echo "Generate it with: ./scripts/tools/generate-video.sh"
+    exit 1
+fi
+
+FRAMES_DIR="$PROJECT_ROOT/data/test-data/video-frames/e2e-test"
+if [ ! -d "$FRAMES_DIR" ] || [ -z "$(ls -A $FRAMES_DIR 2>/dev/null)" ]; then
+    echo "WARNING: Video frames not found, extracting..."
+    ./scripts/tools/extract-frames.sh
+fi
+
+echo "Prerequisites validated"
+echo ""
 
 BROWSER=""
 PLAYWRIGHT_OPTS=""
@@ -44,7 +61,7 @@ for arg in "$@"; do
 done
 
 if [ "$SHOW_HELP" = true ]; then
-    echo "Usage: ./scripts/run-e2e-tests.sh [OPTIONS]"
+    echo "Usage: ./scripts/test/e2e.sh [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --chromium, -c      Run tests only in Chromium"

@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 SOURCE_VIDEO="$PROJECT_ROOT/data/videos/sample.mp4"
 OUTPUT_VIDEO="$PROJECT_ROOT/data/test-data/videos/e2e-test.mp4"

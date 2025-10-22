@@ -4,37 +4,23 @@ This directory contains SSL certificates and other sensitive files.
 
 ## Setup SSL Certificates
 
-### Option 1: Using mkcert (Recommended for local development)
+### Automatic Generation (Recommended)
+
+SSL certificates are generated automatically when you run:
 
 ```bash
-# Install mkcert (if not already installed)
-# Ubuntu/Debian:
-sudo apt install libnss3-tools
-wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64
-chmod +x mkcert
-sudo mv mkcert /usr/local/bin/
-
-# Install local CA
-mkcert -install
-
-# Generate certificates in this directory
-cd .secrets
-mkcert localhost 127.0.0.1 ::1
-
-# This creates:
-# - localhost+2.pem (certificate)
-# - localhost+2-key.pem (private key)
+./scripts/dev/start.sh
 ```
 
-### Option 2: Using OpenSSL (Self-signed)
+The script will detect missing certificates and generate them using Docker (no local tools needed).
+
+### Manual Generation
 
 ```bash
-cd .secrets
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout localhost-key.pem \
-  -out localhost.pem \
-  -subj "/C=US/ST=State/L=City/O=Dev/CN=localhost"
+./scripts/docker/generate-certs.sh
 ```
+
+This uses Docker with Alpine + OpenSSL to generate self-signed certificates.
 
 ## File Structure
 

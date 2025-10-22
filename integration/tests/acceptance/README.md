@@ -35,7 +35,7 @@ Ensure the following services are running:
 The easiest way to start all required services is:
 
 ```bash
-./scripts/start-dev.sh
+./scripts/dev/start.sh
 ```
 
 ## Running Tests
@@ -332,7 +332,7 @@ steps.InitializeInputSourceSteps(ctx, testCtx)
 Error: service is not running at https://localhost:8443
 ```
 
-**Solution:** Start the service with `./scripts/start-dev.sh`
+**Solution:** Start the service with `./scripts/dev/start.sh`
 
 ### Flipt not accessible
 
@@ -386,7 +386,7 @@ Before running image processing tests, generate checksums:
 
 ```bash
 # Start the service first
-./scripts/start-dev.sh
+./scripts/dev/start.sh
 
 # In another terminal, generate checksums
 cd integration/tests/acceptance/scripts

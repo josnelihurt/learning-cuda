@@ -1,4 +1,3 @@
 ```bash
-./scripts/start-dev.sh --build         # Dev (hot reload)
-./scripts/start-dev.sh --build --prod  # Production bundle
+./scripts/dev/start.sh --build  # Dev (hot reload)
 ```

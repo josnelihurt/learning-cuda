@@ -3,7 +3,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 FIX_MODE=false
 if [ "$1" = "--fix" ]; then
@@ -20,7 +20,7 @@ FRONTEND_ERRORS=0
 GOLANG_ERRORS=0
 CPP_ERRORS=0
 
-echo "🔍 [1/3] Running Frontend Linter (ESLint)..."
+echo "[1/3] Running Frontend Linter (ESLint)..."
 echo "============================================="
 cd "$PROJECT_ROOT/webserver/web"
 if [ -d "node_modules" ]; then
@@ -32,16 +32,16 @@ if [ -d "node_modules" ]; then
         npm run format:check || true
     fi
     if [ $FRONTEND_ERRORS -eq 0 ]; then
-        echo "✅ Frontend linting passed"
+            echo "OK: Frontend linting passed"
     else
-        echo "❌ Frontend linting found issues"
+            echo "FAILED: Frontend linting found issues"
     fi
 else
-    echo "⚠️  Skipping frontend - dependencies not installed (run: cd webserver/web && npm install)"
+        echo "WARNING: Skipping frontend - dependencies not installed (run: cd webserver/web && npm install)"
 fi
 echo ""
 
-echo "🔍 [2/3] Running Golang Linter (golangci-lint)..."
+echo "[2/3] Running Golang Linter (golangci-lint)..."
 echo "=================================================="
 cd "$PROJECT_ROOT"
 if command -v golangci-lint &> /dev/null; then
@@ -52,18 +52,18 @@ if command -v golangci-lint &> /dev/null; then
         golangci-lint run ./... || GOLANG_ERRORS=$?
     fi
     if [ $GOLANG_ERRORS -eq 0 ]; then
-        echo "✅ Golang linting passed"
+            echo "OK: Golang linting passed"
     else
-        echo "❌ Golang linting found issues"
+            echo "FAILED: Golang linting found issues"
     fi
 else
-    echo "⚠️  golangci-lint not installed"
+        echo "WARNING: golangci-lint not installed"
     echo "   Install: https://golangci-lint.run/usage/install/"
     echo "   Or use Docker: docker-compose -f docker-compose.dev.yml --profile lint up lint-golang"
 fi
 echo ""
 
-echo "🔍 [3/3] Running C++ Linter (clang-tidy)..."
+echo "[3/3] Running C++ Linter (clang-tidy)..."
 echo "==========================================="
 cd "$PROJECT_ROOT"
 if command -v clang-tidy &> /dev/null; then
@@ -79,15 +79,15 @@ if command -v clang-tidy &> /dev/null; then
         fi
         
         if [ $CPP_ERRORS -eq 0 ]; then
-            echo "✅ C++ linting passed"
+                echo "OK: C++ linting passed"
         else
-            echo "❌ C++ linting found issues"
+                echo "FAILED: C++ linting found issues"
         fi
     else
-        echo "⚠️  No C++ files found"
+            echo "WARNING: No C++ files found"
     fi
 else
-    echo "⚠️  clang-tidy not installed"
+        echo "WARNING: clang-tidy not installed"
     echo "   Install: sudo apt-get install clang-tidy clang-format"
     echo "   Or use Docker: docker-compose -f docker-compose.dev.yml --profile lint up lint-cpp"
 fi
@@ -101,10 +101,10 @@ echo ""
 TOTAL_ERRORS=$((FRONTEND_ERRORS + GOLANG_ERRORS + CPP_ERRORS))
 
 if [ $TOTAL_ERRORS -eq 0 ]; then
-    echo "✅ All linters passed!"
+        echo "OK: All linters passed!"
     exit 0
 else
-    echo "❌ Some linters found issues"
+        echo "FAILED: Some linters found issues"
     echo "   Frontend errors: $FRONTEND_ERRORS"
     echo "   Golang errors: $GOLANG_ERRORS"
     echo "   C++ errors: $CPP_ERRORS"

@@ -70,9 +70,9 @@ func ensureFramesExist(framesDir string) ([]string, error) {
 	}
 
 	fmt.Println("No frame files found, extracting frames from video...")
-	fmt.Println("Running: ./scripts/extract-video-frames.sh")
+	fmt.Println("Running: ./scripts/tools/extract-frames.sh")
 
-	cmd := exec.Command("./scripts/extract-video-frames.sh")
+	cmd := exec.Command("./scripts/tools/extract-frames.sh")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -164,7 +164,7 @@ func main() {
 	files, err := ensureFramesExist(framesDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		fmt.Fprintf(os.Stderr, "Please run ./scripts/extract-video-frames.sh manually\n")
+		fmt.Fprintf(os.Stderr, "Please run ./scripts/tools/extract-frames.sh manually\n")
 		os.Exit(1)
 	}
 

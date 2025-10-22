@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 SOURCE_VIDEO="$PROJECT_ROOT/data/test-data/videos/e2e-test.mp4"
 OUTPUT_DIR="$PROJECT_ROOT/data/test-data/video-frames/e2e-test"
@@ -13,7 +13,7 @@ echo "Output: $OUTPUT_DIR"
 
 if [ ! -f "$SOURCE_VIDEO" ]; then
     echo "Error: Source video not found at $SOURCE_VIDEO"
-    echo "Please run ./scripts/generate-test-video.sh first"
+    echo "Please run ./scripts/tools/generate-video.sh first"
     exit 1
 fi
 

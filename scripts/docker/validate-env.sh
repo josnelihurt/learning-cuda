@@ -3,7 +3,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 echo "Validating Docker environment..."
 echo ""
@@ -13,7 +13,7 @@ ERRORS=0
 echo "[1/5] Checking SSL certificates..."
 if [ ! -f "$PROJECT_ROOT/.secrets/localhost+2.pem" ]; then
     echo "  ERROR: SSL certificate not found"
-    echo "  Run: ./scripts/setup-ssl.sh"
+    echo "  Run: ./scripts/docker/generate-certs.sh"
     ERRORS=$((ERRORS + 1))
 else
     echo "  OK: Certificate found"
@@ -21,7 +21,7 @@ fi
 
 if [ ! -f "$PROJECT_ROOT/.secrets/localhost+2-key.pem" ]; then
     echo "  ERROR: SSL key not found"
-    echo "  Run: ./scripts/setup-ssl.sh"
+    echo "  Run: ./scripts/docker/generate-certs.sh"
     ERRORS=$((ERRORS + 1))
 else
     echo "  OK: Certificate key found"

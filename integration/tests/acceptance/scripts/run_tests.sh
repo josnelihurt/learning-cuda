@@ -8,7 +8,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
 
 curl -k -s https://localhost:8443/health > /dev/null 2>&1 || {
-    echo "Service not running. Start with: ./scripts/start-dev.sh"
+    echo "Service not running. Start with: ./scripts/dev/start.sh"
     exit 1
 }
 

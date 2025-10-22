@@ -2,21 +2,17 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
 BUILD_FIRST=false
-USE_MOCK=false
 SHOW_HELP=false
 
 for arg in "$@"; do
     case "$arg" in
         --build|-b)
             BUILD_FIRST=true
-            ;;
-        --mock|-m)
-            USE_MOCK=true
             ;;
         --help|-h)
             SHOW_HELP=true
@@ -25,31 +21,25 @@ for arg in "$@"; do
 done
 
 if [ "$SHOW_HELP" = true ]; then
-    echo "Usage: ./scripts/start-dev.sh [OPTIONS]"
+    echo "Usage: ./scripts/dev/start.sh [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --build, -b    Build C++ libraries and Go backend before starting"
-    echo "  --mock, -m     Use mock processor library (default: real CUDA library)"
     echo "  --help, -h     Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/start-dev.sh                # Start with real CUDA library"
-    echo "  ./scripts/start-dev.sh --build        # Build + start with real CUDA"
-    echo "  ./scripts/start-dev.sh --mock         # Start with mock (no CUDA)"
-    echo "  ./scripts/start-dev.sh --build --mock # Build + start with mock"
+    echo "  ./scripts/dev/start.sh         # Start development server"
+    echo "  ./scripts/dev/start.sh --build # Build + start development server"
     echo ""
-    echo "Default processor library: 2.0.0 (real CUDA)"
-    echo "With --mock: mock (passthrough, fast development)"
+    echo "Default processor library: 2.0.0 (CUDA)"
     exit 0
 fi
 
-[ ! -f ".secrets/localhost+2.pem" ] && {
-    echo "Error: SSL certificates not found."
-    echo "Generate certificates with:"
-    echo "  mkdir -p .secrets && cd .secrets"
-    echo "  mkcert localhost 127.0.0.1 ::1"
-    exit 1
-}
+if [ ! -f ".secrets/localhost+2.pem" ]; then
+    echo "SSL certificates not found, generating with Docker..."
+    ./scripts/docker/generate-certs.sh
+    echo ""
+fi
 
 echo "Checking services (Jaeger + OTel Collector + Flipt)..."
 if ! docker ps --format '{{.Names}}' | grep -q 'jaeger-dev'; then
@@ -96,13 +86,12 @@ else
 fi
 
 echo "Stopping previous application services..."
-./scripts/kill-services.sh 2>/dev/null || true
+./scripts/dev/stop.sh 2>/dev/null || true
 
 [ "$BUILD_FIRST" = true ] && {
     echo "Checking proto files..."
     if [ ! -f "proto/gen/image_processor_service.pb.go" ]; then
-        echo "Generating proto files..."
-        docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
+        ./scripts/build/protos.sh
     fi
     
     echo "Building C++ processor libraries..."
@@ -163,14 +152,8 @@ echo "Starting Go server..."
     cd webserver && make build && cd ..
 }
 
-if [ "$USE_MOCK" = true ]; then
-    echo "Using MOCK processor library (fast, no CUDA)"
-    export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=mock
-    ./bin/server -webroot=webserver/web > /tmp/goserver.log 2>&1 &
-else
-    echo "Using REAL CUDA processor library (version 2.0.0)"
-    ./bin/server -webroot=webserver/web > /tmp/goserver.log 2>&1 &
-fi
+echo "Using CUDA processor library (version 2.0.0)"
+./bin/server -webroot=webserver/web > /tmp/goserver.log 2>&1 &
 GO_PID=$!
 
 sleep 2
@@ -181,26 +164,21 @@ sleep 2
     exit 1
 }
 
-echo ""
+echo "================================================"
 echo "Development server running:"
 echo "  HTTPS:  https://localhost:8443"
-echo "  HTTP:   http://localhost:8080"
 echo "  Jaeger: http://localhost:16686"
 echo "  Flipt:  http://localhost:8081"
-echo ""
+echo "================================================"
 echo "Dev mode - hot reload enabled"
 echo "Observability & Feature Flags enabled"
-if [ "$USE_MOCK" = true ]; then
-    echo "Processor: MOCK (passthrough, no CUDA)"
-else
-    echo "Processor: REAL CUDA (version 2.0.0)"
-fi
+echo "Processor: CUDA (version 2.0.0)"
 echo ""
 echo "Services running in background"
 echo "  Vite PID: $VITE_PID"
 echo "  Go Server PID: $GO_PID"
 echo ""
-echo "To stop services, run: ./scripts/kill-services.sh"
+echo "To stop services, run: ./scripts/dev/stop.sh"
 echo "To view logs:"
 echo "  Vite:      tail -f /tmp/vite.log"
 echo "  Go Server: docker logs -f \$(docker ps -q --filter ancestor=cuda-learning)"

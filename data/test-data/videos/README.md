@@ -40,7 +40,7 @@ go run cmd/generate-video-metadata/main.go
 
 This command will:
 1. Check if frames exist in `data/test-data/video-frames/e2e-test/`
-2. If not found, automatically run `./scripts/extract-video-frames.sh`
+2. If not found, automatically run `./scripts/tools/extract-frames.sh`
 3. Extract 200 frames as PNGs (~62MB total)
 4. Generate metadata file with SHA256 hashes
 
@@ -49,7 +49,7 @@ This command will:
 You can also extract frames manually:
 
 ```bash
-./scripts/extract-video-frames.sh
+./scripts/tools/extract-frames.sh
 ```
 
 The script will:
@@ -61,7 +61,7 @@ To force regeneration, delete the frames directory:
 
 ```bash
 rm -rf data/test-data/video-frames/e2e-test
-./scripts/extract-video-frames.sh
+./scripts/tools/extract-frames.sh
 ```
 
 ## Regenerating Test Video
@@ -69,7 +69,7 @@ rm -rf data/test-data/video-frames/e2e-test
 If you need to regenerate the test video:
 
 ```bash
-./scripts/generate-test-video.sh
+./scripts/tools/generate-video.sh
 ```
 
 This will:

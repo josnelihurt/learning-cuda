@@ -14,7 +14,7 @@ Built with Go web server that loads C++ accelerator libraries via dlopen. Filter
 
 ### Development Mode
 
-First, generate SSL certificates for HTTPS (required for webcam access):
+**Prerequisites:** SSL certificates for HTTPS (required for webcam access):
 
 ```bash
 # Install mkcert (first time only)
@@ -30,31 +30,25 @@ mkcert localhost 127.0.0.1 ::1
 cd ..
 ```
 
-Start the server:
+**Start Development Server:**
 
 ```bash
-# Option 1: Using the dev script (recommended)
-./scripts/start-dev.sh --build  # First time or after changes
-./scripts/start-dev.sh          # Subsequent runs
+# First time or after C++/Go changes
+./scripts/start-dev.sh --build
 
-# Option 2: Manual start
-bazel run //webserver/cmd/server:server
-
-# Option 3: With Vite hot reload (manual)
-cd webserver/web
-npm install
-npm run dev &
-cd ../..
-bazel run //webserver/cmd/server:server
+# Subsequent runs (hot reload enabled for frontend)
+./scripts/start-dev.sh
 ```
 
-Access the application:
+**Access the application:**
 - **HTTPS (recommended):** https://localhost:8443
 - **HTTP:** http://localhost:8080
 
+The development server provides both HTTP and HTTPS endpoints for flexibility during local development.
+
 ### Docker Deployment
 
-Production deployment with GPU acceleration using Docker Compose and Traefik:
+Production-ready deployment with GPU acceleration using Docker Compose and Traefik reverse proxy:
 
 ```bash
 # Validate environment (checks SSL certs, Docker, NVIDIA Container Toolkit, GPU)
@@ -73,19 +67,19 @@ docker compose logs -f app
 docker compose down
 ```
 
-Access the application:
-- **Application**: https://localhost
+**Access the application:**
+- **Application**: https://localhost (HTTP auto-redirects to HTTPS)
 - **Traefik Dashboard**: http://localhost:8081
 
-Requirements:
+**Requirements:**
 - Docker with NVIDIA Container Toolkit installed
 - NVIDIA GPU with drivers
 - SSL certificates in `.secrets/` directory (see Development Mode setup above)
 
-The Docker setup uses:
+**The Docker setup uses:**
 - Multi-stage build (frontend → backend → runtime)
 - NVIDIA CUDA 12.5 runtime
-- Traefik for HTTPS termination
+- **Traefik** for HTTPS termination and HTTP → HTTPS redirect
 - Full GPU passthrough to container
 
 ## Git Hooks

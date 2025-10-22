@@ -183,8 +183,8 @@ sleep 2
 
 echo ""
 echo "Development server running:"
-echo "  HTTP:   http://localhost:8080"
 echo "  HTTPS:  https://localhost:8443"
+echo "  HTTP:   http://localhost:8080"
 echo "  Jaeger: http://localhost:16686"
 echo "  Flipt:  http://localhost:8081"
 echo ""

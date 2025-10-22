@@ -170,5 +170,16 @@ if [ "$SERVICES_RUNNING" = false ]; then
 fi
 
 echo ""
+echo "Starting test report viewers..."
+cd "$PROJECT_ROOT"
+docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report 2>/dev/null || true
+
+echo ""
 echo "Pre-push validations passed"
+echo ""
+echo "Test reports available at:"
+echo "  BDD Reports:  http://localhost:5050"
+echo "  E2E Reports:  http://localhost:5051"
+echo ""
+echo "To stop report servers: docker compose -f docker-compose.dev.yml --profile testing down"
 

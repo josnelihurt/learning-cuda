@@ -64,6 +64,8 @@ if ! docker ps --format '{{.Names}}' | grep -q 'jaeger-dev'; then
     timeout=30
     while [ $timeout -gt 0 ]; do
         if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
+            echo "Flipt health check passed, waiting for full initialization..."
+            sleep 3
             echo "Flipt is ready!"
             break
         fi

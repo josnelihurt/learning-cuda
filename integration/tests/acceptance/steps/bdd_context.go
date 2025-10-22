@@ -26,6 +26,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var rootPath = "/"
+
 type BDDContext struct {
 	fliptAPI               *featureflags.FliptHTTPAPI
 	httpClient             *http.Client
@@ -108,7 +110,7 @@ func (c *BDDContext) GivenTheServiceIsRunning() error {
 	defer cancel()
 
 	url := fmt.Sprintf("%s/", c.serviceBaseURL)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -132,14 +134,15 @@ func (c *BDDContext) GivenConfigHasDefaultValues(format, endpoint string) error 
 	return nil
 }
 
-func (c *BDDContext) WhenICallGetStreamConfig() error {
+// callConnectRPCEndpoint is a generic helper for calling ConnectRPC endpoints
+func (c *BDDContext) callConnectRPCEndpoint(endpoint string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	url := fmt.Sprintf("%s/cuda_learning.ConfigService/GetStreamConfig", c.serviceBaseURL)
+	url := fmt.Sprintf("%s/%s", c.serviceBaseURL, endpoint)
 
 	reqBody := bytes.NewBufferString("{}")
-	req, err := http.NewRequestWithContext(ctx, "POST", url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, reqBody)
 	if err != nil {
 		return err
 	}
@@ -148,7 +151,7 @@ func (c *BDDContext) WhenICallGetStreamConfig() error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to call GetStreamConfig: %w", err)
+		return fmt.Errorf("failed to call %s: %w", endpoint, err)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -167,39 +170,12 @@ func (c *BDDContext) WhenICallGetStreamConfig() error {
 	return nil
 }
 
+func (c *BDDContext) WhenICallGetStreamConfig() error {
+	return c.callConnectRPCEndpoint("cuda_learning.ConfigService/GetStreamConfig")
+}
+
 func (c *BDDContext) WhenICallSyncFeatureFlags() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	url := fmt.Sprintf("%s/cuda_learning.ConfigService/SyncFeatureFlags", c.serviceBaseURL)
-
-	reqBody := bytes.NewBufferString("{}")
-	req, err := http.NewRequestWithContext(ctx, "POST", url, reqBody)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to call SyncFeatureFlags: %w", err)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	c.lastResponse = resp
-	c.lastResponseBody = body
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return c.callConnectRPCEndpoint("cuda_learning.ConfigService/SyncFeatureFlags")
 }
 
 func (c *BDDContext) WhenIWaitForFlagsToBeSynced() error {
@@ -213,7 +189,7 @@ func (c *BDDContext) WhenICallHealthEndpoint() error {
 
 	url := fmt.Sprintf("%s/health", c.serviceBaseURL)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -457,7 +433,7 @@ func (c *BDDContext) WhenICallProcessImageWith(filter, accelerator, grayscaleTyp
 		return nil
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.processedImage = resp.Msg.ImageData
 	c.lastError = nil
 
@@ -538,9 +514,12 @@ func (c *BDDContext) WhenIConnectToWebSocket(transportFormat string) error {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	conn, _, err := dialer.Dial(wsURL, nil)
+	conn, resp, err := dialer.Dial(wsURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to connect to websocket: %w", err)
+	}
+	if resp != nil {
+		defer resp.Body.Close()
 	}
 
 	c.wsConnection = conn
@@ -689,7 +668,7 @@ func (c *BDDContext) WhenISendInvalidWebSocketFrame(errorType string) error {
 
 func (c *BDDContext) ThenTheProcessingShouldSucceed() error {
 	if c.lastError != nil {
-		return fmt.Errorf("expected success but got error: %v", c.lastError)
+		return fmt.Errorf("expected success but got error: %w", c.lastError)
 	}
 	return nil
 }
@@ -754,7 +733,7 @@ func (c *BDDContext) ThenTheResponseShouldBeUnimplemented() error {
 	if !bytes.Contains([]byte(errorStr), []byte("unimplemented")) &&
 		!bytes.Contains([]byte(errorStr), []byte("Unimplemented")) &&
 		!bytes.Contains([]byte(errorStr), []byte("Not Supported")) {
-		return fmt.Errorf("expected Unimplemented error but got: %v", c.lastError)
+		return fmt.Errorf("expected Unimplemented error but got: %w", c.lastError)
 	}
 
 	return nil
@@ -835,11 +814,11 @@ func (c *BDDContext) WhenICallListInputs() error {
 	resp, err := c.configClient.ListInputs(ctx, connect.NewRequest(&pb.ListInputsRequest{}))
 	if err != nil {
 		c.lastError = err
-		c.lastResponse = &http.Response{StatusCode: 500}
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
 		return fmt.Errorf("failed to call ListInputs: %w", err)
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.lastError = nil
 	c.inputSources = resp.Msg.Sources
 
@@ -867,18 +846,20 @@ func (c *BDDContext) GetInputSourcesFromResponse() ([]*pb.InputSource, error) {
 	return c.inputSources, nil
 }
 
-func (c *BDDContext) WhenICallListAvailableImages() error {
+// WhenICallListAvailableImages calls the ListAvailableImages endpoint
+// language: english-only
+func (c *BDDContext) WhenICallListAvailableImages() error { //nolint:language
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	resp, err := c.fileClient.ListAvailableImages(ctx, connect.NewRequest(&pb.ListAvailableImagesRequest{}))
 	if err != nil {
 		c.lastError = err
-		c.lastResponse = &http.Response{StatusCode: 500}
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
 		return fmt.Errorf("failed to call ListAvailableImages: %w", err)
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.lastError = nil
 	c.availableImages = resp.Msg.Images
 
@@ -925,11 +906,11 @@ func (c *BDDContext) WhenICallGetProcessorStatus() error {
 	resp, err := c.configClient.GetProcessorStatus(ctx, connect.NewRequest(&pb.GetProcessorStatusRequest{}))
 	if err != nil {
 		c.lastError = err
-		c.lastResponse = &http.Response{StatusCode: 500}
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
 		return fmt.Errorf("failed to call GetProcessorStatus: %w", err)
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.lastError = nil
 	c.processorCapabilities = resp.Msg.Capabilities
 
@@ -1053,11 +1034,11 @@ func (c *BDDContext) WhenICallGetAvailableTools() error {
 	resp, err := c.configClient.GetAvailableTools(ctx, connect.NewRequest(&pb.GetAvailableToolsRequest{}))
 	if err != nil {
 		c.lastError = err
-		c.lastResponse = &http.Response{StatusCode: 500}
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
 		return fmt.Errorf("failed to call GetAvailableTools: %w", err)
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.lastError = nil
 	c.toolsResponse = resp.Msg
 
@@ -1232,11 +1213,11 @@ func (c *BDDContext) WhenIUploadValidPNGImage(filename string) error {
 	resp, err := c.fileClient.UploadImage(ctx, connect.NewRequest(req))
 	if err != nil {
 		c.lastError = err
-		c.lastResponse = &http.Response{StatusCode: 500}
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
 		return nil
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.lastError = nil
 	c.uploadedImage = resp.Msg.Image
 
@@ -1257,7 +1238,7 @@ func (c *BDDContext) WhenIUploadLargePNGImage() error {
 	_, err := c.fileClient.UploadImage(ctx, connect.NewRequest(req))
 	c.lastError = err
 	if err != nil {
-		c.lastResponse = &http.Response{StatusCode: 400}
+		c.lastResponse = &http.Response{StatusCode: http.StatusBadRequest}
 	}
 
 	return nil
@@ -1277,7 +1258,7 @@ func (c *BDDContext) WhenIUploadNonPNGFile(filename string) error {
 	_, err := c.fileClient.UploadImage(ctx, connect.NewRequest(req))
 	c.lastError = err
 	if err != nil {
-		c.lastResponse = &http.Response{StatusCode: 400}
+		c.lastResponse = &http.Response{StatusCode: http.StatusBadRequest}
 	}
 
 	return nil
@@ -1285,7 +1266,7 @@ func (c *BDDContext) WhenIUploadNonPNGFile(filename string) error {
 
 func (c *BDDContext) ThenTheUploadShouldSucceed() error {
 	if c.lastError != nil {
-		return fmt.Errorf("expected success but got error: %v", c.lastError)
+		return fmt.Errorf("expected success but got error: %w", c.lastError)
 	}
 	return nil
 }
@@ -1296,7 +1277,7 @@ func (c *BDDContext) ThenTheUploadShouldFailWithError(expectedError string) erro
 	}
 	errorStr := c.lastError.Error()
 	if !bytes.Contains([]byte(errorStr), []byte(expectedError)) {
-		return fmt.Errorf("expected error containing '%s', got: %v", expectedError, c.lastError)
+		return fmt.Errorf("expected error containing '%s', got: %w", expectedError, c.lastError)
 	}
 	return nil
 }
@@ -1393,11 +1374,11 @@ func (c *BDDContext) WhenICallListAvailableVideos() error {
 	resp, err := c.fileClient.ListAvailableVideos(ctx, connect.NewRequest(&pb.ListAvailableVideosRequest{}))
 	if err != nil {
 		c.lastError = err
-		c.lastResponse = &http.Response{StatusCode: 500}
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
 		return fmt.Errorf("failed to call ListAvailableVideos: %w", err)
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.lastError = nil
 	c.availableVideos = resp.Msg.Videos
 
@@ -1460,11 +1441,11 @@ func (c *BDDContext) WhenIUploadValidMP4Video(filename string) error {
 	resp, err := c.fileClient.UploadVideo(ctx, connect.NewRequest(req))
 	if err != nil {
 		c.lastError = err
-		c.lastResponse = &http.Response{StatusCode: 500}
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
 		return nil
 	}
 
-	c.lastResponse = &http.Response{StatusCode: 200}
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
 	c.lastError = nil
 	c.uploadedVideo = resp.Msg.Video
 
@@ -1485,7 +1466,7 @@ func (c *BDDContext) WhenIUploadLargeMP4Video() error {
 	_, err := c.fileClient.UploadVideo(ctx, connect.NewRequest(req))
 	c.lastError = err
 	if err != nil {
-		c.lastResponse = &http.Response{StatusCode: 400}
+		c.lastResponse = &http.Response{StatusCode: http.StatusBadRequest}
 	}
 
 	return nil
@@ -1505,7 +1486,7 @@ func (c *BDDContext) WhenIUploadNonMP4File(filename string) error {
 	_, err := c.fileClient.UploadVideo(ctx, connect.NewRequest(req))
 	c.lastError = err
 	if err != nil {
-		c.lastResponse = &http.Response{StatusCode: 400}
+		c.lastResponse = &http.Response{StatusCode: http.StatusBadRequest}
 	}
 
 	return nil
@@ -1543,9 +1524,9 @@ func (c *BDDContext) ThenThePreviewFileShouldExistOnFilesystem() error {
 	}
 
 	paths := []string{
-		filepath.Join("data/video_previews", c.uploadedVideo.Id+".png"),
-		filepath.Join("../../../data/video_previews", c.uploadedVideo.Id+".png"),
-		filepath.Join("/data/video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("data", "video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("..", "..", "..", "data", "video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join(rootPath, "data", "video_previews", c.uploadedVideo.Id+".png"),
 	}
 
 	for _, previewPath := range paths {
@@ -1563,9 +1544,9 @@ func (c *BDDContext) ThenThePreviewShouldBeAValidPNGImage() error {
 	}
 
 	paths := []string{
-		filepath.Join("data/video_previews", c.uploadedVideo.Id+".png"),
-		filepath.Join("../../../data/video_previews", c.uploadedVideo.Id+".png"),
-		filepath.Join("/data/video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("data", "video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join("..", "..", "..", "data", "video_previews", c.uploadedVideo.Id+".png"),
+		filepath.Join(rootPath, "data", "video_previews", c.uploadedVideo.Id+".png"),
 	}
 
 	var data []byte
@@ -1641,9 +1622,12 @@ func (c *BDDContext) connectVideoWebSocket() error {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	conn, _, err := dialer.Dial("wss://localhost:8443/ws", nil)
+	conn, resp, err := dialer.Dial("wss://localhost:8443/ws", nil)
 	if err != nil {
 		return fmt.Errorf("failed to connect WebSocket: %w", err)
+	}
+	if resp != nil {
+		defer resp.Body.Close()
 	}
 
 	c.wsConnection = conn
@@ -1888,17 +1872,18 @@ func (c *BDDContext) ThenFrameShouldHaveASHA256Hash(frameID int) error {
 
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
-		if strings.Contains(line, expectedLine) {
-			if !strings.Contains(line, "Hash: \"") {
-				return fmt.Errorf("frame %d has no hash", frameID)
-			}
-			hashStart := strings.Index(line, "Hash: \"") + 7
-			hashEnd := strings.Index(line[hashStart:], "\"")
-			if hashEnd < 64 {
-				return fmt.Errorf("frame %d hash is too short (expected SHA256 64 chars)", frameID)
-			}
-			return nil
+		if !strings.Contains(line, expectedLine) {
+			continue
 		}
+		if !strings.Contains(line, "Hash: \"") {
+			return fmt.Errorf("frame %d has no hash", frameID)
+		}
+		hashStart := strings.Index(line, "Hash: \"") + 7
+		hashEnd := strings.Index(line[hashStart:], "\"")
+		if hashEnd < 64 {
+			return fmt.Errorf("frame %d hash is too short (expected SHA256 64 chars)", frameID)
+		}
+		return nil
 	}
 
 	return fmt.Errorf("frame %d metadata validation failed", frameID)
@@ -1950,7 +1935,7 @@ func (c *BDDContext) WhenTheBackendReceivesOTLPLogsAt(endpoint string) error {
 	url := fmt.Sprintf("%s%s", c.serviceBaseURL, endpoint)
 	body := []byte(`{"resourceLogs":[]}`)
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -1963,7 +1948,7 @@ func (c *BDDContext) WhenTheBackendReceivesOTLPLogsAt(endpoint string) error {
 	defer resp.Body.Close()
 
 	c.lastResponse = resp
-	c.otlpLogsReceived = resp.StatusCode == 200
+	c.otlpLogsReceived = resp.StatusCode == http.StatusOK
 	return nil
 }
 
@@ -1978,7 +1963,7 @@ func (c *BDDContext) ThenTheResponseShouldReturnHTTP200() error {
 	if c.lastResponse == nil {
 		return fmt.Errorf("no HTTP response received")
 	}
-	if c.lastResponse.StatusCode != 200 {
+	if c.lastResponse.StatusCode != http.StatusOK {
 		return fmt.Errorf("expected HTTP 200, got %d", c.lastResponse.StatusCode)
 	}
 	return nil

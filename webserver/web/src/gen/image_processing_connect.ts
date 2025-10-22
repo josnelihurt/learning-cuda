@@ -3,20 +3,29 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetStreamConfigRequest, GetStreamConfigResponse, ListInputsRequest, ListInputsResponse, ProcessImageRequest, ProcessImageResponse, SyncFeatureFlagsRequest, SyncFeatureFlagsResponse } from "./image_processing_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import {
+  GetStreamConfigRequest,
+  GetStreamConfigResponse,
+  ListInputsRequest,
+  ListInputsResponse,
+  ProcessImageRequest,
+  ProcessImageResponse,
+  SyncFeatureFlagsRequest,
+  SyncFeatureFlagsResponse,
+} from './image_processing_pb.js';
+import { MethodKind } from '@bufbuild/protobuf';
 
 /**
  * @generated from service cuda_learning.ImageProcessorService
  */
 export const ImageProcessorService = {
-  typeName: "cuda_learning.ImageProcessorService",
+  typeName: 'cuda_learning.ImageProcessorService',
   methods: {
     /**
      * @generated from rpc cuda_learning.ImageProcessorService.ProcessImage
      */
     processImage: {
-      name: "ProcessImage",
+      name: 'ProcessImage',
       I: ProcessImageRequest,
       O: ProcessImageResponse,
       kind: MethodKind.Unary,
@@ -27,25 +36,25 @@ export const ImageProcessorService = {
      * @generated from rpc cuda_learning.ImageProcessorService.StreamProcessVideo
      */
     streamProcessVideo: {
-      name: "StreamProcessVideo",
+      name: 'StreamProcessVideo',
       I: ProcessImageRequest,
       O: ProcessImageResponse,
       kind: MethodKind.BiDiStreaming,
     },
-  }
+  },
 } as const;
 
 /**
  * @generated from service cuda_learning.ConfigService
  */
 export const ConfigService = {
-  typeName: "cuda_learning.ConfigService",
+  typeName: 'cuda_learning.ConfigService',
   methods: {
     /**
      * @generated from rpc cuda_learning.ConfigService.GetStreamConfig
      */
     getStreamConfig: {
-      name: "GetStreamConfig",
+      name: 'GetStreamConfig',
       I: GetStreamConfigRequest,
       O: GetStreamConfigResponse,
       kind: MethodKind.Unary,
@@ -54,7 +63,7 @@ export const ConfigService = {
      * @generated from rpc cuda_learning.ConfigService.SyncFeatureFlags
      */
     syncFeatureFlags: {
-      name: "SyncFeatureFlags",
+      name: 'SyncFeatureFlags',
       I: SyncFeatureFlagsRequest,
       O: SyncFeatureFlagsResponse,
       kind: MethodKind.Unary,
@@ -63,11 +72,10 @@ export const ConfigService = {
      * @generated from rpc cuda_learning.ConfigService.ListInputs
      */
     listInputs: {
-      name: "ListInputs",
+      name: 'ListInputs',
       I: ListInputsRequest,
       O: ListInputsResponse,
       kind: MethodKind.Unary,
     },
-  }
+  },
 } as const;
-

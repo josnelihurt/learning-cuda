@@ -80,6 +80,9 @@ func (l *Loader) resolveSymbols() error {
 		if err != nil {
 			return fmt.Errorf("failed to resolve symbol %s: %w", name, err)
 		}
+		if sym == 0 {
+			return fmt.Errorf("symbol %s resolved to null pointer", name)
+		}
 		*ptr = sym
 	}
 
@@ -94,19 +97,21 @@ func (l *Loader) getAPIVersion() (string, error) {
 	return version, nil
 }
 
-func (l *Loader) Init(req *pb.InitRequest) (*pb.InitResponse, error) {
-	if req.ApiVersion == "" {
-		req.ApiVersion = CurrentAPIVersion
+// callCFunction is a generic helper for calling C functions with common error handling
+func (l *Loader) callCFunction(
+	req interface{},
+	callFn func(*uint8, int32, **uint8, *int32) bool,
+	responseType string,
+	unmarshalFunc func([]byte) (interface{}, error),
+) (interface{}, error) {
+	// Marshal request
+	protoMsg, ok := req.(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("request is not a proto.Message")
 	}
-
-	if req.ApiVersion != CurrentAPIVersion {
-		return nil, fmt.Errorf("request API version mismatch: got %s, expected %s",
-			req.ApiVersion, CurrentAPIVersion)
-	}
-
-	requestBytes, err := proto.Marshal(req)
+	requestBytes, err := proto.Marshal(protoMsg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal InitRequest: %w", err)
+		return nil, fmt.Errorf("failed to marshal %s: %w", responseType, err)
 	}
 
 	var responsePtr *uint8
@@ -117,80 +122,146 @@ func (l *Loader) Init(req *pb.InitRequest) (*pb.InitResponse, error) {
 		reqPtr = &requestBytes[0]
 	}
 
-	success := callInitFn(l.initFn, reqPtr, int32(len(requestBytes)), &responsePtr, &responseLen)
+	success := callFn(reqPtr, int32(len(requestBytes)), &responsePtr, &responseLen)
 
 	if responsePtr != nil {
 		defer l.freeResponse(responsePtr)
 	}
 
 	if responseLen <= 0 {
-		return nil, fmt.Errorf("init returned empty response")
+		return nil, fmt.Errorf("%s returned empty response", responseType)
 	}
 
 	responseBytes := unsafe.Slice(responsePtr, responseLen)
 
-	initResp := &pb.InitResponse{}
-	if err := proto.Unmarshal(responseBytes, initResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal InitResponse: %w", err)
+	response, err := unmarshalFunc(responseBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal %s: %w", responseType, err)
 	}
 
-	if !success || initResp.Code != 0 {
-		return nil, fmt.Errorf("init failed: %s", initResp.Message)
+	// Check for errors in the response
+	if !success {
+		return nil, fmt.Errorf("%s failed", responseType)
 	}
 
+	return response, nil
+}
+
+// validateAndSetAPIVersion validates and sets the API version for a request
+func (l *Loader) validateAndSetAPIVersion(req interface{}) error {
+	switch r := req.(type) {
+	case *pb.InitRequest:
+		if r.ApiVersion == "" {
+			r.ApiVersion = CurrentAPIVersion
+		}
+		if r.ApiVersion != CurrentAPIVersion {
+			return fmt.Errorf("request API version mismatch: got %s, expected %s",
+				r.ApiVersion, CurrentAPIVersion)
+		}
+	case *pb.ProcessImageRequest:
+		if r.ApiVersion == "" {
+			r.ApiVersion = CurrentAPIVersion
+		}
+		if r.ApiVersion != CurrentAPIVersion {
+			return fmt.Errorf("request API version mismatch: got %s, expected %s",
+				r.ApiVersion, CurrentAPIVersion)
+		}
+	case *pb.GetCapabilitiesRequest:
+		if r.ApiVersion == "" {
+			r.ApiVersion = CurrentAPIVersion
+		}
+	default:
+		return fmt.Errorf("unsupported request type")
+	}
+	return nil
+}
+
+// callCFunctionWithResponseType is a generic helper for calling C functions with response type handling
+func (l *Loader) callCFunctionWithResponseType(
+	req interface{},
+	callFn func(*uint8, int32, **uint8, *int32) bool,
+	responseType string,
+	createResponse func() proto.Message,
+	errorMessage string,
+) (proto.Message, error) {
+	if err := l.validateAndSetAPIVersion(req); err != nil {
+		return nil, err
+	}
+
+	response, err := l.callCFunction(
+		req,
+		callFn,
+		responseType,
+		func(data []byte) (interface{}, error) {
+			resp := createResponse()
+			err := proto.Unmarshal(data, resp)
+			if err != nil {
+				return nil, err
+			}
+			// Check if response has Code field and it's not 0
+			if codeResp, ok := resp.(interface{ GetCode() int32 }); ok && codeResp.GetCode() != 0 {
+				if msgResp, ok := resp.(interface{ GetMessage() string }); ok {
+					return nil, fmt.Errorf("%s: %s", errorMessage, msgResp.GetMessage())
+				}
+				return nil, fmt.Errorf("%s failed", errorMessage)
+			}
+			return resp, nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	result, ok := response.(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response type for %s", responseType)
+	}
+	return result, nil
+}
+
+func (l *Loader) Init(req *pb.InitRequest) (*pb.InitResponse, error) {
+	response, err := l.callCFunctionWithResponseType(
+		req,
+		func(reqPtr *uint8, reqLen int32, respPtr **uint8, respLen *int32) bool {
+			return callInitFn(l.initFn, reqPtr, reqLen, respPtr, respLen)
+		},
+		"InitResponse",
+		func() proto.Message { return &pb.InitResponse{} },
+		"init failed",
+	)
+	if err != nil {
+		return nil, err
+	}
+	initResp, ok := response.(*pb.InitResponse)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response type for Init")
+	}
 	return initResp, nil
 }
 
 func (l *Loader) ProcessImage(req *pb.ProcessImageRequest) (*pb.ProcessImageResponse, error) {
-	if req.ApiVersion == "" {
-		req.ApiVersion = CurrentAPIVersion
-	}
-
-	if req.ApiVersion != CurrentAPIVersion {
-		return nil, fmt.Errorf("request API version mismatch: got %s, expected %s",
-			req.ApiVersion, CurrentAPIVersion)
-	}
-
-	requestBytes, err := proto.Marshal(req)
+	response, err := l.callCFunctionWithResponseType(
+		req,
+		func(reqPtr *uint8, reqLen int32, respPtr **uint8, respLen *int32) bool {
+			return callProcessFn(l.processImageFn, reqPtr, reqLen, respPtr, respLen)
+		},
+		"ProcessImageResponse",
+		func() proto.Message { return &pb.ProcessImageResponse{} },
+		"process_image failed",
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal ProcessImageRequest: %w", err)
+		return nil, err
 	}
-
-	var responsePtr *uint8
-	var responseLen int32
-
-	var reqPtr *uint8
-	if len(requestBytes) > 0 {
-		reqPtr = &requestBytes[0]
+	procResp, ok := response.(*pb.ProcessImageResponse)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response type for ProcessImage")
 	}
-
-	success := callProcessFn(l.processImageFn, reqPtr, int32(len(requestBytes)), &responsePtr, &responseLen)
-
-	if responsePtr != nil {
-		defer l.freeResponse(responsePtr)
-	}
-
-	if responseLen <= 0 {
-		return nil, fmt.Errorf("process_image returned empty response")
-	}
-
-	responseBytes := unsafe.Slice(responsePtr, responseLen)
-
-	procResp := &pb.ProcessImageResponse{}
-	if err := proto.Unmarshal(responseBytes, procResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ProcessImageResponse: %w", err)
-	}
-
-	if !success || procResp.Code != 0 {
-		return nil, fmt.Errorf("process_image failed: %s", procResp.Message)
-	}
-
 	return procResp, nil
 }
 
 func (l *Loader) GetCapabilities(req *pb.GetCapabilitiesRequest) (*pb.GetCapabilitiesResponse, error) {
-	if req.ApiVersion == "" {
-		req.ApiVersion = CurrentAPIVersion
+	if err := l.validateAndSetAPIVersion(req); err != nil {
+		return nil, err
 	}
 
 	requestBytes, err := proto.Marshal(req)

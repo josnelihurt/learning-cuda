@@ -21,7 +21,7 @@ type StaticHandler struct {
 }
 
 func NewStaticHandler(
-	serverConfig config.ServerConfig,
+	serverConfig *config.ServerConfig,
 	streamConfig config.StreamConfig,
 	useCase *application.ProcessImageUseCase,
 	videoRepo domain.VideoRepository,

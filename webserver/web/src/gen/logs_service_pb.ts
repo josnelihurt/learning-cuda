@@ -3,9 +3,16 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { KeyValue, TraceContext } from "./common_pb.js";
+import type {
+  BinaryReadOptions,
+  FieldList,
+  JsonReadOptions,
+  JsonValue,
+  PartialMessage,
+  PlainMessage,
+} from '@bufbuild/protobuf';
+import { Message, proto3, protoInt64 } from '@bufbuild/protobuf';
+import { KeyValue, TraceContext } from './common_pb.js';
 
 /**
  * @generated from message cuda_learning.LogRecord
@@ -19,7 +26,7 @@ export class LogRecord extends Message<LogRecord> {
   /**
    * @generated from field: string severity_text = 3 [json_name = "severity_text"];
    */
-  severityText = "";
+  severityText = '';
 
   /**
    * @generated from field: int32 severity_number = 5 [json_name = "severity_number"];
@@ -29,7 +36,7 @@ export class LogRecord extends Message<LogRecord> {
   /**
    * @generated from field: string body = 7;
    */
-  body = "";
+  body = '';
 
   /**
    * @generated from field: repeated cuda_learning.KeyValue attributes = 9;
@@ -47,14 +54,32 @@ export class LogRecord extends Message<LogRecord> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.LogRecord";
+  static readonly typeName = 'cuda_learning.LogRecord';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "timestamp_unix_nano", jsonName: "timestamp_unix_nano", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 3, name: "severity_text", jsonName: "severity_text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "severity_number", jsonName: "severity_number", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 7, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 9, name: "attributes", kind: "message", T: KeyValue, repeated: true },
-    { no: 11, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    {
+      no: 1,
+      name: 'timestamp_unix_nano',
+      jsonName: 'timestamp_unix_nano',
+      kind: 'scalar',
+      T: 3 /* ScalarType.INT64 */,
+    },
+    {
+      no: 3,
+      name: 'severity_text',
+      jsonName: 'severity_text',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    {
+      no: 5,
+      name: 'severity_number',
+      jsonName: 'severity_number',
+      kind: 'scalar',
+      T: 5 /* ScalarType.INT32 */,
+    },
+    { no: 7, name: 'body', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: 'attributes', kind: 'message', T: KeyValue, repeated: true },
+    { no: 11, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LogRecord {
@@ -69,7 +94,10 @@ export class LogRecord extends Message<LogRecord> {
     return new LogRecord().fromJsonString(jsonString, options);
   }
 
-  static equals(a: LogRecord | PlainMessage<LogRecord> | undefined, b: LogRecord | PlainMessage<LogRecord> | undefined): boolean {
+  static equals(
+    a: LogRecord | PlainMessage<LogRecord> | undefined,
+    b: LogRecord | PlainMessage<LogRecord> | undefined
+  ): boolean {
     return proto3.util.equals(LogRecord, a, b);
   }
 }
@@ -94,10 +122,10 @@ export class ExportLogsRequest extends Message<ExportLogsRequest> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.ExportLogsRequest";
+  static readonly typeName = 'cuda_learning.ExportLogsRequest';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "logs", kind: "message", T: LogRecord, repeated: true },
-    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 1, name: 'logs', kind: 'message', T: LogRecord, repeated: true },
+    { no: 3, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExportLogsRequest {
@@ -112,7 +140,10 @@ export class ExportLogsRequest extends Message<ExportLogsRequest> {
     return new ExportLogsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ExportLogsRequest | PlainMessage<ExportLogsRequest> | undefined, b: ExportLogsRequest | PlainMessage<ExportLogsRequest> | undefined): boolean {
+  static equals(
+    a: ExportLogsRequest | PlainMessage<ExportLogsRequest> | undefined,
+    b: ExportLogsRequest | PlainMessage<ExportLogsRequest> | undefined
+  ): boolean {
     return proto3.util.equals(ExportLogsRequest, a, b);
   }
 }
@@ -124,7 +155,7 @@ export class ExportLogsResponse extends Message<ExportLogsResponse> {
   /**
    * @generated from field: string message = 1;
    */
-  message = "";
+  message = '';
 
   /**
    * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
@@ -137,10 +168,10 @@ export class ExportLogsResponse extends Message<ExportLogsResponse> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.ExportLogsResponse";
+  static readonly typeName = 'cuda_learning.ExportLogsResponse';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 1, name: 'message', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExportLogsResponse {
@@ -151,12 +182,17 @@ export class ExportLogsResponse extends Message<ExportLogsResponse> {
     return new ExportLogsResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ExportLogsResponse {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): ExportLogsResponse {
     return new ExportLogsResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ExportLogsResponse | PlainMessage<ExportLogsResponse> | undefined, b: ExportLogsResponse | PlainMessage<ExportLogsResponse> | undefined): boolean {
+  static equals(
+    a: ExportLogsResponse | PlainMessage<ExportLogsResponse> | undefined,
+    b: ExportLogsResponse | PlainMessage<ExportLogsResponse> | undefined
+  ): boolean {
     return proto3.util.equals(ExportLogsResponse, a, b);
   }
 }
-

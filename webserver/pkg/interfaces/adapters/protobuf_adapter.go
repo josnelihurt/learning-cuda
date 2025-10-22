@@ -1,6 +1,8 @@
 package adapters
 
 import (
+	"log"
+
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 )
@@ -19,6 +21,12 @@ func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterTy
 			filters = append(filters, domain.FilterGrayscale)
 		case pb.FilterType_FILTER_TYPE_NONE:
 			filters = append(filters, domain.FilterNone)
+		case pb.FilterType_FILTER_TYPE_UNSPECIFIED:
+			// Log warning for unspecified filter type
+			log.Printf("Warning: received unspecified filter type, skipping")
+		default:
+			// Log warning for unknown filter type
+			log.Printf("Warning: received unknown filter type %v, skipping", f)
 		}
 	}
 	return filters
@@ -30,7 +38,17 @@ func (a *ProtobufAdapter) ToAccelerator(pbAccel pb.AcceleratorType) domain.Accel
 		return domain.AcceleratorGPU
 	case pb.AcceleratorType_ACCELERATOR_TYPE_CPU:
 		return domain.AcceleratorCPU
+	case pb.AcceleratorType_ACCELERATOR_TYPE_UNSPECIFIED:
+		// Log warning for unspecified accelerator type
+		log.Printf("Warning: received unspecified accelerator type, defaulting to GPU")
+		return domain.AcceleratorGPU
+	case pb.AcceleratorType_ACCELERATOR_TYPE_OPENCL:
+		// Log warning for unsupported accelerator type
+		log.Printf("Warning: received unsupported accelerator type OPENCL, defaulting to GPU")
+		return domain.AcceleratorGPU
 	default:
+		// Log warning for unknown accelerator type
+		log.Printf("Warning: received unknown accelerator type %v, defaulting to GPU", pbAccel)
 		return domain.AcceleratorGPU
 	}
 }
@@ -47,7 +65,13 @@ func (a *ProtobufAdapter) ToGrayscaleType(pbType pb.GrayscaleType) domain.Graysc
 		return domain.GrayscaleLightness
 	case pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY:
 		return domain.GrayscaleLuminosity
+	case pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED:
+		// Log warning for unspecified grayscale type
+		log.Printf("Warning: received unspecified grayscale type, defaulting to BT601")
+		return domain.GrayscaleBT601
 	default:
+		// Log warning for unknown grayscale type
+		log.Printf("Warning: received unknown grayscale type %v, defaulting to BT601", pbType)
 		return domain.GrayscaleBT601
 	}
 }

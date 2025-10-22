@@ -22,7 +22,7 @@ func TestNewGoVideoPlayer(t *testing.T) {
 			setup: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				videoPath := filepath.Join(tmpDir, "test.mp4")
-				err := os.WriteFile(videoPath, []byte("fake video"), 0600)
+				err := os.WriteFile(videoPath, []byte("fake video"), 0o600)
 				require.NoError(t, err)
 				return videoPath
 			},
@@ -57,7 +57,7 @@ func TestNewGoVideoPlayer(t *testing.T) {
 func TestGoVideoPlayer_Stop(t *testing.T) {
 	tmpDir := t.TempDir()
 	videoPath := filepath.Join(tmpDir, "test.mp4")
-	err := os.WriteFile(videoPath, []byte("fake video"), 0600)
+	err := os.WriteFile(videoPath, []byte("fake video"), 0o600)
 	require.NoError(t, err)
 
 	sut, err := NewGoVideoPlayer(videoPath)
@@ -72,7 +72,7 @@ func TestGoVideoPlayer_Stop(t *testing.T) {
 func TestGoVideoPlayer_Play(t *testing.T) {
 	tmpDir := t.TempDir()
 	videoPath := filepath.Join(tmpDir, "test.mp4")
-	err := os.WriteFile(videoPath, []byte("fake video"), 0600)
+	err := os.WriteFile(videoPath, []byte("fake video"), 0o600)
 	require.NoError(t, err)
 
 	sut, err := NewGoVideoPlayer(videoPath)

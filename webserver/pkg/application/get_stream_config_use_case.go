@@ -34,7 +34,7 @@ func (uc *GetStreamConfigUseCase) Execute(ctx context.Context) (*config.StreamCo
 	transportFormat, err := uc.evaluateFFUseCase.EvaluateVariant(
 		ctx,
 		"ws_transport_format",
-		"stream_transport_format",
+		"default",
 		uc.defaultConfig.TransportFormat,
 	)
 	if err != nil {

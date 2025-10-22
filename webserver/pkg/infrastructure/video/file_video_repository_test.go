@@ -23,7 +23,7 @@ func TestFileVideoRepository_List(t *testing.T) {
 				videosDir := t.TempDir()
 				previewsDir := t.TempDir()
 
-				err := os.WriteFile(filepath.Join(videosDir, "test.mp4"), []byte("fake video"), 0600)
+				err := os.WriteFile(filepath.Join(videosDir, "test.mp4"), []byte("fake video"), 0o600)
 				require.NoError(t, err)
 
 				return videosDir, previewsDir
@@ -45,9 +45,9 @@ func TestFileVideoRepository_List(t *testing.T) {
 				videosDir := t.TempDir()
 				previewsDir := t.TempDir()
 
-				err := os.WriteFile(filepath.Join(videosDir, "test.avi"), []byte("avi"), 0600)
+				err := os.WriteFile(filepath.Join(videosDir, "test.avi"), []byte("avi"), 0o600)
 				require.NoError(t, err)
-				err = os.WriteFile(filepath.Join(videosDir, "valid.mp4"), []byte("mp4"), 0600)
+				err = os.WriteFile(filepath.Join(videosDir, "valid.mp4"), []byte("mp4"), 0o600)
 				require.NoError(t, err)
 
 				return videosDir, previewsDir
@@ -60,7 +60,7 @@ func TestFileVideoRepository_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			videosDir, previewsDir := tt.setup(t)
-			sut := NewFileVideoRepository(videosDir, previewsDir)
+			sut := NewFileVideoRepository(context.Background(), videosDir, previewsDir)
 
 			result, err := sut.List(context.Background())
 
@@ -89,7 +89,7 @@ func TestFileVideoRepository_GetByID(t *testing.T) {
 				videosDir := t.TempDir()
 				previewsDir := t.TempDir()
 
-				err := os.WriteFile(filepath.Join(videosDir, "test.mp4"), []byte("video"), 0600)
+				err := os.WriteFile(filepath.Join(videosDir, "test.mp4"), []byte("video"), 0o600)
 				require.NoError(t, err)
 
 				return videosDir, previewsDir
@@ -110,7 +110,7 @@ func TestFileVideoRepository_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			videosDir, previewsDir := tt.setup(t)
-			sut := NewFileVideoRepository(videosDir, previewsDir)
+			sut := NewFileVideoRepository(context.Background(), videosDir, previewsDir)
 
 			result, err := sut.GetByID(context.Background(), tt.videoID)
 

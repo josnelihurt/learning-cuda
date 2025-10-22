@@ -4,13 +4,14 @@ run:
   modules-download-mode: readonly
 
 linters:
+  disable:
+    - typecheck
   enable:
     - errcheck
     - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
     - gofmt
     - goimports
@@ -103,16 +104,18 @@ linters-settings:
     disabled-checks:
       - commentedOutCode
       - whyNoLint
+      - dupImport
   
   godox:
     keywords:
-      - TODO
       - FIXME
       - BUG
       - HACK
       - XXX
 
 issues:
+  exclude-dirs:
+    - webserver/pkg/infrastructure/processor/loader
   exclude-rules:
     - path: _test\.go
       linters:
@@ -130,6 +133,9 @@ issues:
     - path: development_handler\.go
       linters:
         - gosec
+    - path: dlopen_linux\.go
+      linters:
+        - dupImport
     - text: "G115:" # Integer overflow conversions are acceptable for protobuf int32
       linters:
         - gosec

@@ -5,12 +5,12 @@ import type { ImageSelectorModal } from './image-selector-modal';
 import { StaticImage } from '../gen/common_pb';
 
 vi.mock('../services/otel-logger', () => ({
-    logger: {
-        debug: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-    },
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 describe('ImageSelectorModal', () => {
@@ -37,7 +37,12 @@ describe('ImageSelectorModal', () => {
     it('should show modal when open is called', async () => {
       const images = [
         { id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true } as StaticImage,
-        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
+        {
+          id: 'mandrill',
+          displayName: 'Mandrill',
+          path: '/data/mandrill.png',
+          isDefault: false,
+        } as StaticImage,
       ];
 
       element.open(images);
@@ -49,8 +54,18 @@ describe('ImageSelectorModal', () => {
     it('should display all provided images', async () => {
       const images = [
         { id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true } as StaticImage,
-        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
-        { id: 'peppers', displayName: 'Peppers', path: '/data/peppers.png', isDefault: false } as StaticImage,
+        {
+          id: 'mandrill',
+          displayName: 'Mandrill',
+          path: '/data/mandrill.png',
+          isDefault: false,
+        } as StaticImage,
+        {
+          id: 'peppers',
+          displayName: 'Peppers',
+          path: '/data/peppers.png',
+          isDefault: false,
+        } as StaticImage,
       ];
 
       element.open(images);
@@ -87,7 +102,12 @@ describe('ImageSelectorModal', () => {
 
     it('should emit image-selected event when image is clicked', async () => {
       const images = [
-        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
+        {
+          id: 'mandrill',
+          displayName: 'Mandrill',
+          path: '/data/mandrill.png',
+          isDefault: false,
+        } as StaticImage,
       ];
 
       let eventFired = false;
@@ -101,7 +121,9 @@ describe('ImageSelectorModal', () => {
       element.open(images);
       await element.updateComplete;
 
-      const imageItem = element.shadowRoot!.querySelector('[data-testid="image-item-mandrill"]') as HTMLElement;
+      const imageItem = element.shadowRoot!.querySelector(
+        '[data-testid="image-item-mandrill"]'
+      ) as HTMLElement;
       expect(imageItem).toBeDefined();
 
       imageItem.click();
@@ -117,7 +139,12 @@ describe('ImageSelectorModal', () => {
     it('should show default badge on default image', async () => {
       const images = [
         { id: 'lena', displayName: 'Lena', path: '/data/lena.png', isDefault: true } as StaticImage,
-        { id: 'mandrill', displayName: 'Mandrill', path: '/data/mandrill.png', isDefault: false } as StaticImage,
+        {
+          id: 'mandrill',
+          displayName: 'Mandrill',
+          path: '/data/mandrill.png',
+          isDefault: false,
+        } as StaticImage,
       ];
 
       element.open(images);
@@ -134,4 +161,3 @@ describe('ImageSelectorModal', () => {
     });
   });
 });
-

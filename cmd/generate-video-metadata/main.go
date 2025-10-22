@@ -92,7 +92,7 @@ func ensureFramesExist(framesDir string) ([]string, error) {
 }
 
 func generateMetadata(files []string) ([]FrameMetadata, error) {
-	var frames []FrameMetadata
+	frames := make([]FrameMetadata, 0, len(files))
 
 	for i, file := range files {
 		fileData, readErr := os.ReadFile(file)
@@ -125,7 +125,7 @@ func writeMetadataFile(outputFile string, frames []FrameMetadata) error {
 	}
 
 	outputDir := filepath.Dir(outputFile)
-	if mkdirErr := os.MkdirAll(outputDir, 0755); mkdirErr != nil {
+	if mkdirErr := os.MkdirAll(outputDir, 0o755); mkdirErr != nil {
 		return fmt.Errorf("error creating output directory: %w", mkdirErr)
 	}
 

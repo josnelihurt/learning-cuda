@@ -3,20 +3,20 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ProcessImageRequest, ProcessImageResponse } from "./image_processor_service_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { ProcessImageRequest, ProcessImageResponse } from './image_processor_service_pb.js';
+import { MethodKind } from '@bufbuild/protobuf';
 
 /**
  * @generated from service cuda_learning.ImageProcessorService
  */
 export const ImageProcessorService = {
-  typeName: "cuda_learning.ImageProcessorService",
+  typeName: 'cuda_learning.ImageProcessorService',
   methods: {
     /**
      * @generated from rpc cuda_learning.ImageProcessorService.ProcessImage
      */
     processImage: {
-      name: "ProcessImage",
+      name: 'ProcessImage',
       I: ProcessImageRequest,
       O: ProcessImageResponse,
       kind: MethodKind.Unary,
@@ -25,11 +25,10 @@ export const ImageProcessorService = {
      * @generated from rpc cuda_learning.ImageProcessorService.StreamProcessVideo
      */
     streamProcessVideo: {
-      name: "StreamProcessVideo",
+      name: 'StreamProcessVideo',
       I: ProcessImageRequest,
       O: ProcessImageResponse,
       kind: MethodKind.BiDiStreaming,
     },
-  }
+  },
 } as const;
-

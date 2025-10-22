@@ -5,9 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 echo "Go Unit Tests (with race detection)..."
-cd "$PROJECT_ROOT/webserver"
+cd "$PROJECT_ROOT"
 
-go test -race -short ./... || {
+# Use the unit tests script that handles CGO issues
+"$PROJECT_ROOT/scripts/test/unit-tests.sh" || {
     echo "FAILED: Go tests (race conditions detected or tests failed)"
     exit 1
 }

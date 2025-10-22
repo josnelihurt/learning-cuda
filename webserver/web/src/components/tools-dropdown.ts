@@ -139,7 +139,8 @@ export class ToolsDropdown extends LitElement {
   private handleToolClick(tool: any) {
     if (tool.type === 'url' && (tool.url_dev || tool.url_prod || tool.url)) {
       // Determine which URL to use based on environment
-      const url = tool.url || (window.location.hostname === 'localhost' ? tool.url_dev : tool.url_prod);
+      const url =
+        tool.url || (window.location.hostname === 'localhost' ? tool.url_dev : tool.url_prod);
       window.open(url, '_blank');
     } else if (tool.type === 'action') {
       this.executeAction(tool.action);
@@ -158,13 +159,13 @@ export class ToolsDropdown extends LitElement {
   }
 
   private renderTool(tool: any) {
-    const iconContent = tool.iconPath 
-      ? html`<img src="${tool.iconPath}" alt="${tool.name}">`
+    const iconContent = tool.iconPath
+      ? html`<img src="${tool.iconPath}" alt="${tool.name}" />`
       : html`${tool.type === 'action' && tool.action === 'sync_flags' ? '↻' : '✓'}`;
 
     return html`
-      <a 
-        class="dropdown-item" 
+      <a
+        class="dropdown-item"
         @click=${() => this.handleToolClick(tool)}
         data-testid="tool-item-${tool.name.toLowerCase().replace(/\s+/g, '-')}"
       >
@@ -176,8 +177,8 @@ export class ToolsDropdown extends LitElement {
 
   render() {
     return html`
-      <button 
-        class="dropdown-trigger ${this.isOpen ? 'open' : ''}" 
+      <button
+        class="dropdown-trigger ${this.isOpen ? 'open' : ''}"
         @click=${this.toggleDropdown}
         data-testid="tools-dropdown-button"
       >
@@ -186,10 +187,12 @@ export class ToolsDropdown extends LitElement {
       </button>
 
       <div class="dropdown-menu ${this.isOpen ? 'open' : ''}" data-testid="tools-dropdown-menu">
-        ${this.categories.map((category, index) => html`
-          ${category.tools.map(tool => this.renderTool(tool))}
-          ${index < this.categories.length - 1 ? html`<div class="dropdown-divider"></div>` : ''}
-        `)}
+        ${this.categories.map(
+          (category, index) => html`
+            ${category.tools.map((tool) => this.renderTool(tool))}
+            ${index < this.categories.length - 1 ? html`<div class="dropdown-divider"></div>` : ''}
+          `
+        )}
       </div>
     `;
   }
@@ -200,4 +203,3 @@ declare global {
     'tools-dropdown': ToolsDropdown;
   }
 }
-

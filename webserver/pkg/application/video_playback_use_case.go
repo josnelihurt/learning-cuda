@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -77,7 +78,7 @@ func (uc *VideoPlaybackUseCase) Execute(
 	}
 
 	err = uc.videoPlayer.Play(ctx, video.Path, callback)
-	if err != nil && err != context.Canceled {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		span.SetAttributes(attribute.Bool("error.playback_failed", true))
 		return fmt.Errorf("playback failed: %w", err)
 	}

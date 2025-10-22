@@ -33,7 +33,7 @@ func (api *FliptHTTPAPI) GetFlag(ctx context.Context, flagKey string) (*Flag, er
 
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags/%s", api.apiURL, api.namespace, flagKey)
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (api *FliptHTTPAPI) ListFlags(ctx context.Context) ([]Flag, error) {
 
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags", api.apiURL, api.namespace)
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

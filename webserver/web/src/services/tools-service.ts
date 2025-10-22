@@ -4,46 +4,45 @@ import { ConfigService } from '../gen/config_service_connect';
 import type { ToolCategory } from '../gen/config_service_pb';
 
 class ToolsService {
-    private client;
-    private categories: ToolCategory[] = [];
-    private initialized = false;
+  private client;
+  private categories: ToolCategory[] = [];
+  private initialized = false;
 
-    constructor() {
-        const transport = createConnectTransport({
-            baseUrl: window.location.origin,
-        });
-        this.client = createPromiseClient(ConfigService, transport);
-    }
+  constructor() {
+    const transport = createConnectTransport({
+      baseUrl: window.location.origin,
+    });
+    this.client = createPromiseClient(ConfigService, transport);
+  }
 
-    async initialize(): Promise<void> {
-        try {
-            const response = await this.client.getAvailableTools({});
-            this.categories = response.categories;
-            this.initialized = true;
-            logger.info('Tools service initialized', {
-                'categories.count': this.categories.length,
-            });
-            
-            const totalTools = this.categories.reduce((sum, cat) => sum + cat.tools.length, 0);
-            logger.debug('Total tools', {
-                'tools.count': totalTools,
-            });
-        } catch (error) {
-            logger.error('Failed to initialize tools service', {
-                'error.message': error instanceof Error ? error.message : String(error),
-            });
-            this.initialized = false;
-        }
-    }
+  async initialize(): Promise<void> {
+    try {
+      const response = await this.client.getAvailableTools({});
+      this.categories = response.categories;
+      this.initialized = true;
+      logger.info('Tools service initialized', {
+        'categories.count': this.categories.length,
+      });
 
-    getCategories(): ToolCategory[] {
-        return this.categories;
+      const totalTools = this.categories.reduce((sum, cat) => sum + cat.tools.length, 0);
+      logger.debug('Total tools', {
+        'tools.count': totalTools,
+      });
+    } catch (error) {
+      logger.error('Failed to initialize tools service', {
+        'error.message': error instanceof Error ? error.message : String(error),
+      });
+      this.initialized = false;
     }
+  }
 
-    isInitialized(): boolean {
-        return this.initialized;
-    }
+  getCategories(): ToolCategory[] {
+    return this.categories;
+  }
+
+  isInitialized(): boolean {
+    return this.initialized;
+  }
 }
 
 export const toolsService = new ToolsService();
-

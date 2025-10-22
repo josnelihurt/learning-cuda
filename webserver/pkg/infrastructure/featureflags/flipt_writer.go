@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -69,7 +71,7 @@ func (fw *FliptWriter) SyncFlags(ctx context.Context, flags map[string]interface
 	}
 
 	if len(failedFlags) > 0 {
-		return fmt.Errorf("failed to sync %d flags: %v", len(failedFlags), failedFlags)
+		return fmt.Errorf("failed to sync %d flags: %w", len(failedFlags), errors.New(strings.Join(failedFlags, ", ")))
 	}
 
 	log.Printf("All flags synced successfully")
@@ -97,7 +99,7 @@ func (fw *FliptWriter) ensureBooleanFlagExists(ctx context.Context, flagKey stri
 	return nil
 }
 
-func (fw *FliptWriter) ensureVariantFlagExists(ctx context.Context, flagKey string, defaultValue string) error {
+func (fw *FliptWriter) ensureVariantFlagExists(ctx context.Context, flagKey, defaultValue string) error {
 	exists, err := fw.checkFlagExists(ctx, flagKey)
 	if err != nil {
 		return fmt.Errorf("failed to check flag existence: %w", err)
@@ -125,7 +127,7 @@ func (fw *FliptWriter) checkFlagExists(ctx context.Context, flagKey string) (boo
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags/%s", fw.apiURL, fw.namespace, flagKey)
 	log.Printf("Checking if flag exists: GET %s", url)
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return false, err
 	}
@@ -163,7 +165,7 @@ func (fw *FliptWriter) createBooleanFlag(ctx context.Context, flagKey string, de
 
 	log.Printf("Creating flag: POST %s with payload: %s", url, string(jsonData))
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -206,7 +208,7 @@ func (fw *FliptWriter) createBooleanVariant(ctx context.Context, flagKey string,
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -246,7 +248,7 @@ func (fw *FliptWriter) createVariantFlag(ctx context.Context, flagKey string) er
 
 	log.Printf("Creating variant flag: POST %s with payload: %s", url, string(jsonData))
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -269,7 +271,7 @@ func (fw *FliptWriter) createVariantFlag(ctx context.Context, flagKey string) er
 	return nil
 }
 
-func (fw *FliptWriter) createStringVariant(ctx context.Context, flagKey string, value string) error {
+func (fw *FliptWriter) createStringVariant(ctx context.Context, flagKey, value string) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -290,7 +292,7 @@ func (fw *FliptWriter) createStringVariant(ctx context.Context, flagKey string, 
 
 	log.Printf("Creating string variant: POST %s with payload: %s", url, string(jsonData))
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -320,7 +322,7 @@ func (fw *FliptWriter) DeleteFlag(ctx context.Context, flagKey string) error {
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags/%s", fw.apiURL, fw.namespace, flagKey)
 	log.Printf("Deleting flag: DELETE %s", url)
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "DELETE", url, nil)
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodDelete, url, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -354,7 +356,7 @@ func (fw *FliptWriter) DeleteAllFlags(ctx context.Context) error {
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/flags", fw.apiURL, fw.namespace)
 	log.Printf("Listing all flags: GET %s", url)
 
-	req, err := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return err
 	}

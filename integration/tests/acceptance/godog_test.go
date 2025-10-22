@@ -16,7 +16,7 @@ func TestFeatures(t *testing.T) {
 	}
 
 	resultsDir := ".ignore/test-results"
-	if err := os.MkdirAll(resultsDir, 0755); err != nil {
+	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
 		t.Logf("Warning: failed to create test-results directory: %v", err)
 	}
 

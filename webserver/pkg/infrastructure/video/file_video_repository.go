@@ -12,22 +12,30 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+const (
+	dataDir        = "data"
+	videosSubDir   = "videos"
+	previewsSubDir = "video_previews"
+)
+
+var rootPath = "/"
+
 type FileVideoRepository struct {
 	videosDir      string
 	previewsDir    string
 	defaultVideoID string
 }
 
-func NewFileVideoRepository(videosDir, previewsDir string) *FileVideoRepository {
+func NewFileVideoRepository(ctx context.Context, videosDir, previewsDir string) *FileVideoRepository {
 	repo := &FileVideoRepository{
 		videosDir:      videosDir,
 		previewsDir:    previewsDir,
 		defaultVideoID: "sample",
 	}
 
-	if err := os.MkdirAll(videosDir, 0755); err == nil {
-		if err := os.MkdirAll(previewsDir, 0755); err == nil {
-			go repo.generatePreviewsForExistingVideos()
+	if err := os.MkdirAll(videosDir, 0o755); err == nil {
+		if err := os.MkdirAll(previewsDir, 0o755); err == nil {
+			go repo.generatePreviewsForExistingVideos(context.Background()) //nolint:contextcheck
 		}
 	}
 
@@ -48,7 +56,7 @@ func (r *FileVideoRepository) List(ctx context.Context) ([]domain.Video, error) 
 		return nil, fmt.Errorf("failed to read videos directory: %w", err)
 	}
 
-	var videos []domain.Video
+	videos := make([]domain.Video, 0, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -63,11 +71,11 @@ func (r *FileVideoRepository) List(ctx context.Context) ([]domain.Video, error) 
 
 		id := strings.TrimSuffix(name, ext)
 		displayName := strings.ReplaceAll(id, "-", " ")
-		if len(displayName) > 0 {
+		if displayName != "" {
 			displayName = strings.ToUpper(displayName[:1]) + displayName[1:]
 		}
 
-		previewPath := filepath.Join("/data/video_previews", id+".png")
+		previewPath := filepath.Join(rootPath, dataDir, previewsSubDir, id+".png")
 		previewFsPath := filepath.Join(r.previewsDir, id+".png")
 
 		if _, err := os.Stat(previewFsPath); os.IsNotExist(err) {
@@ -89,7 +97,7 @@ func (r *FileVideoRepository) List(ctx context.Context) ([]domain.Video, error) 
 		video := domain.Video{
 			ID:               id,
 			DisplayName:      displayName,
-			Path:             filepath.Join("/data/videos", name),
+			Path:             filepath.Join(rootPath, dataDir, videosSubDir, name),
 			PreviewImagePath: previewPath,
 			IsDefault:        id == r.defaultVideoID,
 		}
@@ -135,8 +143,7 @@ func (r *FileVideoRepository) Save(ctx context.Context, video *domain.Video) err
 	return nil
 }
 
-func (r *FileVideoRepository) generatePreviewsForExistingVideos() {
-	ctx := context.Background()
+func (r *FileVideoRepository) generatePreviewsForExistingVideos(ctx context.Context) {
 	entries, err := os.ReadDir(r.videosDir)
 	if err != nil {
 		return

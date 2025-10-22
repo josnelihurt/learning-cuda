@@ -45,7 +45,7 @@ func TestGeneratePreview(t *testing.T) {
 		corruptedVideoPath := filepath.Join(tempDir, "corrupted.mp4")
 		previewPath := filepath.Join(tempDir, "corrupted-preview.png")
 
-		err := os.WriteFile(corruptedVideoPath, []byte("not a video"), 0600)
+		err := os.WriteFile(corruptedVideoPath, []byte("not a video"), 0o600)
 		require.NoError(t, err)
 
 		err = GeneratePreview(ctx, corruptedVideoPath, previewPath)

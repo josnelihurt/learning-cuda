@@ -6,23 +6,9 @@ SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 SERVICES_STARTED=false
-CLEANUP_NEEDED=false
 
-cleanup() {
-    if [ "$CLEANUP_NEEDED" = true ]; then
-        echo ""
-        echo "Cleaning up services..."
-        "$PROJECT_ROOT/scripts/dev/stop.sh" 2>/dev/null || true
-        
-        if [ "$SERVICES_STARTED" = true ]; then
-            echo "Stopping Docker services..."
-            cd "$PROJECT_ROOT"
-            docker compose -f docker-compose.dev.yml down 2>/dev/null || true
-        fi
-    fi
-}
-
-trap cleanup EXIT INT TERM
+# No automatic cleanup - services should always remain running
+# Users can manually stop services if needed
 
 echo "Running pre-push validations..."
 echo ""
@@ -31,59 +17,66 @@ echo "Running pre-commit validations..."
 "$SCRIPT_DIR/pre-commit.sh" || exit 1
 
 echo ""
-echo "Checking if services are already running..."
-SERVICES_RUNNING=false
-if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1 && \
-   curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
-    echo "Services already running, using existing instances"
-    SERVICES_RUNNING=true
-    
-    # Wait for Flipt to be fully stable (even if already running)
-    echo "Verifying Flipt is stable..."
-    sleep 3
-else
-    echo "Services not running, starting them..."
-    SERVICES_STARTED=true
-    CLEANUP_NEEDED=true
-    
-    cd "$PROJECT_ROOT"
-    
-    echo "Starting Docker services (Flipt, Jaeger, OTel)..."
-    docker compose -f docker-compose.dev.yml up -d
-    
-    echo "Waiting for Flipt to be ready..."
-    timeout=30
-    while [ $timeout -gt 0 ]; do
-        if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
-            echo "Flipt health check passed, waiting for full initialization..."
-            sleep 3
-            echo "Flipt is ready!"
-            break
-        fi
-        sleep 1
-        timeout=$((timeout - 1))
-    done
-    if [ $timeout -eq 0 ]; then
-        echo "ERROR: Flipt failed to start"
-        exit 1
+echo "Preparing Docker environment..."
+cd "$PROJECT_ROOT"
+
+# 1. Clean orphaned networks
+echo "Cleaning orphaned Docker networks..."
+docker network prune -f || true
+
+# 2. Stop any existing services for reproducibility
+echo "Stopping existing services for clean start..."
+"$PROJECT_ROOT/scripts/dev/stop.sh" 2>/dev/null || true
+docker compose -f docker-compose.dev.yml down 2>/dev/null || true
+
+# Additional cleanup for problematic networks
+echo "Performing additional network cleanup..."
+docker system prune -f --volumes || true
+sleep 2
+
+SERVICES_STARTED=true
+
+echo "Starting Docker services (Flipt, Jaeger, OTel)..."
+echo "================================================"
+docker compose -f docker-compose.dev.yml up -d
+
+echo "Waiting for services to stabilize..."
+echo "===================================="
+max_attempts=30
+attempt=0
+while [ $attempt -lt $max_attempts ]; do
+    if docker compose -f docker-compose.dev.yml ps --format json | jq -r '.[] | select(.State != "running") | .Name' | grep -q .; then
+        echo "Services still starting... (attempt $((attempt + 1))/$max_attempts)"
+        sleep 2
+        attempt=$((attempt + 1))
+    else
+        echo "All services are running and stable"
+        break
     fi
-    
-    echo "Building C++ libraries..."
-    if [ ! -f "proto/gen/image_processor_service.pb.go" ]; then
-        "$PROJECT_ROOT/scripts/build/protos.sh"
-    fi
-    
-    echo "Building CUDA library (required for BDD tests)..."
-    bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
-    
-    mkdir -p .ignore/lib/cuda_learning
-    VERSION=$(cat cpp_accelerator/VERSION)
-    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
-    
-    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-    DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    
-    cat > .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so.json <<EOF
+done
+
+if [ $attempt -eq $max_attempts ]; then
+    echo "WARNING: Some services may not be fully stable"
+fi
+
+echo "Building C++ libraries while services initialize..."
+echo "=================================================="
+if [ ! -f "proto/gen/image_processor_service.pb.go" ]; then
+    "$PROJECT_ROOT/scripts/build/protos.sh"
+fi
+
+echo "Building CUDA library (required for BDD tests)..."
+bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+
+# Copy library and create metadata...
+mkdir -p .ignore/lib/cuda_learning
+VERSION=$(cat cpp_accelerator/VERSION)
+cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
+
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+cat > .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so.json <<EOF
 {
   "name": "CUDA Image Processor",
   "version": "${VERSION}",
@@ -94,58 +87,107 @@ else
   "description": "CUDA-accelerated image processing with CPU fallback"
 }
 EOF
+
+echo "Validating Flipt is fully ready..."
+echo "Will check both health endpoint and UI (max 6 minutes)..."
+echo "============================================================="
+max_attempts=120  # 120 attempts × 3 seconds = 6 minutes
+attempt=0
+
+while [ $attempt -lt $max_attempts ]; do
+    health_ok=false
+    ui_ok=false
     
-    if [ ! -f "bin/server" ]; then
-        echo "Building Go server..."
-        cd webserver && make build && cd ..
+    # Check health endpoint
+    if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
+        health_ok=true
     fi
     
-    cd webserver/web
-    [ ! -d "node_modules" ] && npm install
-    cd "$PROJECT_ROOT"
-    
-    echo "Starting Vite..."
-    cd webserver/web
-    npm run dev > /tmp/vite-prepush.log 2>&1 &
-    VITE_PID=$!
-    cd "$PROJECT_ROOT"
-    sleep 2
-    
-    if ! kill -0 $VITE_PID 2>/dev/null; then
-        echo "Error: Vite failed to start"
-        cat /tmp/vite-prepush.log
-        exit 1
+    # Check UI endpoint
+    if curl -s http://localhost:8081 > /dev/null 2>&1; then
+        ui_ok=true
     fi
     
-    echo "Starting Go server with REAL library (v${VERSION})..."
-    ./bin/server -webroot=webserver/web > /tmp/server-prepush.log 2>&1 &
-    GO_PID=$!
+    if [ "$health_ok" = true ] && [ "$ui_ok" = true ]; then
+        echo "Flipt is fully ready! (health + UI both responding)"
+        break
+    fi
+    
+    attempt=$((attempt + 1))
+    elapsed=$((attempt * 3))
+    if [ $((attempt % 10)) -eq 0 ]; then
+        echo "Still waiting for Flipt... (${elapsed}s elapsed, health: $health_ok, UI: $ui_ok)"
+    fi
     sleep 3
-    
-    if ! kill -0 $GO_PID 2>/dev/null; then
-        echo "Error: Go server failed to start"
-        cat /tmp/server-prepush.log
-        exit 1
+done
+
+if [ $attempt -eq $max_attempts ]; then
+    echo "ERROR: Flipt failed to become ready after 6 minutes"
+    echo "Health endpoint: $health_ok"
+    echo "UI endpoint: $ui_ok"
+    exit 1
+fi
+
+echo "Starting report viewers..."
+echo "========================="
+docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report
+docker compose -f docker-compose.dev.yml --profile coverage up -d coverage-report-viewer
+
+if [ ! -f "bin/server" ]; then
+    echo "Building Go server..."
+    echo "===================="
+    cd webserver && make build && cd ..
+fi
+
+cd webserver/web
+[ ! -d "node_modules" ] && npm install
+cd "$PROJECT_ROOT"
+
+echo "Starting Vite..."
+echo "==============="
+cd webserver/web
+npm run dev > /tmp/vite-prepush.log 2>&1 &
+VITE_PID=$!
+cd "$PROJECT_ROOT"
+sleep 2
+
+if ! kill -0 $VITE_PID 2>/dev/null; then
+    echo "Error: Vite failed to start"
+    cat /tmp/vite-prepush.log
+    exit 1
+fi
+
+echo "Starting Go server with REAL library (v${VERSION})..."
+echo "=================================================="
+./bin/server -webroot=webserver/web > /tmp/server-prepush.log 2>&1 &
+GO_PID=$!
+sleep 3
+
+if ! kill -0 $GO_PID 2>/dev/null; then
+    echo "Error: Go server failed to start"
+    cat /tmp/server-prepush.log
+    exit 1
+fi
+
+echo "Waiting for server to be ready..."
+echo "==============================="
+timeout=30
+while [ $timeout -gt 0 ]; do
+    if curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
+        echo "Server is ready!"
+        break
     fi
-    
-    echo "Waiting for server to be ready..."
-    timeout=30
-    while [ $timeout -gt 0 ]; do
-        if curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
-            echo "Server is ready!"
-            break
-        fi
-        sleep 1
-        timeout=$((timeout - 1))
-    done
-    if [ $timeout -eq 0 ]; then
-        echo "ERROR: Server failed to become ready"
-        exit 1
-    fi
+    sleep 1
+    timeout=$((timeout - 1))
+done
+if [ $timeout -eq 0 ]; then
+    echo "ERROR: Server failed to become ready"
+    exit 1
 fi
 
 echo ""
 echo "BDD Integration Tests..."
+echo "======================="
 "$PROJECT_ROOT/scripts/test/integration.sh" backend || {
     echo "FAILED: BDD tests"
     exit 1
@@ -153,6 +195,7 @@ echo "BDD Integration Tests..."
 
 echo ""
 echo "E2E Tests (Chromium only for speed)..."
+echo "====================================="
 export PLAYWRIGHT_SCREENSHOTS=false
 export PLAYWRIGHT_VIDEO=false
 export PLAYWRIGHT_TRACE=false
@@ -170,21 +213,64 @@ export PLAYWRIGHT_TRACE=false
     exit 1
 }
 
-if [ "$SERVICES_RUNNING" = false ]; then
-    CLEANUP_NEEDED=true
-fi
+# Services were started, keep them running for report viewers
 
 echo ""
-echo "Starting test report viewers..."
+echo "Checking report viewers status..."
+echo "================================="
 cd "$PROJECT_ROOT"
-docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report 2>/dev/null || true
+
+# Verify report servers are running
+REPORTS_AVAILABLE=true
+if ! curl -s http://localhost:5050 > /dev/null 2>&1; then
+    echo "WARNING: BDD report server (port 5050) is not responding"
+    docker logs cucumber-report-viewer 2>&1 | tail -10
+    REPORTS_AVAILABLE=false
+fi
+
+if ! curl -s http://localhost:5051 > /dev/null 2>&1; then
+    echo "WARNING: E2E report server (port 5051) is not responding"
+    docker logs e2e-report-viewer 2>&1 | tail -10
+    REPORTS_AVAILABLE=false
+fi
+
+if ! curl -s http://localhost:5052 > /dev/null 2>&1; then
+    echo "WARNING: Coverage report server (port 5052) is not responding"
+    docker logs coverage-report-viewer 2>&1 | tail -10
+    REPORTS_AVAILABLE=false
+fi
 
 echo ""
 echo "Pre-push validations passed"
 echo ""
-echo "Test reports available at:"
-echo "  BDD Reports:  http://localhost:5050"
-echo "  E2E Reports:  http://localhost:5051"
+if [ "$REPORTS_AVAILABLE" = true ]; then
+    echo "Test reports available at:"
+    echo "  BDD Reports:  http://localhost:5050"
+    echo "  E2E Reports:  http://localhost:5051"
+    echo "  Coverage:     http://localhost:5052"
+    echo ""
+else
+    echo "Test reports may not be available. Check container logs above."
+    echo "To view reports manually:"
+    echo "  docker compose -f docker-compose.dev.yml --profile testing up -d"
+    echo "  docker compose -f docker-compose.dev.yml --profile coverage up -d"
+    echo "  docker logs cucumber-report-viewer"
+    echo "  docker logs e2e-report-viewer"
+    echo "  docker logs coverage-report-viewer"
+    echo ""
+fi
+
+echo "All services are running:"
+echo "  - Flipt: http://localhost:8081"
+echo "  - Go server: https://localhost:8443"
+echo "  - Vite dev server: http://localhost:5173"
+echo "  - BDD Reports: http://localhost:5050"
+echo "  - E2E Reports: http://localhost:5051"
+echo "  - Coverage: http://localhost:5052"
 echo ""
-echo "To stop report servers: docker compose -f docker-compose.dev.yml --profile testing down"
+echo "To stop all services:"
+echo "  ./scripts/dev/stop.sh"
+echo "  docker compose -f docker-compose.dev.yml down"
+echo "  docker compose -f docker-compose.dev.yml --profile testing down"
+echo "  docker compose -f docker-compose.dev.yml --profile coverage down"
 

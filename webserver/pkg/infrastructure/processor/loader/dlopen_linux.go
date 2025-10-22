@@ -1,6 +1,7 @@
 //go:build linux
 // +build linux
 
+//nolint:dupImport // CGO requires specific import structure
 package loader
 
 /*
@@ -9,6 +10,10 @@ package loader
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#ifndef RTLD_NOW
+#define RTLD_NOW 2
+#endif
 
 typedef struct {
     int major;

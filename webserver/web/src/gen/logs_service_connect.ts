@@ -3,24 +3,23 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExportLogsRequest, ExportLogsResponse } from "./logs_service_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { ExportLogsRequest, ExportLogsResponse } from './logs_service_pb.js';
+import { MethodKind } from '@bufbuild/protobuf';
 
 /**
  * @generated from service cuda_learning.LogsService
  */
 export const LogsService = {
-  typeName: "cuda_learning.LogsService",
+  typeName: 'cuda_learning.LogsService',
   methods: {
     /**
      * @generated from rpc cuda_learning.LogsService.ExportLogs
      */
     exportLogs: {
-      name: "ExportLogs",
+      name: 'ExportLogs',
       I: ExportLogsRequest,
       O: ExportLogsResponse,
       kind: MethodKind.Unary,
     },
-  }
+  },
 } as const;
-

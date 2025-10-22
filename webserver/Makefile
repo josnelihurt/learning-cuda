@@ -7,7 +7,7 @@ GO_FILES=$(shell find . -name '*.go' -type f)
 build:
 	@echo "Building Go webserver..."
 	@mkdir -p $(BUILD_DIR)
-	cd cmd/server && go build -o ../../$(BUILD_DIR)/$(BINARY_NAME)
+	cd cmd/server && CGO_ENABLED=1 go build -o ../../$(BUILD_DIR)/$(BINARY_NAME)
 	@echo "✓ Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
 test:

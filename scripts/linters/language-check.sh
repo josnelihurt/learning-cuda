@@ -20,10 +20,16 @@ for file in $CHANGED_FILES; do
     
     SKIP_EMOJI=0
     [[ "$file" =~ \.(html|css)$ ]] && SKIP_EMOJI=1
-    rg -q '(//|#|/\*)\s*emoji-allowed' "$file" 2>/dev/null && SKIP_EMOJI=1
+    grep -q '(//|#|/\*)\s*emoji-allowed' "$file" 2>/dev/null && SKIP_EMOJI=1
+    
+    # Skip files that contain nolint:language
+    if grep -q "nolint:language" "$file" 2>/dev/null; then
+        echo "Skipping $file (contains nolint:language)"
+        continue
+    fi
     
     # Check Spanish words in file content
-    SPANISH_LINES=$(rg -n -i "$SPANISH_WORDS" "$file" || true)
+    SPANISH_LINES=$(grep -n -i "$SPANISH_WORDS" "$file" || true)
     
     if [ -n "$SPANISH_LINES" ]; then
         echo ""

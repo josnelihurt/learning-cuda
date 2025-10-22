@@ -44,7 +44,7 @@ func (m *mockFeatureFlagRepository) GetFlag(ctx context.Context, flagKey string)
 	return args.Get(0).(*domain.FeatureFlag), args.Error(1)
 }
 
-func makeBooleanEvaluation(result bool, success bool) *domain.FeatureFlagEvaluation {
+func makeBooleanEvaluation(result, success bool) *domain.FeatureFlagEvaluation {
 	return &domain.FeatureFlagEvaluation{
 		FlagKey:      "test_flag",
 		EntityID:     "test_entity",

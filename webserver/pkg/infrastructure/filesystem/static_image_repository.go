@@ -40,7 +40,7 @@ func (r *StaticImageRepository) FindAll(ctx context.Context) ([]domain.StaticIma
 		return []domain.StaticImage{}, nil
 	}
 
-	var images []domain.StaticImage
+	images := make([]domain.StaticImage, 0, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -87,7 +87,7 @@ func (r *StaticImageRepository) Save(ctx context.Context, filename string, data 
 	)
 
 	filePath := filepath.Join(r.directory, filename)
-	err := os.WriteFile(filePath, data, 0600)
+	err := os.WriteFile(filePath, data, 0o600)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.String("error.type", "file_write_failed"))

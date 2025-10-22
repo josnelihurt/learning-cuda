@@ -94,7 +94,7 @@ func TestStaticImageRepository_FindAll(t *testing.T) {
 
 func createFile(t *testing.T, dir, filename string) {
 	path := filepath.Join(dir, filename)
-	err := os.WriteFile(path, []byte("dummy"), 0644)
+	err := os.WriteFile(path, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 }
 

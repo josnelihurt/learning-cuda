@@ -19,6 +19,7 @@ import (
 var (
 	ErrInvalidFormat = errors.New("invalid format, only MP4 is supported")
 	ErrFileTooLarge  = errors.New("file too large, maximum size is 100MB")
+	rootPath         = "/"
 )
 
 const maxVideoSize = 100 * 1024 * 1024
@@ -63,7 +64,7 @@ func (uc *UploadVideoUseCase) Execute(ctx context.Context, fileData []byte, file
 	videoPath := filepath.Join(uc.videosDir, filename)
 	previewPath := filepath.Join(uc.previewsDir, id+".png")
 
-	if err := os.WriteFile(videoPath, fileData, 0600); err != nil {
+	if err := os.WriteFile(videoPath, fileData, 0o600); err != nil {
 		span.SetAttributes(attribute.Bool("error", true))
 		return nil, fmt.Errorf("failed to save video: %w", err)
 	}
@@ -74,14 +75,14 @@ func (uc *UploadVideoUseCase) Execute(ctx context.Context, fileData []byte, file
 		span.AddEvent("preview_generation_failed")
 		span.SetAttributes(attribute.String("preview.error", err.Error()))
 	} else {
-		previewImagePath = filepath.Join("/data/video_previews", id+".png")
+		previewImagePath = filepath.Join(rootPath, "data", "video_previews", id+".png")
 		span.SetAttributes(attribute.Bool("preview.generated", true))
 	}
 
 	video := &domain.Video{
 		ID:               id,
 		DisplayName:      strings.ReplaceAll(id, "-", " "),
-		Path:             filepath.Join("/data/videos", filename),
+		Path:             filepath.Join(rootPath, "data", "videos", filename),
 		PreviewImagePath: previewImagePath,
 		IsDefault:        false,
 	}

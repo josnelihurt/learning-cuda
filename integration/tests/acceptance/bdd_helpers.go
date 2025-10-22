@@ -57,7 +57,7 @@ func (c *BDDContext) GivenTheServiceIsRunning() error {
 	defer cancel()
 
 	url := fmt.Sprintf("%s/", c.serviceBaseURL)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -81,14 +81,15 @@ func (c *BDDContext) GivenConfigHasDefaultValues(format, endpoint string) error 
 	return nil
 }
 
-func (c *BDDContext) WhenICallGetStreamConfig() error {
+// callConnectRPCEndpoint is a generic helper for calling ConnectRPC endpoints
+func (c *BDDContext) callConnectRPCEndpoint(endpoint string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	url := fmt.Sprintf("%s/cuda_learning.ConfigService/GetStreamConfig", c.serviceBaseURL)
+	url := fmt.Sprintf("%s/%s", c.serviceBaseURL, endpoint)
 
 	reqBody := bytes.NewBufferString("{}")
-	req, err := http.NewRequestWithContext(ctx, "POST", url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, reqBody)
 	if err != nil {
 		return err
 	}
@@ -97,7 +98,7 @@ func (c *BDDContext) WhenICallGetStreamConfig() error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to call GetStreamConfig: %w", err)
+		return fmt.Errorf("failed to call %s: %w", endpoint, err)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -116,39 +117,12 @@ func (c *BDDContext) WhenICallGetStreamConfig() error {
 	return nil
 }
 
+func (c *BDDContext) WhenICallGetStreamConfig() error {
+	return c.callConnectRPCEndpoint("cuda_learning.ConfigService/GetStreamConfig")
+}
+
 func (c *BDDContext) WhenICallSyncFeatureFlags() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	url := fmt.Sprintf("%s/cuda_learning.ConfigService/SyncFeatureFlags", c.serviceBaseURL)
-
-	reqBody := bytes.NewBufferString("{}")
-	req, err := http.NewRequestWithContext(ctx, "POST", url, reqBody)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to call SyncFeatureFlags: %w", err)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	c.lastResponse = resp
-	c.lastResponseBody = body
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return c.callConnectRPCEndpoint("cuda_learning.ConfigService/SyncFeatureFlags")
 }
 
 func (c *BDDContext) WhenIWaitForFlagsToBeSynced() error {
@@ -162,7 +136,7 @@ func (c *BDDContext) WhenICallHealthEndpoint() error {
 
 	url := fmt.Sprintf("%s/health", c.serviceBaseURL)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return err
 	}

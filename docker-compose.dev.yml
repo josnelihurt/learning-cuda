@@ -66,7 +66,7 @@ services:
       - dev-network
     
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -219,7 +219,6 @@ services:
   cucumber-report:
     image: node:18-alpine
     container_name: cucumber-report-viewer
-    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     working_dir: /app
     ports:
       - "5050:8080"
@@ -273,9 +272,10 @@ services:
     environment:
       - GOFLAGS=-buildvcs=false
     command: sh -c "
-      apk add --no-cache git build-base &&
+      apk add --no-cache git build-base gcc musl-dev &&
       go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest &&
       export PATH=$$PATH:$$(go env GOPATH)/bin &&
+      export CGO_ENABLED=1 &&
       golangci-lint run --timeout 5m ./...
       "
     profiles:

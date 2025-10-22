@@ -2,6 +2,7 @@ package connectrpc
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"connectrpc.com/connect"
@@ -158,9 +159,9 @@ func (h *FileHandler) UploadVideo(
 		log.Printf("Failed to upload video: %v", err)
 
 		code := connect.CodeInternal
-		if err == application.ErrFileTooLarge {
+		if errors.Is(err, application.ErrFileTooLarge) {
 			code = connect.CodeInvalidArgument
-		} else if err == application.ErrInvalidFormat {
+		} else if errors.Is(err, application.ErrInvalidFormat) {
 			code = connect.CodeInvalidArgument
 		}
 

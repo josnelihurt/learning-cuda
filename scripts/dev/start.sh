@@ -149,10 +149,14 @@ sleep 2
 }
 
 echo "Starting Go server..."
-[ ! -f "bin/server" ] && {
-    echo "Server binary not found, building..."
-    cd webserver && make build && cd ..
-}
+echo "Building Go server (always compile)..."
+cd webserver && make build && cd ..
+
+# Check if build was successful
+if [ ! -f "./bin/server" ]; then
+    echo "Build failed, exiting..."
+    exit 1
+fi
 
 echo "Using CUDA processor library (version 2.0.0)"
 ./bin/server -webroot=webserver/web > /tmp/goserver.log 2>&1 &
@@ -166,11 +170,22 @@ sleep 2
     exit 1
 }
 
+echo ""
+echo "Starting test report viewers..."
+docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report 2>/dev/null || true
+docker compose -f docker-compose.dev.yml --profile coverage up -d coverage-report-viewer 2>/dev/null || true
+sleep 2
+
 echo "================================================"
 echo "Development server running:"
 echo "  HTTPS:  https://localhost:8443"
 echo "  Jaeger: http://localhost:16686"
 echo "  Flipt:  http://localhost:8081"
+echo ""
+echo "Test Reports:"
+echo "  BDD:      http://localhost:5050"
+echo "  E2E:      http://localhost:5051"
+echo "  Coverage: http://localhost:5052"
 echo "================================================"
 echo "Dev mode - hot reload enabled"
 echo "Observability & Feature Flags enabled"

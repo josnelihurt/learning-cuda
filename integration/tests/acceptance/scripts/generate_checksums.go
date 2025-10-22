@@ -103,7 +103,7 @@ func main() {
 		log.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	if err := os.WriteFile(outputFile, jsonData, 0644); err != nil {
+	if err := os.WriteFile(outputFile, jsonData, 0o644); err != nil {
 		log.Fatalf("Failed to write checksums file: %v", err)
 	}
 
@@ -120,7 +120,7 @@ func newImageProcessorClient(baseURL string) genconnect.ImageProcessorServiceCli
 	return genconnect.NewImageProcessorServiceClient(httpClient, baseURL)
 }
 
-func loadImage(path string) ([]byte, int32, int32, int32, error) {
+func loadImage(path string) (data []byte, width, height, channels int32, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, 0, 0, 0, err
@@ -133,22 +133,23 @@ func loadImage(path string) ([]byte, int32, int32, int32, error) {
 	}
 
 	bounds := img.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
+	width = int32(bounds.Dx())
+	height = int32(bounds.Dy())
 
-	rawData := make([]byte, width*height*4)
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
+	data = make([]byte, width*height*4)
+	for y := int32(0); y < height; y++ {
+		for x := int32(0); x < width; x++ {
+			r, g, b, a := img.At(int(x), int(y)).RGBA()
 			idx := (y*width + x) * 4
-			rawData[idx] = byte(r >> 8)
-			rawData[idx+1] = byte(g >> 8)
-			rawData[idx+2] = byte(b >> 8)
-			rawData[idx+3] = byte(a >> 8)
+			data[idx] = byte(r >> 8)
+			data[idx+1] = byte(g >> 8)
+			data[idx+2] = byte(b >> 8)
+			data[idx+3] = byte(a >> 8)
 		}
 	}
 
-	return rawData, int32(width), int32(height), int32(4), nil
+	channels = 4
+	return data, width, height, channels, nil
 }
 
 func processAndChecksum(

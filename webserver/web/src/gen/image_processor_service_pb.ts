@@ -3,9 +3,22 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { AcceleratorType, FilterType, GrayscaleType, LibraryCapabilities, TraceContext } from "./common_pb.js";
+import type {
+  BinaryReadOptions,
+  FieldList,
+  JsonReadOptions,
+  JsonValue,
+  PartialMessage,
+  PlainMessage,
+} from '@bufbuild/protobuf';
+import { Message, proto3, protoInt64 } from '@bufbuild/protobuf';
+import {
+  AcceleratorType,
+  FilterType,
+  GrayscaleType,
+  LibraryCapabilities,
+  TraceContext,
+} from './common_pb.js';
 
 /**
  * Request: Go passes raw image buffer
@@ -53,12 +66,12 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
    *
    * @generated from field: string trace_id = 15 [json_name = "trace_id"];
    */
-  traceId = "";
+  traceId = '';
 
   /**
    * @generated from field: string span_id = 17 [json_name = "span_id"];
    */
-  spanId = "";
+  spanId = '';
 
   /**
    * @generated from field: uint32 trace_flags = 19 [json_name = "trace_flags"];
@@ -73,7 +86,7 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
   /**
    * @generated from field: string api_version = 23 [json_name = "api_version"];
    */
-  apiVersion = "";
+  apiVersion = '';
 
   constructor(data?: PartialMessage<ProcessImageRequest>) {
     super();
@@ -81,20 +94,50 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.ProcessImageRequest";
+  static readonly typeName = 'cuda_learning.ProcessImageRequest';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "image_data", jsonName: "image_data", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 3, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 5, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 7, name: "channels", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 9, name: "filters", kind: "enum", T: proto3.getEnumType(FilterType), repeated: true },
-    { no: 11, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
-    { no: 13, name: "grayscale_type", jsonName: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
-    { no: 15, name: "trace_id", jsonName: "trace_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 17, name: "span_id", jsonName: "span_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 19, name: "trace_flags", jsonName: "trace_flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 21, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-    { no: 23, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    {
+      no: 1,
+      name: 'image_data',
+      jsonName: 'image_data',
+      kind: 'scalar',
+      T: 12 /* ScalarType.BYTES */,
+    },
+    { no: 3, name: 'width', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 5, name: 'height', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 7, name: 'channels', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 9, name: 'filters', kind: 'enum', T: proto3.getEnumType(FilterType), repeated: true },
+    { no: 11, name: 'accelerator', kind: 'enum', T: proto3.getEnumType(AcceleratorType) },
+    {
+      no: 13,
+      name: 'grayscale_type',
+      jsonName: 'grayscale_type',
+      kind: 'enum',
+      T: proto3.getEnumType(GrayscaleType),
+    },
+    {
+      no: 15,
+      name: 'trace_id',
+      jsonName: 'trace_id',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    { no: 17, name: 'span_id', jsonName: 'span_id', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    {
+      no: 19,
+      name: 'trace_flags',
+      jsonName: 'trace_flags',
+      kind: 'scalar',
+      T: 13 /* ScalarType.UINT32 */,
+    },
+    { no: 21, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
+    {
+      no: 23,
+      name: 'api_version',
+      jsonName: 'api_version',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProcessImageRequest {
@@ -105,11 +148,17 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
     return new ProcessImageRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ProcessImageRequest {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): ProcessImageRequest {
     return new ProcessImageRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ProcessImageRequest | PlainMessage<ProcessImageRequest> | undefined, b: ProcessImageRequest | PlainMessage<ProcessImageRequest> | undefined): boolean {
+  static equals(
+    a: ProcessImageRequest | PlainMessage<ProcessImageRequest> | undefined,
+    b: ProcessImageRequest | PlainMessage<ProcessImageRequest> | undefined
+  ): boolean {
     return proto3.util.equals(ProcessImageRequest, a, b);
   }
 }
@@ -128,7 +177,7 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
   /**
    * @generated from field: string message = 3;
    */
-  message = "";
+  message = '';
 
   /**
    * @generated from field: bytes image_data = 5 [json_name = "image_data"];
@@ -158,7 +207,7 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
   /**
    * @generated from field: string api_version = 15 [json_name = "api_version"];
    */
-  apiVersion = "";
+  apiVersion = '';
 
   constructor(data?: PartialMessage<ProcessImageResponse>) {
     super();
@@ -166,16 +215,28 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.ProcessImageResponse";
+  static readonly typeName = 'cuda_learning.ProcessImageResponse';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "image_data", jsonName: "image_data", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 7, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 9, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 11, name: "channels", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 13, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-    { no: 15, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: 'code', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: 'message', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    {
+      no: 5,
+      name: 'image_data',
+      jsonName: 'image_data',
+      kind: 'scalar',
+      T: 12 /* ScalarType.BYTES */,
+    },
+    { no: 7, name: 'width', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 9, name: 'height', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 11, name: 'channels', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 13, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
+    {
+      no: 15,
+      name: 'api_version',
+      jsonName: 'api_version',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProcessImageResponse {
@@ -186,11 +247,17 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
     return new ProcessImageResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ProcessImageResponse {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): ProcessImageResponse {
     return new ProcessImageResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ProcessImageResponse | PlainMessage<ProcessImageResponse> | undefined, b: ProcessImageResponse | PlainMessage<ProcessImageResponse> | undefined): boolean {
+  static equals(
+    a: ProcessImageResponse | PlainMessage<ProcessImageResponse> | undefined,
+    b: ProcessImageResponse | PlainMessage<ProcessImageResponse> | undefined
+  ): boolean {
     return proto3.util.equals(ProcessImageResponse, a, b);
   }
 }
@@ -214,7 +281,7 @@ export class InitRequest extends Message<InitRequest> {
   /**
    * @generated from field: string api_version = 5 [json_name = "api_version"];
    */
-  apiVersion = "";
+  apiVersion = '';
 
   constructor(data?: PartialMessage<InitRequest>) {
     super();
@@ -222,11 +289,17 @@ export class InitRequest extends Message<InitRequest> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.InitRequest";
+  static readonly typeName = 'cuda_learning.InitRequest';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "cuda_device_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-    { no: 5, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: 'cuda_device_id', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
+    {
+      no: 5,
+      name: 'api_version',
+      jsonName: 'api_version',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitRequest {
@@ -241,7 +314,10 @@ export class InitRequest extends Message<InitRequest> {
     return new InitRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: InitRequest | PlainMessage<InitRequest> | undefined, b: InitRequest | PlainMessage<InitRequest> | undefined): boolean {
+  static equals(
+    a: InitRequest | PlainMessage<InitRequest> | undefined,
+    b: InitRequest | PlainMessage<InitRequest> | undefined
+  ): boolean {
     return proto3.util.equals(InitRequest, a, b);
   }
 }
@@ -258,7 +334,7 @@ export class InitResponse extends Message<InitResponse> {
   /**
    * @generated from field: string message = 3;
    */
-  message = "";
+  message = '';
 
   /**
    * @generated from field: cuda_learning.TraceContext trace_context = 5 [json_name = "trace_context"];
@@ -268,7 +344,7 @@ export class InitResponse extends Message<InitResponse> {
   /**
    * @generated from field: string api_version = 7 [json_name = "api_version"];
    */
-  apiVersion = "";
+  apiVersion = '';
 
   constructor(data?: PartialMessage<InitResponse>) {
     super();
@@ -276,12 +352,18 @@ export class InitResponse extends Message<InitResponse> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.InitResponse";
+  static readonly typeName = 'cuda_learning.InitResponse';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-    { no: 7, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: 'code', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: 'message', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
+    {
+      no: 7,
+      name: 'api_version',
+      jsonName: 'api_version',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InitResponse {
@@ -296,7 +378,10 @@ export class InitResponse extends Message<InitResponse> {
     return new InitResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: InitResponse | PlainMessage<InitResponse> | undefined, b: InitResponse | PlainMessage<InitResponse> | undefined): boolean {
+  static equals(
+    a: InitResponse | PlainMessage<InitResponse> | undefined,
+    b: InitResponse | PlainMessage<InitResponse> | undefined
+  ): boolean {
     return proto3.util.equals(InitResponse, a, b);
   }
 }
@@ -310,7 +395,7 @@ export class WebSocketFrameRequest extends Message<WebSocketFrameRequest> {
   /**
    * @generated from field: string type = 1;
    */
-  type = "";
+  type = '';
 
   /**
    * @generated from field: cuda_learning.ProcessImageRequest request = 3;
@@ -338,16 +423,19 @@ export class WebSocketFrameRequest extends Message<WebSocketFrameRequest> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.WebSocketFrameRequest";
+  static readonly typeName = 'cuda_learning.WebSocketFrameRequest';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "request", kind: "message", T: ProcessImageRequest },
-    { no: 4, name: "start_video_request", kind: "message", T: StartVideoPlaybackRequest },
-    { no: 6, name: "stop_video_request", kind: "message", T: StopVideoPlaybackRequest },
-    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 1, name: 'type', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'request', kind: 'message', T: ProcessImageRequest },
+    { no: 4, name: 'start_video_request', kind: 'message', T: StartVideoPlaybackRequest },
+    { no: 6, name: 'stop_video_request', kind: 'message', T: StopVideoPlaybackRequest },
+    { no: 5, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WebSocketFrameRequest {
+  static fromBinary(
+    bytes: Uint8Array,
+    options?: Partial<BinaryReadOptions>
+  ): WebSocketFrameRequest {
     return new WebSocketFrameRequest().fromBinary(bytes, options);
   }
 
@@ -355,11 +443,17 @@ export class WebSocketFrameRequest extends Message<WebSocketFrameRequest> {
     return new WebSocketFrameRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WebSocketFrameRequest {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): WebSocketFrameRequest {
     return new WebSocketFrameRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: WebSocketFrameRequest | PlainMessage<WebSocketFrameRequest> | undefined, b: WebSocketFrameRequest | PlainMessage<WebSocketFrameRequest> | undefined): boolean {
+  static equals(
+    a: WebSocketFrameRequest | PlainMessage<WebSocketFrameRequest> | undefined,
+    b: WebSocketFrameRequest | PlainMessage<WebSocketFrameRequest> | undefined
+  ): boolean {
     return proto3.util.equals(WebSocketFrameRequest, a, b);
   }
 }
@@ -371,7 +465,7 @@ export class WebSocketFrameResponse extends Message<WebSocketFrameResponse> {
   /**
    * @generated from field: string type = 1;
    */
-  type = "";
+  type = '';
 
   /**
    * @generated from field: bool success = 3;
@@ -381,7 +475,7 @@ export class WebSocketFrameResponse extends Message<WebSocketFrameResponse> {
   /**
    * @generated from field: string error = 5;
    */
-  error = "";
+  error = '';
 
   /**
    * @generated from field: cuda_learning.ProcessImageResponse response = 7;
@@ -404,29 +498,41 @@ export class WebSocketFrameResponse extends Message<WebSocketFrameResponse> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.WebSocketFrameResponse";
+  static readonly typeName = 'cuda_learning.WebSocketFrameResponse';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "success", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "error", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "response", kind: "message", T: ProcessImageResponse },
-    { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-    { no: 11, name: "video_frame", jsonName: "video_frame", kind: "message", T: VideoFrameUpdate },
+    { no: 1, name: 'type', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'success', kind: 'scalar', T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: 'error', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: 'response', kind: 'message', T: ProcessImageResponse },
+    { no: 9, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
+    { no: 11, name: 'video_frame', jsonName: 'video_frame', kind: 'message', T: VideoFrameUpdate },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WebSocketFrameResponse {
+  static fromBinary(
+    bytes: Uint8Array,
+    options?: Partial<BinaryReadOptions>
+  ): WebSocketFrameResponse {
     return new WebSocketFrameResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WebSocketFrameResponse {
+  static fromJson(
+    jsonValue: JsonValue,
+    options?: Partial<JsonReadOptions>
+  ): WebSocketFrameResponse {
     return new WebSocketFrameResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WebSocketFrameResponse {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): WebSocketFrameResponse {
     return new WebSocketFrameResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined, b: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined): boolean {
+  static equals(
+    a: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined,
+    b: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined
+  ): boolean {
     return proto3.util.equals(WebSocketFrameResponse, a, b);
   }
 }
@@ -438,7 +544,7 @@ export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest
   /**
    * @generated from field: string video_id = 1;
    */
-  videoId = "";
+  videoId = '';
 
   /**
    * @generated from field: repeated cuda_learning.FilterType filters = 3;
@@ -466,28 +572,40 @@ export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.StartVideoPlaybackRequest";
+  static readonly typeName = 'cuda_learning.StartVideoPlaybackRequest';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "filters", kind: "enum", T: proto3.getEnumType(FilterType), repeated: true },
-    { no: 5, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
-    { no: 7, name: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
-    { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 1, name: 'video_id', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'filters', kind: 'enum', T: proto3.getEnumType(FilterType), repeated: true },
+    { no: 5, name: 'accelerator', kind: 'enum', T: proto3.getEnumType(AcceleratorType) },
+    { no: 7, name: 'grayscale_type', kind: 'enum', T: proto3.getEnumType(GrayscaleType) },
+    { no: 9, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartVideoPlaybackRequest {
+  static fromBinary(
+    bytes: Uint8Array,
+    options?: Partial<BinaryReadOptions>
+  ): StartVideoPlaybackRequest {
     return new StartVideoPlaybackRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartVideoPlaybackRequest {
+  static fromJson(
+    jsonValue: JsonValue,
+    options?: Partial<JsonReadOptions>
+  ): StartVideoPlaybackRequest {
     return new StartVideoPlaybackRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartVideoPlaybackRequest {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): StartVideoPlaybackRequest {
     return new StartVideoPlaybackRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined, b: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined): boolean {
+  static equals(
+    a: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined,
+    b: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined
+  ): boolean {
     return proto3.util.equals(StartVideoPlaybackRequest, a, b);
   }
 }
@@ -499,7 +617,7 @@ export class StopVideoPlaybackRequest extends Message<StopVideoPlaybackRequest> 
   /**
    * @generated from field: string session_id = 1;
    */
-  sessionId = "";
+  sessionId = '';
 
   /**
    * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
@@ -512,25 +630,37 @@ export class StopVideoPlaybackRequest extends Message<StopVideoPlaybackRequest> 
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.StopVideoPlaybackRequest";
+  static readonly typeName = 'cuda_learning.StopVideoPlaybackRequest';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 1, name: 'session_id', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StopVideoPlaybackRequest {
+  static fromBinary(
+    bytes: Uint8Array,
+    options?: Partial<BinaryReadOptions>
+  ): StopVideoPlaybackRequest {
     return new StopVideoPlaybackRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StopVideoPlaybackRequest {
+  static fromJson(
+    jsonValue: JsonValue,
+    options?: Partial<JsonReadOptions>
+  ): StopVideoPlaybackRequest {
     return new StopVideoPlaybackRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StopVideoPlaybackRequest {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): StopVideoPlaybackRequest {
     return new StopVideoPlaybackRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined, b: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined): boolean {
+  static equals(
+    a: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined,
+    b: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined
+  ): boolean {
     return proto3.util.equals(StopVideoPlaybackRequest, a, b);
   }
 }
@@ -542,7 +672,7 @@ export class VideoFrameUpdate extends Message<VideoFrameUpdate> {
   /**
    * @generated from field: string session_id = 1 [json_name = "session_id"];
    */
-  sessionId = "";
+  sessionId = '';
 
   /**
    * @generated from field: bytes frame_data = 3 [json_name = "frame_data"];
@@ -575,14 +705,44 @@ export class VideoFrameUpdate extends Message<VideoFrameUpdate> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.VideoFrameUpdate";
+  static readonly typeName = 'cuda_learning.VideoFrameUpdate';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "frame_data", jsonName: "frame_data", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 5, name: "frame_number", jsonName: "frame_number", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 7, name: "timestamp_ms", jsonName: "timestamp_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 9, name: "is_last_frame", jsonName: "is_last_frame", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 11, name: "frame_id", jsonName: "frame_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    {
+      no: 1,
+      name: 'session_id',
+      jsonName: 'session_id',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    {
+      no: 3,
+      name: 'frame_data',
+      jsonName: 'frame_data',
+      kind: 'scalar',
+      T: 12 /* ScalarType.BYTES */,
+    },
+    {
+      no: 5,
+      name: 'frame_number',
+      jsonName: 'frame_number',
+      kind: 'scalar',
+      T: 5 /* ScalarType.INT32 */,
+    },
+    {
+      no: 7,
+      name: 'timestamp_ms',
+      jsonName: 'timestamp_ms',
+      kind: 'scalar',
+      T: 3 /* ScalarType.INT64 */,
+    },
+    {
+      no: 9,
+      name: 'is_last_frame',
+      jsonName: 'is_last_frame',
+      kind: 'scalar',
+      T: 8 /* ScalarType.BOOL */,
+    },
+    { no: 11, name: 'frame_id', jsonName: 'frame_id', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VideoFrameUpdate {
@@ -597,7 +757,10 @@ export class VideoFrameUpdate extends Message<VideoFrameUpdate> {
     return new VideoFrameUpdate().fromJsonString(jsonString, options);
   }
 
-  static equals(a: VideoFrameUpdate | PlainMessage<VideoFrameUpdate> | undefined, b: VideoFrameUpdate | PlainMessage<VideoFrameUpdate> | undefined): boolean {
+  static equals(
+    a: VideoFrameUpdate | PlainMessage<VideoFrameUpdate> | undefined,
+    b: VideoFrameUpdate | PlainMessage<VideoFrameUpdate> | undefined
+  ): boolean {
     return proto3.util.equals(VideoFrameUpdate, a, b);
   }
 }
@@ -611,7 +774,7 @@ export class GetCapabilitiesRequest extends Message<GetCapabilitiesRequest> {
   /**
    * @generated from field: string api_version = 1 [json_name = "api_version"];
    */
-  apiVersion = "";
+  apiVersion = '';
 
   constructor(data?: PartialMessage<GetCapabilitiesRequest>) {
     super();
@@ -619,24 +782,42 @@ export class GetCapabilitiesRequest extends Message<GetCapabilitiesRequest> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.GetCapabilitiesRequest";
+  static readonly typeName = 'cuda_learning.GetCapabilitiesRequest';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    {
+      no: 1,
+      name: 'api_version',
+      jsonName: 'api_version',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCapabilitiesRequest {
+  static fromBinary(
+    bytes: Uint8Array,
+    options?: Partial<BinaryReadOptions>
+  ): GetCapabilitiesRequest {
     return new GetCapabilitiesRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCapabilitiesRequest {
+  static fromJson(
+    jsonValue: JsonValue,
+    options?: Partial<JsonReadOptions>
+  ): GetCapabilitiesRequest {
     return new GetCapabilitiesRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCapabilitiesRequest {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): GetCapabilitiesRequest {
     return new GetCapabilitiesRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetCapabilitiesRequest | PlainMessage<GetCapabilitiesRequest> | undefined, b: GetCapabilitiesRequest | PlainMessage<GetCapabilitiesRequest> | undefined): boolean {
+  static equals(
+    a: GetCapabilitiesRequest | PlainMessage<GetCapabilitiesRequest> | undefined,
+    b: GetCapabilitiesRequest | PlainMessage<GetCapabilitiesRequest> | undefined
+  ): boolean {
     return proto3.util.equals(GetCapabilitiesRequest, a, b);
   }
 }
@@ -653,7 +834,7 @@ export class GetCapabilitiesResponse extends Message<GetCapabilitiesResponse> {
   /**
    * @generated from field: string message = 3;
    */
-  message = "";
+  message = '';
 
   /**
    * @generated from field: cuda_learning.LibraryCapabilities capabilities = 5;
@@ -666,27 +847,38 @@ export class GetCapabilitiesResponse extends Message<GetCapabilitiesResponse> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.GetCapabilitiesResponse";
+  static readonly typeName = 'cuda_learning.GetCapabilitiesResponse';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "capabilities", kind: "message", T: LibraryCapabilities },
+    { no: 1, name: 'code', kind: 'scalar', T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: 'message', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: 'capabilities', kind: 'message', T: LibraryCapabilities },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCapabilitiesResponse {
+  static fromBinary(
+    bytes: Uint8Array,
+    options?: Partial<BinaryReadOptions>
+  ): GetCapabilitiesResponse {
     return new GetCapabilitiesResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCapabilitiesResponse {
+  static fromJson(
+    jsonValue: JsonValue,
+    options?: Partial<JsonReadOptions>
+  ): GetCapabilitiesResponse {
     return new GetCapabilitiesResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCapabilitiesResponse {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): GetCapabilitiesResponse {
     return new GetCapabilitiesResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetCapabilitiesResponse | PlainMessage<GetCapabilitiesResponse> | undefined, b: GetCapabilitiesResponse | PlainMessage<GetCapabilitiesResponse> | undefined): boolean {
+  static equals(
+    a: GetCapabilitiesResponse | PlainMessage<GetCapabilitiesResponse> | undefined,
+    b: GetCapabilitiesResponse | PlainMessage<GetCapabilitiesResponse> | undefined
+  ): boolean {
     return proto3.util.equals(GetCapabilitiesResponse, a, b);
   }
 }
-

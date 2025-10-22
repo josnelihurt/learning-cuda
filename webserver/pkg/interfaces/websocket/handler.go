@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -430,7 +431,7 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 		return nil
 	}
 
-	if err := player.Play(ctx, frameCallback); err != nil && err != context.Canceled {
+	if err := player.Play(ctx, frameCallback); err != nil && !errors.Is(err, context.Canceled) {
 		log.Error().Err(err).Msg("Video playback error")
 	}
 }

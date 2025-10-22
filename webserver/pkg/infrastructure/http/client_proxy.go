@@ -70,7 +70,7 @@ func (p *clientProxy) Get(url string) (*http.Response, error) {
 		attribute.String("http.url", url),
 	)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Failed to create request")
@@ -98,7 +98,7 @@ func (p *clientProxy) GetWithContext(ctx context.Context, url string) (*http.Res
 		attribute.String("http.url", url),
 	)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Failed to create request")
@@ -126,7 +126,7 @@ func (p *clientProxy) Head(url string) (*http.Response, error) {
 		attribute.String("http.url", url),
 	)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, http.NoBody)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Failed to create request")
@@ -154,7 +154,7 @@ func (p *clientProxy) HeadWithContext(ctx context.Context, url string) (*http.Re
 		attribute.String("http.url", url),
 	)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, http.NoBody)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "Failed to create request")

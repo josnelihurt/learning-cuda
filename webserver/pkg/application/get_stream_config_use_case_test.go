@@ -85,6 +85,18 @@ func TestGetStreamConfigUseCase_Execute(t *testing.T) {
 				assert.Equal(t, "/ws", result.WebsocketEndpoint)
 			},
 		},
+		{
+			name:           "Success_FallbackOnFeatureFlagNotConfigured",
+			defaultConfig:  makeDefaultStreamConfig(),
+			mockEvaluation: makeVariantEvaluation("", false), // Feature flag not configured
+			mockError:      nil,
+			assertResult: func(t *testing.T, result *config.StreamConfig, err error) {
+				assert.NoError(t, err)
+				require.NotNil(t, result)
+				assert.Equal(t, "json", result.TransportFormat) // Should use default
+				assert.Equal(t, "/ws", result.WebsocketEndpoint)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -94,7 +106,7 @@ func TestGetStreamConfigUseCase_Execute(t *testing.T) {
 			mockRepo.On("EvaluateVariant",
 				mock.Anything,
 				"ws_transport_format",
-				"stream_transport_format",
+				"default",
 			).Return(tt.mockEvaluation, tt.mockError).Once()
 
 			evaluateUC := NewEvaluateFeatureFlagUseCase(mockRepo)

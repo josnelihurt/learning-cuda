@@ -23,7 +23,7 @@ features:
   use_binary_protocol: false
   enable_grpc_streaming: false
   enable_observability: true
-  stream.transport_format: ""
+  stream.transport_format: "json"
   stream.websocket_endpoint: ""
 
 flipt:
@@ -97,6 +97,12 @@ tools:
       type: "url"
       url_dev: "http://localhost:5050"
       url_prod: "/reports"
+    - id: "e2e_reports"
+      name: "E2E Test Results (Playwright)"
+      icon_path: "/static/img/tools/playwright.png"
+      type: "url"
+      url_dev: "http://localhost:5051"
+      url_prod: "/e2e"
     - id: "coverage_reports"
       name: "Code Coverage"
       icon_path: ""

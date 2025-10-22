@@ -3,8 +3,15 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import type {
+  BinaryReadOptions,
+  FieldList,
+  JsonReadOptions,
+  JsonValue,
+  PartialMessage,
+  PlainMessage,
+} from '@bufbuild/protobuf';
+import { Message, proto3 } from '@bufbuild/protobuf';
 
 /**
  * Enum for filter types
@@ -30,10 +37,10 @@ export enum FilterType {
   GRAYSCALE = 2,
 }
 // Retrieve enum metadata with: proto3.getEnumType(FilterType)
-proto3.util.setEnumType(FilterType, "cuda_learning.FilterType", [
-  { no: 0, name: "FILTER_TYPE_UNSPECIFIED" },
-  { no: 1, name: "FILTER_TYPE_NONE" },
-  { no: 2, name: "FILTER_TYPE_GRAYSCALE" },
+proto3.util.setEnumType(FilterType, 'cuda_learning.FilterType', [
+  { no: 0, name: 'FILTER_TYPE_UNSPECIFIED' },
+  { no: 1, name: 'FILTER_TYPE_NONE' },
+  { no: 2, name: 'FILTER_TYPE_GRAYSCALE' },
 ]);
 
 /**
@@ -63,11 +70,11 @@ export enum AcceleratorType {
   OPENCL = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(AcceleratorType)
-proto3.util.setEnumType(AcceleratorType, "cuda_learning.AcceleratorType", [
-  { no: 0, name: "ACCELERATOR_TYPE_UNSPECIFIED" },
-  { no: 1, name: "ACCELERATOR_TYPE_CUDA" },
-  { no: 2, name: "ACCELERATOR_TYPE_CPU" },
-  { no: 3, name: "ACCELERATOR_TYPE_OPENCL" },
+proto3.util.setEnumType(AcceleratorType, 'cuda_learning.AcceleratorType', [
+  { no: 0, name: 'ACCELERATOR_TYPE_UNSPECIFIED' },
+  { no: 1, name: 'ACCELERATOR_TYPE_CUDA' },
+  { no: 2, name: 'ACCELERATOR_TYPE_CPU' },
+  { no: 3, name: 'ACCELERATOR_TYPE_OPENCL' },
 ]);
 
 /**
@@ -117,13 +124,13 @@ export enum GrayscaleType {
   LUMINOSITY = 5,
 }
 // Retrieve enum metadata with: proto3.getEnumType(GrayscaleType)
-proto3.util.setEnumType(GrayscaleType, "cuda_learning.GrayscaleType", [
-  { no: 0, name: "GRAYSCALE_TYPE_UNSPECIFIED" },
-  { no: 1, name: "GRAYSCALE_TYPE_BT601" },
-  { no: 2, name: "GRAYSCALE_TYPE_BT709" },
-  { no: 3, name: "GRAYSCALE_TYPE_AVERAGE" },
-  { no: 4, name: "GRAYSCALE_TYPE_LIGHTNESS" },
-  { no: 5, name: "GRAYSCALE_TYPE_LUMINOSITY" },
+proto3.util.setEnumType(GrayscaleType, 'cuda_learning.GrayscaleType', [
+  { no: 0, name: 'GRAYSCALE_TYPE_UNSPECIFIED' },
+  { no: 1, name: 'GRAYSCALE_TYPE_BT601' },
+  { no: 2, name: 'GRAYSCALE_TYPE_BT709' },
+  { no: 3, name: 'GRAYSCALE_TYPE_AVERAGE' },
+  { no: 4, name: 'GRAYSCALE_TYPE_LIGHTNESS' },
+  { no: 5, name: 'GRAYSCALE_TYPE_LUMINOSITY' },
 ]);
 
 /**
@@ -135,12 +142,12 @@ export class TraceContext extends Message<TraceContext> {
   /**
    * @generated from field: string traceparent = 1;
    */
-  traceparent = "";
+  traceparent = '';
 
   /**
    * @generated from field: string tracestate = 3;
    */
-  tracestate = "";
+  tracestate = '';
 
   constructor(data?: PartialMessage<TraceContext>) {
     super();
@@ -148,10 +155,10 @@ export class TraceContext extends Message<TraceContext> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.TraceContext";
+  static readonly typeName = 'cuda_learning.TraceContext';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "traceparent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "tracestate", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: 'traceparent', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'tracestate', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TraceContext {
@@ -166,7 +173,10 @@ export class TraceContext extends Message<TraceContext> {
     return new TraceContext().fromJsonString(jsonString, options);
   }
 
-  static equals(a: TraceContext | PlainMessage<TraceContext> | undefined, b: TraceContext | PlainMessage<TraceContext> | undefined): boolean {
+  static equals(
+    a: TraceContext | PlainMessage<TraceContext> | undefined,
+    b: TraceContext | PlainMessage<TraceContext> | undefined
+  ): boolean {
     return proto3.util.equals(TraceContext, a, b);
   }
 }
@@ -180,17 +190,17 @@ export class FilterParameter extends Message<FilterParameter> {
   /**
    * @generated from field: string id = 1;
    */
-  id = "";
+  id = '';
 
   /**
    * @generated from field: string name = 3;
    */
-  name = "";
+  name = '';
 
   /**
    * @generated from field: string type = 5;
    */
-  type = "";
+  type = '';
 
   /**
    * @generated from field: repeated string options = 7;
@@ -200,7 +210,7 @@ export class FilterParameter extends Message<FilterParameter> {
   /**
    * @generated from field: string default_value = 9 [json_name = "default_value"];
    */
-  defaultValue = "";
+  defaultValue = '';
 
   constructor(data?: PartialMessage<FilterParameter>) {
     super();
@@ -208,13 +218,19 @@ export class FilterParameter extends Message<FilterParameter> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.FilterParameter";
+  static readonly typeName = 'cuda_learning.FilterParameter';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "options", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 9, name: "default_value", jsonName: "default_value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: 'id', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'name', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: 'type', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: 'options', kind: 'scalar', T: 9 /* ScalarType.STRING */, repeated: true },
+    {
+      no: 9,
+      name: 'default_value',
+      jsonName: 'default_value',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FilterParameter {
@@ -229,7 +245,10 @@ export class FilterParameter extends Message<FilterParameter> {
     return new FilterParameter().fromJsonString(jsonString, options);
   }
 
-  static equals(a: FilterParameter | PlainMessage<FilterParameter> | undefined, b: FilterParameter | PlainMessage<FilterParameter> | undefined): boolean {
+  static equals(
+    a: FilterParameter | PlainMessage<FilterParameter> | undefined,
+    b: FilterParameter | PlainMessage<FilterParameter> | undefined
+  ): boolean {
     return proto3.util.equals(FilterParameter, a, b);
   }
 }
@@ -243,12 +262,12 @@ export class FilterDefinition extends Message<FilterDefinition> {
   /**
    * @generated from field: string id = 1;
    */
-  id = "";
+  id = '';
 
   /**
    * @generated from field: string name = 3;
    */
-  name = "";
+  name = '';
 
   /**
    * @generated from field: repeated cuda_learning.FilterParameter parameters = 5;
@@ -266,12 +285,19 @@ export class FilterDefinition extends Message<FilterDefinition> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.FilterDefinition";
+  static readonly typeName = 'cuda_learning.FilterDefinition';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "parameters", kind: "message", T: FilterParameter, repeated: true },
-    { no: 7, name: "supported_accelerators", jsonName: "supported_accelerators", kind: "enum", T: proto3.getEnumType(AcceleratorType), repeated: true },
+    { no: 1, name: 'id', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: 'name', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: 'parameters', kind: 'message', T: FilterParameter, repeated: true },
+    {
+      no: 7,
+      name: 'supported_accelerators',
+      jsonName: 'supported_accelerators',
+      kind: 'enum',
+      T: proto3.getEnumType(AcceleratorType),
+      repeated: true,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FilterDefinition {
@@ -286,7 +312,10 @@ export class FilterDefinition extends Message<FilterDefinition> {
     return new FilterDefinition().fromJsonString(jsonString, options);
   }
 
-  static equals(a: FilterDefinition | PlainMessage<FilterDefinition> | undefined, b: FilterDefinition | PlainMessage<FilterDefinition> | undefined): boolean {
+  static equals(
+    a: FilterDefinition | PlainMessage<FilterDefinition> | undefined,
+    b: FilterDefinition | PlainMessage<FilterDefinition> | undefined
+  ): boolean {
     return proto3.util.equals(FilterDefinition, a, b);
   }
 }
@@ -300,12 +329,12 @@ export class LibraryCapabilities extends Message<LibraryCapabilities> {
   /**
    * @generated from field: string api_version = 1 [json_name = "api_version"];
    */
-  apiVersion = "";
+  apiVersion = '';
 
   /**
    * @generated from field: string library_version = 3 [json_name = "library_version"];
    */
-  libraryVersion = "";
+  libraryVersion = '';
 
   /**
    * @generated from field: repeated cuda_learning.FilterDefinition filters = 5;
@@ -320,12 +349,12 @@ export class LibraryCapabilities extends Message<LibraryCapabilities> {
   /**
    * @generated from field: string build_date = 13 [json_name = "build_date"];
    */
-  buildDate = "";
+  buildDate = '';
 
   /**
    * @generated from field: string build_commit = 15 [json_name = "build_commit"];
    */
-  buildCommit = "";
+  buildCommit = '';
 
   constructor(data?: PartialMessage<LibraryCapabilities>) {
     super();
@@ -333,14 +362,44 @@ export class LibraryCapabilities extends Message<LibraryCapabilities> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.LibraryCapabilities";
+  static readonly typeName = 'cuda_learning.LibraryCapabilities';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "library_version", jsonName: "library_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "filters", kind: "message", T: FilterDefinition, repeated: true },
-    { no: 11, name: "supports_streaming", jsonName: "supports_streaming", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 13, name: "build_date", jsonName: "build_date", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 15, name: "build_commit", jsonName: "build_commit", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    {
+      no: 1,
+      name: 'api_version',
+      jsonName: 'api_version',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    {
+      no: 3,
+      name: 'library_version',
+      jsonName: 'library_version',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    { no: 5, name: 'filters', kind: 'message', T: FilterDefinition, repeated: true },
+    {
+      no: 11,
+      name: 'supports_streaming',
+      jsonName: 'supports_streaming',
+      kind: 'scalar',
+      T: 8 /* ScalarType.BOOL */,
+    },
+    {
+      no: 13,
+      name: 'build_date',
+      jsonName: 'build_date',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    {
+      no: 15,
+      name: 'build_commit',
+      jsonName: 'build_commit',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LibraryCapabilities {
@@ -351,11 +410,17 @@ export class LibraryCapabilities extends Message<LibraryCapabilities> {
     return new LibraryCapabilities().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LibraryCapabilities {
+  static fromJsonString(
+    jsonString: string,
+    options?: Partial<JsonReadOptions>
+  ): LibraryCapabilities {
     return new LibraryCapabilities().fromJsonString(jsonString, options);
   }
 
-  static equals(a: LibraryCapabilities | PlainMessage<LibraryCapabilities> | undefined, b: LibraryCapabilities | PlainMessage<LibraryCapabilities> | undefined): boolean {
+  static equals(
+    a: LibraryCapabilities | PlainMessage<LibraryCapabilities> | undefined,
+    b: LibraryCapabilities | PlainMessage<LibraryCapabilities> | undefined
+  ): boolean {
     return proto3.util.equals(LibraryCapabilities, a, b);
   }
 }
@@ -369,17 +434,17 @@ export class StaticImage extends Message<StaticImage> {
   /**
    * @generated from field: string id = 1;
    */
-  id = "";
+  id = '';
 
   /**
    * @generated from field: string display_name = 3 [json_name = "display_name"];
    */
-  displayName = "";
+  displayName = '';
 
   /**
    * @generated from field: string path = 5;
    */
-  path = "";
+  path = '';
 
   /**
    * @generated from field: bool is_default = 7 [json_name = "is_default"];
@@ -392,12 +457,24 @@ export class StaticImage extends Message<StaticImage> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.StaticImage";
+  static readonly typeName = 'cuda_learning.StaticImage';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", jsonName: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "is_default", jsonName: "is_default", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: 'id', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    {
+      no: 3,
+      name: 'display_name',
+      jsonName: 'display_name',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    { no: 5, name: 'path', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    {
+      no: 7,
+      name: 'is_default',
+      jsonName: 'is_default',
+      kind: 'scalar',
+      T: 8 /* ScalarType.BOOL */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StaticImage {
@@ -412,7 +489,10 @@ export class StaticImage extends Message<StaticImage> {
     return new StaticImage().fromJsonString(jsonString, options);
   }
 
-  static equals(a: StaticImage | PlainMessage<StaticImage> | undefined, b: StaticImage | PlainMessage<StaticImage> | undefined): boolean {
+  static equals(
+    a: StaticImage | PlainMessage<StaticImage> | undefined,
+    b: StaticImage | PlainMessage<StaticImage> | undefined
+  ): boolean {
     return proto3.util.equals(StaticImage, a, b);
   }
 }
@@ -426,22 +506,22 @@ export class StaticVideo extends Message<StaticVideo> {
   /**
    * @generated from field: string id = 1;
    */
-  id = "";
+  id = '';
 
   /**
    * @generated from field: string display_name = 3 [json_name = "display_name"];
    */
-  displayName = "";
+  displayName = '';
 
   /**
    * @generated from field: string path = 5;
    */
-  path = "";
+  path = '';
 
   /**
    * @generated from field: string preview_image_path = 7 [json_name = "preview_image_path"];
    */
-  previewImagePath = "";
+  previewImagePath = '';
 
   /**
    * @generated from field: bool is_default = 9 [json_name = "is_default"];
@@ -454,13 +534,31 @@ export class StaticVideo extends Message<StaticVideo> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.StaticVideo";
+  static readonly typeName = 'cuda_learning.StaticVideo';
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", jsonName: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "preview_image_path", jsonName: "preview_image_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 9, name: "is_default", jsonName: "is_default", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: 'id', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    {
+      no: 3,
+      name: 'display_name',
+      jsonName: 'display_name',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    { no: 5, name: 'path', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    {
+      no: 7,
+      name: 'preview_image_path',
+      jsonName: 'preview_image_path',
+      kind: 'scalar',
+      T: 9 /* ScalarType.STRING */,
+    },
+    {
+      no: 9,
+      name: 'is_default',
+      jsonName: 'is_default',
+      kind: 'scalar',
+      T: 8 /* ScalarType.BOOL */,
+    },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StaticVideo {
@@ -475,8 +573,10 @@ export class StaticVideo extends Message<StaticVideo> {
     return new StaticVideo().fromJsonString(jsonString, options);
   }
 
-  static equals(a: StaticVideo | PlainMessage<StaticVideo> | undefined, b: StaticVideo | PlainMessage<StaticVideo> | undefined): boolean {
+  static equals(
+    a: StaticVideo | PlainMessage<StaticVideo> | undefined,
+    b: StaticVideo | PlainMessage<StaticVideo> | undefined
+  ): boolean {
     return proto3.util.equals(StaticVideo, a, b);
   }
 }
-

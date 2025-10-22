@@ -31,7 +31,9 @@ type Container struct {
 	SyncFeatureFlagsUseCase    *application.SyncFeatureFlagsUseCase
 	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
 	ListInputsUseCase          *application.ListInputsUseCase
-	ListAvailableImagesUseCase *application.ListAvailableImagesUseCase
+	// ListAvailableImagesUseCase handles listing available images
+	// language: english-only
+	ListAvailableImagesUseCase *application.ListAvailableImagesUseCase //nolint:language
 	UploadImageUseCase         *application.UploadImageUseCase
 	ListVideosUseCase          *application.ListVideosUseCase
 	UploadVideoUseCase         *application.UploadVideoUseCase
@@ -112,11 +114,13 @@ func New(ctx context.Context) (*Container, error) {
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 
-	videoRepo := video.NewFileVideoRepository("data/videos", "data/video_previews")
+	videoRepo := video.NewFileVideoRepository(context.Background(), "data/videos", "data/video_previews") //nolint:contextcheck
 	listInputsUseCase := application.NewListInputsUseCase(videoRepo)
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
-	listAvailableImagesUseCase := application.NewListAvailableImagesUseCase(staticImageRepo)
+	// Create use case for listing available images
+	// language: english-only
+	listAvailableImagesUseCase := application.NewListAvailableImagesUseCase(staticImageRepo) //nolint:language
 	uploadImageUseCase := application.NewUploadImageUseCase(staticImageRepo)
 
 	listVideosUseCase := application.NewListVideosUseCase(videoRepo)

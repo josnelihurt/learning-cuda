@@ -73,11 +73,18 @@ func (h *ConfigHandler) GetStreamConfig(
 		consoleLogging = true
 	}
 
+	// Force transport_format to "json" if empty
+	transportFormat := streamConfig.TransportFormat
+	if transportFormat == "" {
+		transportFormat = "json"
+		log.Printf("DEBUG: Forced transport_format to 'json' (was empty)")
+	}
+
 	endpoints := []*pb.StreamEndpoint{
 		{
 			Type:            "websocket",
 			Endpoint:        streamConfig.WebsocketEndpoint,
-			TransportFormat: streamConfig.TransportFormat,
+			TransportFormat: transportFormat,
 			LogLevel:        logLevel,
 			ConsoleLogging:  consoleLogging,
 		},

@@ -177,10 +177,10 @@ services:
     network_mode: host
     
     environment:
-      - PLAYWRIGHT_SINGLE_BROWSER=${PLAYWRIGHT_SINGLE_BROWSER:-false}
-      - PLAYWRIGHT_VIDEO=${PLAYWRIGHT_VIDEO:-false}
-      - PLAYWRIGHT_SCREENSHOTS=${PLAYWRIGHT_SCREENSHOTS:-false}
-      - PLAYWRIGHT_TRACE=${PLAYWRIGHT_TRACE:-false}
+      - PLAYWRIGHT_SINGLE_BROWSER=${PLAYWRIGHT_SINGLE_BROWSER:-true}
+      - PLAYWRIGHT_VIDEO=${PLAYWRIGHT_VIDEO:-true}
+      - PLAYWRIGHT_SCREENSHOTS=${PLAYWRIGHT_SCREENSHOTS:-true}
+      - PLAYWRIGHT_TRACE=${PLAYWRIGHT_TRACE:-true}
     
     volumes:
       - ./webserver/web/src:/workspace/webserver/web/src:ro
@@ -206,7 +206,7 @@ services:
       - "5051:8080"
     
     volumes:
-      - ./webserver/web/.ignore/playwright-report:/app:ro
+      - ./webserver/web/.ignore/playwright-report:/app
     
     command: npx http-server /app -p 8080
     

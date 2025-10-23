@@ -12,7 +12,7 @@ test.describe('UI Validation', () => {
   });
 
   test('Validate Page Title and Header', async ({ page }) => {
-    await expect(page).toHaveTitle(/CUDA/i);
+    await expect(page).toHaveTitle(/CUDAD/i);
     
     const header = page.locator('header');
     await expect(header).toBeVisible();

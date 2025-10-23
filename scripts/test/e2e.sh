@@ -148,6 +148,7 @@ echo "Running E2E tests..."
 echo "Command: npx playwright test $PLAYWRIGHT_OPTS"
 echo ""
 
+set +e
 docker compose -f docker-compose.dev.yml --profile testing run \
   --rm \
   -e PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS --grep-invert=@slow" \
@@ -155,6 +156,7 @@ docker compose -f docker-compose.dev.yml --profile testing run \
   e2e-tests
 
 EXIT_CODE=$?
+set -e
 
 echo ""
 if [ $EXIT_CODE -eq 0 ]; then
@@ -162,6 +164,12 @@ if [ $EXIT_CODE -eq 0 ]; then
 else
     echo "E2E tests failed with exit code $EXIT_CODE"
 fi
+
+
+docker stop e2e-report-viewer
+docker rm e2e-report-viewer
+
+docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer
 
 echo ""
 echo "Results saved in webserver/web/.ignore/"

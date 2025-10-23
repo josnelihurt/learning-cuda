@@ -14,6 +14,7 @@ import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
 import { context, propagation } from '@opentelemetry/api';
 import type { IWebSocketService } from '../domain/interfaces/IWebSocketService';
+import { ImageData } from '../domain/value-objects';
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
 
@@ -118,7 +119,12 @@ export class WebSocketService implements IWebSocketService {
     accelerator: string,
     grayscaleType: string
   ): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const image = new ImageData(base64Data, width, height);
+    this.sendFrameWithImageData(image, filters, accelerator, grayscaleType);
+  }
+
+  sendFrameWithImageData(image: ImageData, filters: string[], accelerator: string, grayscaleType: string): void {
+    if (!this.ws || this.ws.readyState !== 1) return; // WebSocket.OPEN
 
     this.cameraManager.setProcessing(true);
 
@@ -156,13 +162,13 @@ export class WebSocketService implements IWebSocketService {
         protoGrayscaleType = GrayscaleType.BT601;
     }
 
-    const imageDataB64 = base64Data.replace(/^data:image\/(png|jpeg);base64,/, '');
+    const imageDataB64 = image.getBase64().replace(/^data:image\/(png|jpeg);base64,/, '');
     const imageBytes = Uint8Array.from(atob(imageDataB64), (c) => c.charCodeAt(0));
 
     const request = new ProcessImageRequest({
       imageData: imageBytes,
-      width,
-      height,
+      width: image.getWidth(),
+      height: image.getHeight(),
       channels: 4,
       filters: protoFilters,
       accelerator: protoAccelerator,
@@ -189,6 +195,13 @@ export class WebSocketService implements IWebSocketService {
     } else {
       this.ws.send(frameRequest.toJsonString());
     }
+
+    logger.debug('Frame sent via WebSocket', {
+      width: image.getWidth(),
+      height: image.getHeight(),
+      aspectRatio: image.getAspectRatio(),
+      filters: filters.length,
+    });
   }
 
   sendSingleFrame(

@@ -1,9 +1,10 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { telemetryService } from './telemetry-service';
+import type { ILogger } from '../domain/interfaces/ILogger';
 
 type LogAttributes = Record<string, string | number | boolean>;
 
-class OtelLogger {
+class OtelLogger implements ILogger {
   private consoleEnabled: boolean = true;
   private minLogLevel: SeverityNumber = SeverityNumber.INFO;
   private initialized = false;

@@ -13,6 +13,7 @@ import { streamConfigService } from './config-service';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
 import { context, propagation } from '@opentelemetry/api';
+import type { IWebSocketService } from '../domain/interfaces/IWebSocketService';
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
 
@@ -22,7 +23,7 @@ type FrameResultCallback = (data: WebSocketFrameResponse) => void;
 // Migration: Use @connectrpc/connect-web streaming API instead of native WebSocket
 // Benefits: Type-safe, automatic reconnection, unified with other RPC calls, better error handling
 // Keep during migration for backward compatibility
-export class WebSocketService {
+export class WebSocketService implements IWebSocketService {
   private ws: WebSocket | null = null;
   private reconnectTimeout = 3000;
   private onFrameResultCallback: FrameResultCallback | null = null;
@@ -132,7 +133,7 @@ export class WebSocketService {
       }
     });
 
-    const protoAccelerator = accelerator === 'cpu' ? AcceleratorType.CPU : AcceleratorType.GPU;
+    const protoAccelerator = accelerator === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
 
     let protoGrayscaleType: GrayscaleType;
     switch (grayscaleType) {
@@ -275,7 +276,7 @@ export class WebSocketService {
         return FilterType.NONE;
       });
 
-      const acceleratorType = accelerator === 'gpu' ? AcceleratorType.GPU : AcceleratorType.CPU;
+      const acceleratorType = accelerator === 'gpu' ? AcceleratorType.CUDA : AcceleratorType.CPU;
       const grayscaleTypeEnum =
         grayscaleType === 'bt709' ? GrayscaleType.BT709 : GrayscaleType.BT601;
 

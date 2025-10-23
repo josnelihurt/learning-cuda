@@ -5,8 +5,9 @@ import { Resource } from '@opentelemetry/resources';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import { logger } from './otel-logger';
+import type { ITelemetryService } from '../domain/interfaces/ITelemetryService';
 
-class TelemetryService {
+class TelemetryService implements ITelemetryService {
   private enabled: boolean = false;
   private tracer: any = null;
 

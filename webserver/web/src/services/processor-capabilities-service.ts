@@ -4,6 +4,7 @@ import { ConfigService as ConfigServiceClient } from '../gen/config_service_conn
 import { FilterDefinition } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
 import { Filter, createFilterFromDefinition } from '../components/filter-panel.types';
+import type { IProcessorCapabilitiesService } from '../domain/interfaces/IProcessorCapabilitiesService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();
@@ -13,7 +14,7 @@ const tracingInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-class ProcessorCapabilitiesService {
+class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
   private client: PromiseClient<typeof ConfigServiceClient>;
   private filterDefinitions: FilterDefinition[] = [];
   private filters: Filter[] = [];

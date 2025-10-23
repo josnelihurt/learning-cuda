@@ -4,8 +4,9 @@ import type { FilterPanel } from '../components/filter-panel';
 import type { ToastContainer } from '../components/toast-container';
 import type { WebSocketService } from './websocket-service';
 import { telemetryService } from './telemetry-service';
+import type { IUIService } from '../domain/interfaces/IUIService';
 
-export class UIService {
+export class UIService implements IUIService {
   selectedInputSource = 'lena';
   selectedAccelerator = 'gpu';
   currentState: 'static' | 'streaming' = 'static';

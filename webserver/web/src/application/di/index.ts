@@ -1,0 +1,11 @@
+export { container } from './Container';
+export type { IConfigService } from '../../domain/interfaces/IConfigService';
+export type { IVideoService } from '../../domain/interfaces/IVideoService';
+export type { IFileService } from '../../domain/interfaces/IFileService';
+export type { IInputSourceService } from '../../domain/interfaces/IInputSourceService';
+export type { IProcessorCapabilitiesService } from '../../domain/interfaces/IProcessorCapabilitiesService';
+export type { IWebSocketService } from '../../domain/interfaces/IWebSocketService';
+export type { ITelemetryService } from '../../domain/interfaces/ITelemetryService';
+export type { ILogger } from '../../domain/interfaces/ILogger';
+export type { IToolsService } from '../../domain/interfaces/IToolsService';
+export type { IUIService } from '../../domain/interfaces/IUIService';

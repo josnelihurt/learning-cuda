@@ -11,19 +11,23 @@ import './components/version-footer';
 import './components/image-selector-modal';
 import './components/video-selector';
 import './components/video-upload';
-import { streamConfigService } from './services/config-service';
-import { telemetryService } from './services/telemetry-service';
-import { logger } from './services/otel-logger';
-import { inputSourceService } from './services/input-source-service';
-import { processorCapabilitiesService } from './services/processor-capabilities-service';
-import { toolsService } from './services/tools-service';
-import { videoService } from './services/video-service';
+import { container } from './application/di';
+import type { IConfigService, ITelemetryService, ILogger, IInputSourceService, IProcessorCapabilitiesService, IToolsService, IVideoService } from './application/di';
 import type { VideoGrid } from './components/video-grid';
 import type { SourceDrawer } from './components/source-drawer';
 import type { ToolsDropdown } from './components/tools-dropdown';
 import type { ImageSelectorModal } from './components/image-selector-modal';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
+
+// Get services from DI container
+const streamConfigService: IConfigService = container.getConfigService();
+const telemetryService: ITelemetryService = container.getTelemetryService();
+const logger: ILogger = container.getLogger();
+const inputSourceService: IInputSourceService = container.getInputSourceService();
+const processorCapabilitiesService: IProcessorCapabilitiesService = container.getProcessorCapabilitiesService();
+const toolsService: IToolsService = container.getToolsService();
+const videoService: IVideoService = container.getVideoService();
 
 const app = {
   toastManager: null as any,

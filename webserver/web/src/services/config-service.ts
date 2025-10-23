@@ -4,6 +4,7 @@ import { ConfigService as ConfigServiceClient } from '../gen/image_processing_co
 import { StreamEndpoint } from '../gen/image_processing_pb';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
+import type { IConfigService } from '../domain/interfaces/IConfigService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();
@@ -13,7 +14,7 @@ const tracingInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-class StreamConfigService {
+class StreamConfigService implements IConfigService {
   private client: PromiseClient<typeof ConfigServiceClient>;
   private config: StreamEndpoint | null = null;
   private initPromise: Promise<void> | null = null;

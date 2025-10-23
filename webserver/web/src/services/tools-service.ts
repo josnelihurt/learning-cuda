@@ -2,8 +2,9 @@ import { createPromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '../gen/config_service_connect';
 import type { ToolCategory } from '../gen/config_service_pb';
+import type { IToolsService } from '../domain/interfaces/IToolsService';
 
-class ToolsService {
+class ToolsService implements IToolsService {
   private client;
   private categories: ToolCategory[] = [];
   private initialized = false;

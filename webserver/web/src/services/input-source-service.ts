@@ -6,6 +6,7 @@ import { InputSource } from '../gen/config_service_pb';
 import { StaticImage, StaticVideo } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
+import type { IInputSourceService } from '../domain/interfaces/IInputSourceService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();
@@ -15,7 +16,7 @@ const tracingInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-class InputSourceService {
+class InputSourceService implements IInputSourceService {
   private configClient: PromiseClient<typeof ConfigService>;
   private fileClient: PromiseClient<typeof FileService>;
   private sources: InputSource[] = [];

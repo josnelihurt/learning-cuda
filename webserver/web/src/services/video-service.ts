@@ -4,6 +4,7 @@ import { FileService } from '../gen/file_service_connect';
 import { StaticVideo } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
+import type { IVideoService } from '../domain/interfaces/IVideoService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();
@@ -13,7 +14,7 @@ const tracingInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-class VideoService {
+class VideoService implements IVideoService {
   private fileClient: PromiseClient<typeof FileService>;
   private videos: StaticVideo[] = [];
   private initPromise: Promise<void> | null = null;

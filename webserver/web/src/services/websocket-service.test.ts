@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebSocketService } from './websocket-service';
-import { ImageData } from '../domain/value-objects';
+import { ImageData, FilterData } from '../domain/value-objects';
 
 describe('WebSocketService - ImageData Integration', () => {
   const makeValidImageData = () => new ImageData(
@@ -288,6 +288,78 @@ describe('WebSocketService - ImageData Integration', () => {
           expect(mockWs.send).toHaveBeenCalledOnce();
         }
       });
+    });
+  });
+});
+
+describe('WebSocketService - FilterData Integration', () => {
+  const makeValidImageData = () => new ImageData('data:image/png;base64,test', 100, 200);
+  const makeNoneFilter = () => new FilterData('none');
+  const makeGrayscaleFilter = () => new FilterData('grayscale');
+
+  const makeMockStatsManager = () => ({
+    updateWebSocketStatus: vi.fn(),
+  });
+
+  const makeMockCameraManager = () => ({
+    setProcessing: vi.fn(),
+  });
+
+  const makeMockToastManager = () => ({
+    warning: vi.fn(),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('Success Cases', () => {
+    it('Success_SendFrameWithFilterData', () => {
+      // Arrange
+      const mockWs = { readyState: 1, send: vi.fn() };
+      const statsManager = makeMockStatsManager();
+      const cameraManager = makeMockCameraManager();
+      const toastManager = makeMockToastManager();
+      
+      const sut = new WebSocketService(statsManager, cameraManager, toastManager);
+      (sut as any).ws = mockWs;
+
+      const image = makeValidImageData();
+      const filters = [makeNoneFilter(), makeGrayscaleFilter()];
+
+      // Act
+      sut.sendFrameWithValueObjects(image, filters, 'gpu', 'bt709');
+
+      // Assert
+      expect(mockWs.send).toHaveBeenCalledOnce();
+      expect(cameraManager.setProcessing).toHaveBeenCalledWith(true);
+    });
+
+    it('Success_BackwardCompatibilityWithStringFilters', () => {
+      // Arrange
+      const mockWs = { readyState: 1, send: vi.fn() };
+      const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+      (sut as any).ws = mockWs;
+
+      const image = makeValidImageData();
+
+      // Act - usar método antiguo con strings
+      sut.sendFrameWithImageData(image, ['none', 'grayscale'], 'gpu', 'bt709');
+
+      // Assert
+      expect(mockWs.send).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('Error Cases', () => {
+    it('Error_InvalidFilterTypeThrows', () => {
+      // Arrange
+      const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+
+      // Act / Assert
+      expect(() => {
+        new FilterData('invalid-type' as any);
+      }).toThrow('Invalid filter type');
     });
   });
 });

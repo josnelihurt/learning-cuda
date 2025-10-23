@@ -14,7 +14,7 @@ import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
 import { context, propagation } from '@opentelemetry/api';
 import type { IWebSocketService } from '../domain/interfaces/IWebSocketService';
-import { ImageData } from '../domain/value-objects';
+import { ImageData, FilterData } from '../domain/value-objects';
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
 
@@ -124,20 +124,16 @@ export class WebSocketService implements IWebSocketService {
   }
 
   sendFrameWithImageData(image: ImageData, filters: string[], accelerator: string, grayscaleType: string): void {
+    const filterObjects = filters.map(f => new FilterData(f as any));
+    this.sendFrameWithValueObjects(image, filterObjects, accelerator, grayscaleType);
+  }
+
+  sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: string, grayscaleType: string): void {
     if (!this.ws || this.ws.readyState !== 1) return; // WebSocket.OPEN
 
     this.cameraManager.setProcessing(true);
 
-    const protoFilters = filters.map((f) => {
-      switch (f) {
-        case 'none':
-          return FilterType.NONE;
-        case 'grayscale':
-          return FilterType.GRAYSCALE;
-        default:
-          return FilterType.NONE;
-      }
-    });
+    const protoFilters = filters.map(f => f.toProtocol());
 
     const protoAccelerator = accelerator === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
 
@@ -200,7 +196,8 @@ export class WebSocketService implements IWebSocketService {
       width: image.getWidth(),
       height: image.getHeight(),
       aspectRatio: image.getAspectRatio(),
-      filters: filters.length,
+      filterCount: filters.length,
+      filterTypes: filters.map(f => f.getType()),
     });
   }
 

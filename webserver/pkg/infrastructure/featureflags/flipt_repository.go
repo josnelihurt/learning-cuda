@@ -9,12 +9,17 @@ import (
 	flipt "go.flipt.io/flipt-client"
 )
 
-type FliptRepository struct {
-	reader FliptClientInterface
-	writer *FliptWriter
+// FliptWriterInterface defines the interface for FliptWriter to enable mocking
+type FliptWriterInterface interface {
+	SyncFlags(ctx context.Context, flags map[string]interface{}) error
 }
 
-func NewFliptRepository(reader FliptClientInterface, writer *FliptWriter) *FliptRepository {
+type FliptRepository struct {
+	reader FliptClientInterface
+	writer FliptWriterInterface
+}
+
+func NewFliptRepository(reader FliptClientInterface, writer FliptWriterInterface) *FliptRepository {
 	return &FliptRepository{
 		reader: reader,
 		writer: writer,

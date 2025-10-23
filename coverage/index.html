@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUDA Learning - Code Coverage Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .warning h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .warning p {
+            color: #856404;
+            line-height: 1.6;
+        }
+        .reports {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .report-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            text-decoration: none;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .report-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        .report-card:hover::before {
+            transform: translateX(0);
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .report-card h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+        .report-card p {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+        .report-card.disabled {
+            background: #e0e0e0;
+            color: #999;
+            cursor: not-allowed;
+        }
+        .report-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        .update-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+        .update-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .command {
+            background: #2d3748;
+            color: #48bb78;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .info p {
+            color: #1565c0;
+            line-height: 1.6;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        /* Golang Section Styles */
+        .golang-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            margin: 0;
+            grid-column: span 1;
+        }
+        
+        .golang-header h3 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: white;
+        }
+        
+        .golang-coverage-hero {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .coverage-percentage {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .coverage-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .coverage-bar-fill {
+            height: 100%;
+            background: white;
+            transition: width 1s ease;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        
+        .golang-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .golang-stats .stat-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .golang-stats .stat-card h4 {
+            font-size: 0.8em;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+        
+        .golang-stats .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .golang-views {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .golang-views .view-card {
+            background: rgba(255,255,255,0.1);
+            padding: 1px;
+            border-radius: 4px;
+            color: white;
+            text-decoration: none;
+            transition: background 0.3s ease;
+            text-align: center;
+        }
+        
+        .golang-views .view-card:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .golang-views .view-card h4 {
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .golang-views .view-card p {
+            font-size: 0.8em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Code Coverage Dashboard</h1>
+        <p class="subtitle">CUDA Learning Project - Multi-Layer Coverage Reports</p>
+
+        <div class="warning" id="updateWarning">
+            <h3>⚠️ Coverage Reports May Be Outdated</h3>
+            <p>Last generated: <strong id="lastUpdate">Unknown</strong></p>
+            <p>Run the coverage script to generate fresh reports with latest test results.</p>
+        </div>
+
+        <div class="reports">
+            <a href="frontend/index.html" class="report-card" id="frontendCard">
+                <h3>🎨 Frontend</h3>
+                <p>TypeScript/Lit Components</p>
+                <p>Vitest + V8 Coverage</p>
+            </a>
+
+            <div class="golang-section" id="golangSection">
+                <div class="golang-header">
+                    <h3>⚙️ Backend (Go)</h3>
+                    <div class="golang-coverage-hero" id="golangCoverageHero">
+                        <div class="coverage-percentage" id="golangCoveragePercentage">
+                            <span id="golangPercentageValue">--</span>%
+                        </div>
+                        <div class="coverage-bar">
+                            <div class="coverage-bar-fill" id="golangCoverageBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="golang-views">
+                    <a href="golang/traditional.html" class="view-card">
+                        <h4>📄 Traditional</h4>
+                        <p>Line-by-line coverage</p>
+                    </a>
+                    <a href="golang/treemap.html" class="view-card">
+                        <h4>🗺️ Treemap</h4>
+                        <p>Visual heat map</p>
+                    </a>
+                    <a href="golang/coverage-summary.txt" class="view-card">
+                        <h4>📝 Summary</h4>
+                        <p>Text breakdown</p>
+                    </a>
+                </div>
+            </div>
+
+            <a href="cpp/html/index.html" class="report-card" id="cppCard">
+                <h3>🚀 C++/CUDA</h3>
+                <p>Image Processing Core</p>
+                <p>Bazel + LLVM Coverage</p>
+            </a>
+        </div>
+
+        <div class="update-section">
+            <h3>🔄 Update Coverage Reports</h3>
+            <p>To generate fresh coverage data for all layers:</p>
+            <div class="command">./scripts/test/coverage.sh</div>
+            
+            <p style="margin-top: 15px;">Individual layers:</p>
+            <div class="command">
+# All layers<br>
+./scripts/test/coverage.sh<br><br>
+# Skip specific layers<br>
+./scripts/test/coverage.sh --skip-frontend<br>
+./scripts/test/coverage.sh --skip-cpp<br>
+./scripts/test/coverage.sh --skip-frontend --skip-cpp  # Golang only<br><br>
+# Individual layers<br>
+cd webserver/web && npm run test:coverage<br>
+go test -v -coverprofile=coverage/golang/coverage.out ./webserver/...<br>
+bazel coverage //cpp_accelerator/...
+            </div>
+        </div>
+
+        <div class="info">
+            <p><strong>💡 Tip:</strong> Coverage reports update automatically when you run <code>./scripts/test/coverage.sh</code>. 
+            This server refreshes in real-time as new reports are generated.</p>
+        </div>
+
+        <div class="footer">
+            <p>CUDA Learning Project | <a href="https://github.com/josnelihurt/learning-cuda" style="color: #667eea;">GitHub</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Load Golang coverage statistics
+        async function loadGolangStats() {
+            try {
+                const response = await fetch('golang/coverage-summary.txt');
+                if (response.ok) {
+                    const text = await response.text();
+                    
+                    // Extract total percentage
+                    const totalMatch = text.match(/total:.*?(\d+\.\d+)%/);
+                    if (totalMatch) {
+                        const percentage = parseFloat(totalMatch[1]);
+                        document.getElementById('golangPercentageValue').textContent = percentage.toFixed(1);
+                        document.getElementById('golangCoverageBar').style.width = percentage + '%';
+                        
+                        // Change color based on percentage
+                        const hero = document.getElementById('golangCoverageHero');
+                        if (percentage >= 80) {
+                            hero.style.background = 'rgba(72, 187, 120, 0.2)'; // Green
+                        } else if (percentage >= 60) {
+                            hero.style.background = 'rgba(246, 173, 85, 0.2)'; // Orange
+                        } else {
+                            hero.style.background = 'rgba(252, 129, 129, 0.2)'; // Red
+                        }
+                    }
+                    
+                    // Calculate statement statistics
+                    const lines = text.split('\n');
+                    let totalStmts = 0;
+                    let coveredStmts = 0;
+                    
+                    lines.forEach(line => {
+                        const match = line.match(/(\d+)\.(\d+)%.*?(\d+)\/(\d+)/);
+                        if (match) {
+                            const covered = parseInt(match[3]);
+                            const total = parseInt(match[4]);
+                            coveredStmts += covered;
+                            totalStmts += total;
+                        }
+                    });
+                    
+                    if (totalStmts > 0) {
+                        document.getElementById('golangTotalStatements').textContent = totalStmts.toLocaleString();
+                        document.getElementById('golangCoveredStatements').textContent = coveredStmts.toLocaleString();
+                        document.getElementById('golangUncoveredStatements').textContent = (totalStmts - coveredStmts).toLocaleString();
+                    }
+                } else {
+                    // Hide Golang section if no data
+                    document.getElementById('golangSection').style.display = 'none';
+                }
+            } catch (e) {
+                console.error('Error loading Golang coverage data:', e);
+                document.getElementById('golangPercentageValue').textContent = '?';
+            }
+        }
+
+        // Check if coverage reports exist
+        async function checkReports() {
+            const reports = [
+                { id: 'frontendCard', path: 'frontend/index.html' },
+                { id: 'cppCard', path: 'cpp/html/index.html' }
+            ];
+
+            for (const report of reports) {
+                try {
+                    const response = await fetch(report.path, { method: 'HEAD' });
+                    if (!response.ok) {
+                        const card = document.getElementById(report.id);
+                        card.classList.add('disabled');
+                        card.removeAttribute('href');
+                        card.querySelector('p:last-child').textContent = 'Not generated yet';
+                    }
+                } catch (e) {
+                    const card = document.getElementById(report.id);
+                    card.classList.add('disabled');
+                    card.removeAttribute('href');
+                    card.querySelector('p:last-child').textContent = 'Not generated yet';
+                }
+            }
+        }
+
+        // Update last update time
+        fetch('frontend/index.html', { method: 'HEAD' })
+            .then(response => {
+                const lastModified = response.headers.get('last-modified');
+                if (lastModified) {
+                    const date = new Date(lastModified);
+                    const now = new Date();
+                    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                    
+                    let timeString = date.toLocaleString();
+                    if (diffDays === 0) {
+                        timeString += ' (today)';
+                    } else if (diffDays === 1) {
+                        timeString += ' (yesterday)';
+                    } else if (diffDays > 1) {
+                        timeString += ` (${diffDays} days ago)`;
+                    }
+                    
+                    document.getElementById('lastUpdate').textContent = timeString;
+                    
+                    // Show warning if older than 1 day
+                    if (diffDays > 1) {
+                        document.getElementById('updateWarning').style.background = '#fff3cd';
+                    } else {
+                        document.getElementById('updateWarning').style.background = '#d4edda';
+                        document.getElementById('updateWarning').querySelector('h3').innerHTML = '✅ Coverage Reports Are Recent';
+                    }
+                }
+            })
+            .catch(() => {
+                document.getElementById('lastUpdate').textContent = 'Never generated';
+            });
+
+        checkReports();
+        loadGolangStats();
+    </script>
+</body>
+</html>

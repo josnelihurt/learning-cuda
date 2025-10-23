@@ -12,17 +12,21 @@ import (
 	flipt "go.flipt.io/flipt-client"
 )
 
-// Interface for FliptWriter to enable mocking
-type FliptWriterInterface interface {
-	SyncFlags(ctx context.Context, flags map[string]interface{}) error
+// Mock FliptWriter for testing
+type mockFliptWriter struct {
+	returnError error
+}
+
+func (m *mockFliptWriter) SyncFlags(ctx context.Context, flags map[string]interface{}) error {
+	return m.returnError
 }
 
 // Mocks
-type mockFliptClient struct {
+type mockFliptClientRepository struct {
 	mock.Mock
 }
 
-func (m *mockFliptClient) EvaluateBoolean(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.BooleanEvaluationResponse, error) {
+func (m *mockFliptClientRepository) EvaluateBoolean(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.BooleanEvaluationResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -30,7 +34,7 @@ func (m *mockFliptClient) EvaluateBoolean(ctx context.Context, req *flipt.Evalua
 	return args.Get(0).(*flipt.BooleanEvaluationResponse), args.Error(1)
 }
 
-func (m *mockFliptClient) EvaluateString(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.VariantEvaluationResponse, error) {
+func (m *mockFliptClientRepository) EvaluateString(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.VariantEvaluationResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -38,17 +42,17 @@ func (m *mockFliptClient) EvaluateString(ctx context.Context, req *flipt.Evaluat
 	return args.Get(0).(*flipt.VariantEvaluationResponse), args.Error(1)
 }
 
-func (m *mockFliptClient) Close(ctx context.Context) error {
+func (m *mockFliptClientRepository) Close(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }
 
 // Builders
-func makeValidBooleanResponse(enabled bool) *flipt.BooleanEvaluationResponse {
+func makeValidBooleanResponseRepository(enabled bool) *flipt.BooleanEvaluationResponse {
 	return &flipt.BooleanEvaluationResponse{Enabled: enabled}
 }
 
-func makeValidVariantResponse(variant string) *flipt.VariantEvaluationResponse {
+func makeValidVariantResponseRepository(variant string) *flipt.VariantEvaluationResponse {
 	return &flipt.VariantEvaluationResponse{VariantAttachment: variant}
 }
 
@@ -65,7 +69,7 @@ func makeValidFeatureFlag(key string, defaultValue interface{}) domain.FeatureFl
 // Tests
 func TestNewFliptRepository(t *testing.T) {
 	// Arrange
-	mockClient := new(mockFliptClient)
+	mockClient := new(mockFliptClientRepository)
 	writer := &FliptWriter{}
 
 	// Act
@@ -93,8 +97,8 @@ func TestFliptRepository_EvaluateBoolean(t *testing.T) {
 			name:         "Success_FlagEnabled",
 			flagKey:      "test_flag",
 			entityID:     "user123",
-			reader:       new(mockFliptClient),
-			mockResponse: makeValidBooleanResponse(true),
+			reader:       new(mockFliptClientRepository),
+			mockResponse: makeValidBooleanResponseRepository(true),
 			mockError:    nil,
 			assertResult: func(t *testing.T, result *domain.FeatureFlagEvaluation, err error) {
 				assert.NoError(t, err)
@@ -110,8 +114,8 @@ func TestFliptRepository_EvaluateBoolean(t *testing.T) {
 			name:         "Success_FlagDisabled",
 			flagKey:      "disabled_flag",
 			entityID:     "user456",
-			reader:       new(mockFliptClient),
-			mockResponse: makeValidBooleanResponse(false),
+			reader:       new(mockFliptClientRepository),
+			mockResponse: makeValidBooleanResponseRepository(false),
 			mockError:    nil,
 			assertResult: func(t *testing.T, result *domain.FeatureFlagEvaluation, err error) {
 				assert.NoError(t, err)
@@ -143,7 +147,7 @@ func TestFliptRepository_EvaluateBoolean(t *testing.T) {
 			name:         "Error_FliptClientError_ReturnsFallback",
 			flagKey:      "error_flag",
 			entityID:     "user789",
-			reader:       new(mockFliptClient),
+			reader:       new(mockFliptClientRepository),
 			mockResponse: nil,
 			mockError:    errFliptError,
 			assertResult: func(t *testing.T, result *domain.FeatureFlagEvaluation, err error) {
@@ -162,7 +166,7 @@ func TestFliptRepository_EvaluateBoolean(t *testing.T) {
 			// Arrange
 			var reader FliptClientInterface
 			if tt.reader != nil {
-				mockClient := new(mockFliptClient)
+				mockClient := new(mockFliptClientRepository)
 				mockClient.On("EvaluateBoolean",
 					mock.Anything,
 					mock.MatchedBy(func(req *flipt.EvaluationRequest) bool {
@@ -181,7 +185,7 @@ func TestFliptRepository_EvaluateBoolean(t *testing.T) {
 			// Assert
 			tt.assertResult(t, result, err)
 			if reader != nil {
-				reader.(*mockFliptClient).AssertExpectations(t)
+				reader.(*mockFliptClientRepository).AssertExpectations(t)
 			}
 		})
 	}
@@ -203,8 +207,8 @@ func TestFliptRepository_EvaluateVariant(t *testing.T) {
 			name:         "Success_ReturnsVariant",
 			flagKey:      "variant_flag",
 			entityID:     "user123",
-			reader:       new(mockFliptClient),
-			mockResponse: makeValidVariantResponse("variant_a"),
+			reader:       new(mockFliptClientRepository),
+			mockResponse: makeValidVariantResponseRepository("variant_a"),
 			mockError:    nil,
 			assertResult: func(t *testing.T, result *domain.FeatureFlagEvaluation, err error) {
 				assert.NoError(t, err)
@@ -236,7 +240,7 @@ func TestFliptRepository_EvaluateVariant(t *testing.T) {
 			name:         "Error_FliptClientError_ReturnsFallback",
 			flagKey:      "error_variant",
 			entityID:     "user456",
-			reader:       new(mockFliptClient),
+			reader:       new(mockFliptClientRepository),
 			mockResponse: nil,
 			mockError:    errFliptError,
 			assertResult: func(t *testing.T, result *domain.FeatureFlagEvaluation, err error) {
@@ -255,7 +259,7 @@ func TestFliptRepository_EvaluateVariant(t *testing.T) {
 			// Arrange
 			var reader FliptClientInterface
 			if tt.reader != nil {
-				mockClient := new(mockFliptClient)
+				mockClient := new(mockFliptClientRepository)
 				mockClient.On("EvaluateString",
 					mock.Anything,
 					mock.MatchedBy(func(req *flipt.EvaluationRequest) bool {
@@ -274,17 +278,19 @@ func TestFliptRepository_EvaluateVariant(t *testing.T) {
 			// Assert
 			tt.assertResult(t, result, err)
 			if reader != nil {
-				reader.(*mockFliptClient).AssertExpectations(t)
+				reader.(*mockFliptClientRepository).AssertExpectations(t)
 			}
 		})
 	}
 }
 
 func TestFliptRepository_SyncFlags(t *testing.T) {
+	var errSyncError = errors.New("sync error")
+
 	tests := []struct {
 		name         string
 		flags        []domain.FeatureFlag
-		writer       *FliptWriter
+		writer       FliptWriterInterface
 		assertResult func(t *testing.T, err error)
 	}{
 		{
@@ -298,9 +304,25 @@ func TestFliptRepository_SyncFlags(t *testing.T) {
 		{
 			name:   "Edge_EmptyFlagList",
 			flags:  []domain.FeatureFlag{},
-			writer: &FliptWriter{},
+			writer: &mockFliptWriter{},
 			assertResult: func(t *testing.T, err error) {
 				assert.NoError(t, err)
+			},
+		},
+		{
+			name:   "Success_WriterSyncsFlags",
+			flags:  []domain.FeatureFlag{makeValidFeatureFlag("flag1", true), makeValidFeatureFlag("flag2", false)},
+			writer: &mockFliptWriter{},
+			assertResult: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:   "Error_WriterSyncFails",
+			flags:  []domain.FeatureFlag{makeValidFeatureFlag("flag1", true)},
+			writer: &mockFliptWriter{returnError: errSyncError},
+			assertResult: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, errSyncError)
 			},
 		},
 	}

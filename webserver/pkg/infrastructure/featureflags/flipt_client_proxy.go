@@ -9,11 +9,18 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-type FliptClientProxy struct {
-	client *flipt.Client
+// FliptClientCore defines the core operations needed from a Flipt client
+type FliptClientCore interface {
+	EvaluateBoolean(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.BooleanEvaluationResponse, error)
+	EvaluateVariant(ctx context.Context, req *flipt.EvaluationRequest) (*flipt.VariantEvaluationResponse, error)
+	Close(ctx context.Context) error
 }
 
-func NewFliptClient(client *flipt.Client) *FliptClientProxy {
+type FliptClientProxy struct {
+	client FliptClientCore
+}
+
+func NewFliptClient(client FliptClientCore) *FliptClientProxy {
 	return &FliptClientProxy{client: client}
 }
 

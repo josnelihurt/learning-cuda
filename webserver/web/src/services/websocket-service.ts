@@ -14,7 +14,7 @@ import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
 import { context, propagation } from '@opentelemetry/api';
 import type { IWebSocketService } from '../domain/interfaces/IWebSocketService';
-import { ImageData, FilterData } from '../domain/value-objects';
+import { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../domain/value-objects';
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
 
@@ -198,6 +198,60 @@ export class WebSocketService implements IWebSocketService {
       aspectRatio: image.getAspectRatio(),
       filterCount: filters.length,
       filterTypes: filters.map(f => f.getType()),
+    });
+  }
+
+  sendFrameWithProcessingConfig(image: ImageData, filters: FilterData[], accelerator: AcceleratorConfig, grayscale: GrayscaleAlgorithm): void {
+    if (!this.ws || this.ws.readyState !== 1) return; // WebSocket.OPEN
+
+    this.cameraManager.setProcessing(true);
+
+    const protoFilters = filters.map(f => f.toProtocol());
+    const protoAccelerator = accelerator.toProtocol();
+    const protoGrayscaleType = grayscale.toProtocol();
+
+    const imageDataB64 = image.getBase64().replace(/^data:image\/(png|jpeg);base64,/, '');
+    const imageBytes = Uint8Array.from(atob(imageDataB64), (c) => c.charCodeAt(0));
+
+    const request = new ProcessImageRequest({
+      imageData: imageBytes,
+      width: image.getWidth(),
+      height: image.getHeight(),
+      channels: 4,
+      filters: protoFilters,
+      accelerator: protoAccelerator,
+      grayscaleType: protoGrayscaleType,
+    });
+
+    const carrier: { [key: string]: string } = {};
+    propagation.inject(context.active(), carrier);
+
+    const traceContext = new TraceContext({
+      traceparent: carrier['traceparent'] || '',
+      tracestate: carrier['tracestate'] || '',
+    });
+
+    const frameRequest = new WebSocketFrameRequest({
+      type: 'frame',
+      request: request,
+      traceContext: traceContext,
+    });
+
+    const transportFormat = streamConfigService.getTransportFormat();
+    if (transportFormat === 'binary') {
+      this.ws.send(frameRequest.toBinary());
+    } else {
+      this.ws.send(frameRequest.toJsonString());
+    }
+
+    logger.debug('Frame sent via WebSocket with ProcessingConfig', {
+      width: image.getWidth(),
+      height: image.getHeight(),
+      aspectRatio: image.getAspectRatio(),
+      filterCount: filters.length,
+      filterTypes: filters.map(f => f.getType()),
+      accelerator: accelerator.toString(),
+      grayscale: grayscale.toString(),
     });
   }
 

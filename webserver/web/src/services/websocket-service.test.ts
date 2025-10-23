@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebSocketService } from './websocket-service';
-import { ImageData, FilterData } from '../domain/value-objects';
+import { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../domain/value-objects';
+import { AcceleratorType } from '../gen/common_pb';
 
 describe('WebSocketService - ImageData Integration', () => {
   const makeValidImageData = () => new ImageData(
@@ -348,6 +349,153 @@ describe('WebSocketService - FilterData Integration', () => {
 
       // Assert
       expect(mockWs.send).toHaveBeenCalledOnce();
+    });
+  });
+
+  const makeMockWebSocket = () => ({
+    readyState: 1, // WebSocket.OPEN
+    send: vi.fn(),
+  });
+
+  describe('ProcessingConfig Value Objects Integration', () => {
+    describe('Success Cases', () => {
+      it('Success_SendFrameWithProcessingConfig', () => {
+        // Arrange
+        const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+        const mockWs = makeMockWebSocket();
+        sut['ws'] = mockWs;
+
+        const image = new ImageData('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 1, 1);
+        const filters = [new FilterData('grayscale', { radius: 5 })];
+        const accelerator = new AcceleratorConfig('cpu');
+        const grayscale = new GrayscaleAlgorithm('bt601');
+
+        // Act
+        sut.sendFrameWithProcessingConfig(image, filters, accelerator, grayscale);
+
+        // Assert
+        expect(mockWs.send).toHaveBeenCalledOnce();
+      });
+
+      it('Success_CPUAccelerator', () => {
+        // Arrange
+        const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+        const mockWs = makeMockWebSocket();
+        sut['ws'] = mockWs;
+
+        const image = new ImageData('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 1, 1);
+        const filters = [new FilterData('none')];
+        const accelerator = new AcceleratorConfig('cpu');
+        const grayscale = new GrayscaleAlgorithm('bt601');
+
+        // Act
+        sut.sendFrameWithProcessingConfig(image, filters, accelerator, grayscale);
+
+        // Assert
+        expect(mockWs.send).toHaveBeenCalledOnce();
+        expect(accelerator.isCPU()).toBe(true);
+        expect(accelerator.toProtocol()).toBe(AcceleratorType.CPU);
+      });
+
+      it('Success_GPUAccelerator', () => {
+        // Arrange
+        const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+        const mockWs = makeMockWebSocket();
+        sut['ws'] = mockWs;
+
+        const image = new ImageData('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 1, 1);
+        const filters = [new FilterData('none')];
+        const accelerator = new AcceleratorConfig('gpu');
+        const grayscale = new GrayscaleAlgorithm('bt601');
+
+        // Act
+        sut.sendFrameWithProcessingConfig(image, filters, accelerator, grayscale);
+
+        // Assert
+        expect(mockWs.send).toHaveBeenCalledOnce();
+        expect(accelerator.isGPU()).toBe(true);
+        expect(accelerator.toProtocol()).toBe(AcceleratorType.CUDA);
+      });
+
+      it('Success_AllGrayscaleAlgorithms', () => {
+        // Arrange
+        const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+        const mockWs = makeMockWebSocket();
+        sut['ws'] = mockWs;
+
+        const image = new ImageData('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 1, 1);
+        const filters = [new FilterData('none')];
+        const accelerator = new AcceleratorConfig('cpu');
+
+        const algorithms = ['bt601', 'bt709', 'average', 'lightness', 'luminosity'] as const;
+
+        algorithms.forEach(algorithm => {
+          // Act
+          const grayscale = new GrayscaleAlgorithm(algorithm);
+          sut.sendFrameWithProcessingConfig(image, filters, accelerator, grayscale);
+
+          // Assert
+          expect(grayscale.getType()).toBe(algorithm);
+          expect(grayscale.toProtocol()).toBeDefined();
+        });
+
+        expect(mockWs.send).toHaveBeenCalledTimes(algorithms.length);
+      });
+
+      it('Success_BackwardCompatibilityWithStrings', () => {
+        // Arrange
+        const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+        const mockWs = makeMockWebSocket();
+        sut['ws'] = mockWs;
+
+        const image = new ImageData('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 1, 1);
+        const filters = [new FilterData('none')];
+
+        // Act - Test that string-based methods still work
+        sut.sendFrameWithImageData(image, ['none'], 'cpu', 'bt601');
+
+        // Assert
+        expect(mockWs.send).toHaveBeenCalledOnce();
+      });
+    });
+
+    describe('Error Cases', () => {
+      it('Error_InvalidAcceleratorTypeThrows', () => {
+        // Arrange / Act / Assert
+        expect(() => {
+          new AcceleratorConfig('opencl');
+        }).toThrow('Invalid accelerator type');
+      });
+
+      it('Error_InvalidGrayscaleTypeThrows', () => {
+        // Arrange / Act / Assert
+        expect(() => {
+          new GrayscaleAlgorithm('hsv');
+        }).toThrow('Invalid grayscale algorithm type');
+      });
+    });
+
+    describe('Edge Cases', () => {
+      it('Edge_CudaNormalization', () => {
+        // Arrange
+        const sut = new WebSocketService(makeMockStatsManager(), makeMockCameraManager(), makeMockToastManager());
+        const mockWs = makeMockWebSocket();
+        sut['ws'] = mockWs;
+
+        const image = new ImageData('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 1, 1);
+        const filters = [new FilterData('none')];
+        const accelerator = new AcceleratorConfig('cuda'); // Should normalize to 'gpu'
+        const grayscale = new GrayscaleAlgorithm('bt601');
+
+        // Act
+        sut.sendFrameWithProcessingConfig(image, filters, accelerator, grayscale);
+
+        // Assert
+        expect(mockWs.send).toHaveBeenCalledOnce();
+        expect(accelerator.getType()).toBe('gpu');
+        expect(accelerator.isGPU()).toBe(true);
+        expect(accelerator.toProtocol()).toBe(AcceleratorType.CUDA);
+      });
     });
   });
 

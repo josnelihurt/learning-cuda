@@ -250,6 +250,20 @@ services:
     profiles:
       - coverage
 
+  gopkgview:
+    image: ghcr.io/grishy/gopkgview:latest
+    container_name: gopkgview-dev
+    working_dir: /app
+    ports:
+      - "5053:8080"
+    volumes:
+      - .:/app:ro
+    command: --root /app/webserver --gomod /app/go.mod --skip-browser --addr :8080
+    networks:
+      - dev-network
+    profiles:
+      - coverage
+
   lint-frontend:
     image: node:20-alpine
     container_name: lint-frontend

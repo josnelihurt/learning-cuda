@@ -74,3 +74,11 @@ coverage/
 node_modules/
 webserver/server
 coverage.out
+
+# Deployment sensitive files
+deployment/.env
+deployment/ansible/inventory.yml
+deployment/ansible/.vault_pass
+
+# Playwright environment files (keep .env.* templates)
+webserver/web/.env.local

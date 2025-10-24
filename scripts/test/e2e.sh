@@ -27,6 +27,7 @@ BROWSER=""
 PLAYWRIGHT_OPTS=""
 SHOW_HELP=false
 WORKERS=""
+ENVIRONMENT="dev"
 
 for arg in "$@"; do
     case $arg in
@@ -51,6 +52,15 @@ for arg in "$@"; do
         --workers=*)
             WORKERS="${arg#*=}"
             ;;
+        --env=*)
+            ENVIRONMENT="${arg#*=}"
+            ;;
+        --dev)
+            ENVIRONMENT="dev"
+            ;;
+        --prod)
+            ENVIRONMENT="prod"
+            ;;
         --help|-h)
             SHOW_HELP=true
             ;;
@@ -71,23 +81,39 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  --headed            Run tests in headed mode (visible browser)"
     echo "  --debug             Run tests in debug mode"
     echo "  --ui                Run tests in UI mode"
+    echo "  --env=ENV           Set environment (dev|prod, default: dev)"
+    echo "  --dev               Run tests in development environment (port 8443)"
+    echo "  --prod              Run tests in production environment (port 443)"
     echo "  --help, -h          Show this help message"
     echo ""
     echo "Environment:"
+    echo "  Development: https://localhost:8443 (default)"
+    echo "  Production:  https://localhost:443"
     echo "  CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=2.0.0"
     echo "  System CPUs: $(nproc) cores detected"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/run-e2e-tests.sh --chromium              # Fast: Chromium only, 25 workers"
-    echo "  ./scripts/run-e2e-tests.sh --chromium --workers=30 # Ultra fast: 30 workers"
-    echo "  ./scripts/run-e2e-tests.sh --headed                # All browsers, visible"
-    echo "  ./scripts/run-e2e-tests.sh --chromium --debug      # Debug Chromium tests"
+    echo "  ./scripts/test/e2e.sh --chromium              # Fast: Chromium only, dev env"
+    echo "  ./scripts/test/e2e.sh --prod --chromium       # Production environment"
+    echo "  ./scripts/test/e2e.sh --dev --headed          # Development, visible browser"
+    echo "  ./scripts/test/e2e.sh --prod --debug          # Production debug mode"
     exit 0
 fi
 
 export USER_ID=$(id -u)
 export GROUP_ID=$(id -g)
 export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=2.0.0
+
+# Set environment variables based on environment
+if [ "$ENVIRONMENT" = "prod" ]; then
+    export TEST_ENV="production"
+    export PLAYWRIGHT_BASE_URL="https://localhost:443"
+    echo "Environment: Production (https://localhost:443)"
+else
+    export TEST_ENV="development"
+    export PLAYWRIGHT_BASE_URL="https://localhost:8443"
+    echo "Environment: Development (https://localhost:8443)"
+fi
 
 if [ -n "$BROWSER" ]; then
     PLAYWRIGHT_OPTS="--project=$BROWSER $PLAYWRIGHT_OPTS"
@@ -113,28 +139,43 @@ mkdir -p webserver/web/.ignore/playwright-report
 echo "Checking services (Flipt + App)..."
 if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
     echo "Flipt is not accessible at http://localhost:8081"
-    echo "Starting services..."
-    ./scripts/start-dev.sh
-    
-    timeout=30
-    while [ $timeout -gt 0 ]; do
-        if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
-            echo "Flipt is ready"
-            break
-        fi
-        sleep 1
-        timeout=$((timeout - 1))
-    done
-    if [ $timeout -eq 0 ]; then
-        echo "ERROR: Flipt failed to start"
+    if [ "$ENVIRONMENT" = "prod" ]; then
+        echo "For production, make sure Docker Compose services are running:"
+        echo "  docker compose --profile production up -d"
         exit 1
+    else
+        echo "Starting development services..."
+        ./scripts/dev/start.sh
+        
+        timeout=30
+        while [ $timeout -gt 0 ]; do
+            if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
+                echo "Flipt is ready"
+                break
+            fi
+            sleep 1
+            timeout=$((timeout - 1))
+        done
+        if [ $timeout -eq 0 ]; then
+            echo "ERROR: Flipt failed to start"
+            exit 1
+        fi
     fi
 fi
 
-if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
-    echo "ERROR: Service is not accessible at https://localhost:8443"
-    echo "Please start the webserver with: ./scripts/start-dev.sh"
-    exit 1
+# Check application health based on environment
+if [ "$ENVIRONMENT" = "prod" ]; then
+    if ! curl -k -s https://localhost:443/health > /dev/null 2>&1; then
+        echo "ERROR: Production service is not accessible at https://localhost:443"
+        echo "Please start production services with: docker compose --profile production up -d"
+        exit 1
+    fi
+else
+    if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
+        echo "ERROR: Development service is not accessible at https://localhost:8443"
+        echo "Please start the webserver with: ./scripts/dev/start.sh"
+        exit 1
+    fi
 fi
 
 echo "Services are running"
@@ -153,6 +194,8 @@ docker compose -f docker-compose.dev.yml --profile testing run \
   --rm \
   -e PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS --grep-invert=@slow" \
   -e PLAYWRIGHT_WORKERS="${PLAYWRIGHT_WORKERS:-25}" \
+  -e TEST_ENV="$TEST_ENV" \
+  -e PLAYWRIGHT_BASE_URL="$PLAYWRIGHT_BASE_URL" \
   e2e-tests
 
 EXIT_CODE=$?

@@ -1,0 +1,53 @@
+---
+- name: Check if Docker is installed
+  command: docker --version
+  register: docker_version
+  failed_when: false
+  changed_when: false
+
+- name: Check if Docker Compose is installed
+  command: docker compose version
+  register: docker_compose_version
+  failed_when: false
+  changed_when: false
+
+- name: Check NVIDIA drivers
+  command: nvidia-smi
+  register: nvidia_check
+  failed_when: false
+  changed_when: false
+
+- name: Check CUDA installation
+  stat:
+    path: /usr/local/cuda
+  register: cuda_check
+
+- name: Install required packages
+  apt:
+    name:
+      - git
+      - make
+      - curl
+      - wget
+      - ca-certificates
+      - openssl
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Create application directory
+  file:
+    path: "/opt/josnelihurt/cuda-learning"
+    state: directory
+    owner: "{{ deployment_user }}"
+    group: "{{ deployment_group }}"
+    mode: '0755'
+
+- name: Display system information
+  debug:
+    msg:
+      - "Docker version: {{ docker_version.stdout if docker_version.rc == 0 else 'Not installed' }}"
+      - "Docker Compose version: {{ docker_compose_version.stdout if docker_compose_version.rc == 0 else 'Not installed' }}"
+      - "NVIDIA drivers: {{ 'Available' if nvidia_check.rc == 0 else 'Not available' }}"
+      - "CUDA: {{ 'Available' if cuda_check.stat.exists else 'Not available' }}"
+      - "Application directory: /opt/josnelihurt/cuda-learning"

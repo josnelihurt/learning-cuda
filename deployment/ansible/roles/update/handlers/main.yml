@@ -1,0 +1,26 @@
+---
+- name: rollback update
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    state: absent
+  become_user: "{{ deployment_user }}"
+  ignore_errors: yes
+
+- name: restore from backup
+  unarchive:
+    src: "{{ app_directory }}/backups/update-backup-{{ ansible_date_time.epoch }}.tar.gz"
+    dest: "{{ app_directory }}"
+    remote_src: yes
+  become_user: "{{ deployment_user }}"
+  ignore_errors: yes
+
+- name: restart application
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    profiles: ["{{ production_profile }}"]
+    state: present
+    recreate: always
+  become_user: "{{ deployment_user }}"
+  environment:
+    USER_ID: "{{ ansible_user_id }}"
+    GROUP_ID: "{{ ansible_group_id }}"

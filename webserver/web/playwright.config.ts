@@ -1,4 +1,19 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Determinar el entorno (default: development)
+const environment = process.env.TEST_ENV || 'development';
+
+// Obtener __dirname en ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Cargar variables de entorno del archivo correspondiente
+dotenv.config({ 
+  path: path.resolve(__dirname, `.env.${environment}`) 
+});
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -16,11 +31,11 @@ export default defineConfig({
   ],
   
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://localhost:8443',
-    trace: process.env.PLAYWRIGHT_TRACE === 'true' ? 'on' : 'on-first-retry',
-    screenshot: process.env.PLAYWRIGHT_SCREENSHOTS === 'true' ? 'only-on-failure' : 'only-on-failure',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL,
+    trace: process.env.PLAYWRIGHT_TRACE as 'on' | 'off' | 'on-first-retry' | 'retain-on-failure' || 'on-first-retry',
+    screenshot: process.env.PLAYWRIGHT_SCREENSHOTS as 'on' | 'off' | 'only-on-failure' || 'only-on-failure',
     video: process.env.PLAYWRIGHT_VIDEO === 'true' ? 'retain-on-failure' : 'off',
-    ignoreHTTPSErrors: true,
+    ignoreHTTPSErrors: true, // Siempre true para certificados auto-firmados
     actionTimeout: 10000,
     navigationTimeout: 15000,
   },

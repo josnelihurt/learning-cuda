@@ -1,8 +1,9 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: cuda-learning-app:latest  # Usar imagen pre-construida con buildx
+    # build:  # Comentado para usar imagen pre-construida
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: cuda-image-processor
     restart: unless-stopped
     
@@ -20,6 +21,7 @@ services:
     
     volumes:
       - ./data:/data:ro
+      - ./config/config.production.yaml:/app/config/config.yaml:ro
     
     expose:
       - "8080"
@@ -287,4 +289,41 @@ networks:
 
 volumes:
   grafana-storage:
+
+# Production profile for Jetson Nano deployment
+# Usage: docker-compose --profile production up -d
+x-production-limits: &production-limits
+  deploy:
+    resources:
+      limits:
+        memory: 6g
+        cpus: '4.0'
+      reservations:
+        memory: 1g
+        cpus: '0.5'
+
+# Production overrides - simplified
+  app:
+    profiles: ["production"]
+    
+  traefik:
+    profiles: ["production"]
+    
+  jaeger:
+    profiles: ["production"]
+    
+  loki:
+    profiles: ["production"]
+    
+  promtail:
+    profiles: ["production"]
+    
+  grafana:
+    profiles: ["production"]
+    
+  otel-collector:
+    profiles: ["production"]
+    
+  flipt:
+    profiles: ["production"]
 

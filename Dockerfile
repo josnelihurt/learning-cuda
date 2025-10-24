@@ -96,7 +96,11 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 \
+# Download Bazel for current platform (using Docker buildx variables)
+ARG TARGETARCH
+RUN BAZEL_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "linux-amd64" || echo "linux-arm64") && \
+    echo "Downloading Bazel for architecture: $BAZEL_ARCH (TARGETARCH=$TARGETARCH)" && \
+    wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-${BAZEL_ARCH} \
     && chmod +x /usr/local/bin/bazel
 
 # Copy only files needed for C++ compilation
@@ -151,113 +155,12 @@ COPY --from=proto-generator /workspace/proto/gen/ ./proto/gen/
 
 WORKDIR /build/webserver
 
-# Create stub for loader package to avoid CGO compilation issues
-RUN mkdir -p /tmp/loader-backup && \
-    mv pkg/infrastructure/processor/loader /tmp/loader-backup/ && \
-    mkdir -p pkg/infrastructure/processor/loader
+# Enable CGO for real loader compilation
+ENV CGO_ENABLED=1
 
-# Create stub loader file
-RUN cat > pkg/infrastructure/processor/loader/loader_stub.go << 'EOF'
-//go:build linux
-// +build linux
-
-package loader
-
-import (
-	"fmt"
-	"github.com/jrb/cuda-learning/proto/gen"
-)
-
-// Stub types and functions for Docker build
-type Loader struct{
-	Path string
-}
-type Registry struct{}
-
-func NewLoader(libraryPath string) (*Loader, error) {
-	return &Loader{Path: libraryPath}, nil
-}
-
-func NewRegistry(libraryBasePath string) *Registry {
-	return &Registry{}
-}
-
-func (r *Registry) ListVersions() []string {
-	return []string{}
-}
-
-func (r *Registry) GetAllLibraries() map[string]int {
-	return map[string]int{}
-}
-
-func (r *Registry) LoadLibrary(path string) (*Loader, error) {
-	return &Loader{Path: path}, nil
-}
-
-func (r *Registry) Discover() error {
-	return fmt.Errorf("stub implementation")
-}
-
-func (r *Registry) GetByVersion(version string) (*Loader, error) {
-	return &Loader{Path: "stub-" + version}, nil
-}
-
-func (l *Loader) Init(req *gen.InitRequest) (*gen.InitResponse, error) {
-	return &gen.InitResponse{
-		Code:      0,
-		Message:   "stub success",
-		ApiVersion: "stub",
-	}, nil
-}
-
-func (l *Loader) ProcessImage(req *gen.ProcessImageRequest) (*gen.ProcessImageResponse, error) {
-	return &gen.ProcessImageResponse{
-		Code:      0,
-		Message:   "stub success",
-		ImageData: req.ImageData, // Echo back the input
-		Width:     req.Width,
-		Height:    req.Height,
-		Channels:  req.Channels,
-		ApiVersion: "stub",
-	}, nil
-}
-
-func (l *Loader) GetCapabilities() (*gen.LibraryCapabilities, error) {
-	return &gen.LibraryCapabilities{
-		ApiVersion:        "stub",
-		LibraryVersion:    "stub",
-		Filters:           []*gen.FilterDefinition{},
-		SupportsStreaming: false,
-		BuildDate:         "stub",
-		BuildCommit:       "stub",
-	}, nil
-}
-
-func (l *Loader) Cleanup() error {
-	return nil
-}
-
-func (l *Loader) CachedCapabilities() *gen.LibraryCapabilities {
-	return &gen.LibraryCapabilities{
-		ApiVersion:        "stub",
-		LibraryVersion:    "stub",
-		Filters:           []*gen.FilterDefinition{},
-		SupportsStreaming: false,
-		BuildDate:         "stub",
-		BuildCommit:       "stub",
-	}
-}
-
-func (l *Loader) GetVersion() string {
-	return "stub"
-}
-
-func (l *Loader) IsCompatibleWith(version string) bool {
-	return false
-}
-
-const CurrentAPIVersion = "stub"
-EOF
+# Skip stub creation - use real loader with CGO
+# The real loader is in webserver/pkg/infrastructure/processor/loader/
+# and will be compiled with CGO enabled
 
 RUN make build
 
@@ -281,14 +184,17 @@ ENV GO_VERSION=1.24.0
 WORKDIR /workspace
 
 # Install Go and runtime dependencies
+ARG TARGETARCH
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
-    && rm go${GO_VERSION}.linux-amd64.tar.gz
+    && GO_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "linux-amd64" || echo "linux-arm64") && \
+    echo "Downloading Go for architecture: $GO_ARCH (TARGETARCH=$TARGETARCH)" && \
+    wget https://go.dev/dl/go${GO_VERSION}.${GO_ARCH}.tar.gz \
+    && tar -C /usr/local -xzf go${GO_VERSION}.${GO_ARCH}.tar.gz \
+    && rm go${GO_VERSION}.${GO_ARCH}.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/go"
@@ -432,6 +338,9 @@ COPY --from=frontend-builder /build/webserver/web/templates/ /app/web/templates/
 # Copy runtime data and configuration
 COPY data/ /app/data/
 COPY config/config.yaml /app/config/config.yaml
+
+# Create production configuration
+COPY config/config.production.yaml /app/config/config.production.yaml
 
 # Update shared library cache for dynamic loading
 RUN ldconfig

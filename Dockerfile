@@ -96,7 +96,12 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-linux-amd64 \
+# Download Bazel for the current platform
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then BAZEL_ARCH="linux-amd64"; \
+    elif [ "$ARCH" = "aarch64" ]; then BAZEL_ARCH="linux-arm64"; \
+    else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-${BAZEL_ARCH} \
     && chmod +x /usr/local/bin/bazel
 
 # Copy only files needed for C++ compilation
@@ -286,9 +291,13 @@ RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
-    && rm go${GO_VERSION}.linux-amd64.tar.gz
+    && ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then GO_ARCH="linux-amd64"; \
+    elif [ "$ARCH" = "aarch64" ]; then GO_ARCH="linux-arm64"; \
+    else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    wget https://go.dev/dl/go${GO_VERSION}.${GO_ARCH}.tar.gz \
+    && tar -C /usr/local -xzf go${GO_VERSION}.${GO_ARCH}.tar.gz \
+    && rm go${GO_VERSION}.${GO_ARCH}.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/go"
@@ -432,6 +441,9 @@ COPY --from=frontend-builder /build/webserver/web/templates/ /app/web/templates/
 # Copy runtime data and configuration
 COPY data/ /app/data/
 COPY config/config.yaml /app/config/config.yaml
+
+# Create production configuration
+COPY config/config.production.yaml /app/config/config.production.yaml
 
 # Update shared library cache for dynamic loading
 RUN ldconfig

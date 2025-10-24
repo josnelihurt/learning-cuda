@@ -173,7 +173,7 @@ sleep 2
 echo ""
 echo "Starting test report viewers..."
 docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report 2>/dev/null || true
-docker compose -f docker-compose.dev.yml --profile coverage up -d coverage-report-viewer 2>/dev/null || true
+docker compose -f docker-compose.dev.yml --profile coverage up -d coverage-report-viewer gopkgview 2>/dev/null || true
 sleep 2
 
 echo "================================================"
@@ -186,6 +186,7 @@ echo "Test Reports:"
 echo "  BDD:      http://localhost:5050"
 echo "  E2E:      http://localhost:5051"
 echo "  Coverage: http://localhost:5052"
+echo "  Go Deps:  http://localhost:5053"
 echo "================================================"
 echo "Dev mode - hot reload enabled"
 echo "Observability & Feature Flags enabled"

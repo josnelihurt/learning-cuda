@@ -1,0 +1,113 @@
+---
+- name: Check if repository exists
+  stat:
+    path: "{{ repo_directory }}"
+  register: repo_exists
+
+- name: Fail if repository doesn't exist
+  fail:
+    msg: "Repository directory {{ repo_directory }} does not exist. Run initial deployment first."
+  when: not repo_exists.stat.exists
+
+- name: Create backup before update
+  archive:
+    path: "{{ app_directory }}"
+    dest: "{{ app_directory }}/backups/update-backup-{{ ansible_date_time.epoch }}.tar.gz"
+    format: gz
+  when: backup_before_update | default(true)
+
+- name: Stop running containers
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    state: absent
+  become_user: "{{ deployment_user }}"
+  ignore_errors: yes
+
+- name: Update repository
+  git:
+    repo: "{{ repo_url }}"
+    dest: "{{ repo_directory }}"
+    version: "{{ repo_branch }}"
+    update: yes
+    force: yes
+  become_user: "{{ deployment_user }}"
+
+- name: Copy updated configuration if exists
+  copy:
+    src: "{{ repo_directory }}/config/config.production.yaml"
+    dest: "{{ config_directory }}/config.yaml"
+    owner: "{{ deployment_user }}"
+    group: "{{ deployment_group }}"
+    mode: '0644'
+  when: config_file is defined
+  ignore_errors: yes
+
+- name: Copy updated Docker Compose file
+  copy:
+    src: "{{ repo_directory }}/docker-compose.yml"
+    dest: "{{ app_directory }}/docker-compose.yml"
+    owner: "{{ deployment_user }}"
+    group: "{{ deployment_group }}"
+    mode: '0644'
+
+- name: Update data directory
+  synchronize:
+    src: "{{ repo_directory }}/data/"
+    dest: "{{ data_directory }}/"
+    delete: no
+    recursive: yes
+    owner: yes
+    group: yes
+  become_user: "{{ deployment_user }}"
+
+- name: Build updated Docker images
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    build: yes
+    pull: yes
+    force_recreate: yes
+  become_user: "{{ deployment_user }}"
+  environment:
+    DOCKER_BUILDKIT: "1"
+    COMPOSE_DOCKER_CLI_BUILD: "1"
+
+- name: Start updated application stack
+  docker_compose:
+    project_src: "{{ app_directory }}"
+    profiles: ["{{ production_profile }}"]
+    state: present
+    recreate: always
+    pull: yes
+  become_user: "{{ deployment_user }}"
+  environment:
+    USER_ID: "{{ ansible_user_id }}"
+    GROUP_ID: "{{ ansible_group_id }}"
+
+- name: Wait for services to be healthy
+  wait_for:
+    port: 8080
+    host: localhost
+    delay: 10
+    timeout: 300
+  when: wait_for_health | default(true)
+
+- name: Clean up old backups (keep last 5)
+  find:
+    paths: "{{ app_directory }}/backups"
+    patterns: "*.tar.gz"
+  register: backup_files
+
+- name: Remove old backups
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ backup_files.files | sort(attribute='mtime') | list[:-5] }}"
+  when: backup_files.files | length > 5
+
+- name: Display update status
+  debug:
+    msg:
+      - "Application updated successfully"
+      - "Repository updated: {{ repo_directory }}"
+      - "Backup created: {{ app_directory }}/backups/update-backup-{{ ansible_date_time.epoch }}.tar.gz"
+      - "Profile: {{ production_profile }}"

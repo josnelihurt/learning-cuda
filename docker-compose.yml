@@ -20,6 +20,7 @@ services:
     
     volumes:
       - ./data:/data:ro
+      - ./config/config.production.yaml:/app/config/config.yaml:ro
     
     expose:
       - "8080"
@@ -287,4 +288,54 @@ networks:
 
 volumes:
   grafana-storage:
+
+# Production profile for Jetson Nano deployment
+# Usage: docker-compose --profile production up -d
+x-production-limits: &production-limits
+  deploy:
+    resources:
+      limits:
+        memory: 6g
+        cpus: '4.0'
+      reservations:
+        memory: 1g
+        cpus: '0.5'
+
+x-production-restart: &production-restart
+  restart: always
+
+# Production overrides
+services:
+  app:
+    <<: *production-limits
+    <<: *production-restart
+    profiles: ["production"]
+    
+  traefik:
+    <<: *production-restart
+    profiles: ["production"]
+    
+  jaeger:
+    <<: *production-restart
+    profiles: ["production"]
+    
+  loki:
+    <<: *production-restart
+    profiles: ["production"]
+    
+  promtail:
+    <<: *production-restart
+    profiles: ["production"]
+    
+  grafana:
+    <<: *production-restart
+    profiles: ["production"]
+    
+  otel-collector:
+    <<: *production-restart
+    profiles: ["production"]
+    
+  flipt:
+    <<: *production-restart
+    profiles: ["production"]
 

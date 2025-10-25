@@ -284,4 +284,49 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the logs should be written to backend logger$`, tc.theLogsShouldBeWrittenToBackendLogger)
 	ctx.Step(`^the response should return HTTP (\d+)$`, tc.theResponseShouldReturnHTTP)
 	ctx.Step(`^Flipt should still have all flags configured correctly$`, tc.fliptShouldStillHaveAllFlagsConfiguredCorrectly)
+	ctx.Step(`^the response should be successful$`, tc.theResponseShouldBeSuccessful)
+	ctx.Step(`^the response should include version information$`, tc.theResponseShouldIncludeVersionInformation)
+	ctx.Step(`^the version should have ([^"]*)$`, tc.theVersionShouldHave)
+	ctx.Step(`^the response should include environment$`, tc.theResponseShouldIncludeEnvironment)
+	ctx.Step(`^the environment should be "([^"]*)" or "([^"]*)"$`, tc.theEnvironmentShouldBeOneOf)
+	ctx.Step(`^the response should include current_library$`, tc.theResponseShouldIncludeCurrentLibrary)
+	ctx.Step(`^the response should include api_version$`, tc.theResponseShouldIncludeApiVersion)
+	ctx.Step(`^the response should include available_libraries$`, tc.theResponseShouldIncludeAvailableLibraries)
+	ctx.Step(`^the ([^"]*) should not be empty$`, tc.theFieldShouldNotBeEmpty)
+}
+
+func (tc *TestContext) theResponseShouldBeSuccessful() error {
+	return tc.ThenTheResponseShouldBeSuccessful()
+}
+
+func (tc *TestContext) theResponseShouldIncludeVersionInformation() error {
+	return tc.ThenTheResponseShouldIncludeVersionInformation()
+}
+
+func (tc *TestContext) theVersionShouldHave(field string) error {
+	return tc.ThenTheVersionShouldHave(field)
+}
+
+func (tc *TestContext) theResponseShouldIncludeEnvironment() error {
+	return tc.ThenTheResponseShouldIncludeEnvironment()
+}
+
+func (tc *TestContext) theEnvironmentShouldBeOneOf(env1, env2 string) error {
+	return tc.ThenTheEnvironmentShouldBe(env1)
+}
+
+func (tc *TestContext) theResponseShouldIncludeCurrentLibrary() error {
+	return tc.ThenTheResponseShouldIncludeCurrentLibrary()
+}
+
+func (tc *TestContext) theResponseShouldIncludeApiVersion() error {
+	return tc.ThenTheResponseShouldIncludeApiVersion()
+}
+
+func (tc *TestContext) theResponseShouldIncludeAvailableLibraries() error {
+	return tc.ThenTheResponseShouldIncludeAvailableLibraries()
+}
+
+func (tc *TestContext) theFieldShouldNotBeEmpty(field string) error {
+	return tc.ThenTheFieldShouldNotBeEmpty(field)
 }

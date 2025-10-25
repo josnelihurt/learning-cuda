@@ -9,6 +9,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/websocket"
 )
 
@@ -79,10 +80,21 @@ func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get build information
+	buildInfo := build.NewBuildInfo()
+
 	data := struct {
 		ScriptTags []ScriptTag
+		CommitHash string
+		Version    string
+		Branch     string
+		BuildTime  string
 	}{
 		ScriptTags: h.assetHandler.GetScriptTags(),
+		CommitHash: buildInfo.CommitHash,
+		Version:    buildInfo.Version,
+		Branch:     buildInfo.Branch,
+		BuildTime:  buildInfo.BuildTime,
 	}
 
 	tmpl := h.tmpl

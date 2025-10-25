@@ -95,6 +95,9 @@
 .navbar-credit {
     color: var(--text-secondary);
     font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
 }
 
 .navbar-credit a {
@@ -107,31 +110,7 @@
     color: var(--primary-light);
 }
 
-/* Info Tooltip */
-.info-tooltip {
-    position: absolute;
-    top: calc(var(--header-height) + 10px);
-    left: 20px;
-    background: white;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    box-shadow: var(--shadow-lg);
-    max-width: 350px;
-    z-index: var(--z-tooltip);
-    animation: fadeIn var(--transition-normal);
-}
 
-.info-tooltip p {
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-primary);
-}
-
-.info-tooltip p:last-child {
-    margin-bottom: 0;
-    font-size: 13px;
-    color: var(--text-secondary);
-}
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }

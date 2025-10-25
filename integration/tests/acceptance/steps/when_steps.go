@@ -125,4 +125,9 @@ func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I query video metadata for "([^"]*)"$`, tc.iQueryVideoMetadataFor)
 	ctx.Step(`^the client requests stream configuration$`, tc.theClientRequestsStreamConfiguration)
 	ctx.Step(`^the backend receives OTLP logs at "([^"]*)"$`, tc.theBackendReceivesOTLPLogsAt)
+	ctx.Step(`^I call GetSystemInfo$`, tc.iCallGetSystemInfo)
+}
+
+func (tc *TestContext) iCallGetSystemInfo() error {
+	return tc.WhenICallGetSystemInfo()
 }

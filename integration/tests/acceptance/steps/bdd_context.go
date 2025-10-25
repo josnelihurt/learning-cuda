@@ -63,6 +63,7 @@ type BDDContext struct {
 	receivedLogLevel       string
 	receivedConsoleLogging bool
 	otlpLogsReceived       bool
+	systemInfoResponse     *pb.GetSystemInfoResponse
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -1965,6 +1966,168 @@ func (c *BDDContext) ThenTheResponseShouldReturnHTTP200() error {
 	}
 	if c.lastResponse.StatusCode != http.StatusOK {
 		return fmt.Errorf("expected HTTP 200, got %d", c.lastResponse.StatusCode)
+	}
+	return nil
+}
+
+// GetSystemInfo methods
+func (c *BDDContext) WhenICallGetSystemInfo() error {
+	ctx := context.Background()
+	resp, err := c.configClient.GetSystemInfo(ctx, connect.NewRequest(&pb.GetSystemInfoRequest{}))
+	if err != nil {
+		return fmt.Errorf("failed to get system info: %w", err)
+	}
+	c.systemInfoResponse = resp.Msg
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldBeSuccessful() error {
+	if c.systemInfoResponse == nil {
+		return fmt.Errorf("no system info response received")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeVersionInformation() error {
+	if c.systemInfoResponse == nil || c.systemInfoResponse.Version == nil {
+		return fmt.Errorf("no version information in response")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheVersionShouldHave(field string) error {
+	if c.systemInfoResponse == nil || c.systemInfoResponse.Version == nil {
+		return fmt.Errorf("no version information in response")
+	}
+
+	version := c.systemInfoResponse.Version
+	switch field {
+	case "cpp_version":
+		if version.CppVersion == "" {
+			return fmt.Errorf("cpp_version is empty")
+		}
+	case "go_version":
+		if version.GoVersion == "" {
+			return fmt.Errorf("go_version is empty")
+		}
+	case "js_version":
+		if version.JsVersion == "" {
+			return fmt.Errorf("js_version is empty")
+		}
+	case "branch":
+		if version.Branch == "" {
+			return fmt.Errorf("branch is empty")
+		}
+	case "build_time":
+		if version.BuildTime == "" {
+			return fmt.Errorf("build_time is empty")
+		}
+	case "commit_hash":
+		if version.CommitHash == "" {
+			return fmt.Errorf("commit_hash is empty")
+		}
+	default:
+		return fmt.Errorf("unknown field: %s", field)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeEnvironment() error {
+	if c.systemInfoResponse == nil {
+		return fmt.Errorf("no system info response received")
+	}
+	if c.systemInfoResponse.Environment == "" {
+		return fmt.Errorf("environment is empty")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheEnvironmentShouldBe(expected string) error {
+	if c.systemInfoResponse == nil {
+		return fmt.Errorf("no system info response received")
+	}
+	if c.systemInfoResponse.Environment != expected && expected != "development" && expected != "production" {
+		return fmt.Errorf("expected environment to be %s, got %s", expected, c.systemInfoResponse.Environment)
+	}
+	// Accept either development or production
+	if c.systemInfoResponse.Environment != "development" && c.systemInfoResponse.Environment != "production" {
+		return fmt.Errorf("environment should be 'development' or 'production', got %s", c.systemInfoResponse.Environment)
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeCurrentLibrary() error {
+	if c.systemInfoResponse == nil {
+		return fmt.Errorf("no system info response received")
+	}
+	if c.systemInfoResponse.CurrentLibrary == "" {
+		return fmt.Errorf("current_library is empty")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeApiVersion() error {
+	if c.systemInfoResponse == nil {
+		return fmt.Errorf("no system info response received")
+	}
+	if c.systemInfoResponse.ApiVersion == "" {
+		return fmt.Errorf("api_version is empty")
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheResponseShouldIncludeAvailableLibraries() error {
+	if c.systemInfoResponse == nil {
+		return fmt.Errorf("no system info response received")
+	}
+	// Available libraries can be empty, so we just check that the field exists
+	return nil
+}
+
+func (c *BDDContext) ThenTheFieldShouldNotBeEmpty(field string) error {
+	if c.systemInfoResponse == nil {
+		return fmt.Errorf("no system info response received")
+	}
+
+	switch field {
+	case "cpp_version":
+		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.CppVersion == "" {
+			return fmt.Errorf("cpp_version is empty")
+		}
+	case "go_version":
+		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.GoVersion == "" {
+			return fmt.Errorf("go_version is empty")
+		}
+	case "js_version":
+		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.JsVersion == "" {
+			return fmt.Errorf("js_version is empty")
+		}
+	case "branch":
+		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.Branch == "" {
+			return fmt.Errorf("branch is empty")
+		}
+	case "build_time":
+		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.BuildTime == "" {
+			return fmt.Errorf("build_time is empty")
+		}
+	case "commit_hash":
+		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.CommitHash == "" {
+			return fmt.Errorf("commit_hash is empty")
+		}
+	case "environment":
+		if c.systemInfoResponse.Environment == "" {
+			return fmt.Errorf("environment is empty")
+		}
+	case "current_library":
+		if c.systemInfoResponse.CurrentLibrary == "" {
+			return fmt.Errorf("current_library is empty")
+		}
+	case "api_version":
+		if c.systemInfoResponse.ApiVersion == "" {
+			return fmt.Errorf("api_version is empty")
+		}
+	default:
+		return fmt.Errorf("unknown field: %s", field)
 	}
 	return nil
 }

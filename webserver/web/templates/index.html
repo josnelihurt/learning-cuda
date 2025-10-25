@@ -15,9 +15,6 @@
                 <a href="/" class="navbar-brand">
                     <span class="accent">CUDA</span> Image Processor
                 </a>
-                <button class="info-btn" id="infoBtn" title="About this app">
-                    <span>i</span>
-                </button>
             </div>
             <div class="navbar-services">
                 <tools-dropdown></tools-dropdown>
@@ -25,16 +22,14 @@
             </div>
             <div class="navbar-credit">
                 by <a href="https://josnelihurt.me" target="_blank">josnelihurt</a>
-                <version-footer></version-footer>
+                <version-tooltip-lit>
+                    <button class="info-btn" title="Version Information">
+                        <span>i</span>
+                    </button>
+                </version-tooltip-lit>
             </div>
         </div>
         
-        <!-- Info Tooltip -->
-        <div class="info-tooltip" id="infoTooltip" style="display: none;">
-            <p><strong>GPU-Accelerated Image Processing</strong></p>
-            <p>Real-time CUDA kernels in your browser</p>
-            <p>Built with C++, CUDA, Go, Protocol Buffers & CGO</p>
-        </div>
     </header>
 
     <!-- Sidebar -->

@@ -3,23 +3,24 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetFeatureFlagsRequest, GetFeatureFlagsResponse } from './feature_flags_pb.js';
-import { MethodKind } from '@bufbuild/protobuf';
+import { GetFeatureFlagsRequest, GetFeatureFlagsResponse } from "./feature_flags_pb.js";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * @generated from service cuda_learning.FeatureFlagsService
  */
 export const FeatureFlagsService = {
-  typeName: 'cuda_learning.FeatureFlagsService',
+  typeName: "cuda_learning.FeatureFlagsService",
   methods: {
     /**
      * @generated from rpc cuda_learning.FeatureFlagsService.GetFeatureFlags
      */
     getFeatureFlags: {
-      name: 'GetFeatureFlags',
+      name: "GetFeatureFlags",
       I: GetFeatureFlagsRequest,
       O: GetFeatureFlagsResponse,
       kind: MethodKind.Unary,
     },
-  },
+  }
 } as const;
+

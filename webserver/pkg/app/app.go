@@ -23,6 +23,7 @@ type App struct {
 	appContext            context.Context
 	useCase               *application.ProcessImageUseCase
 	getStreamConfigUC     *application.GetStreamConfigUseCase
+	getSystemInfoUC       *application.GetSystemInfoUseCase
 	syncFlagsUC           *application.SyncFeatureFlagsUseCase
 	listInputsUC          *application.ListInputsUseCase
 	evaluateFFUC          *application.EvaluateFeatureFlagUseCase
@@ -66,6 +67,12 @@ func WithUseCase(useCase *application.ProcessImageUseCase) Option {
 func WithGetStreamConfigUseCase(uc *application.GetStreamConfigUseCase) Option {
 	return func(a *App) {
 		a.getStreamConfigUC = uc
+	}
+}
+
+func WithGetSystemInfoUseCase(uc *application.GetSystemInfoUseCase) Option {
+	return func(a *App) {
+		a.getSystemInfoUC = uc
 	}
 }
 
@@ -179,8 +186,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
 		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 	}
-	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil && a.evaluateFFUC != nil {
-		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.evaluateFFUC,
+	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil && a.evaluateFFUC != nil && a.getSystemInfoUC != nil {
+		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.evaluateFFUC, a.getSystemInfoUC,
 			a.registry, a.currentLoader, a.loaderMutex, a.config, a.interceptors...)
 	} else {
 		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")

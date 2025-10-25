@@ -33,13 +33,14 @@ func RegisterConfigService(
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
 	listInputsUC *application.ListInputsUseCase,
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
+	getSystemInfoUC *application.GetSystemInfoUseCase,
 	registry *loader.Registry,
 	currentLoader **loader.Loader,
 	loaderMutex *sync.RWMutex,
 	configManager *config.Manager,
 	interceptors ...connect.Interceptor,
 ) {
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, registry, currentLoader, loaderMutex, configManager)
+	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, registry, currentLoader, loaderMutex, configManager)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

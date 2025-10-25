@@ -23,6 +23,7 @@ func TestNewConfigHandler(t *testing.T) {
 		nil, // syncFlagsUseCase
 		nil, // listInputsUseCase
 		nil, // evaluateFFUseCase
+		nil, // getSystemInfoUseCase
 		nil, // registry
 		&currentLoader,
 		loaderMutex,

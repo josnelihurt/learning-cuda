@@ -40,6 +40,7 @@ func main() {
 		app.WithConfig(di.Config),
 		app.WithUseCase(processImageUseCase),
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
+		app.WithGetSystemInfoUseCase(di.GetSystemInfoUseCase),
 		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
 		app.WithListInputsUseCase(di.ListInputsUseCase),
 		app.WithEvaluateFFUseCase(di.EvaluateFeatureFlagUseCase),

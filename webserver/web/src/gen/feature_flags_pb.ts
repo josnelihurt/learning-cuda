@@ -3,16 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type {
-  BinaryReadOptions,
-  FieldList,
-  JsonReadOptions,
-  JsonValue,
-  PartialMessage,
-  PlainMessage,
-} from '@bufbuild/protobuf';
-import { Message, proto3 } from '@bufbuild/protobuf';
-import { TraceContext } from './common_pb.js';
+import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
+import { Message, proto3 } from "@bufbuild/protobuf";
+import { TraceContext } from "./common_pb.js";
 
 /**
  * @generated from message cuda_learning.FeatureFlag
@@ -21,17 +14,17 @@ export class FeatureFlag extends Message<FeatureFlag> {
   /**
    * @generated from field: string key = 1;
    */
-  key = '';
+  key = "";
 
   /**
    * @generated from field: string value = 3;
    */
-  value = '';
+  value = "";
 
   /**
    * @generated from field: string type = 5;
    */
-  type = '';
+  type = "";
 
   constructor(data?: PartialMessage<FeatureFlag>) {
     super();
@@ -39,11 +32,11 @@ export class FeatureFlag extends Message<FeatureFlag> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = 'cuda_learning.FeatureFlag';
+  static readonly typeName = "cuda_learning.FeatureFlag";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: 'key', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: 'value', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: 'type', kind: 'scalar', T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FeatureFlag {
@@ -58,10 +51,7 @@ export class FeatureFlag extends Message<FeatureFlag> {
     return new FeatureFlag().fromJsonString(jsonString, options);
   }
 
-  static equals(
-    a: FeatureFlag | PlainMessage<FeatureFlag> | undefined,
-    b: FeatureFlag | PlainMessage<FeatureFlag> | undefined
-  ): boolean {
+  static equals(a: FeatureFlag | PlainMessage<FeatureFlag> | undefined, b: FeatureFlag | PlainMessage<FeatureFlag> | undefined): boolean {
     return proto3.util.equals(FeatureFlag, a, b);
   }
 }
@@ -81,36 +71,24 @@ export class GetFeatureFlagsRequest extends Message<GetFeatureFlagsRequest> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = 'cuda_learning.GetFeatureFlagsRequest';
+  static readonly typeName = "cuda_learning.GetFeatureFlagsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
+    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
-  static fromBinary(
-    bytes: Uint8Array,
-    options?: Partial<BinaryReadOptions>
-  ): GetFeatureFlagsRequest {
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetFeatureFlagsRequest {
     return new GetFeatureFlagsRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(
-    jsonValue: JsonValue,
-    options?: Partial<JsonReadOptions>
-  ): GetFeatureFlagsRequest {
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetFeatureFlagsRequest {
     return new GetFeatureFlagsRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(
-    jsonString: string,
-    options?: Partial<JsonReadOptions>
-  ): GetFeatureFlagsRequest {
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetFeatureFlagsRequest {
     return new GetFeatureFlagsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(
-    a: GetFeatureFlagsRequest | PlainMessage<GetFeatureFlagsRequest> | undefined,
-    b: GetFeatureFlagsRequest | PlainMessage<GetFeatureFlagsRequest> | undefined
-  ): boolean {
+  static equals(a: GetFeatureFlagsRequest | PlainMessage<GetFeatureFlagsRequest> | undefined, b: GetFeatureFlagsRequest | PlainMessage<GetFeatureFlagsRequest> | undefined): boolean {
     return proto3.util.equals(GetFeatureFlagsRequest, a, b);
   }
 }
@@ -135,37 +113,26 @@ export class GetFeatureFlagsResponse extends Message<GetFeatureFlagsResponse> {
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = 'cuda_learning.GetFeatureFlagsResponse';
+  static readonly typeName = "cuda_learning.GetFeatureFlagsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: 'flags', kind: 'message', T: FeatureFlag, repeated: true },
-    { no: 3, name: 'trace_context', jsonName: 'trace_context', kind: 'message', T: TraceContext },
+    { no: 1, name: "flags", kind: "message", T: FeatureFlag, repeated: true },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
-  static fromBinary(
-    bytes: Uint8Array,
-    options?: Partial<BinaryReadOptions>
-  ): GetFeatureFlagsResponse {
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetFeatureFlagsResponse {
     return new GetFeatureFlagsResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(
-    jsonValue: JsonValue,
-    options?: Partial<JsonReadOptions>
-  ): GetFeatureFlagsResponse {
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetFeatureFlagsResponse {
     return new GetFeatureFlagsResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(
-    jsonString: string,
-    options?: Partial<JsonReadOptions>
-  ): GetFeatureFlagsResponse {
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetFeatureFlagsResponse {
     return new GetFeatureFlagsResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(
-    a: GetFeatureFlagsResponse | PlainMessage<GetFeatureFlagsResponse> | undefined,
-    b: GetFeatureFlagsResponse | PlainMessage<GetFeatureFlagsResponse> | undefined
-  ): boolean {
+  static equals(a: GetFeatureFlagsResponse | PlainMessage<GetFeatureFlagsResponse> | undefined, b: GetFeatureFlagsResponse | PlainMessage<GetFeatureFlagsResponse> | undefined): boolean {
     return proto3.util.equals(GetFeatureFlagsResponse, a, b);
   }
 }
+

@@ -3,29 +3,20 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import {
-  ListAvailableImagesRequest,
-  ListAvailableImagesResponse,
-  ListAvailableVideosRequest,
-  ListAvailableVideosResponse,
-  UploadImageRequest,
-  UploadImageResponse,
-  UploadVideoRequest,
-  UploadVideoResponse,
-} from './file_service_pb.js';
-import { MethodKind } from '@bufbuild/protobuf';
+import { ListAvailableImagesRequest, ListAvailableImagesResponse, ListAvailableVideosRequest, ListAvailableVideosResponse, UploadImageRequest, UploadImageResponse, UploadVideoRequest, UploadVideoResponse } from "./file_service_pb.js";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * @generated from service cuda_learning.FileService
  */
 export const FileService = {
-  typeName: 'cuda_learning.FileService',
+  typeName: "cuda_learning.FileService",
   methods: {
     /**
      * @generated from rpc cuda_learning.FileService.ListAvailableImages
      */
     listAvailableImages: {
-      name: 'ListAvailableImages',
+      name: "ListAvailableImages",
       I: ListAvailableImagesRequest,
       O: ListAvailableImagesResponse,
       kind: MethodKind.Unary,
@@ -34,7 +25,7 @@ export const FileService = {
      * @generated from rpc cuda_learning.FileService.UploadImage
      */
     uploadImage: {
-      name: 'UploadImage',
+      name: "UploadImage",
       I: UploadImageRequest,
       O: UploadImageResponse,
       kind: MethodKind.Unary,
@@ -43,7 +34,7 @@ export const FileService = {
      * @generated from rpc cuda_learning.FileService.ListAvailableVideos
      */
     listAvailableVideos: {
-      name: 'ListAvailableVideos',
+      name: "ListAvailableVideos",
       I: ListAvailableVideosRequest,
       O: ListAvailableVideosResponse,
       kind: MethodKind.Unary,
@@ -52,10 +43,11 @@ export const FileService = {
      * @generated from rpc cuda_learning.FileService.UploadVideo
      */
     uploadVideo: {
-      name: 'UploadVideo',
+      name: "UploadVideo",
       I: UploadVideoRequest,
       O: UploadVideoResponse,
       kind: MethodKind.Unary,
     },
-  },
+  }
 } as const;
+

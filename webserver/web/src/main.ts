@@ -8,6 +8,7 @@ import './components/video-grid';
 import './components/source-drawer';
 import './components/add-source-fab';
 import './components/version-footer';
+import './components/version-tooltip-lit';
 import './components/image-selector-modal';
 import './components/video-selector';
 import './components/video-upload';

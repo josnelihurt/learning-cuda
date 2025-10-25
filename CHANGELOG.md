@@ -4,6 +4,35 @@ Completed features extracted from git commit history, organized by category.
 
 ## October 2025
 
+### GetSystemInfo RPC Endpoint (Oct 25, 2025) - 5 BDD scenarios
+- [x] Added GetSystemInfo RPC endpoint in ConfigService
+- [x] Created SystemVersion proto message with 6 version fields (C++, Go, JS, Branch, Build, Commit)
+- [x] Implemented domain models for SystemInfo and SystemVersion
+- [x] Created build info infrastructure layer with environment variable support
+- [x] Implemented GetSystemInfoUseCase with observability and telemetry
+- [x] Added GetSystemInfo handler with span attributes and error recording
+- [x] Wired GetSystemInfoUseCase through container, app, and server
+- [x] Created system-info-service.ts with telemetry integration
+- [x] Updated version-tooltip-lit component to use backend endpoint
+- [x] Added 5 BDD scenarios for system info validation
+- [x] Created E2E tests for version tooltip functionality
+- [x] All tests passing (Backend unit tests, Frontend unit tests, BDD, E2E)
+
+**Benefits:**
+- Consolidated system information in single endpoint
+- Replaced hardcoded version values with backend data
+- Full observability with telemetry spans and attributes
+- Clean Architecture with proper separation of concerns
+- Comprehensive test coverage across all layers
+
+**Test Coverage:**
+- Backend: Unit tests for use case, handler, and build info
+- Frontend: E2E tests for version tooltip component
+- BDD: 5 scenarios covering all version fields and processor status
+- Total scenarios: 54 (49 existing + 5 new)
+
+## October 2025
+
 ### Video Frame ID and Test Infrastructure (Oct 20, 2025) - 6 BDD scenarios (pending implementation)
 - [x] Generated optimized E2E test video (480x360, 10fps, 20s, 200 frames, 464KB)
 - [x] Extracted 200 frames as PNG with SHA256 hash metadata

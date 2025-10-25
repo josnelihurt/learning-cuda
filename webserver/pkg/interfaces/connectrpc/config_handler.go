@@ -22,6 +22,7 @@ type ConfigHandler struct {
 	syncFlagsUseCase       *application.SyncFeatureFlagsUseCase
 	listInputsUseCase      *application.ListInputsUseCase
 	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
+	getSystemInfoUseCase   *application.GetSystemInfoUseCase
 	registry               *loader.Registry
 	currentLoader          **loader.Loader
 	loaderMutex            *sync.RWMutex
@@ -33,6 +34,7 @@ func NewConfigHandler(
 	syncFlagsUC *application.SyncFeatureFlagsUseCase,
 	listInputsUC *application.ListInputsUseCase,
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
+	getSystemInfoUC *application.GetSystemInfoUseCase,
 	registry *loader.Registry,
 	currentLoader **loader.Loader,
 	loaderMutex *sync.RWMutex,
@@ -43,6 +45,7 @@ func NewConfigHandler(
 		syncFlagsUseCase:       syncFlagsUC,
 		listInputsUseCase:      listInputsUC,
 		evaluateFFUseCase:      evaluateFFUC,
+		getSystemInfoUseCase:   getSystemInfoUC,
 		registry:               registry,
 		currentLoader:          currentLoader,
 		loaderMutex:            loaderMutex,
@@ -345,4 +348,52 @@ func (h *ConfigHandler) buildTools(toolDefs []config.ToolDefinition, environment
 	}
 
 	return tools
+}
+
+func (h *ConfigHandler) GetSystemInfo(
+	ctx context.Context,
+	req *connect.Request[pb.GetSystemInfoRequest],
+) (*connect.Response[pb.GetSystemInfoResponse], error) {
+	span := trace.SpanFromContext(ctx)
+
+	systemInfo, err := h.getSystemInfoUseCase.Execute(ctx)
+	if err != nil {
+		span.RecordError(err)
+		log.Printf("Failed to get system info: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	// Map domain to proto
+	response := &pb.GetSystemInfoResponse{
+		Version: &pb.SystemVersion{
+			CppVersion: systemInfo.Version.CppVersion,
+			GoVersion:  systemInfo.Version.GoVersion,
+			JsVersion:  systemInfo.Version.JsVersion,
+			Branch:     systemInfo.Version.Branch,
+			BuildTime:  systemInfo.Version.BuildTime,
+			CommitHash: systemInfo.Version.CommitHash,
+		},
+		Environment:        systemInfo.Environment,
+		CurrentLibrary:     systemInfo.CurrentLibrary,
+		ApiVersion:         systemInfo.APIVersion,
+		AvailableLibraries: systemInfo.AvailableLibraries,
+	}
+
+	// Set span attributes
+	span.SetAttributes(
+		attribute.String("system.version.cpp", systemInfo.Version.CppVersion),
+		attribute.String("system.version.go", systemInfo.Version.GoVersion),
+		attribute.String("system.version.js", systemInfo.Version.JsVersion),
+		attribute.String("system.version.branch", systemInfo.Version.Branch),
+		attribute.String("system.version.commit_hash", systemInfo.Version.CommitHash),
+		attribute.String("system.environment", systemInfo.Environment),
+		attribute.String("system.current_library", systemInfo.CurrentLibrary),
+		attribute.String("system.api_version", systemInfo.APIVersion),
+		attribute.Int("system.available_libraries_count", len(systemInfo.AvailableLibraries)),
+	)
+
+	log.Printf("GetSystemInfo: returning system info for environment: %s, version: %s",
+		systemInfo.Environment, systemInfo.Version.JsVersion)
+
+	return connect.NewResponse(response), nil
 }

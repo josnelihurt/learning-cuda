@@ -9,6 +9,8 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build"
+	configrepo "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/filesystem"
 	httpinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/http"
@@ -30,6 +32,7 @@ type Container struct {
 	EvaluateFeatureFlagUseCase *application.EvaluateFeatureFlagUseCase
 	SyncFeatureFlagsUseCase    *application.SyncFeatureFlagsUseCase
 	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
+	GetSystemInfoUseCase       *application.GetSystemInfoUseCase
 	ListInputsUseCase          *application.ListInputsUseCase
 	// ListAvailableImagesUseCase handles listing available images
 	// language: english-only
@@ -114,6 +117,15 @@ func New(ctx context.Context) (*Container, error) {
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 
+	buildInfo := build.NewBuildInfo()
+
+	// Create repository implementations
+	processorRepo := processor.NewProcessorRepository(registry)
+	configRepo := configrepo.NewConfigRepository(cfg)
+	buildInfoRepo := build.NewBuildInfoRepository(buildInfo)
+
+	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(processorRepo, configRepo, buildInfoRepo)
+
 	videoRepo := video.NewFileVideoRepository(context.Background(), "data/videos", "data/video_previews") //nolint:contextcheck
 	listInputsUseCase := application.NewListInputsUseCase(videoRepo)
 
@@ -134,6 +146,7 @@ func New(ctx context.Context) (*Container, error) {
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
 		SyncFeatureFlagsUseCase:    syncFFUseCase,
 		GetStreamConfigUseCase:     getStreamConfigUseCase,
+		GetSystemInfoUseCase:       getSystemInfoUseCase,
 		ListInputsUseCase:          listInputsUseCase,
 		ListAvailableImagesUseCase: listAvailableImagesUseCase,
 		UploadImageUseCase:         uploadImageUseCase,

@@ -6,6 +6,10 @@ import type { WebSocketService } from './websocket-service';
 import { telemetryService } from './telemetry-service';
 import type { IUIService } from '../domain/interfaces/IUIService';
 
+declare const __APP_VERSION__: string;
+declare const __APP_BRANCH__: string;
+declare const __BUILD_TIME__: string;
+
 export class UIService implements IUIService {
   selectedInputSource = 'lena';
   selectedAccelerator = 'gpu';
@@ -34,24 +38,63 @@ export class UIService implements IUIService {
 
   private initInfoTooltip(): void {
     if (this.infoBtn && this.infoTooltip) {
-      this.infoBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+      this.infoBtn.addEventListener('mouseenter', () => {
+        this.loadVersionInfo();
         if (this.infoTooltip) {
-          this.infoTooltip.style.display =
-            this.infoTooltip.style.display === 'none' ? 'block' : 'none';
+          this.infoTooltip.style.display = 'block';
         }
       });
 
-      document.addEventListener('click', (e) => {
-        if (
-          this.infoBtn &&
-          this.infoTooltip &&
-          !this.infoBtn.contains(e.target as Node) &&
-          !this.infoTooltip.contains(e.target as Node)
-        ) {
+      this.infoBtn.addEventListener('mouseleave', () => {
+        if (this.infoTooltip) {
           this.infoTooltip.style.display = 'none';
         }
       });
+
+      this.infoTooltip.addEventListener('mouseenter', () => {
+        if (this.infoTooltip) {
+          this.infoTooltip.style.display = 'block';
+        }
+      });
+
+      this.infoTooltip.addEventListener('mouseleave', () => {
+        if (this.infoTooltip) {
+          this.infoTooltip.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  private async loadVersionInfo(): Promise<void> {
+    try {
+      const response = await fetch('/api/processor/capabilities');
+      const data = await response.json();
+      
+      if (data.capabilities) {
+        const cppVersionEl = document.getElementById('cppVersion');
+        const goVersionEl = document.getElementById('goVersion');
+        const jsVersionEl = document.getElementById('jsVersion');
+        const branchVersionEl = document.getElementById('branchVersion');
+        const buildVersionEl = document.getElementById('buildVersion');
+
+        if (cppVersionEl) {
+          cppVersionEl.textContent = data.capabilities.libraryVersion || '?';
+        }
+        if (goVersionEl) {
+          goVersionEl.textContent = data.capabilities.apiVersion || '?';
+        }
+        if (jsVersionEl) {
+          jsVersionEl.textContent = __APP_VERSION__;
+        }
+        if (branchVersionEl) {
+          branchVersionEl.textContent = __APP_BRANCH__;
+        }
+        if (buildVersionEl) {
+          buildVersionEl.textContent = new Date(__BUILD_TIME__).toLocaleString();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load backend versions', e);
     }
   }
 

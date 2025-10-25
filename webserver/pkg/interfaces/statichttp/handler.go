@@ -19,6 +19,7 @@ type StaticHandler struct {
 	tmpl             *template.Template
 	wsHandler        *websocket.Handler
 	assetHandler     AssetHandler
+	fliptURL         string
 }
 
 func NewStaticHandler(
@@ -26,6 +27,7 @@ func NewStaticHandler(
 	streamConfig config.StreamConfig,
 	useCase *application.ProcessImageUseCase,
 	videoRepo domain.VideoRepository,
+	fliptURL string,
 ) *StaticHandler {
 	var tmpl *template.Template
 	if !serverConfig.HotReloadEnabled {
@@ -49,6 +51,7 @@ func NewStaticHandler(
 		tmpl:             tmpl,
 		wsHandler:        websocket.NewHandler(useCase, streamConfig, videoRepo),
 		assetHandler:     assetHandler,
+		fliptURL:         fliptURL,
 	}
 }
 
@@ -63,6 +66,10 @@ func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/static/", h.ServeStatic)
 	mux.HandleFunc("/data/", h.ServeData)
 	mux.HandleFunc("/ws", h.wsHandler.HandleWebSocket)
+
+	// Register Flipt proxy route
+	fliptProxy := NewFliptProxyHandler(h.fliptURL)
+	mux.Handle("/flipt/", http.StripPrefix("/flipt", fliptProxy))
 
 	// Register catch-all route last (least specific)
 	// This should only handle routes that don't match API endpoints

@@ -210,7 +210,7 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 }
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
-	staticHandler := statichttp.NewStaticHandler(&a.config.Server, a.config.Stream, a.useCase, a.videoRepository)
+	staticHandler := statichttp.NewStaticHandler(&a.config.Server, a.config.Stream, a.useCase, a.videoRepository, a.config.Flipt.URL)
 	staticHandler.RegisterRoutes(mux)
 }
 

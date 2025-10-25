@@ -18,6 +18,7 @@
             </div>
             <div class="navbar-services">
                 <tools-dropdown></tools-dropdown>
+                <feature-flags-button></feature-flags-button>
                 <sync-flags-button style="display: none;"></sync-flags-button>
             </div>
             <div class="navbar-credit">
@@ -81,6 +82,7 @@
     <source-drawer></source-drawer>
     <add-source-fab></add-source-fab>
     <image-selector-modal></image-selector-modal>
+    <feature-flags-modal></feature-flags-modal>
 
     {{range .ScriptTags}}
     <script{{if .Module}} type="module"{{end}} src="{{.Src}}"></script>

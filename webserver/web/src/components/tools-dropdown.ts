@@ -1,4 +1,3 @@
-// emoji-allowed
 import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import type { ToolCategory } from '../gen/config_service_pb';
@@ -161,7 +160,7 @@ export class ToolsDropdown extends LitElement {
   private renderTool(tool: any) {
     const iconContent = tool.iconPath
       ? html`<img src="${tool.iconPath}" alt="${tool.name}" />`
-      : html`${tool.type === 'action' && tool.action === 'sync_flags' ? '↻' : '✓'}`;
+      : html`${tool.type === 'action' && tool.action === 'sync_flags' ? 'R' : 'OK'}`;
 
     return html`
       <a

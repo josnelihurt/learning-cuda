@@ -10,6 +10,8 @@ import './components/add-source-fab';
 import './components/version-footer';
 import './components/version-tooltip-lit';
 import './components/image-selector-modal';
+import './components/feature-flags-modal';
+import './components/feature-flags-button';
 import './components/video-selector';
 import './components/video-upload';
 import { container } from './application/di';

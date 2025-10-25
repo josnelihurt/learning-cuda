@@ -6,6 +6,18 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
+# Load development secrets
+if [ -f ".secrets/development.env" ]; then
+    echo "Loading development secrets from .secrets/development.env"
+    source .secrets/development.env
+else
+    echo "WARNING: Development secrets file not found at .secrets/development.env"
+    echo "Creating template file..."
+    mkdir -p .secrets
+    cp .secrets/development.env.example .secrets/development.env
+    echo "Please edit .secrets/development.env with your actual development secrets"
+fi
+
 BUILD_FIRST=false
 SHOW_HELP=false
 

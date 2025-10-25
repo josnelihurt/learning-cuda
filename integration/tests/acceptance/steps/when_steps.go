@@ -12,6 +12,10 @@ func (tc *TestContext) iCallTheSyncFeatureFlagsEndpoint() error {
 	return tc.WhenICallSyncFeatureFlags()
 }
 
+func (tc *TestContext) iCallTheSyncFeatureFlagsEndpointAgain() error {
+	return tc.WhenICallSyncFeatureFlags()
+}
+
 func (tc *TestContext) iWaitForFlagsToBeSynchronized() error {
 	return tc.WhenIWaitForFlagsToBeSynced()
 }
@@ -99,6 +103,7 @@ func (tc *TestContext) theBackendReceivesOTLPLogsAt(endpoint string) error {
 func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I call the GetStreamConfig endpoint$`, tc.iCallTheGetStreamConfigEndpoint)
 	ctx.Step(`^I call the SyncFeatureFlags endpoint$`, tc.iCallTheSyncFeatureFlagsEndpoint)
+	ctx.Step(`^I call the SyncFeatureFlags endpoint again$`, tc.iCallTheSyncFeatureFlagsEndpointAgain)
 	ctx.Step(`^I wait for flags to be synchronized$`, tc.iWaitForFlagsToBeSynchronized)
 	ctx.Step(`^I call the health endpoint$`, tc.iCallTheHealthEndpoint)
 	ctx.Step(`^I call GetProcessorStatus$`, tc.iCallGetProcessorStatus)

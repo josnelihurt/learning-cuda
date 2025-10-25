@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createApiUrl } from './utils/test-helpers';
 
 test.describe('Stream Configuration API', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,7 +9,7 @@ test.describe('Stream Configuration API', () => {
   });
 
   test('should return default stream configuration when no feature flags are set', async ({ request }) => {
-    const response = await request.post('/cuda_learning.ConfigService/GetStreamConfig', {
+    const response = await request.post(createApiUrl('/cuda_learning.ConfigService/GetStreamConfig'), {
       data: {},
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +34,7 @@ test.describe('Stream Configuration API', () => {
 
   test('should return stream configuration with default values', async ({ request }) => {
     // Test the GetStreamConfig endpoint with default configuration
-    const response = await request.post('/cuda_learning.ConfigService/GetStreamConfig', {
+    const response = await request.post(createApiUrl('/cuda_learning.ConfigService/GetStreamConfig'), {
       data: {},
       headers: {
         'Content-Type': 'application/json',
@@ -58,7 +59,7 @@ test.describe('Stream Configuration API', () => {
 
   test('should handle feature flag evaluation errors gracefully', async ({ request }) => {
     // Test the GetStreamConfig endpoint - should fallback to default even without flags
-    const response = await request.post('/cuda_learning.ConfigService/GetStreamConfig', {
+    const response = await request.post(createApiUrl('/cuda_learning.ConfigService/GetStreamConfig'), {
       data: {},
       headers: {
         'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ test.describe('Stream Configuration API', () => {
 
   test('should return proper log level configuration', async ({ request }) => {
     // Test the GetStreamConfig endpoint with default log level configuration
-    const response = await request.post('/cuda_learning.ConfigService/GetStreamConfig', {
+    const response = await request.post(createApiUrl('/cuda_learning.ConfigService/GetStreamConfig'), {
       data: {},
       headers: {
         'Content-Type': 'application/json',

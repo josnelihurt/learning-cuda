@@ -1,3 +1,8 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: /
+
 receivers:
   otlp:
     protocols:
@@ -29,6 +34,7 @@ exporters:
     loglevel: debug
 
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]

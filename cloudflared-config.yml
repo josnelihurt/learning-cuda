@@ -1,0 +1,24 @@
+tunnel: ef1d45eb-5e53-4a40-8bc3-e30c1e29e00d
+
+ingress:
+  - hostname: app-cuda-demo.josnelihurt.me
+    service: https://traefik:443
+    originRequest:
+      noTLSVerify: true
+  - hostname: grafana-cuda-demo.josnelihurt.me
+    service: https://traefik:443
+    originRequest:
+      noTLSVerify: true
+  - hostname: flipt-cuda-demo.josnelihurt.me
+    service: https://traefik:443
+    originRequest:
+      noTLSVerify: true
+  - hostname: jaeger-cuda-demo.josnelihurt.me
+    service: https://traefik:443
+    originRequest:
+      noTLSVerify: true
+  - hostname: reports-cuda-demo.josnelihurt.me
+    service: https://traefik:443
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404

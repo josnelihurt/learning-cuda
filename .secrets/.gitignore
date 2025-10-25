@@ -5,6 +5,10 @@
 *.cer
 *.p12
 *.pfx
+*.env
+
+# Cloudflare tunnel credentials
+cloudflare/
 
 # But keep example files
 !*.example

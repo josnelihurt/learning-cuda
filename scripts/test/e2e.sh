@@ -107,8 +107,8 @@ export CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=2.0.0
 # Set environment variables based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
     export TEST_ENV="production"
-    export PLAYWRIGHT_BASE_URL="https://localhost:443"
-    echo "Environment: Production (https://localhost:443)"
+    export PLAYWRIGHT_BASE_URL="https://app-cuda-demo.josnelihurt.me"
+    echo "Environment: Production (https://app-cuda-demo.josnelihurt.me)"
 else
     export TEST_ENV="development"
     export PLAYWRIGHT_BASE_URL="https://localhost:8443"
@@ -136,20 +136,32 @@ echo ""
 mkdir -p webserver/web/.ignore/test-results
 mkdir -p webserver/web/.ignore/playwright-report
 
+# Set Flipt port based on environment
+if [ "$ENVIRONMENT" = "prod" ]; then
+    FLIPT_PORT="8082"
+else
+    FLIPT_PORT="8081"
+fi
+
 echo "Checking services (Flipt + App)..."
-if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
-    echo "Flipt is not accessible at http://localhost:8081"
-    if [ "$ENVIRONMENT" = "prod" ]; then
+if [ "$ENVIRONMENT" = "prod" ]; then
+    # In production, check Flipt via Cloudflare Tunnel
+    if ! curl -k -s https://flipt-cuda-demo.josnelihurt.me/api/v1/health > /dev/null 2>&1; then
+        echo "Flipt is not accessible at https://flipt-cuda-demo.josnelihurt.me"
         echo "For production, make sure Docker Compose services are running:"
-        echo "  docker compose --profile production up -d"
+        echo "  docker compose --profile cloudflare up -d"
         exit 1
-    else
+    fi
+else
+    # In development, check Flipt directly
+    if ! curl -s http://localhost:$FLIPT_PORT/api/v1/health > /dev/null 2>&1; then
+        echo "Flipt is not accessible at http://localhost:$FLIPT_PORT"
         echo "Starting development services..."
         ./scripts/dev/start.sh
         
         timeout=30
         while [ $timeout -gt 0 ]; do
-            if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
+            if curl -s http://localhost:$FLIPT_PORT/api/v1/health > /dev/null 2>&1; then
                 echo "Flipt is ready"
                 break
             fi
@@ -165,15 +177,15 @@ fi
 
 # Check application health based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
-    if ! curl -k -s https://localhost:443/health > /dev/null 2>&1; then
-        echo "ERROR: Production service is not accessible at https://localhost:443"
-        echo "Please start production services with: docker compose --profile production up -d"
+    if ! curl -k -s https://app-cuda-demo.josnelihurt.me/health > /dev/null 2>&1; then
+        echo "ERROR: Production service is not accessible at https://app-cuda-demo.josnelihurt.me"
+        echo "Please start production services with: docker compose --profile cloudflare up -d"
         exit 1
     fi
 else
     if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
         echo "ERROR: Development service is not accessible at https://localhost:8443"
-        echo "Please start the webserver with: ./scripts/dev/start.sh"
+        echo "Please start development services with: ./scripts/dev/start.sh"
         exit 1
     fi
 fi
@@ -181,25 +193,20 @@ fi
 echo "Services are running"
 echo ""
 
-echo "Building E2E test container..."
-docker compose -f docker-compose.dev.yml --profile testing build e2e-tests
-
-echo ""
-echo "Running E2E tests..."
+echo "Running E2E tests locally..."
 echo "Command: npx playwright test $PLAYWRIGHT_OPTS"
 echo ""
 
-set +e
-docker compose -f docker-compose.dev.yml --profile testing run \
-  --rm \
-  -e PLAYWRIGHT_OPTS="$PLAYWRIGHT_OPTS --grep-invert=@slow" \
-  -e PLAYWRIGHT_WORKERS="${PLAYWRIGHT_WORKERS:-25}" \
-  -e TEST_ENV="$TEST_ENV" \
-  -e PLAYWRIGHT_BASE_URL="$PLAYWRIGHT_BASE_URL" \
-  e2e-tests
+# Change to the web directory where Playwright is configured
+cd webserver/web
 
+set +e
+npx playwright test $PLAYWRIGHT_OPTS
 EXIT_CODE=$?
 set -e
+
+# Return to project root
+cd "$PROJECT_ROOT"
 
 echo ""
 if [ $EXIT_CODE -eq 0 ]; then
@@ -208,12 +215,6 @@ else
     echo "E2E tests failed with exit code $EXIT_CODE"
 fi
 
-
-docker stop e2e-report-viewer
-docker rm e2e-report-viewer
-
-docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer
-
 echo ""
 echo "Results saved in webserver/web/.ignore/"
 echo "  - test-results/e2e-results.json"
@@ -221,10 +222,7 @@ echo "  - test-results/e2e-junit.xml"
 echo "  - playwright-report/"
 echo ""
 echo "To view test reports:"
-echo "  docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer"
-echo ""
-echo "  HTML Report: http://localhost:5051"
+echo "  npx playwright show-report"
 echo ""
 
 exit $EXIT_CODE
-

@@ -58,10 +58,14 @@ func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 		}
 	}
 
-	mux.HandleFunc("/", h.ServeIndex)
+	// Register specific routes first (more specific patterns)
 	mux.HandleFunc("/static/", h.ServeStatic)
 	mux.HandleFunc("/data/", h.ServeData)
 	mux.HandleFunc("/ws", h.wsHandler.HandleWebSocket)
+
+	// Register catch-all route last (least specific)
+	// This should only handle routes that don't match API endpoints
+	mux.HandleFunc("/", h.ServeIndex)
 }
 
 func (h *StaticHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +73,12 @@ func (h *StaticHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
+	// Don't serve index.html for API routes
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		http.NotFound(w, r)
+		return
+	}
+
 	data := struct {
 		ScriptTags []ScriptTag
 	}{

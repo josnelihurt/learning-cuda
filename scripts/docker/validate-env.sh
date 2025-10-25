@@ -81,3 +81,33 @@ else
     echo "Fix errors above before building"
     exit 1
 fi
+
+# Optional: Validate Cloudflare Tunnel configuration
+# Call this function from scripts that need Cloudflare validation
+validate_cloudflare() {
+    echo "[6/6] Checking Cloudflare Tunnel configuration..."
+    
+    if [ ! -f "$PROJECT_ROOT/.secrets/cloudflare.env" ]; then
+        echo "  ERROR: Cloudflare env file not found: .secrets/cloudflare.env"
+        return 1
+    fi
+    
+    source "$PROJECT_ROOT/.secrets/cloudflare.env"
+    
+    if [ -z "$TUNNEL_TOKEN" ]; then
+        echo "  ERROR: TUNNEL_TOKEN not set in .secrets/cloudflare.env"
+        return 1
+    fi
+    
+    if [ ! -f "$PROJECT_ROOT/cloudflared-config.yml" ]; then
+        echo "  ERROR: cloudflared-config.yml not found"
+        return 1
+    fi
+    
+    echo "  OK: Cloudflare Tunnel configured"
+    echo ""
+    return 0
+}
+
+# Export function so it can be called from other scripts
+export -f validate_cloudflare 2>/dev/null || true

@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { getBaseUrl, createApiUrl } from './utils/test-helpers';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 
 test.describe('Image Upload', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('https://localhost:8443', { waitUntil: 'networkidle' });
+        await page.goto(getBaseUrl(), { waitUntil: 'networkidle' });
         await page.waitForTimeout(2000);
     });
 
@@ -154,6 +155,8 @@ test.describe('Image Upload', () => {
         
         await fileChooser.setFiles([]);
     });
+
+
 });
 
 async function createTestPNGImage(): Promise<string> {

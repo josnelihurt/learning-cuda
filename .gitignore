@@ -80,5 +80,16 @@ deployment/.env
 deployment/ansible/inventory.yml
 deployment/ansible/.vault_pass
 
+.secrets/production.env
+.secrets/development.env
+.secrets/*.env
+!.secrets/.gitignore
+!.secrets/README.md
+!.secrets/*.example
+
 # Playwright environment files (keep .env.* templates)
 webserver/web/.env.local
+
+# Root environment files (consolidated into .secrets/)
+# .env files are now consolidated into .secrets/development.env and .secrets/production.env
+.secrets/cloudflare/656d31d2-c833-45af-9561-d3e4d233f7c1.json

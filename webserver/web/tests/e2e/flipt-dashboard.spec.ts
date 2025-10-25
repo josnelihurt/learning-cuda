@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { getBaseUrl, getFliptDashboardUrlPattern } from './utils/test-helpers';
 
 test.describe('Flipt Dashboard Integration', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('https://localhost:8443', { waitUntil: 'networkidle' });
+        await page.goto(getBaseUrl(), { waitUntil: 'networkidle' });
     });
 
     test('opens Flipt dashboard when clicking Flipt Feature Flags', async ({ context, page }) => {
@@ -18,7 +19,8 @@ test.describe('Flipt Dashboard Integration', () => {
 
         // Verify new tab opened with Flipt dashboard
         await newPage.waitForLoadState('networkidle');
-        expect(newPage.url()).toContain('localhost:8081');
+        // Verify Flipt dashboard opened with correct URL pattern
+        expect(newPage.url()).toContain(getFliptDashboardUrlPattern());
         
         // Verify Flipt UI loaded
         await expect(newPage.locator('body')).toContainText(/Flipt/i);

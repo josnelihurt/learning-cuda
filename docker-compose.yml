@@ -1,9 +1,9 @@
 services:
   app:
-    image: cuda-learning-app:latest  # Usar imagen pre-construida con buildx
-    # build:  # Comentado para usar imagen pre-construida
-    #   context: .
-    #   dockerfile: Dockerfile
+    image: cuda-learning-app:latest  
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: cuda-image-processor
     restart: unless-stopped
     
@@ -23,21 +23,30 @@ services:
       - ./data:/data:ro
       - ./config/config.production.yaml:/app/config/config.yaml:ro
     
-    expose:
-      - "8080"
-    
     networks:
       - traefik
     
+    depends_on:
+      flipt:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+      jaeger:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cuda-app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.cuda-app.rule=Host(`app-cuda-demo.josnelihurt.me`)"
       - "traefik.http.routers.cuda-app.entrypoints=websecure"
       - "traefik.http.routers.cuda-app.tls=true"
       - "traefik.http.services.cuda-app.loadbalancer.server.port=8080"
     
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -53,50 +62,43 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.file.filename=/config/traefik-config.yml"
-      - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
       - "--log.level=INFO"
+      - "--accesslog=true"
     
     ports:
       - "80:80"
       - "443:443"
-      - "8081:8080"
     
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./.secrets:/certs:ro"
-      - "./traefik-config.yml:/config/traefik-config.yml:ro"
     
     networks:
       - traefik
     
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    depends_on: []
+    
 
   jaeger:
     image: jaegertracing/all-in-one:1.52
     container_name: jaeger
     restart: unless-stopped
     
-    ports:
-      - "16686:16686"
-    
-    expose:
-      - "4317"
-      - "4318"
-    
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     
     networks:
       - traefik
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jaeger.rule=Host(`jaeger-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.jaeger.entrypoints=websecure"
+      - "traefik.http.routers.jaeger.tls=true"
+      - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
     
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
@@ -110,8 +112,6 @@ services:
     container_name: loki
     restart: unless-stopped
     
-    expose:
-      - "3100"
     
     command: -config.file=/etc/loki/loki-config.yaml
     
@@ -151,16 +151,14 @@ services:
     container_name: grafana
     restart: unless-stopped
     
-    expose:
-      - "3000"
     
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_FEATURE_TOGGLES_ENABLE=traceToLogs
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-      - GF_SERVER_ROOT_URL=https://localhost/grafana
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_ROOT_URL=https://grafana-cuda-demo.josnelihurt.me
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
     
     volumes:
       - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
@@ -179,7 +177,7 @@ services:
     
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=PathPrefix(`/grafana`)"
+      - "traefik.http.routers.grafana.rule=Host(`grafana-cuda-demo.josnelihurt.me`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.priority=100"
@@ -203,8 +201,7 @@ services:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "13133:13133"
     
     networks:
       - traefik
@@ -214,20 +211,17 @@ services:
         condition: service_healthy
     
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otel-collector-config.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   flipt:
     image: flipt/flipt:latest
     container_name: flipt
     restart: unless-stopped
-    
-    expose:
-      - "8080"
-    
+        
     volumes:
       - ./.ignore/storage/flipt:/var/opt/flipt
     
@@ -239,22 +233,20 @@ services:
     networks:
       - traefik
     
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.flipt.rule=PathPrefix(`/flipt`)"
-      - "traefik.http.routers.flipt.entrypoints=websecure"
-      - "traefik.http.routers.flipt.tls=true"
-      - "traefik.http.routers.flipt.priority=100"
-      - "traefik.http.services.flipt.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.flipt-stripprefix.stripprefix.prefixes=/flipt"
-      - "traefik.http.routers.flipt.middlewares=flipt-stripprefix"
-    
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flipt.rule=Host(`flipt-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.flipt.entrypoints=websecure"
+      - "traefik.http.routers.flipt.tls=true"
+      - "traefik.http.routers.flipt.priority=200"
+      - "traefik.http.services.flipt.loadbalancer.server.port=8080"
 
   test-reports:
     build:
@@ -265,8 +257,6 @@ services:
     container_name: test-reports
     restart: unless-stopped
     
-    expose:
-      - "8080"
     
     command: npx http-server /app/reports -p 8080
     
@@ -275,13 +265,32 @@ services:
     
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.test-reports.rule=PathPrefix(`/reports`)"
+      - "traefik.http.routers.test-reports.rule=Host(`reports-cuda-demo.josnelihurt.me`)"
       - "traefik.http.routers.test-reports.entrypoints=websecure"
       - "traefik.http.routers.test-reports.tls=true"
       - "traefik.http.routers.test-reports.priority=100"
       - "traefik.http.services.test-reports.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.test-reports-stripprefix.stripprefix.prefixes=/reports"
-      - "traefik.http.routers.test-reports.middlewares=test-reports-stripprefix"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    
+    command: tunnel --config /etc/cloudflared/config.yml run
+    
+    env_file:
+      - ./.secrets/production.env
+    
+    volumes:
+      - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
+    
+    networks:
+      - traefik
+    
+    depends_on:
+      traefik:
+        condition: service_started
+    
 
 networks:
   traefik:
@@ -289,41 +298,3 @@ networks:
 
 volumes:
   grafana-storage:
-
-# Production profile for Jetson Nano deployment
-# Usage: docker-compose --profile production up -d
-x-production-limits: &production-limits
-  deploy:
-    resources:
-      limits:
-        memory: 6g
-        cpus: '4.0'
-      reservations:
-        memory: 1g
-        cpus: '0.5'
-
-# Production overrides - simplified
-  app:
-    profiles: ["production"]
-    
-  traefik:
-    profiles: ["production"]
-    
-  jaeger:
-    profiles: ["production"]
-    
-  loki:
-    profiles: ["production"]
-    
-  promtail:
-    profiles: ["production"]
-    
-  grafana:
-    profiles: ["production"]
-    
-  otel-collector:
-    profiles: ["production"]
-    
-  flipt:
-    profiles: ["production"]
-

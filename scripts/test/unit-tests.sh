@@ -50,8 +50,8 @@ if [ "$SKIP_GOLANG" = false ]; then
   echo "=================================================="
   cd "$PROJECT_ROOT"
 
-  # Run tests excluding CGO packages that require hardware
-  go test -race $(go list ./... | grep -v "webserver/pkg/infrastructure/processor/loader") || {
+  # Run tests excluding CGO packages that require hardware and test directories
+  go test -race $(go list ./... | grep -v "webserver/pkg/infrastructure/processor/loader" | grep -v "integration/tests" | grep -v "cmd/generate-video-metadata" | grep -v "proto/gen") || {
       echo "FAILED: Go unit tests"
       exit 1
   }

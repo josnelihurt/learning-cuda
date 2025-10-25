@@ -212,6 +212,23 @@ func (tc *TestContext) theResponseShouldReturnHTTP(code int) error {
 	return tc.ThenTheResponseShouldReturnHTTP200()
 }
 
+func (tc *TestContext) fliptShouldStillHaveAllFlagsConfiguredCorrectly() error {
+	// Verify all expected flags exist
+	expectedFlags := []string{
+		"ws_transport_format",
+		"observability_enabled",
+		"frontend_log_level",
+		"frontend_console_logging",
+	}
+
+	for _, flagKey := range expectedFlags {
+		if err := tc.ThenFliptShouldHaveFlag(flagKey); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain transport format "([^"]*)"$`, tc.theResponseShouldContainTransportFormat)
 	ctx.Step(`^the response should contain endpoint "([^"]*)"$`, tc.theResponseShouldContainEndpoint)
@@ -266,4 +283,5 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should include console logging disabled$`, tc.theResponseShouldIncludeConsoleLoggingDisabled)
 	ctx.Step(`^the logs should be written to backend logger$`, tc.theLogsShouldBeWrittenToBackendLogger)
 	ctx.Step(`^the response should return HTTP (\d+)$`, tc.theResponseShouldReturnHTTP)
+	ctx.Step(`^Flipt should still have all flags configured correctly$`, tc.fliptShouldStillHaveAllFlagsConfiguredCorrectly)
 }

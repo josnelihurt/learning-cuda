@@ -59,10 +59,12 @@ func (r *StaticImageRepository) FindAll(ctx context.Context) ([]domain.StaticIma
 
 		isDefault := id == "lena"
 
+		httpPath := strings.Replace(filepath.Join(r.directory, name), "/app", "", 1)
+
 		images = append(images, domain.StaticImage{
 			ID:          id,
 			DisplayName: displayName,
-			Path:        filepath.Join(r.directory, name),
+			Path:        httpPath,
 			IsDefault:   isDefault,
 		})
 	}
@@ -98,10 +100,12 @@ func (r *StaticImageRepository) Save(ctx context.Context, filename string, data 
 	id := strings.ToLower(baseName)
 	displayName := strings.ToUpper(baseName[:1]) + strings.ReplaceAll(baseName[1:], "_", " ")
 
+	httpPath := strings.Replace(filePath, "/app", "", 1)
+
 	image := &domain.StaticImage{
 		ID:          id,
 		DisplayName: displayName,
-		Path:        filePath,
+		Path:        httpPath,
 		IsDefault:   false,
 	}
 

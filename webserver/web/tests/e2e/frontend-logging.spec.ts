@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { getBaseUrl } from './utils/test-helpers';
 
 test.describe('Frontend Logging System', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('https://localhost:8443', { waitUntil: 'networkidle' });
+        await page.goto(getBaseUrl(), { waitUntil: 'networkidle' });
         
         await page.waitForFunction(() => {
             return (window as any).logger !== undefined;

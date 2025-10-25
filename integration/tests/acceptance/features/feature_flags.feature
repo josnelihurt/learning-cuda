@@ -39,3 +39,26 @@ Feature: Feature Flag Management via Flipt
     Then the response status should be 200
     And the response should contain status "healthy"
 
+  Scenario: SyncFeatureFlags endpoint returns success
+    Given Flipt has no flags configured
+    When I call the SyncFeatureFlags endpoint
+    Then the response should succeed
+    And the response status should be 200
+
+  Scenario: Sync creates all required flags in Flipt
+    Given Flipt has no flags configured
+    When I call the SyncFeatureFlags endpoint
+    And I wait for flags to be synchronized
+    Then Flipt should have flag "ws_transport_format"
+    And Flipt should have flag "observability_enabled"
+    And Flipt should have flag "frontend_log_level"
+    And Flipt should have flag "frontend_console_logging"
+
+  Scenario: Sync is idempotent - can be called multiple times
+    Given Flipt has no flags configured
+    When I call the SyncFeatureFlags endpoint
+    And I wait for flags to be synchronized
+    And I call the SyncFeatureFlags endpoint again
+    Then the response should succeed
+    And Flipt should still have all flags configured correctly
+

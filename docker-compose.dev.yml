@@ -31,6 +31,7 @@ services:
     
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+      - /tmp:/tmp:ro
     
     ports:
       - "4317:4317"
@@ -103,6 +104,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - /tmp:/tmp:ro
     
     command: -config.file=/etc/promtail/config.yml
     
@@ -112,6 +114,47 @@ services:
     
     networks:
       - dev-network
+
+  app-dev:
+    image: ubuntu:22.04
+    container_name: cuda-image-processor
+    restart: unless-stopped
+    
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    
+    volumes:
+      - ./bin/server:/app/server:ro
+      - ./webserver/web:/app/webserver/web:ro
+      - ./data:/app/data:ro
+      - ./.ignore/lib:/app/.ignore/lib:ro
+      - ./.secrets:/app/.secrets:ro
+      - ./config/config.dev.yaml:/app/config/config.yaml:ro
+    
+    working_dir: /app
+    
+    command: ["/app/server", "-webroot=webserver/web"]
+    
+    depends_on:
+      loki:
+        condition: service_healthy
+      flipt:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    
+    networks:
+      - dev-network
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   grafana:
     image: grafana/grafana:10.2.3
@@ -149,6 +192,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  mcp-grafana:
+    image: grafana/mcp-grafana:latest
+    container_name: mcp-grafana-server
+    restart: unless-stopped
+    
+    environment:
+      - GRAFANA_URL=${GRAFANA_URL:-http://grafana-dev:3000}
+      - GRAFANA_SERVICE_ACCOUNT_TOKEN=${GRAFANA_API_KEY}
+    
+    ports:
+      - "8000:8000"
+    
+    networks:
+      - dev-network
+    
+    depends_on:
+      grafana:
+        condition: service_healthy
 
   integration-tests:
     build:

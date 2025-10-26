@@ -14,15 +14,68 @@ receivers:
           allowed_origins:
             - "http://*"
             - "https://*"
+  
+  # Unified: Capture logs from /tmp files (works for both dev and prod)
+  filelog/cpp:
+    include: ["/tmp/cppaccelerator.log"]
+    start_at: beginning
+    operators:
+      - type: json_parser
+        parse_from: body
+        severity:
+          parse_from: attributes.level
+          mapping:
+            info: info
+            debug: debug
+            warn: warn
+            error: error
+      - type: add
+        field: attributes.log.source
+        value: cpp
+      - type: add
+        field: attributes.service.name
+        value: cpp-accelerator
+
+  filelog/go:
+    include: ["/tmp/goserver.log"]
+    start_at: beginning
+    operators:
+      - type: json_parser
+        parse_from: body
+        severity:
+          parse_from: attributes.level
+          mapping:
+            info: info
+            debug: debug
+            warn: warn
+            error: error
+      - type: add
+        field: attributes.log.source
+        value: go
+      - type: add
+        field: attributes.service.name
+        value: cuda-learning-app
 
 processors:
   batch:
     timeout: 1s
     send_batch_size: 1024
-  
+
   memory_limiter:
     check_interval: 1s
     limit_mib: 512
+
+  attributes/unified:
+    actions:
+      - key: service.name
+        value: cuda-learning-app
+        action: insert
+      - key: service.version
+        value: "2.0.0"
+        action: insert
+      - key: environment
+        value: unified
+        action: insert
 
 exporters:
   otlp:
@@ -40,4 +93,9 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [otlp, logging]
+    
+    logs:
+      receivers: [otlp, filelog/cpp, filelog/go]
+      processors: [memory_limiter, attributes/unified, batch]
+      exporters: [logging]
 

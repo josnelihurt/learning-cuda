@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 )
 
 type TraceProxyHandler struct {
@@ -56,7 +58,9 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		collectorEndpoint = "localhost:4318"
 	}
 	collectorURL := fmt.Sprintf("http://%s/v1/traces", collectorEndpoint)
-	log.Printf("Forwarding browser traces to: %s", collectorURL)
+	logger.Global().Info().
+		Str("collector_url", collectorURL).
+		Msg("Forwarding browser traces")
 
 	proxyReq, err := http.NewRequest(http.MethodPost, collectorURL, bytes.NewReader(body))
 	if err != nil {
@@ -83,7 +87,9 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	respBody, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort response logging
 
-	log.Printf("Traces forwarded successfully, collector responded with status: %d", resp.StatusCode)
+	logger.Global().Info().
+		Int("status_code", resp.StatusCode).
+		Msg("Traces forwarded successfully")
 
 	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
 	w.Header().Set("Access-Control-Allow-Origin", "*")

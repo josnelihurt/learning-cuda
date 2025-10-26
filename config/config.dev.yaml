@@ -1,12 +1,19 @@
-environment: "production"
+environment: "development"
 
 server:
-  http_port: "0.0.0.0:8080"
-  https_port: "0.0.0.0:8443"
-  hot_reload_enabled: false
-  web_root_path: "/app/web"
+  http_port: ":8080"
+  https_port: ":8443"
+  hot_reload_enabled: true  
+  web_root_path: "webserver/web"
+  dev_server_url: "https://localhost:3000"
+  dev_server_paths:
+    - "/@vite/"
+    - "/src/"
+    - "/node_modules/"
   tls:
-    enabled: false
+    enabled: true
+    cert_file: ".secrets/localhost+2.pem"
+    key_file: ".secrets/localhost+2-key.pem"
 
 stream:
   transport_format: "json"
@@ -21,9 +28,9 @@ features:
 
 flipt:
   enabled: true
-  url: "http://flipt:8080"
+  url: "http://flipt-dev:8080"
   namespace: "default"
-  db_path: "/var/opt/flipt/flipt.db"
+  db_path: ".ignore/storage/flipt/flipt.db"
   client_timeout: "30s"
   update_interval: "30s"
   http_timeout: "10s"
@@ -31,18 +38,17 @@ flipt:
 observability:
   service_name: "cuda-image-processor"
   service_version: "1.0.0"
-  otel_collector_endpoint: "otel-collector:4318"
+  otel_collector_endpoint: "otel-collector-dev:4317"
   trace_sampling_rate: 1.0
 
 logging:
   level: "info"
   format: "json"
-  output: "file"
-  file_path: "/tmp/goserver.log"
+  output: "stdout"
   include_caller: true
 
 processor:
-  library_base_path: "/app/lib"
+  library_base_path: ".ignore/lib/cuda_learning"
   default_library: "2.0.0"
   enable_hot_reload: false
   fallback_enabled: false
@@ -50,7 +56,7 @@ processor:
     - "2.0.0"
 
 static_images:
-  directory: "/app/data/static_images"
+  directory: "data/static_images"
 
 tools:
   observability:
@@ -59,26 +65,26 @@ tools:
       icon_path: "/static/img/tools/jaeger.svg"
       type: "url"
       url_dev: "http://localhost:16686"
-      url_prod: "https://jaeger-cuda-demo.josnelihurt.me"
+      url_prod: "https://jaeger.production.example.com"
     - id: "grafana_logs"
       name: "Logs Dashboard"
       icon_path: "/static/img/tools/grafana.svg"
       type: "url"
       url_dev: "http://localhost:3001/d/cuda-multi-layer-logs"
-      url_prod: "https://grafana-cuda-demo.josnelihurt.me/d/cuda-multi-layer-logs"
+      url_prod: "/grafana/d/cuda-multi-layer-logs"
     - id: "grafana_explore"
       name: "Grafana Explore"
       icon_path: "/static/img/tools/grafana.svg"
       type: "url"
       url_dev: "http://localhost:3001/explore"
-      url_prod: "https://grafana-cuda-demo.josnelihurt.me/explore"
+      url_prod: "/grafana/explore"
   features:
     - id: "flipt"
       name: "Flipt Feature Flags"
-      icon_path: "/static/img/tools/flipt.svg"
+      icon_path: "/static/img/tools/flipt.png"
       type: "url"
       url_dev: "http://localhost:8081"
-      url_prod: "https://flipt-cuda-demo.josnelihurt.me"
+      url_prod: "/flipt"
     - id: "sync_flags"
       name: "Sync Feature Flags"
       icon_path: ""
@@ -90,16 +96,16 @@ tools:
       icon_path: ""
       type: "url"
       url_dev: "http://localhost:5050"
-      url_prod: "https://reports-cuda-demo.josnelihurt.me"
+      url_prod: "/reports"
     - id: "e2e_reports"
       name: "E2E Test Results (Playwright)"
-      icon_path: "/static/img/tools/playwright.svg"
+      icon_path: "/static/img/tools/playwright.png"
       type: "url"
       url_dev: "http://localhost:5051"
-      url_prod: "https://reports-cuda-demo.josnelihurt.me/e2e"
+      url_prod: "/e2e"
     - id: "coverage_reports"
       name: "Code Coverage"
       icon_path: ""
       type: "url"
       url_dev: "http://localhost:5052"
-      url_prod: "https://reports-cuda-demo.josnelihurt.me/coverage"
+      url_prod: "/coverage"

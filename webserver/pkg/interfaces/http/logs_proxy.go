@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 )
 
 type LogsProxyHandler struct {
@@ -47,8 +49,10 @@ func (h *LogsProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	log.Printf("Received OTLP logs from frontend: %d bytes (Content-Type: %s)",
-		len(body), r.Header.Get("Content-Type"))
+	logger.Global().Info().
+		Int("bytes", len(body)).
+		Str("content_type", r.Header.Get("Content-Type")).
+		Msg("Received OTLP logs from frontend")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

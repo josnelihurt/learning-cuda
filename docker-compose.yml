@@ -22,6 +22,7 @@ services:
     volumes:
       - ./data:/data:ro
       - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - /tmp:/tmp
     
     networks:
       - traefik
@@ -136,6 +137,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - /tmp:/tmp:ro
+      - /tmp:/host-tmp:ro
     
     command: -config.file=/etc/promtail/config.yml
     
@@ -199,6 +202,7 @@ services:
     
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+      - /tmp:/tmp:ro
     
     ports:
       - "13133:13133"

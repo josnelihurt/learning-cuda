@@ -2,8 +2,10 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -42,7 +44,12 @@ func New(cfg Config) zerolog.Logger {
 		Timestamp()
 
 	if cfg.IncludeCaller {
-		logger = logger.Caller()
+		// Set up custom caller formatter to show only filename
+		zerolog.CallerFieldName = "caller"
+		zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
+			return filepath.Base(fmt.Sprintf("%s:%d", file, line))
+		}
+		logger = logger.CallerWithSkipFrameCount(1)
 	}
 
 	globalLogger = logger.Logger()

@@ -15,12 +15,8 @@
       delegate_to: localhost
       failed_when: not git_repo.stat.exists
 
-    - name: Update remote repository refs
-      shell: cd {{ app_directory }} && git fetch
-      become_user: "{{ deployment_user }}"
-
-    - name: Reset remote repository to HEAD
-      shell: cd {{ app_directory }} && git reset --hard HEAD
+    - name: Pull latest changes from repository
+      shell: cd {{ app_directory }} && git pull
       become_user: "{{ deployment_user }}"
 
     - name: Check git status for changes (all modified files including staged and unstaged)

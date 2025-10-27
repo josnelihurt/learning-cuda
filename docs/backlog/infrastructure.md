@@ -70,6 +70,8 @@ Microservices, observability, testing, and cloud deployment.
 - [x] REST API endpoint for manual flag sync
 - [x] Web UI integration with sync button
 - [x] Fallback to YAML when Flipt unavailable
+- [x] Feature flags modal with Flipt iframe integration
+- [x] Production environment feature flag management
 - [ ] Advanced flag rules and targeting
 
 ### Logging
@@ -82,6 +84,7 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Consistent log levels (debug/info/warn/error)
 - [x] Multi-line log parsing in Promtail
 - [x] Grafana dashboard and datasource provisioning
+- [x] Unified logging configuration for dev and prod environments
 - [ ] Add request correlation IDs across services
 - [ ] Detailed health checks with dependencies (readiness vs liveness)
 
@@ -188,6 +191,17 @@ Microservices, observability, testing, and cloud deployment.
 
 ## Cloud Deployment
 
+### Jetson Nano Production Deployment
+- [x] Deploy application on Jetson Nano hardware
+- [x] Cloudflare tunnel integration for external access
+- [x] Modular Ansible deployment system
+- [x] Production-optimized Docker configuration with CUDA separation
+- [x] Environment-specific configuration management
+- [x] Automated code synchronization from development to production
+- [x] Production deployment warning banner
+- [x] Unified logging configuration for dev and prod environments
+- [x] Production URLs: app-cuda-demo.josnelihurt.me, grafana-cuda-demo.josnelihurt.me, etc.
+
 ### Provider Research
 - [ ] Vultr (A40, A100 pricing)
 - [ ] Lambda Labs, Paperspace, AWS P3/G4, GCP
@@ -212,10 +226,10 @@ Microservices, observability, testing, and cloud deployment.
 ### Security
 - [ ] Secrets management (Vault, AWS Secrets Manager)
 - [x] TLS for HTTP server (native Go implementation)
+- [x] DDoS protection (Cloudflare)
 - [ ] TLS for gRPC
 - [ ] Auth (JWT, OAuth)
 - [ ] Rate limiting
-- [ ] DDoS protection (Cloudflare)
 - [ ] Fix WebSocket CORS validation (currently accepts all origins)
 - [ ] Input validation layer (image size limits, request validation)
 - [ ] Custom domain errors with proper error codes

@@ -2,6 +2,47 @@
 
 Completed features extracted from git commit history, organized by category.
 
+## November 2025
+
+### Production Deployment & Infrastructure (Nov 1, 2025)
+- [x] Implemented production Docker deployment with CUDA separation
+- [x] Added Cloudflare tunnel integration for production environment on Jetson Nano
+- [x] Created modular Jetson Nano deployment system with Ansible automation
+- [x] Unified logging configuration for development and production environments
+- [x] Added production deployment warning banner with environment detection
+- [x] Fixed Flipt repository sync issues in production environment
+- [x] Enhanced camera preview functionality with video grid filter improvements
+- [x] Fixed E2E tests for production compatibility
+
+**Production URLs:**
+- Main Application: https://app-cuda-demo.josnelihurt.me
+- Grafana Monitoring: https://grafana-cuda-demo.josnelihurt.me
+- Feature Flags: https://flipt-cuda-demo.josnelihurt.me
+- Distributed Tracing: https://jaeger-cuda-demo.josnelihurt.me
+- Test Reports: https://reports-cuda-demo.josnelihurt.me
+
+**Deployment Features:**
+- Cloudflare tunnel for secure external access
+- Ansible playbooks for automated deployment and updates
+- Production-optimized Docker configuration with CUDA separation
+- Environment-specific configuration management
+- Automated code synchronization from development to production
+
+### System Information & Feature Flags (Oct 26, 2025)
+- [x] Added GetSystemInfo endpoint with comprehensive version information
+- [x] Created version tooltip component with build integration
+- [x] Implemented feature flags modal with Flipt iframe integration
+- [x] Enhanced system information display with backend data integration
+- [x] Added telemetry integration for system info operations
+- [x] Created comprehensive BDD scenarios for system info validation
+
+**Benefits:**
+- Centralized system information management
+- Real-time version tracking across all components
+- Enhanced observability with telemetry integration
+- Improved user experience with interactive tooltips
+- Production-ready feature flag management interface
+
 ## October 2025
 
 ### GetSystemInfo RPC Endpoint (Oct 25, 2025) - 5 BDD scenarios

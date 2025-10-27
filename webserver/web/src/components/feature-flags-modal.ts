@@ -202,26 +202,25 @@ export class FeatureFlagsModal extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    document.addEventListener('click', this.handleClickOutside);
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('open-feature-flags-modal', this.open);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    document.removeEventListener('click', this.handleClickOutside);
     document.removeEventListener('keydown', this.handleKeyDown);
     document.removeEventListener('open-feature-flags-modal', this.open);
   }
 
-  private handleClickOutside = (e: Event) => {
-    if (this.isOpen && e.target === this.shadowRoot?.querySelector('.backdrop')) {
+  private handleKeyDown = (e: KeyboardEvent) => {
+    if (this.isOpen && e.key === 'Escape') {
       this.close();
     }
   };
 
-  private handleKeyDown = (e: KeyboardEvent) => {
-    if (this.isOpen && e.key === 'Escape') {
+  private handleBackdropClick = (e: MouseEvent) => {
+    // Only close if clicking on the backdrop itself, not children
+    if (e.target === e.currentTarget) {
       this.close();
     }
   };
@@ -343,7 +342,7 @@ export class FeatureFlagsModal extends LitElement {
 
   render() {
     return html`
-      <div class="backdrop ${this.isOpen ? 'show' : ''}" @click=${this.close}></div>
+      <div class="backdrop ${this.isOpen ? 'show' : ''}" @click=${this.handleBackdropClick}></div>
       <div class="modal ${this.isOpen ? 'show' : ''}">
         <div class="modal-header">
           <h2 class="modal-title">Feature Flags</h2>
@@ -361,7 +360,7 @@ export class FeatureFlagsModal extends LitElement {
         </div>
         <div class="modal-content">
           <div class="iframe-container">
-            <div class="iframe-overlay" @click=${this.close}></div>
+            <div class="iframe-overlay" @click=${this.handleBackdropClick}></div>
             <iframe
               class="iframe"
               src=${this.getFliptUrl()}

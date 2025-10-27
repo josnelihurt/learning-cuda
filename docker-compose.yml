@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: cuda-image-processor
     restart: unless-stopped
+    runtime: nvidia
     
     deploy:
       resources:
@@ -225,13 +226,9 @@ services:
     image: flipt/flipt:latest
     container_name: flipt
     restart: unless-stopped
-        
-    volumes:
-      - ./.ignore/storage/flipt:/var/opt/flipt
     
     environment:
       - FLIPT_LOG_LEVEL=info
-      - FLIPT_DB_URL=file:/var/opt/flipt/flipt.db
       - FLIPT_META_TELEMETRY_ENABLED=false
     
     networks:

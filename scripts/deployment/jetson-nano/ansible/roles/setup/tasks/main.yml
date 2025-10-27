@@ -1,17 +1,17 @@
 ---
-- name: Check if Docker is installed
+- name: Check Docker installation
   command: docker --version
-  register: docker_version
+  register: docker_check
   failed_when: false
   changed_when: false
 
-- name: Check if Docker Compose is installed
+- name: Check Docker Compose installation
   command: docker compose version
-  register: docker_compose_version
+  register: compose_check
   failed_when: false
   changed_when: false
 
-- name: Check NVIDIA drivers
+- name: Check NVIDIA installation
   command: nvidia-smi
   register: nvidia_check
   failed_when: false
@@ -37,17 +37,12 @@
 
 - name: Create application directory
   file:
-    path: "/opt/josnelihurt/cuda-learning"
+    path: "{{ app_directory }}"
     state: directory
     owner: "{{ deployment_user }}"
     group: "{{ deployment_group }}"
     mode: '0755'
 
-- name: Display system information
+- name: Display summary
   debug:
-    msg:
-      - "Docker version: {{ docker_version.stdout if docker_version.rc == 0 else 'Not installed' }}"
-      - "Docker Compose version: {{ docker_compose_version.stdout if docker_compose_version.rc == 0 else 'Not installed' }}"
-      - "NVIDIA drivers: {{ 'Available' if nvidia_check.rc == 0 else 'Not available' }}"
-      - "CUDA: {{ 'Available' if cuda_check.stat.exists else 'Not available' }}"
-      - "Application directory: /opt/josnelihurt/cuda-learning"
+    msg: "Setup complete: Docker={{ docker_check.stdout_lines[0] if docker_check.rc == 0 else 'N/A' }}, CUDA={{ 'OK' if cuda_check.stat.exists else 'N/A' }}"

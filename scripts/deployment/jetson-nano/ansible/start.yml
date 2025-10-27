@@ -1,0 +1,132 @@
+---
+- name: Start services on Jetson Nano
+  hosts: jetson
+  become: yes
+  tasks:
+    - name: Verify repository exists on remote
+      stat:
+        path: "{{ app_directory }}/.git"
+      register: repo_check
+
+    - name: Fail if repository doesn't exist
+      fail:
+        msg: "Repository not found at {{ app_directory }}"
+      when: not repo_check.stat.exists
+
+    - name: Verify .secrets directory exists
+      stat:
+        path: "{{ app_directory }}/.secrets"
+      register: secrets_check
+
+    - name: Fail if secrets don't exist
+      fail:
+        msg: ".secrets directory not found at {{ app_directory }}/.secrets"
+      when: not secrets_check.stat.exists
+
+    - name: List .secrets files
+      shell: ls -1 {{ app_directory }}/.secrets/*.env
+      register: secrets_files
+      changed_when: false
+
+    - name: Display secrets found
+      debug:
+        msg: "Found secrets: {{ secrets_files.stdout_lines }}"
+
+    - name: You can connect to the remote machine using ssh and run the following command to see the progress
+      debug:
+        msg: "cd {{ app_directory }} && docker compose build --progress=plain"
+
+    - name: Build Docker images, go and grab a coffee dude, this will take a while...
+      shell: |
+        cd {{ app_directory }}
+        docker compose build --progress=plain
+      register: docker_build
+      changed_when: "'Successfully' in docker_build.stdout"
+
+    - name: Display build result
+      debug:
+        msg: "Build completed. Showing last 30 lines of output"
+
+    - name: Show build output tail
+      debug:
+        msg: "{{ docker_build.stdout_lines[-30:] }}"
+      when: docker_build.stdout is defined
+
+    - name: List built images
+      shell: docker images --format "table {{ '{{' }}.Repository{{ '}}' }}\t{{ '{{' }}.Tag{{ '}}' }}"
+      register: built_images
+
+    - name: Display built images
+      debug:
+        msg: "Built images: {{ item }}"
+      loop: "{{ built_images.stdout_lines }}"
+
+    - name: Start services with docker compose
+      shell: cd {{ app_directory }} && docker compose --profile production up -d
+      register: docker_up
+      ignore_errors: yes
+
+    - name: Display docker up output
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ docker_up.stdout_lines }}"
+      when: docker_up.stdout_lines is defined
+
+    - name: Display docker up errors
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ docker_up.stderr_lines }}"
+      when: docker_up.stderr_lines is defined
+
+    - name: Check flipt container logs if it failed
+      shell: cd {{ app_directory }} && docker compose logs flipt
+      register: flipt_logs
+      ignore_errors: yes
+      when: docker_up.rc != 0
+
+    - name: Display flipt logs
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ flipt_logs.stdout_lines }}"
+      when: flipt_logs is defined and flipt_logs.stdout_lines is defined
+
+    - name: Fail if docker compose failed
+      fail:
+        msg: "Docker compose failed to start services"
+      when: docker_up.rc != 0
+
+    - name: Wait for services to be up
+      shell: cd {{ app_directory }} && docker compose ps
+      register: services_status
+      retries: 30
+      delay: 5
+      changed_when: false
+      failed_when: false
+
+    - name: Display services status
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ services_status.stdout_lines }}"
+
+    - name: Verify no services exited
+      fail:
+        msg: "Some services have exited. Check the status above."
+      when: "'Exited' in services_status.stdout"
+
+    - name: Count running services
+      shell: cd {{ app_directory }} && docker compose ps --filter "status=running" --format "{{ '{{' }}.Name{{ '}}' }}"
+      register: running_services
+
+    - name: Display running services count
+      debug:
+        msg: "Running services: {{ running_services.stdout_lines | length }}"
+
+    - name: Final service check
+      shell: cd {{ app_directory }} && docker compose ps
+      register: final_status
+      changed_when: false
+
+    - name: Display final status
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ final_status.stdout_lines }}"

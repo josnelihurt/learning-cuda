@@ -1,0 +1,32 @@
+---
+- name: Clone repository
+  git:
+    repo: "{{ repo_url }}"
+    dest: "{{ app_directory }}"
+    version: "{{ repo_branch }}"
+    update: yes
+    force: yes
+  become_user: "{{ deployment_user }}"
+
+- name: Set proper ownership on synced files
+  file:
+    path: "{{ app_directory }}"
+    owner: "{{ deployment_user }}"
+    group: "{{ deployment_group }}"
+    recurse: yes
+  become_user: "{{ deployment_user }}"
+
+- name: Get last 3 commits
+  shell: cd {{ app_directory }} && git log -3 --oneline
+  register: git_commits
+  become_user: "{{ deployment_user }}"
+  changed_when: false
+
+- name: Display status
+  debug:
+    msg: "Repository cloned to {{ app_directory }}"
+
+- name: Display last 3 commits
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ git_commits.stdout_lines }}"

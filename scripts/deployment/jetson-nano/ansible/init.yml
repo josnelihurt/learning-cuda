@@ -1,0 +1,7 @@
+---
+- name: Initialize Jetson Nano deployment
+  hosts: jetson
+  become: yes
+  roles:
+    - setup
+    - application

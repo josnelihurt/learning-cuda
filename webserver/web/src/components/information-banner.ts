@@ -1,10 +1,8 @@
 import { LitElement, html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
-@customElement('production-banner')
-export class ProductionBanner extends LitElement {
-  private isProduction: boolean = false;
-
+@customElement('information-banner')
+export class InformationBanner extends LitElement {
   static styles = css`
     :host {
       display: block;
@@ -34,16 +32,7 @@ export class ProductionBanner extends LitElement {
     }
   `;
 
-  connectedCallback() {
-    super.connectedCallback();
-    this.isProduction = window.location.hostname === 'josnelihurt.me';
-  }
-
   render() {
-    if (!this.isProduction) {
-      return html``;
-    }
-
     return html`
       <div class="banner">
         <div class="banner-text">

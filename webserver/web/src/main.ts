@@ -14,7 +14,7 @@ import './components/feature-flags-modal';
 import './components/feature-flags-button';
 import './components/video-selector';
 import './components/video-upload';
-import './components/production-banner';
+import './components/information-banner';
 import { container } from './application/di';
 import type { IConfigService, ITelemetryService, ILogger, IInputSourceService, IProcessorCapabilitiesService, IToolsService, IVideoService } from './application/di';
 import type { VideoGrid } from './components/video-grid';
@@ -70,7 +70,7 @@ const app = {
     await customElements.whenDefined('image-selector-modal');
     await customElements.whenDefined('video-selector');
     await customElements.whenDefined('video-upload');
-    await customElements.whenDefined('production-banner');
+    await customElements.whenDefined('information-banner');
 
     this.toastManager = document.querySelector('toast-container');
     this.toastManager.configure({ duration: 7000 });

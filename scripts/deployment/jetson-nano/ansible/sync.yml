@@ -23,7 +23,7 @@
       shell: cd {{ app_directory }} && git reset --hard HEAD
       become_user: "{{ deployment_user }}"
 
-    - name: Check git status for changes
+    - name: Check git status for changes (all modified files including staged and unstaged)
       shell: cd {{ project_root }} && git status --porcelain
       register: git_status
       changed_when: false
@@ -32,6 +32,12 @@
     - name: Get list of modified files
       set_fact:
         modified_files: "{{ git_status.stdout_lines }}"
+
+    - name: Display all detected changes
+      debug:
+        msg: "Detected changes: {{ item }}"
+      loop: "{{ modified_files }}"
+      when: modified_files | length > 0
 
     - name: Sync .secrets directory with rsync
       synchronize:
@@ -53,9 +59,15 @@
       debug:
         msg: "{{ secrets_list.stdout_lines }}"
 
-    - name: Filter tracked files that were modified
+    - name: Filter tracked files that were modified (including new files)
       set_fact:
-        tracked_files: "{{ modified_files | select('match', '^(M|\\sM|D|\\sD).*') | map('regex_replace', '^..\\s+', '') | list }}"
+        tracked_files: "{{ modified_files | select('match', '^(M|\\sM|D|\\sD|A|\\sA|\\?\\?).*') | map('regex_replace', '^..\\s+', '') | list }}"
+
+    - name: Display filtered files to sync
+      debug:
+        msg: "Files to sync: {{ item }}"
+      loop: "{{ tracked_files }}"
+      when: tracked_files | length > 0
 
     - name: Check which files exist locally
       stat:

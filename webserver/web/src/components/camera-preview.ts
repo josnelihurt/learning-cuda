@@ -87,6 +87,14 @@ export class CameraPreview extends LitElement {
         },
       });
 
+      // Wait for video element to be available
+      if (!this.videoElement) {
+        await this.updateComplete;
+        if (!this.videoElement) {
+          throw new Error('Video element not found');
+        }
+      }
+
       this.videoElement.srcObject = this.stream;
       await new Promise<void>((resolve) => (this.videoElement.onloadedmetadata = () => resolve()));
       await this.videoElement.play();
@@ -165,7 +173,7 @@ export class CameraPreview extends LitElement {
   }
 
   startCapture(onFrameCallback: FrameCallback): void {
-    if (!this.canvasElement) return;
+    if (!this.canvasElement || !this.videoElement) return;
 
     this.onFrameCallback = onFrameCallback;
     const ctx = this.canvasElement.getContext('2d', { willReadFrequently: true });
@@ -180,7 +188,7 @@ export class CameraPreview extends LitElement {
     });
 
     this.frameInterval = window.setInterval(() => {
-      if (!this.videoElement.videoWidth || this.isProcessing) return;
+      if (!this.videoElement || !this.videoElement.videoWidth || this.isProcessing) return;
 
       this.lastFrameTime = performance.now();
 

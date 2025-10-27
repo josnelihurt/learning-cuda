@@ -103,6 +103,7 @@ export class VideoGrid extends LitElement {
         data-testid="video-source-card"
         data-source-id="${source.id}"
       >
+        ${source.cameraPreview || ''}
       </video-source-card>
     `;
   }
@@ -156,7 +157,14 @@ export class VideoGrid extends LitElement {
           const success = await cameraPreview.start();
           if (success && ws) {
             cameraPreview.startCapture((base64Data: string, width: number, height: number) => {
-              ws!.sendFrame(base64Data, width, height, ['none'], 'gpu', 'bt601');
+              // Add data URI prefix since ImageData expects it
+              const dataUri = `data:image/jpeg;base64,${base64Data}`;
+              // Use current filters from the source
+              const sourceIndex = this.sources.findIndex((s) => s.id === uniqueId);
+              const source = sourceIndex !== -1 ? this.sources[sourceIndex] : null;
+              const filters = source?.filters || ['none'];
+              const grayscaleType = source?.grayscaleType || 'bt601';
+              ws!.sendFrame(dataUri, width, height, filters, 'gpu', grayscaleType);
             });
           }
         }

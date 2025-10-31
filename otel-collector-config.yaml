@@ -20,6 +20,10 @@ receivers:
     include: ["/tmp/cppaccelerator.log"]
     start_at: beginning
     operators:
+      # Filter: only process lines that start with {
+      - type: filter
+        expr: 'body matches "^\\{"'
+      # Parse JSON
       - type: json_parser
         parse_from: body
         severity:
@@ -29,9 +33,17 @@ receivers:
             debug: debug
             warn: warn
             error: error
+        timestamp:
+          parse_from: attributes.timestamp
+          layout_type: epoch
+          layout: s
+      # Ensure source attribute is set (json_parser extracts it, but explicit for clarity)
       - type: add
-        field: attributes.log.source
+        field: attributes.source
         value: cpp
+      - type: add
+        field: attributes.job
+        value: cpp-logs
       - type: add
         field: attributes.service.name
         value: cpp-accelerator
@@ -40,6 +52,10 @@ receivers:
     include: ["/tmp/goserver.log"]
     start_at: beginning
     operators:
+      # Filter: only process lines that start with {
+      - type: filter
+        expr: 'body matches "^\\{"'
+      # Parse JSON
       - type: json_parser
         parse_from: body
         severity:
@@ -50,7 +66,7 @@ receivers:
             warn: warn
             error: error
       - type: add
-        field: attributes.log.source
+        field: attributes.source
         value: go
       - type: add
         field: attributes.service.name
@@ -76,12 +92,32 @@ processors:
       - key: environment
         value: unified
         action: insert
+  
+  attributes/labels:
+    actions:
+      - key: source
+        from_attribute: source
+        action: insert
+      - key: job
+        from_attribute: job
+        action: insert
+      - key: level
+        from_attribute: level
+        action: insert
 
 exporters:
   otlp:
     endpoint: jaeger:4317
     tls:
       insecure: true
+  
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: true
+      job: true
+      level: true
+      source: true
   
   logging:
     loglevel: debug
@@ -96,6 +132,6 @@ service:
     
     logs:
       receivers: [otlp, filelog/cpp, filelog/go]
-      processors: [memory_limiter, attributes/unified, batch]
-      exporters: [logging]
+      processors: [memory_limiter, attributes/unified, attributes/labels, batch]
+      exporters: [loki, logging]
 

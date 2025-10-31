@@ -54,14 +54,14 @@ if [ ! -f ".secrets/localhost+2.pem" ]; then
 fi
 
 echo "Checking services (Jaeger + OTel Collector + Flipt)..."
-if ! docker ps --format '{{.Names}}' | grep -q 'jaeger-dev'; then
+if ! docker ps --format '{{.Names}}' | grep -q 'jaeger'; then
     echo "Starting services..."
     docker compose -f docker-compose.dev.yml up -d
     
     echo "Waiting for Jaeger to be healthy..."
     timeout=30
     while [ $timeout -gt 0 ]; do
-        if docker ps --format '{{.Names}}\t{{.Status}}' | grep 'jaeger-dev' | grep -q 'healthy'; then
+        if docker ps --format '{{.Names}}\t{{.Status}}' | grep 'jaeger' | grep -q 'healthy'; then
             echo "Jaeger is ready!"
             break
         fi
@@ -113,11 +113,11 @@ echo "Stopping previous application services..."
     
     echo "Installing libraries..."
     mkdir -p .ignore/lib/cuda_learning
-    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v$(cat cpp_accelerator/VERSION).so
-    
     COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
     DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     VERSION=$(cat cpp_accelerator/VERSION)
+    rm -f .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
+    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
     
     cat > .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so.json <<EOF
 {
@@ -170,8 +170,9 @@ if [ ! -f "./bin/server" ]; then
     exit 1
 fi
 
-echo "Using CUDA processor library (version 2.0.0)"
-./bin/server -webroot=webserver/web > /tmp/goserver.log 2>&1 &
+VERSION=$(cat cpp_accelerator/VERSION)
+echo "Using CUDA processor library (version ${VERSION})"
+./bin/server -config=config/config.dev.yaml > /tmp/goserver.log 2>&1 &
 GO_PID=$!
 
 sleep 2

@@ -7,6 +7,7 @@ export class InformationBanner extends LitElement {
     :host {
       display: block;
       width: 100%;
+      pointer-events: none;
     }
 
     .banner {

@@ -5,6 +5,7 @@ type ProcessorRepository interface {
 	GetAvailableLibraries() []string
 	GetCurrentLibrary() string
 	GetAPIVersion() string
+	GetLibraryVersion() string
 }
 
 // ConfigRepository defines the interface for accessing configuration

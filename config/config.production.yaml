@@ -31,7 +31,7 @@ flipt:
 observability:
   service_name: "cuda-image-processor"
   service_version: "1.0.0"
-  otel_collector_endpoint: "otel-collector:4318"
+  otel_collector_endpoint: "otel-collector:4317"
   trace_sampling_rate: 1.0
 
 logging:
@@ -43,11 +43,11 @@ logging:
 
 processor:
   library_base_path: "/app/lib"
-  default_library: "2.0.0"
+  default_library: "2.0.1"
   enable_hot_reload: false
   fallback_enabled: false
   fallback_chain:
-    - "2.0.0"
+    - "2.0.1"
 
 static_images:
   directory: "/app/data/static_images"

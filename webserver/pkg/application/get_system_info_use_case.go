@@ -40,6 +40,7 @@ func (uc *GetSystemInfoUseCase) Execute(ctx context.Context) (*domain.SystemInfo
 	availableLibraries := uc.processorRepo.GetAvailableLibraries()
 	currentLibrary := uc.processorRepo.GetCurrentLibrary()
 	apiVersion := uc.processorRepo.GetAPIVersion()
+	libraryVersion := uc.processorRepo.GetLibraryVersion()
 
 	// Get environment
 	environment := uc.configRepo.GetEnvironment()
@@ -47,8 +48,8 @@ func (uc *GetSystemInfoUseCase) Execute(ctx context.Context) (*domain.SystemInfo
 	// Build system info
 	systemInfo := &domain.SystemInfo{
 		Version: domain.SystemVersion{
-			CppVersion: apiVersion, // C++ library version
-			GoVersion:  apiVersion, // Go API version (same as C++ for now)
+			CppVersion: libraryVersion, // C++ library version from loaded library
+			GoVersion:  apiVersion,     // Go API version
 			JsVersion:  uc.buildInfoRepo.GetVersion(),
 			Branch:     uc.buildInfoRepo.GetBranch(),
 			BuildTime:  uc.buildInfoRepo.GetBuildTime(),

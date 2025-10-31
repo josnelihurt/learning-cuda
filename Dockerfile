@@ -260,7 +260,6 @@ USER ${USER_ID}:${GROUP_ID}
 ENV HOME=/home/testuser
 ENV NODE_ENV=test
 ENV PLAYWRIGHT_BASE_URL=https://localhost:8443
-ENV CUDA_PROCESSOR_PROCESSOR_DEFAULT_LIBRARY=2.0.0
 
 WORKDIR /workspace/webserver/web
 
@@ -349,12 +348,6 @@ RUN ldconfig
 EXPOSE 8080 8443
 
 # Set library path for dynamic loading
-# Override config defaults for Docker environment via viper env vars
-# Viper uses CUDA_PROCESSOR_ prefix, so processor.library_base_path becomes CUDA_PROCESSOR_PROCESSOR_LIBRARY_BASE_PATH
 ENV LD_LIBRARY_PATH=/app/lib:${LD_LIBRARY_PATH}
-ENV CUDA_PROCESSOR_PROCESSOR_LIBRARY_BASE_PATH=/app/lib
-ENV CUDA_PROCESSOR_SERVER_TLS_ENABLED=false
-ENV CUDA_PROCESSOR_SERVER_WEB_ROOT_PATH=/app/web
-ENV CUDA_PROCESSOR_SERVER_HOT_RELOAD_ENABLED=false
 
-CMD ["/app/server", "-webroot=/app/web"]
+CMD ["/app/server", "-config=/app/config/config.yaml"]

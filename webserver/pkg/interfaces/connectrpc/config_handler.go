@@ -210,11 +210,6 @@ func (h *ConfigHandler) GetProcessorStatus(
 	caps := currentLoader.CachedCapabilities()
 	availableLibs := h.registry.ListVersions()
 
-	allLibs := h.registry.GetAllLibraries()
-	if _, hasMock := allLibs["mock"]; hasMock {
-		availableLibs = append(availableLibs, "mock")
-	}
-
 	span.SetAttributes(
 		attribute.String("processor.current_version", currentLoader.GetVersion()),
 		attribute.Int("processor.available_count", len(availableLibs)),

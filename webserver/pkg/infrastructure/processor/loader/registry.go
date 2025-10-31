@@ -62,18 +62,12 @@ func (r *Registry) Discover() error {
 			}
 		} else {
 			matches := pattern.FindStringSubmatch(entry.Name())
-			switch {
-			case len(matches) == 2:
+			if len(matches) == 2 {
 				metadata = LibraryMetadata{
 					Version: matches[1],
 					Type:    "gpu",
 				}
-			case entry.Name() == "libcuda_processor_mock.so":
-				metadata = LibraryMetadata{
-					Version: "mock",
-					Type:    "mock",
-				}
-			default:
+			} else {
 				continue
 			}
 		}
@@ -135,9 +129,7 @@ func (r *Registry) GetByVersion(version string) (*LibraryInfo, error) {
 func (r *Registry) GetVersions() []string {
 	versions := make([]string, 0, len(r.libraries))
 	for v := range r.libraries {
-		if v != "mock" {
-			versions = append(versions, v)
-		}
+		versions = append(versions, v)
 	}
 	return versions
 }

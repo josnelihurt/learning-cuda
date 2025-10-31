@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,9 +16,12 @@ import (
 )
 
 func main() {
+	configFile := flag.String("config", "config/config.yaml", "Path to configuration file")
+	flag.Parse()
+
 	ctx := context.Background()
 
-	di, err := container.New(ctx)
+	di, err := container.New(ctx, *configFile)
 	if err != nil {
 		logger.Global().Fatal().Err(err).Msg("Failed to initialize container")
 	}

@@ -28,7 +28,7 @@ features:
 
 flipt:
   enabled: true
-  url: "http://flipt-dev:8080"
+  url: "http://localhost:8081"
   namespace: "default"
   db_path: ".ignore/storage/flipt/flipt.db"
   client_timeout: "30s"
@@ -38,7 +38,7 @@ flipt:
 observability:
   service_name: "cuda-image-processor"
   service_version: "1.0.0"
-  otel_collector_endpoint: "otel-collector-dev:4317"
+  otel_collector_endpoint: "localhost:4317"
   trace_sampling_rate: 1.0
 
 logging:
@@ -49,7 +49,7 @@ logging:
 
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
-  default_library: "2.0.0"
+  default_library: "2.0.1"
   enable_hot_reload: false
   fallback_enabled: false
   fallback_chain:

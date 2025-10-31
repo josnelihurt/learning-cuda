@@ -296,7 +296,7 @@ The app includes a dynamic tools dropdown that adapts to your environment:
 - BDD Test Reports - Cucumber test results
 - Code Coverage Reports - Unit test coverage dashboard
 
-Tool URLs automatically resolve based on environment (`CUDA_PROCESSOR_ENVIRONMENT`). Development mode points to localhost services, production mode uses reverse proxy paths. Add new tools by editing `config/config.yaml`, no code changes needed.
+Add new tools by editing `config/config.yaml`, no code changes needed.
 
 ## Testing & Code Quality
 

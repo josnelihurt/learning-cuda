@@ -46,9 +46,9 @@ extern "C" {
  * @brief Version information structure
  */
 typedef struct {
-    int major; /**< Major version number (breaking changes) */
-    int minor; /**< Minor version number (backward-compatible features) */
-    int patch; /**< Patch version number (backward-compatible fixes) */
+  int major; /**< Major version number (breaking changes) */
+  int minor; /**< Minor version number (backward-compatible features) */
+  int patch; /**< Patch version number (backward-compatible fixes) */
 } processor_version_t;
 
 /**
@@ -144,6 +144,22 @@ bool processor_process_image(const uint8_t* request_buf, int request_len, uint8_
  */
 bool processor_get_capabilities(const uint8_t* request_buf, int request_len, uint8_t** response_buf,
                                 int* response_len);
+
+/**
+ * @brief Get the library version string from the loaded library
+ *
+ * Returns the library version string read from the VERSION file at build time.
+ * This function logs the request for debugging and monitoring purposes.
+ *
+ * @param version_buf Output buffer for the version string (must be at least 32 bytes)
+ * @param buf_len Length of the version buffer
+ *
+ * @return true on success, false on failure
+ *
+ * @note This function is thread-safe and can be called without prior initialization.
+ * @note The version string is null-terminated.
+ */
+bool processor_get_library_version(char* version_buf, int buf_len);
 
 /**
  * @brief Free a response buffer allocated by the library

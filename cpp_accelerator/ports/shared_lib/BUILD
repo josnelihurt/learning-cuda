@@ -18,6 +18,7 @@ cc_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":image_buffer_adapter",
+        "//cpp_accelerator/core:logger",
         "//cpp_accelerator/core:telemetry",
         "//cpp_accelerator/infrastructure/cpu:grayscale_processor",
         "//cpp_accelerator/infrastructure/cuda:cuda_processors",

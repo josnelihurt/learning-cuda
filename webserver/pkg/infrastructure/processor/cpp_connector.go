@@ -3,6 +3,8 @@ package processor
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
@@ -17,6 +19,12 @@ type CppConnector struct {
 }
 
 func New(libraryPath string) (*CppConnector, error) {
+	absPath, err := filepath.Abs(libraryPath)
+	if err != nil {
+		absPath = libraryPath
+	}
+	fmt.Fprintf(os.Stderr, "DEBUG: Loading C++ library from: %s (absolute: %s)\n", libraryPath, absPath)
+
 	l, err := loader.NewLoader(libraryPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load processor library: %w", err)

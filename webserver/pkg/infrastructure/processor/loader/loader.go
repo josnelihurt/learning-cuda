@@ -18,12 +18,13 @@ type Loader struct {
 	apiVersion   string
 	capabilities *pb.LibraryCapabilities
 
-	apiVersionFn      uintptr
-	initFn            uintptr
-	cleanupFn         uintptr
-	processImageFn    uintptr
-	getCapabilitiesFn uintptr
-	freeResponseFn    uintptr
+	apiVersionFn        uintptr
+	initFn              uintptr
+	cleanupFn           uintptr
+	processImageFn      uintptr
+	getCapabilitiesFn   uintptr
+	getLibraryVersionFn uintptr
+	freeResponseFn      uintptr
 }
 
 func NewLoader(libraryPath string) (*Loader, error) {
@@ -67,12 +68,13 @@ func NewLoader(libraryPath string) (*Loader, error) {
 
 func (l *Loader) resolveSymbols() error {
 	symbols := map[string]*uintptr{
-		"processor_api_version":      &l.apiVersionFn,
-		"processor_init":             &l.initFn,
-		"processor_cleanup":          &l.cleanupFn,
-		"processor_process_image":    &l.processImageFn,
-		"processor_get_capabilities": &l.getCapabilitiesFn,
-		"processor_free_response":    &l.freeResponseFn,
+		"processor_api_version":         &l.apiVersionFn,
+		"processor_init":                &l.initFn,
+		"processor_cleanup":             &l.cleanupFn,
+		"processor_process_image":       &l.processImageFn,
+		"processor_get_capabilities":    &l.getCapabilitiesFn,
+		"processor_get_library_version": &l.getLibraryVersionFn,
+		"processor_free_response":       &l.freeResponseFn,
 	}
 
 	for name, ptr := range symbols {
@@ -333,6 +335,22 @@ func (l *Loader) CachedCapabilities() *pb.LibraryCapabilities {
 
 func (l *Loader) GetVersion() string {
 	return l.apiVersion
+}
+
+func (l *Loader) GetLibraryVersion() (string, error) {
+	if l.getLibraryVersionFn == 0 {
+		return "", fmt.Errorf("processor_get_library_version symbol not resolved")
+	}
+
+	var buf [64]byte
+	success := callGetLibraryVersionFn(l.getLibraryVersionFn, &buf[0], len(buf))
+	if !success {
+		return "", fmt.Errorf("processor_get_library_version returned false")
+	}
+
+	version := strings.TrimRight(string(buf[:]), "\x00")
+	version = strings.TrimSpace(version)
+	return version, nil
 }
 
 func (l *Loader) IsCompatibleWith(apiVersion string) bool {

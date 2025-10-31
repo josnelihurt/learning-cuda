@@ -50,6 +50,12 @@ void call_free_fn(void* fn_ptr, uint8_t* buf) {
     free_fn_t fn = (free_fn_t)fn_ptr;
     fn(buf);
 }
+
+bool call_get_library_version_fn(void* fn_ptr, char* buf, int buf_len) {
+    typedef bool (*get_library_version_fn_t)(char*, int);
+    get_library_version_fn_t fn = (get_library_version_fn_t)fn_ptr;
+    return fn(buf, buf_len);
+}
 */
 import "C"
 import (
@@ -130,4 +136,12 @@ func callCleanupFn(fnPtr uintptr) {
 
 func callFreeFn(fnPtr uintptr, buf *uint8) {
 	C.call_free_fn(unsafe.Pointer(fnPtr), (*C.uint8_t)(buf))
+}
+
+func callGetLibraryVersionFn(fnPtr uintptr, buf *byte, bufLen int) bool {
+	return bool(C.call_get_library_version_fn(
+		unsafe.Pointer(fnPtr),
+		(*C.char)(unsafe.Pointer(buf)),
+		C.int(bufLen),
+	))
 }

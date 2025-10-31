@@ -56,3 +56,32 @@ func (r *RepositoryImpl) GetAPIVersion() string {
 
 	return UnknownValue
 }
+
+func (r *RepositoryImpl) GetLibraryVersion() string {
+	if r.registry == nil {
+		return UnknownValue
+	}
+
+	// Get the latest library and call GetLibraryVersion on its loader
+	libInfo, err := r.registry.GetLatest()
+	if err != nil {
+		return UnknownValue
+	}
+
+	// Load the library if not already loaded
+	if libInfo.Loader == nil {
+		loader, loadErr := r.registry.LoadLibrary(libInfo.Metadata.Version)
+		if loadErr != nil {
+			return UnknownValue
+		}
+		libInfo.Loader = loader
+	}
+
+	// Call GetLibraryVersion from C++
+	version, err := libInfo.Loader.GetLibraryVersion()
+	if err != nil {
+		return UnknownValue
+	}
+
+	return version
+}

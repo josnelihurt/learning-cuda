@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -56,22 +55,20 @@ func (m *Manager) IsObservabilityEnabled(ctx context.Context) bool {
 	return m.Observability.Enabled
 }
 
-func New() *Manager {
+func New(configFile string) *Manager {
 	v := viper.New()
 
-	v.SetConfigName("config")
+	if configFile == "" {
+		configFile = "config/config.yaml"
+	}
+
+	v.SetConfigFile(configFile)
 	v.SetConfigType("yaml")
-	v.AddConfigPath("./config")
-	v.AddConfigPath(".")
 
 	setDefaults(v)
 
-	v.SetEnvPrefix("CUDA_PROCESSOR")
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.AutomaticEnv()
-
 	if err := v.ReadInConfig(); err != nil {
-		log.Printf("Warning: Config file not found, using defaults: %v", err)
+		log.Printf("Warning: Config file not found: %v, using defaults", err)
 	}
 
 	var cfg Manager
@@ -120,10 +117,10 @@ func setDefaults(v *viper.Viper) {
 		"logging.include_caller": true,
 
 		"processor.library_base_path": ".ignore/lib/cuda_learning",
-		"processor.default_library":   "mock",
+		"processor.default_library":   "2.0.0",
 		"processor.enable_hot_reload": false,
 		"processor.fallback_enabled":  true,
-		"processor.fallback_chain":    []string{"1.0.0", "mock"},
+		"processor.fallback_chain":    []string{"2.0.0", "1.0.0"},
 
 		"static_images.directory": "/data/static_images",
 	}

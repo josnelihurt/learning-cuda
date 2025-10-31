@@ -49,13 +49,14 @@ type Container struct {
 	fliptClientProxy featureflags.FliptClientInterface
 }
 
-func New(ctx context.Context) (*Container, error) {
-	cfg := config.New()
+func New(ctx context.Context, configFile string) (*Container, error) {
+	cfg := config.New(configFile)
 
 	log := logger.New(logger.Config{
 		Level:         cfg.Logging.Level,
 		Format:        cfg.Logging.Format,
 		Output:        cfg.Logging.Output,
+		FilePath:      cfg.Logging.FilePath,
 		IncludeCaller: cfg.Logging.IncludeCaller,
 	})
 
@@ -102,6 +103,11 @@ func New(ctx context.Context) (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log.Info().
+		Str("library_path", libInfo.Path).
+		Str("version", cfg.Processor.DefaultLibrary).
+		Msg("Loading processor library")
 
 	processorLoader, err := registry.LoadLibrary(cfg.Processor.DefaultLibrary)
 	if err != nil {

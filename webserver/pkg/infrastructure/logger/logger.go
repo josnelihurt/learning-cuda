@@ -18,6 +18,7 @@ type Config struct {
 	Level         string
 	Format        string
 	Output        string
+	FilePath      string
 	IncludeCaller bool
 }
 
@@ -35,6 +36,15 @@ func New(cfg Config) zerolog.Logger {
 		output = zerolog.ConsoleWriter{
 			Out:        os.Stdout,
 			TimeFormat: time.RFC3339,
+		}
+	}
+
+	if cfg.Output == "file" && cfg.FilePath != "" {
+		// Open file in append mode, create if not exists
+		file, err := os.OpenFile(cfg.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err == nil {
+			// Write to both stdout and file to ensure visibility and file shipping
+			output = io.MultiWriter(os.Stdout, file)
 		}
 	}
 

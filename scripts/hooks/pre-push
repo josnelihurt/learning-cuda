@@ -159,7 +159,7 @@ fi
 
 echo "Starting Go server with REAL library (v${VERSION})..."
 echo "=================================================="
-./bin/server -webroot=webserver/web > /tmp/server-prepush.log 2>&1 &
+./bin/server -config=config/config.dev.yaml > /tmp/server-prepush.log 2>&1 &
 GO_PID=$!
 sleep 3
 

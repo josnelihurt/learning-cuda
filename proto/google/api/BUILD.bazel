@@ -1,0 +1,20 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "http_proto",
+    srcs = ["http.proto"],
+    strip_import_prefix = "/proto",
+)
+
+proto_library(
+    name = "annotations_proto",
+    srcs = ["annotations.proto"],
+    strip_import_prefix = "/proto",
+    deps = [
+        ":http_proto",
+        "@protobuf//:descriptor_proto",
+    ],
+)
+

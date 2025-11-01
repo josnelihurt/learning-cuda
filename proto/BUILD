@@ -15,7 +15,10 @@ proto_library(
     srcs = ["image_processor_service.proto"],
     strip_import_prefix = "/proto",
     visibility = ["//visibility:public"],
-    deps = [":common_proto"],
+    deps = [
+        ":common_proto",
+        "//proto/google/api:annotations_proto",
+    ],
 )
 
 proto_library(
@@ -23,7 +26,10 @@ proto_library(
     srcs = ["config_service.proto"],
     strip_import_prefix = "/proto",
     visibility = ["//visibility:public"],
-    deps = [":common_proto"],
+    deps = [
+        ":common_proto",
+        "//proto/google/api:annotations_proto",
+    ],
 )
 
 # C++ bindings

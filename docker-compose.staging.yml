@@ -1,0 +1,284 @@
+services:
+  app:
+    image: cuda-learning-app:latest  
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: cuda-image-processor-staging
+    restart: unless-stopped
+    runtime: nvidia
+    
+    
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility]
+    
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+    
+    volumes:
+      - ./data:/data:ro
+      - ./config/config.staging.yaml:/app/config/config.yaml:ro
+      - /tmp:/tmp
+    
+    networks:
+      - traefik
+    
+    depends_on:
+      flipt:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+      jaeger:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cuda-app.rule=Host(`app.localhost`)"
+      - "traefik.http.routers.cuda-app.entrypoints=websecure"
+      - "traefik.http.routers.cuda-app.tls=true"
+      - "traefik.http.services.cuda-app.loadbalancer.server.port=8080"
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik-staging
+    restart: unless-stopped
+    
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    
+    networks:
+      - traefik
+    
+    depends_on: []
+    
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: jaeger-staging
+    restart: unless-stopped
+    
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    
+    networks:
+      - traefik
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jaeger.rule=Host(`jaeger.localhost`)"
+      - "traefik.http.routers.jaeger.entrypoints=websecure"
+      - "traefik.http.routers.jaeger.tls=true"
+      - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki-staging
+    restart: unless-stopped
+    
+    
+    command: -config.file=/etc/loki/loki-config.yaml
+    
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+    
+    networks:
+      - traefik
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: promtail-staging
+    restart: unless-stopped
+    
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - /tmp:/tmp:ro
+      - /tmp:/host-tmp:ro
+    
+    command: -config.file=/etc/promtail/config.yml
+    
+    depends_on:
+      loki:
+        condition: service_healthy
+    
+    networks:
+      - traefik
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana-staging
+    restart: unless-stopped
+    
+    
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceToLogs
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_SERVER_ROOT_URL=https://grafana.localhost
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+    
+    volumes:
+      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./config/grafana-dashboard-logs.json:/etc/grafana/dashboards/logs.json:ro
+      - grafana-storage:/var/lib/grafana
+    
+    depends_on:
+      loki:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    
+    networks:
+      - traefik
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.priority=100"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector-staging
+    restart: unless-stopped
+    
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+      - /tmp:/tmp:ro
+    
+    ports:
+      - "13133:13133"
+    
+    networks:
+      - traefik
+    
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otel-collector-config.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  flipt:
+    image: flipt/flipt:latest
+    container_name: flipt-staging
+    restart: unless-stopped
+    
+    environment:
+      - FLIPT_LOG_LEVEL=info
+      - FLIPT_META_TELEMETRY_ENABLED=false
+    
+    networks:
+      - traefik
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flipt.rule=Host(`flipt.localhost`)"
+      - "traefik.http.routers.flipt.entrypoints=websecure"
+      - "traefik.http.routers.flipt.tls=true"
+      - "traefik.http.routers.flipt.priority=200"
+      - "traefik.http.services.flipt.loadbalancer.server.port=8080"
+
+  test-reports:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test-reports
+    image: cuda-learning-test-reports
+    container_name: test-reports-staging
+    restart: unless-stopped
+    
+    
+    command: npx http-server /app/reports -p 8080
+    
+    networks:
+      - traefik
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.test-reports.rule=Host(`reports.localhost`)"
+      - "traefik.http.routers.test-reports.entrypoints=websecure"
+      - "traefik.http.routers.test-reports.tls=true"
+      - "traefik.http.routers.test-reports.priority=100"
+      - "traefik.http.services.test-reports.loadbalancer.server.port=8080"
+
+networks:
+  traefik:
+    name: traefik-staging
+    driver: bridge
+
+volumes:
+  grafana-storage:
+    name: grafana-storage-staging
+

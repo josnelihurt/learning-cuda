@@ -3,6 +3,7 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService as ConfigServiceClient } from '../gen/config_service_connect';
 import { FilterDefinition } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
+import { logger } from './otel-logger';
 import { Filter, createFilterFromDefinition } from '../components/filter-panel.types';
 import type { IProcessorCapabilitiesService } from '../domain/interfaces/IProcessorCapabilitiesService';
 
@@ -24,6 +25,7 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
       interceptors: [tracingInterceptor],
+      useHttpGet: true,
     });
 
     this.client = createPromiseClient(ConfigServiceClient, transport);
@@ -37,7 +39,7 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
     this.initPromise = telemetryService.withSpanAsync(
       'ProcessorCapabilitiesService.initialize',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'http.url': window.location.origin,
         'rpc.service': 'ConfigService',
         'rpc.method': 'getProcessorStatus',

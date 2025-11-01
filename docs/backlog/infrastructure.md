@@ -11,10 +11,13 @@ Microservices, observability, testing, and cloud deployment.
 - [ ] Video Management Service (ListVideos, StreamVideo, Upload)
 - [ ] Model Inference Service (Predict, StreamInference)
 
-### Connect-RPC (Instead of gRPC-Gateway)
+### Connect-RPC with Vanguard
 - [x] Implemented Connect-RPC server
-- [x] HTTP annotations in proto
-- [x] Native HTTP/JSON support without gateway
+- [x] Integrated Vanguard for RESTful API transcoding
+- [x] HTTP annotations in proto (google.api.http)
+- [x] RESTful endpoints: GET /api/v1/images, POST /api/v1/images/upload, etc.
+- [x] Dual protocol support: REST + Connect + gRPC in single server
+- [x] Native HTTP/JSON support without gateway overhead
 - [ ] Implement bidirectional streaming for video
 - [ ] Add Connect-Web for browser clients
 

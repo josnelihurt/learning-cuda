@@ -26,6 +26,7 @@ class InputSourceService implements IInputSourceService {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
       interceptors: [tracingInterceptor],
+      useHttpGet: true,
     });
 
     this.configClient = createPromiseClient(ConfigService, transport);
@@ -40,7 +41,7 @@ class InputSourceService implements IInputSourceService {
     this.initPromise = telemetryService.withSpanAsync(
       'InputSourceService.initialize',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'rpc.service': 'ConfigService',
         'rpc.method': 'listInputs',
       },
@@ -93,7 +94,7 @@ class InputSourceService implements IInputSourceService {
     return telemetryService.withSpanAsync(
       'InputSourceService.listAvailableImages',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'rpc.service': 'FileService',
         'rpc.method': 'listAvailableImages',
       },
@@ -128,7 +129,7 @@ class InputSourceService implements IInputSourceService {
     return telemetryService.withSpanAsync(
       'InputSourceService.listAvailableVideos',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'rpc.service': 'FileService',
         'rpc.method': 'listAvailableVideos',
       },

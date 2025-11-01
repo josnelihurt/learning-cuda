@@ -95,6 +95,7 @@ webserver/
 
 - **CUDA Acceleration**: GPU-powered image processing via dynamic plugin system (dlopen)
 - **Connect-RPC**: Type-safe RPC with HTTP/JSON and gRPC support
+- **Vanguard**: RESTful API transcoding using google.api.http annotations
 - **Protocol Buffers**: Multiple proto services (config_service, file_service, image_processor_service)
 - **Hot Reload**: Frontend development with Vite, Go hot reload for templates
 - **Clean Architecture**: Domain → Application → Infrastructure → Interfaces layers
@@ -105,13 +106,17 @@ webserver/
 
 The project uses multiple proto service definitions:
 
-- `proto/config_service.proto` - Configuration and system info
-- `proto/file_service.proto` - File upload and listing
-- `proto/image_processor_service.proto` - Image processing operations
+- `proto/config_service.proto` - Configuration and system info (with REST annotations)
+- `proto/file_service.proto` - File upload and listing (with REST annotations)
+- `proto/image_processor_service.proto` - Image processing operations (with REST annotations)
 - `proto/common.proto` - Shared message types
+
+All services include `google.api.http` annotations for RESTful routing via Vanguard transcoder.
 
 Generate code:
 ```bash
+./scripts/build/protos.sh
+# Or manually:
 docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
 ```
 

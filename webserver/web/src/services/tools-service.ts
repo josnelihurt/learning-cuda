@@ -3,6 +3,7 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '../gen/config_service_connect';
 import type { ToolCategory } from '../gen/config_service_pb';
 import type { IToolsService } from '../domain/interfaces/IToolsService';
+import { logger } from './otel-logger';
 
 class ToolsService implements IToolsService {
   private client;
@@ -12,6 +13,7 @@ class ToolsService implements IToolsService {
   constructor() {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
+      useHttpGet: true,
     });
     this.client = createPromiseClient(ConfigService, transport);
   }

@@ -13,6 +13,7 @@ class FileServiceClient implements IFileService {
   constructor() {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
+      useHttpGet: true,
     });
     this.client = createPromiseClient(FileService, transport);
   }

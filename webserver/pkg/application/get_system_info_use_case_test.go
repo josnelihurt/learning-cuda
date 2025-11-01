@@ -30,6 +30,11 @@ func (m *MockProcessorRepository) GetAPIVersion() string {
 	return args.String(0)
 }
 
+func (m *MockProcessorRepository) GetLibraryVersion() string {
+	args := m.Called()
+	return args.String(0)
+}
+
 func (m *MockProcessorRepository) GetLibraryMetadata(version string) (interface{}, error) {
 	args := m.Called(version)
 	return args.Get(0), args.Error(1)
@@ -101,6 +106,7 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 				processor.On("GetAvailableLibraries").Return([]string{"2.0.0", "1.5.0"})
 				processor.On("GetCurrentLibrary").Return("2.0.0")
 				processor.On("GetAPIVersion").Return("2.0.0")
+				processor.On("GetLibraryVersion").Return("2.0.0")
 				config.On("GetEnvironment").Return("development")
 				buildInfo.On("GetVersion").Return("1.0.0")
 				buildInfo.On("GetBranch").Return("main")
@@ -132,6 +138,7 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 				processor.On("GetAvailableLibraries").Return([]string{})
 				processor.On("GetCurrentLibrary").Return("unknown")
 				processor.On("GetAPIVersion").Return("unknown")
+				processor.On("GetLibraryVersion").Return("unknown")
 				config.On("GetEnvironment").Return("production")
 				buildInfo.On("GetVersion").Return("1.0.0")
 				buildInfo.On("GetBranch").Return("main")
@@ -154,6 +161,7 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 				processor.On("GetAvailableLibraries").Return([]string{"3.0.0"})
 				processor.On("GetCurrentLibrary").Return("3.0.0")
 				processor.On("GetAPIVersion").Return("3.0.0")
+				processor.On("GetLibraryVersion").Return("3.0.0")
 				config.On("GetEnvironment").Return("staging")
 				buildInfo.On("GetVersion").Return("2.5.1")
 				buildInfo.On("GetBranch").Return("develop")

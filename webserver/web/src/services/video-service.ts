@@ -23,6 +23,7 @@ class VideoService implements IVideoService {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
       interceptors: [tracingInterceptor],
+      useHttpGet: true,
     });
 
     this.fileClient = createPromiseClient(FileService, transport);
@@ -36,7 +37,7 @@ class VideoService implements IVideoService {
     this.initPromise = telemetryService.withSpanAsync(
       'VideoService.initialize',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'rpc.service': 'FileService',
         'rpc.method': 'listAvailableVideos',
       },
@@ -89,7 +90,7 @@ class VideoService implements IVideoService {
     return telemetryService.withSpanAsync(
       'VideoService.listAvailableVideos',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'rpc.service': 'FileService',
         'rpc.method': 'listAvailableVideos',
       },
@@ -124,7 +125,7 @@ class VideoService implements IVideoService {
     return telemetryService.withSpanAsync(
       'VideoService.uploadVideo',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'rpc.service': 'FileService',
         'rpc.method': 'uploadVideo',
         'file.name': file.name,

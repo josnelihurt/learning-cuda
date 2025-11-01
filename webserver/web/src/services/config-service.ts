@@ -1,7 +1,7 @@
 import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ConfigService as ConfigServiceClient } from '../gen/image_processing_connect';
-import { StreamEndpoint } from '../gen/image_processing_pb';
+import { ConfigService as ConfigServiceClient } from '../gen/config_service_connect';
+import { StreamEndpoint } from '../gen/config_service_pb';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
 import type { IConfigService } from '../domain/interfaces/IConfigService';
@@ -25,6 +25,7 @@ class StreamConfigService implements IConfigService {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
       interceptors: [tracingInterceptor],
+      useHttpGet: true,
     });
 
     this.client = createPromiseClient(ConfigServiceClient, transport);
@@ -38,7 +39,7 @@ class StreamConfigService implements IConfigService {
     this.initPromise = telemetryService.withSpanAsync(
       'ConfigService.initialize',
       {
-        'http.method': 'POST',
+        'http.method': 'GET',
         'http.url': window.location.origin,
         'rpc.service': 'ConfigService',
         'rpc.method': 'getStreamConfig',

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { ListAvailableImagesRequest, ListAvailableImagesResponse, ListAvailableVideosRequest, ListAvailableVideosResponse, UploadImageRequest, UploadImageResponse, UploadVideoRequest, UploadVideoResponse } from "./file_service_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * @generated from service cuda_learning.FileService
@@ -20,6 +20,7 @@ export const FileService = {
       I: ListAvailableImagesRequest,
       O: ListAvailableImagesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * @generated from rpc cuda_learning.FileService.UploadImage
@@ -38,6 +39,7 @@ export const FileService = {
       I: ListAvailableVideosRequest,
       O: ListAvailableVideosResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * @generated from rpc cuda_learning.FileService.UploadVideo

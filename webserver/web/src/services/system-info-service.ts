@@ -22,6 +22,7 @@ class SystemInfoService {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
       interceptors: [tracingInterceptor],
+      useHttpGet: true,
     });
 
     this.client = createPromiseClient(ConfigServiceClient, transport);

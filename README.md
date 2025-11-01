@@ -8,6 +8,28 @@ This isn't another tutorial project. It's my way of exploring CUDA, OpenCL, and 
 
 ![Screenshot](./data/screenshot.png)
 
+## Table of Contents
+
+- [What's this?](#whats-this)
+- [Architecture](#architecture)
+  - [High-Level Overview](#high-level-overview)
+  - [Detailed Component Architecture](#detailed-component-architecture)
+- [Setup](#setup)
+  - [Development](#development)
+  - [Staging](#staging)
+  - [Production](#production)
+- [Git Hooks](#git-hooks)
+- [Tech](#tech)
+- [Image Processing Filters](#image-processing-filters)
+- [Commands](#commands)
+- [Development Tools](#development-tools)
+- [Testing & Code Quality](#testing-code-quality)
+- [Code structure](#code-structure)
+- [Filter System](#filter-system)
+- [Known issues](#known-issues)
+- [Roadmap](#roadmap)
+- [Learning Journey](#learning-journey)
+
 ## What's this?
 
 Real-time image and video processing through CUDA kernels. Point your webcam at something, pick a filter (grayscale more to come), and watch it process on your GPU (or CPU for comparison). Shows FPS and processing time so you can actually see the performance difference.
@@ -320,7 +342,7 @@ docker-compose -f docker-compose.dev.yml --profile coverage up coverage-report-v
 - **Golang**: go test + golangci-lint
 - **C++**: GoogleTest + Bazel + clang-tidy + clang-format
 
-See [Testing & Coverage Documentation](docs/TESTING_AND_COVERAGE.md) for detailed information.
+See [Testing & Coverage Documentation](docs/testing-and-coverage.md) for detailed information.
 
 ## Code structure
 
@@ -357,7 +379,7 @@ The system supports multiple input sources and a growing library of image proces
 
 ## Roadmap
 
-Evolving this into a full CUDA learning platform. See `/docs/backlog/` for detailed plans.
+Evolving this into a full CUDA learning platform. See [docs/backlog/](docs/backlog/) for detailed plans.
 
 ## Learning Journey
 

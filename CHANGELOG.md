@@ -4,6 +4,46 @@ Completed features extracted from git commit history, organized by category.
 
 ## November 2025
 
+### Staging Environment (Oct 31, 2025)
+- [x] Added localhost staging environment with docker-compose.staging.yml
+- [x] Configured Traefik reverse proxy for staging with HTTPS auto-redirect
+- [x] Created staging-local deployment scripts (start.sh, stop.sh, clean.sh)
+- [x] Services accessible via .localhost domains (app.localhost, grafana.localhost, etc.)
+- [x] Production-like Docker deployment for local testing
+- [x] Staging configuration file (config.staging.yaml) with appropriate settings
+
+**Staging URLs:**
+- Main Application: https://app.localhost
+- Grafana Monitoring: https://grafana.localhost
+- Feature Flags (Flipt): https://flipt.localhost
+- Distributed Tracing (Jaeger): https://jaeger.localhost
+- Test Reports: https://reports.localhost
+
+**Usage:**
+```bash
+./scripts/deployment/staging_local/start.sh        # Start staging environment
+./scripts/deployment/staging_local/stop.sh         # Stop services
+./scripts/deployment/staging_local/clean.sh        # Clean volumes and images
+```
+
+### Git Hooks & Testing (Oct 31, 2025)
+- [x] Fixed pre-push hook to use correct server flags
+- [x] Improved hook execution for test validation
+
+### Deployment Fixes (Oct 30, 2025)
+- [x] Various deployment configuration fixes
+- [x] Improved deployment reliability
+
+### Documentation (Oct 27, 2025)
+- [x] Updated project documentation
+- [x] Improved documentation structure and clarity
+
+### UI Improvements (Oct 26, 2025)
+- [x] Refactored production banner to information banner with simplified logic
+- [x] Fixed camera preview with video grid filter application
+- [x] Improved video processing integration
+- [x] Fixed E2E tests for camera functionality
+
 ### Production Deployment & Infrastructure (Nov 1, 2025)
 - [x] Implemented production Docker deployment with CUDA separation
 - [x] Added Cloudflare tunnel integration for production environment on Jetson Nano

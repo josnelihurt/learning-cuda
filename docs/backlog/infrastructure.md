@@ -191,6 +191,14 @@ Microservices, observability, testing, and cloud deployment.
 
 ## Cloud Deployment
 
+### Staging Environment
+- [x] Localhost staging environment with docker-compose.staging.yml (Oct 31, 2025)
+- [x] Traefik reverse proxy for staging with HTTPS auto-redirect
+- [x] Staging-local deployment scripts (start.sh, stop.sh, clean.sh)
+- [x] Services accessible via .localhost domains
+- [x] Production-like Docker deployment for local testing
+- [x] Staging configuration file (config.staging.yaml)
+
 ### Jetson Nano Production Deployment
 - [x] Deploy application on Jetson Nano hardware
 - [x] Cloudflare tunnel integration for external access
@@ -198,9 +206,10 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Production-optimized Docker configuration with CUDA separation
 - [x] Environment-specific configuration management
 - [x] Automated code synchronization from development to production
-- [x] Production deployment warning banner
+- [x] Production deployment warning banner (refactored to information banner)
 - [x] Unified logging configuration for dev and prod environments
 - [x] Production URLs: app-cuda-demo.josnelihurt.me, grafana-cuda-demo.josnelihurt.me, etc.
+- [x] Camera preview fixes with video grid filter application (Oct 26, 2025)
 
 ### Provider Research
 - [ ] Vultr (A40, A100 pricing)

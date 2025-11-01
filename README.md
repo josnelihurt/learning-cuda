@@ -136,92 +136,90 @@ graph TB
 
 ## Setup
 
-### Development Mode
+Three environments available: development for local coding, staging for production-like testing, and production for real deployment.
 
-**Start Development Server:**
+### Development
 
+Local development with hot reload. Frontend runs on Vite dev server, backend handles requests directly.
+
+**Start:**
 ```bash
 # First time or after C++/Go changes
 ./scripts/dev/start.sh --build
 
-# Subsequent runs (hot reload enabled for frontend)
+# Subsequent runs (hot reload enabled)
 ./scripts/dev/start.sh
 ```
 
-**Access the application:**
-- **HTTPS (recommended):** https://localhost:8443
-- **HTTP:** http://localhost:8080
+**Access:**
+- HTTPS: https://localhost:8443
 
-The development server provides both HTTP and HTTPS endpoints. SSL certificates are generated automatically using Docker.
+**Configuration:** `config/config.yaml` or `config/config.dev.yaml`
+- Hot reload enabled
+- Logs to stdout
+- TLS with localhost certificates
+- Services on direct localhost ports
 
-### Docker Deployment
+### Staging
 
-Production-ready deployment with GPU acceleration using Docker Compose and Traefik reverse proxy:
+Production-like Docker deployment running locally. Useful for testing Docker builds and integration before production.
 
+**Start:**
 ```bash
-# Validate environment (checks SSL certs, Docker, NVIDIA Container Toolkit, GPU)
-./scripts/docker/validate-env.sh
-
-# Build and run
-docker compose up --build
-
-# Or run in detached mode
-docker compose up -d --build
-
-# View logs
-docker compose logs -f app
-
-# Stop containers
-docker compose down
+./scripts/deployment/staging_local/start.sh        # Run in background
+./scripts/deployment/staging_local/start.sh --build # Rebuild images
+./scripts/deployment/staging_local/stop.sh          # Stop services
+./scripts/deployment/staging_local/clean.sh         # Clean volumes
 ```
 
-**Access the application:**
-- **Application**: https://localhost (HTTP auto-redirects to HTTPS)
-- **Traefik Dashboard**: http://localhost:8081
+**Access:**
+- Main app: https://app.localhost
+- Grafana: https://grafana.localhost
+- Flipt: https://flipt.localhost
+- Jaeger: https://jaeger.localhost
+- Reports: https://reports.localhost
+
+**Configuration:** `config/config.staging.yaml`
+- No hot reload (production build)
+- Traefik reverse proxy with HTTPS
+- Services via .localhost domains
+- File logging
+- Docker Compose stack
 
 **Requirements:**
-- Docker with NVIDIA Container Toolkit installed
+- Docker with NVIDIA Container Toolkit
 - NVIDIA GPU with drivers
-- SSL certificates in `.secrets/` directory (see Development Mode setup above)
 
-**The Docker setup uses:**
-- Multi-stage build (frontend → backend → runtime)
-- NVIDIA CUDA 12.5 runtime
-- **Traefik** for HTTPS termination and HTTP → HTTPS redirect
-- Full GPU passthrough to container
+### Production
 
-### Production Deployment
-
-The application is deployed in production on a Jetson Nano with Cloudflare tunnel integration:
+Real deployment on Jetson Nano hardware with Cloudflare tunnel for external access.
 
 **Production URL:** https://app-cuda-demo.josnelihurt.me
 
-**Available Services:**
-- **Main Application**: https://app-cuda-demo.josnelihurt.me
-- **Grafana Monitoring**: https://grafana-cuda-demo.josnelihurt.me (TODO: Prod is not in sync with dev Work in progress..)
-- **Feature Flags (Flipt)**: https://flipt-cuda-demo.josnelihurt.me (TODO: Prod is not in sync with dev Work in progress..)
-- **Distributed Tracing (Jaeger)**: https://jaeger-cuda-demo.josnelihurt.me 
-- **Test Reports**: https://reports-cuda-demo.josnelihurt.me (TODO: Prod is not in sync with dev Work in progress..)
+**Services:**
+- Main Application: https://app-cuda-demo.josnelihurt.me
+- Grafana Monitoring: https://grafana-cuda-demo.josnelihurt.me
+- Feature Flags (Flipt): https://flipt-cuda-demo.josnelihurt.me
+- Distributed Tracing (Jaeger): https://jaeger-cuda-demo.josnelihurt.me
+- Test Reports: https://reports-cuda-demo.josnelihurt.me
 
-**Deployment Features:**
-- Cloudflare tunnel for secure external access
-- Ansible automation for deployment and updates
-- Production-optimized Docker configuration
-- Unified logging configuration for dev and prod environments
-- Feature flags modal with Flipt integration
-- System information endpoint with version tooltips
-
-**Deployment Scripts:**
+**Deployment:**
 ```bash
 # Full deployment (init + sync + start)
 ./scripts/deployment/jetson-nano/deploy.sh
 
 # Individual steps
 ./scripts/deployment/jetson-nano/init.sh    # Initialize environment
-./scripts/deployment/jetson-nano/sync.sh    # Sync code changes
+./scripts/deployment/jetson-nano/sync.sh     # Sync code changes
 ./scripts/deployment/jetson-nano/start.sh   # Start services
-./scripts/deployment/jetson-nano/clean.sh   # Clean deployment
+./scripts/deployment/jetson-nano/clean.sh    # Clean deployment
 ```
+
+**Configuration:** `config/config.production.yaml`
+- Cloudflare tunnel for external access
+- Ansible automation
+- Production-optimized Docker configuration
+- Unified logging configuration
 
 ## Git Hooks
 

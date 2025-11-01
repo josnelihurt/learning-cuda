@@ -98,3 +98,4 @@ webserver/web/.env.local
 .secrets.act
 .actrc
 .secrets/git-hub.token
+server

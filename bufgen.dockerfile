@@ -1,6 +1,6 @@
-FROM golang:1.23-alpine AS proto-builder
+FROM golang:1.24-alpine AS proto-builder
 RUN go install github.com/bufbuild/buf/cmd/buf@v1.47.2
-RUN go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.17.0
+RUN go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.19.1
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
 
 FROM alpine:3.19

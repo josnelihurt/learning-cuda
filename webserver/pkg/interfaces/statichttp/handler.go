@@ -71,9 +71,13 @@ func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 	fliptProxy := NewFliptProxyHandler(h.fliptURL)
 	mux.Handle("/flipt/", http.StripPrefix("/flipt", fliptProxy))
 
-	// Register catch-all route last (least specific)
-	// This should only handle routes that don't match API endpoints
-	mux.HandleFunc("/", h.ServeIndex)
+	// Note: catch-all route "/" is not registered here to allow Vanguard to handle it first
+	// If Vanguard returns 404, it means we should serve the SPA index
+}
+
+// GetServeIndex returns the ServeIndex handler for use as a fallback
+func (h *StaticHandler) GetServeIndex() http.HandlerFunc {
+	return h.ServeIndex
 }
 
 func (h *StaticHandler) ServeAsset(w http.ResponseWriter, r *http.Request) {

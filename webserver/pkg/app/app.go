@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"strings"
 	"sync"
 
 	"connectrpc.com/connect"
@@ -182,21 +183,79 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
-	{
-		rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
-		connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
-	}
-	if a.getStreamConfigUC != nil && a.syncFlagsUC != nil && a.listInputsUC != nil && a.evaluateFFUC != nil && a.getSystemInfoUC != nil {
-		connectrpc.RegisterConfigService(mux, a.getStreamConfigUC, a.syncFlagsUC, a.listInputsUC, a.evaluateFFUC, a.getSystemInfoUC,
-			a.registry, a.currentLoader, a.loaderMutex, a.config, a.interceptors...)
-	} else {
-		logger.Global().Warn().Msg("Config service not registered (use cases unavailable)")
-	}
-	if a.listAvailableImagesUC != nil && a.uploadImageUC != nil && a.listVideosUC != nil && a.uploadVideoUC != nil {
-		connectrpc.RegisterFileService(mux, a.listAvailableImagesUC, a.uploadImageUC, a.listVideosUC, a.uploadVideoUC, a.interceptors...)
-	} else {
-		logger.Global().Warn().Msg("File service not registered (use cases unavailable)")
-	}
+	rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
+
+	connectrpc.RegisterConfigService(
+		mux,
+		a.getStreamConfigUC,
+		a.syncFlagsUC,
+		a.listInputsUC,
+		a.evaluateFFUC,
+		a.getSystemInfoUC,
+		a.registry,
+		a.currentLoader,
+		a.loaderMutex,
+		a.config,
+		a.interceptors...,
+	)
+
+	connectrpc.RegisterFileService(
+		mux,
+		a.listAvailableImagesUC,
+		a.uploadImageUC,
+		a.listVideosUC,
+		a.uploadVideoUC,
+		a.interceptors...,
+	)
+
+	connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
+
+	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
+		ImageProcessorHandler: rpcHandler,
+		GetStreamConfigUC:     a.getStreamConfigUC,
+		SyncFlagsUC:           a.syncFlagsUC,
+		ListInputsUC:          a.listInputsUC,
+		EvaluateFFUC:          a.evaluateFFUC,
+		GetSystemInfoUC:       a.getSystemInfoUC,
+		Registry:              a.registry,
+		CurrentLoader:         a.currentLoader,
+		LoaderMutex:           a.loaderMutex,
+		ConfigManager:         a.config,
+		ListAvailableImagesUC: a.listAvailableImagesUC,
+		UploadImageUC:         a.uploadImageUC,
+		ListVideosUC:          a.listVideosUC,
+		UploadVideoUC:         a.uploadVideoUC,
+		Interceptors:          a.interceptors,
+	})
+
+	staticHandler := statichttp.NewStaticHandler(&a.config.Server, a.config.Stream, a.useCase, a.videoRepository, a.config.Flipt.URL)
+	serveIndex := staticHandler.GetServeIndex()
+
+	// Register catch-all handler AFTER Connect-RPC handlers to ensure specific routes are matched first
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// REST API routes handled by transcoder
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			transcoder.ServeHTTP(w, r)
+			return
+		}
+
+		// Connect-RPC routes should already be handled by registered handlers above
+		// Vanguard transcoder doesn't support direct Connect-RPC GET requests,
+		// so we should NOT fallback to transcoder for Connect-RPC paths.
+		// The registered Connect-RPC handlers handle both GET and POST.
+		if strings.HasPrefix(r.URL.Path, "/cuda_learning.") ||
+			strings.HasPrefix(r.URL.Path, "/com.jrb.") {
+			// These should be handled by Connect-RPC handlers, not transcoder
+			// If we get here, it means no handler matched - return 404
+			http.NotFound(w, r)
+			return
+		}
+
+		// For all other routes, serve the SPA index
+		serveIndex(w, r)
+	})
+
+	logger.Global().Info().Msg("Connect-RPC handlers and Vanguard transcoder registered (REST + Connect + gRPC)")
 }
 
 func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
@@ -220,8 +279,8 @@ func (a *App) Run() error {
 	a.setupObservability(mux)
 
 	a.setupHealthEndpoint(mux)
-	a.setupConnectRPCServices(mux)
 	a.setupStaticHandler(mux)
+	a.setupConnectRPCServices(mux)
 	handler := a.makeTelemetryMiddleware(mux)
 
 	errChan := make(chan error, 2)

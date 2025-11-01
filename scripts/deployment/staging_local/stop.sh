@@ -1,34 +1,32 @@
 #!/bin/bash
 #
-# Stop Production Services
+# Stop Staging Services
 #
-# This script stops all production services including:
+# This script stops all staging services including:
 # - Application containers
 # - Traefik reverse proxy
-# - Cloudflare Tunnel (if running)
 # - All supporting services
 #
 # Usage:
-#   ./scripts/prod/stop.sh
+#   ./scripts/deployment/staging_local/stop.sh
 #
 # Note: Volumes are preserved (data not deleted)
-# To remove volumes: ./scripts/prod/clean.sh
+# To remove volumes: ./scripts/deployment/staging_local/clean.sh
 #
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-echo "Stopping production services..."
+echo "Stopping staging services..."
 
-# Stop all services including cloudflare profile
-docker compose --profile cloudflare down
+docker compose -f docker-compose.staging.yml down
 
 echo ""
-echo "Production services stopped"
+echo "Staging services stopped"
 echo "Volumes preserved (data not deleted)"
 echo ""
-echo "To remove volumes: ./scripts/prod/clean.sh"
+echo "To remove volumes: ./scripts/deployment/staging_local/clean.sh"

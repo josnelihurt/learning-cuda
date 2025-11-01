@@ -16,12 +16,13 @@ export function getBaseUrl(): string {
  * @returns The Flipt API URL for the current environment
  */
 export function getFliptUrl(): string {
-  const isProduction = process.env.TEST_ENV === 'production';
-  if (isProduction) {
-    // In production, Flipt is accessible via Cloudflare Tunnel
+  const env = process.env.TEST_ENV || 'development';
+  
+  if (env === 'production') {
     return 'https://flipt-cuda-demo.josnelihurt.me';
+  } else if (env === 'staging') {
+    return 'https://flipt.localhost';
   } else {
-    // In development, Flipt is directly accessible
     return 'http://localhost:8081';
   }
 }
@@ -48,7 +49,15 @@ export function getMinVideoFrames(): number {
  * @returns The expected URL pattern for Flipt dashboard
  */
 export function getFliptDashboardUrlPattern(): string {
-  return isProduction() ? '/flipt' : 'localhost:8081';
+  const env = process.env.TEST_ENV || 'development';
+  
+  if (env === 'production') {
+    return '/flipt';
+  } else if (env === 'staging') {
+    return 'flipt.localhost';
+  } else {
+    return 'localhost:8081';
+  }
 }
 
 /**
@@ -76,6 +85,6 @@ export function createFliptApiUrl(endpoint: string): string {
  * @returns Curl options string for the current environment
  */
 export function getCurlOptions(): string {
-  const isProduction = process.env.TEST_ENV === 'production';
-  return isProduction ? '-k' : ''; // -k for ignoring SSL in production
+  const env = process.env.TEST_ENV || 'development';
+  return (env === 'production' || env === 'staging') ? '-k' : '';
 }

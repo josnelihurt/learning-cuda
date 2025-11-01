@@ -1,56 +1,45 @@
 #!/bin/bash
 #
-# Production Docker Deployment
+# Staging Local Deployment
 #
-# This script runs the full production stack with:
+# This script runs the staging stack locally with:
 # - CUDA-accelerated backend in Docker
 # - Traefik reverse proxy (HTTPS with auto redirect)
 # - NVIDIA GPU passthrough
-# - Multi-stage optimized build
-# - Optional Cloudflare Tunnel support
+# - All services accessible via .localhost domains
 #
 # Usage:
-#   ./scripts/prod/start.sh                    # Run in background (default)
-#   ./scripts/prod/start.sh --cloudflare      # Run with Cloudflare Tunnel
-#   ./scripts/prod/start.sh --build           # Force rebuild images
-#   ./scripts/prod/start.sh --no-detach       # Run in foreground (see logs)
-#   ./scripts/prod/start.sh --help            # Show help message
+#   ./scripts/deployment/staging_local/start.sh           # Run in background (default)
+#   ./scripts/deployment/staging_local/start.sh --build   # Force rebuild images
+#   ./scripts/deployment/staging_local/start.sh --no-detach # Run in foreground (see logs)
+#   ./scripts/deployment/staging_local/start.sh --help    # Show help message
 #
-# Access (Local):
-#   https://localhost        - Main application (HTTP auto-redirects)
-#   http://localhost:8081    - Traefik dashboard
-#
-# Access (Cloudflare):
-#   https://app-cuda-demo.josnelihurt.me     - Main application
-#   https://grafana-cuda-demo.josnelihurt.me - Grafana
-#   https://flipt-cuda-demo.josnelihurt.me   - Flipt
-#   https://jaeger-cuda-demo.josnelihurt.me  - Jaeger
-#   https://reports-cuda-demo.josnelihurt.me - Test Reports
+# Access:
+#   https://app.localhost      - Main application
+#   https://grafana.localhost  - Grafana
+#   https://flipt.localhost    - Flipt
+#   https://jaeger.localhost   - Jaeger
+#   https://reports.localhost  - Test Reports
 #
 # Stop:
-#   ./scripts/prod/stop.sh
+#   ./scripts/deployment/staging_local/stop.sh
 #
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-# Parse command line arguments
 BUILD=false
-DETACHED=true  # Default to background
-CLOUDFLARE=false
+DETACHED=true
 SHOW_HELP=false
 
 for arg in "$@"; do
     case "$arg" in
         --build|-b)
             BUILD=true
-            ;;
-        --cloudflare|-c)
-            CLOUDFLARE=true
             ;;
         --no-detach)
             DETACHED=false
@@ -65,29 +54,25 @@ for arg in "$@"; do
 done
 
 if [ "$SHOW_HELP" = true ]; then
-    echo "Usage: ./scripts/prod/start.sh [OPTIONS]"
+    echo "Usage: ./scripts/deployment/staging_local/start.sh [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --build, -b        Force rebuild of Docker images"
-    echo "  --cloudflare, -c   Enable Cloudflare Tunnel profile"
     echo "  --no-detach         Run in foreground (see logs)"
     echo "  --detach, -d        Run in background (default)"
     echo "  --help, -h         Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/prod/start.sh                    # Local production (background)"
-    echo "  ./scripts/prod/start.sh --cloudflare      # With Cloudflare Tunnel"
-    echo "  ./scripts/prod/start.sh --build --cloudflare # Rebuild + Cloudflare"
-    echo "  ./scripts/prod/start.sh --no-detach        # See logs in foreground"
+    echo "  ./scripts/deployment/staging_local/start.sh           # Background"
+    echo "  ./scripts/deployment/staging_local/start.sh --build   # Rebuild + start"
+    echo "  ./scripts/deployment/staging_local/start.sh --no-detach # See logs"
     echo ""
-    echo "Stop: ./scripts/prod/stop.sh"
-    echo "Clean: ./scripts/prod/clean.sh"
+    echo "Stop:  ./scripts/deployment/staging_local/stop.sh"
+    echo "Clean: ./scripts/deployment/staging_local/clean.sh"
     exit 0
 fi
 
-# Validate environment
 echo "Validating environment..."
-echo "Validating Docker environment..."
 echo ""
 echo "[1/3] Checking Docker installation..."
 if ! command -v docker &> /dev/null; then
@@ -118,62 +103,38 @@ fi
 echo ""
 echo "All validation checks passed"
 
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-# Load production secrets
-echo "Loading production secrets..."
-if [ -f ".secrets/production.env" ]; then
-    echo "  Loading secrets from .secrets/production.env"
-    source .secrets/production.env
-else
-    echo "  ERROR: Production secrets file not found at .secrets/production.env"
-    echo "  Please create this file with your actual secrets before running production"
-    echo "  You can use .secrets/production.env.example as a template"
-    exit 1
-fi
-
-# Cloudflare is always enabled in production
-echo ""
-echo "Cloudflare Tunnel configuration..."
-echo "  Tunnel ID: ef1d45eb-5e53-4a40-8bc3-e30c1e29e00d"
-echo "  OK: Cloudflare Tunnel configured"
-
-# Build compose command
-COMPOSE_CMD="docker compose up"
+COMPOSE_CMD="docker compose -f docker-compose.staging.yml up"
 [ "$BUILD" = true ] && COMPOSE_CMD="$COMPOSE_CMD --build"
 [ "$DETACHED" = true ] && COMPOSE_CMD="$COMPOSE_CMD -d"
 
 echo ""
-echo "Starting production services..."
+echo "Starting staging services..."
 echo "Command: $COMPOSE_CMD"
 echo ""
 
-# Execute
 $COMPOSE_CMD
 
-# Display URLs based on mode
 echo ""
 echo "================================================"
-echo "Production URLs (Cloudflare Tunnel):"
-echo "  App:     https://app-cuda-demo.josnelihurt.me"
-echo "  Grafana: https://grafana-cuda-demo.josnelihurt.me"
-echo "  Flipt:   https://flipt-cuda-demo.josnelihurt.me"
-echo "  Jaeger:  https://jaeger-cuda-demo.josnelihurt.me"
-echo "  Reports: https://reports-cuda-demo.josnelihurt.me"
+echo "Staging Local URLs (.localhost):"
+echo "  App:     https://app.localhost"
+echo "  Grafana: https://grafana.localhost"
+echo "  Flipt:   https://flipt.localhost"
+echo "  Jaeger:  https://jaeger.localhost"
+echo "  Reports: https://reports.localhost"
 echo "================================================"
+echo ""
+echo "Note: Browser will show security warning for self-signed certificates"
+echo "      This is normal for local staging environment"
+echo ""
 
-# Show log commands if detached
 if [ "$DETACHED" = true ]; then
-    echo ""
     echo "Services running in background"
     echo ""
     echo "View logs:"
-    echo "  All services: docker compose logs -f"
-    echo "  App only:     docker compose logs -f app"
-    echo "  Cloudflare:   docker compose logs -f cloudflared"
+    echo "  All services: docker compose -f docker-compose.staging.yml logs -f"
+    echo "  App only:     docker compose -f docker-compose.staging.yml logs -f app"
     echo ""
-    echo "Stop services: ./scripts/prod/stop.sh"
-    echo "Clean up:     ./scripts/prod/clean.sh"
+    echo "Stop services: ./scripts/deployment/staging_local/stop.sh"
+    echo "Clean up:     ./scripts/deployment/staging_local/clean.sh"
 fi

@@ -61,6 +61,9 @@ for arg in "$@"; do
         --prod)
             ENVIRONMENT="prod"
             ;;
+        --staging)
+            ENVIRONMENT="staging"
+            ;;
         --help|-h)
             SHOW_HELP=true
             ;;
@@ -81,19 +84,22 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  --headed            Run tests in headed mode (visible browser)"
     echo "  --debug             Run tests in debug mode"
     echo "  --ui                Run tests in UI mode"
-    echo "  --env=ENV           Set environment (dev|prod, default: dev)"
+    echo "  --env=ENV           Set environment (dev|prod|staging, default: dev)"
     echo "  --dev               Run tests in development environment (port 8443)"
     echo "  --prod              Run tests in production environment (port 443)"
+    echo "  --staging           Run tests in staging environment (.localhost)"
     echo "  --help, -h          Show this help message"
     echo ""
     echo "Environment:"
     echo "  Development: https://localhost:8443 (default)"
     echo "  Production:  https://localhost:443"
+    echo "  Staging:     https://app.localhost"
     echo "  System CPUs: $(nproc) cores detected"
     echo ""
     echo "Examples:"
     echo "  ./scripts/test/e2e.sh --chromium              # Fast: Chromium only, dev env"
     echo "  ./scripts/test/e2e.sh --prod --chromium       # Production environment"
+    echo "  ./scripts/test/e2e.sh --staging --chromium    # Staging environment"
     echo "  ./scripts/test/e2e.sh --dev --headed          # Development, visible browser"
     echo "  ./scripts/test/e2e.sh --prod --debug          # Production debug mode"
     exit 0
@@ -107,6 +113,10 @@ if [ "$ENVIRONMENT" = "prod" ]; then
     export TEST_ENV="production"
     export PLAYWRIGHT_BASE_URL="https://app-cuda-demo.josnelihurt.me"
     echo "Environment: Production (https://app-cuda-demo.josnelihurt.me)"
+elif [ "$ENVIRONMENT" = "staging" ]; then
+    export TEST_ENV="staging"
+    export PLAYWRIGHT_BASE_URL="https://app.localhost"
+    echo "Environment: Staging (https://app.localhost)"
 else
     export TEST_ENV="development"
     export PLAYWRIGHT_BASE_URL="https://localhost:8443"
@@ -137,6 +147,8 @@ mkdir -p webserver/web/.ignore/playwright-report
 # Set Flipt port based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
     FLIPT_PORT="8082"
+elif [ "$ENVIRONMENT" = "staging" ]; then
+    FLIPT_PORT=""
 else
     FLIPT_PORT="8081"
 fi
@@ -148,6 +160,14 @@ if [ "$ENVIRONMENT" = "prod" ]; then
         echo "Flipt is not accessible at https://flipt-cuda-demo.josnelihurt.me"
         echo "For production, make sure Docker Compose services are running:"
         echo "  docker compose --profile cloudflare up -d"
+        exit 1
+    fi
+elif [ "$ENVIRONMENT" = "staging" ]; then
+    # In staging, check Flipt via Traefik
+    if ! curl -k -s https://flipt.localhost/api/v1/health > /dev/null 2>&1; then
+        echo "Flipt is not accessible at https://flipt.localhost"
+        echo "For staging, make sure Docker Compose services are running:"
+        echo "  ./scripts/deployment/staging_local/start.sh"
         exit 1
     fi
 else
@@ -178,6 +198,12 @@ if [ "$ENVIRONMENT" = "prod" ]; then
     if ! curl -k -s https://app-cuda-demo.josnelihurt.me/health > /dev/null 2>&1; then
         echo "ERROR: Production service is not accessible at https://app-cuda-demo.josnelihurt.me"
         echo "Please start production services with: docker compose --profile cloudflare up -d"
+        exit 1
+    fi
+elif [ "$ENVIRONMENT" = "staging" ]; then
+    if ! curl -k -s https://app.localhost/health > /dev/null 2>&1; then
+        echo "ERROR: Staging service is not accessible at https://app.localhost"
+        echo "Please start staging services with: ./scripts/deployment/staging_local/start.sh"
         exit 1
     fi
 else

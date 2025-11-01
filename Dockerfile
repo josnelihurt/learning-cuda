@@ -135,7 +135,7 @@ WORKDIR /build
 # Copy minimal code needed for external deps build proto generated code
 COPY proto/*.proto ./proto/
 COPY proto/BUILD ./proto/BUILD
-COPY third_party/ ./third_party/
+COPY proto/google ./proto/google
 COPY buf.yaml buf.lock buf.gen.yaml ./
 
 RUN bazel build \

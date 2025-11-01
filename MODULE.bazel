@@ -29,7 +29,7 @@ bazel_dep(name = "rules_buf", version = "0.3.0")
 bazel_dep(name = "rules_oci", version = "2.0.0")
 bazel_dep(name = "rules_pkg", version = "1.0.1")
 
-# Lyra CLI parser library (header-only)
+# Import http_archive for external dependencies
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(

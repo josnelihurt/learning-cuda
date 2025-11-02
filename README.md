@@ -184,14 +184,14 @@ Local development with hot reload. Frontend runs on Vite dev server, backend han
 
 ### Staging
 
-Production-like Docker deployment running locally. Useful for testing Docker builds and integration before production.
+Production-like Docker deployment running locally using pre-built images from GitHub Container Registry. Useful for testing Docker images compiled in CI/CD and integration before production.
 
 **Start:**
 ```bash
-./scripts/deployment/staging_local/start.sh        # Run in background
-./scripts/deployment/staging_local/start.sh --build # Rebuild images
-./scripts/deployment/staging_local/stop.sh          # Stop services
-./scripts/deployment/staging_local/clean.sh         # Clean volumes
+./scripts/deployment/staging_local/start.sh        # Run in background (uses cached image)
+./scripts/deployment/staging_local/start.sh --pull # Pull latest image from GHCR
+./scripts/deployment/staging_local/stop.sh         # Stop services
+./scripts/deployment/staging_local/clean.sh        # Clean volumes
 ```
 
 **Access:**
@@ -207,6 +207,11 @@ Production-like Docker deployment running locally. Useful for testing Docker bui
 - Services via .localhost domains
 - File logging
 - Docker Compose stack
+
+**Image Source:**
+- Uses pre-built image: `ghcr.io/josnelihurt/learning-cuda:amd64-latest`
+- Image compiled in GitHub Actions on push to `main`
+- No local compilation required
 
 **Requirements:**
 - Docker with NVIDIA Container Toolkit

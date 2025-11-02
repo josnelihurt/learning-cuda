@@ -73,6 +73,8 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_NONE)
 		case domain.FilterGrayscale:
 			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_GRAYSCALE)
+		case domain.FilterBlur:
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_BLUR)
 		default:
 			return nil, fmt.Errorf("unsupported filter type: %s", filter)
 		}

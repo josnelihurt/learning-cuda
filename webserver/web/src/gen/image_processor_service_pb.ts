@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { AcceleratorType, FilterType, GrayscaleType, LibraryCapabilities, TraceContext } from "./common_pb.js";
+import { AcceleratorType, FilterType, GaussianBlurParameters, GrayscaleType, LibraryCapabilities, TraceContext } from "./common_pb.js";
 
 /**
  * Request: Go passes raw image buffer
@@ -49,6 +49,11 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
   grayscaleType = GrayscaleType.UNSPECIFIED;
 
   /**
+   * @generated from field: cuda_learning.GaussianBlurParameters blur_params = 25 [json_name = "blur_params"];
+   */
+  blurParams?: GaussianBlurParameters;
+
+  /**
    * OpenTelemetry trace context propagation (deprecated - use trace_context instead)
    *
    * @generated from field: string trace_id = 15 [json_name = "trace_id"];
@@ -90,6 +95,7 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
     { no: 9, name: "filters", kind: "enum", T: proto3.getEnumType(FilterType), repeated: true },
     { no: 11, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
     { no: 13, name: "grayscale_type", jsonName: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
+    { no: 25, name: "blur_params", jsonName: "blur_params", kind: "message", T: GaussianBlurParameters },
     { no: 15, name: "trace_id", jsonName: "trace_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 17, name: "span_id", jsonName: "span_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "trace_flags", jsonName: "trace_flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },

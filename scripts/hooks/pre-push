@@ -29,11 +29,6 @@ echo "Stopping existing services for clean start..."
 "$PROJECT_ROOT/scripts/dev/stop.sh" 2>/dev/null || true
 docker compose -f docker-compose.dev.yml down 2>/dev/null || true
 
-# Additional cleanup for problematic networks
-echo "Performing additional network cleanup..."
-docker system prune -f --volumes || true
-sleep 2
-
 SERVICES_STARTED=true
 
 echo "Starting Docker services (Flipt, Jaeger, OTel)..."

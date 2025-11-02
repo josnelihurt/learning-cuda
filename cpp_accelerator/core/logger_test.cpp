@@ -24,7 +24,7 @@ TEST_F(LoggerTest, InitializeLoggerCreatesDefaultLogger) {
     // Assert
     auto default_logger = spdlog::default_logger();
     ASSERT_NE(default_logger, nullptr);
-    EXPECT_EQ(default_logger->name(), "main");
+    EXPECT_EQ(default_logger->name(), "cpp_accelerator");
 }
 
 TEST_F(LoggerTest, InitializeLoggerSetsInfoLevel) {

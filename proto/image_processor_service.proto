@@ -16,6 +16,7 @@ message ProcessImageRequest {
   repeated FilterType filters = 9 [json_name = "filters"];
   AcceleratorType accelerator = 11 [json_name = "accelerator"];
   GrayscaleType grayscale_type = 13 [json_name = "grayscale_type"];
+  GaussianBlurParameters blur_params = 25 [json_name = "blur_params"];
   
   // OpenTelemetry trace context propagation (deprecated - use trace_context instead)
   string trace_id = 15 [json_name = "trace_id"];

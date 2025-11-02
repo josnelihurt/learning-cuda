@@ -23,17 +23,77 @@ export enum FilterType {
   NONE = 1,
 
   /**
-   * Future: FILTER_TYPE_BLUR = 5, FILTER_TYPE_EDGE_DETECT = 10, etc.
-   *
    * @generated from enum value: FILTER_TYPE_GRAYSCALE = 2;
    */
   GRAYSCALE = 2,
+
+  /**
+   * @generated from enum value: FILTER_TYPE_BLUR = 3;
+   */
+  BLUR = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(FilterType)
 proto3.util.setEnumType(FilterType, "cuda_learning.FilterType", [
   { no: 0, name: "FILTER_TYPE_UNSPECIFIED" },
   { no: 1, name: "FILTER_TYPE_NONE" },
   { no: 2, name: "FILTER_TYPE_GRAYSCALE" },
+  { no: 3, name: "FILTER_TYPE_BLUR" },
+]);
+
+/**
+ * Enum for blur types
+ *
+ * @generated from enum cuda_learning.BlurType
+ */
+export enum BlurType {
+  /**
+   * @generated from enum value: BLUR_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: BLUR_TYPE_GAUSSIAN = 1;
+   */
+  GAUSSIAN = 1,
+}
+// Retrieve enum metadata with: proto3.getEnumType(BlurType)
+proto3.util.setEnumType(BlurType, "cuda_learning.BlurType", [
+  { no: 0, name: "BLUR_TYPE_UNSPECIFIED" },
+  { no: 1, name: "BLUR_TYPE_GAUSSIAN" },
+]);
+
+/**
+ * Enum for border handling modes
+ *
+ * @generated from enum cuda_learning.BorderMode
+ */
+export enum BorderMode {
+  /**
+   * @generated from enum value: BORDER_MODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: BORDER_MODE_CLAMP = 1;
+   */
+  CLAMP = 1,
+
+  /**
+   * @generated from enum value: BORDER_MODE_REFLECT = 2;
+   */
+  REFLECT = 2,
+
+  /**
+   * @generated from enum value: BORDER_MODE_WRAP = 3;
+   */
+  WRAP = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(BorderMode)
+proto3.util.setEnumType(BorderMode, "cuda_learning.BorderMode", [
+  { no: 0, name: "BORDER_MODE_UNSPECIFIED" },
+  { no: 1, name: "BORDER_MODE_CLAMP" },
+  { no: 2, name: "BORDER_MODE_REFLECT" },
+  { no: 3, name: "BORDER_MODE_WRAP" },
 ]);
 
 /**
@@ -168,6 +228,63 @@ export class TraceContext extends Message<TraceContext> {
 
   static equals(a: TraceContext | PlainMessage<TraceContext> | undefined, b: TraceContext | PlainMessage<TraceContext> | undefined): boolean {
     return proto3.util.equals(TraceContext, a, b);
+  }
+}
+
+/**
+ * Gaussian blur parameters
+ *
+ * @generated from message cuda_learning.GaussianBlurParameters
+ */
+export class GaussianBlurParameters extends Message<GaussianBlurParameters> {
+  /**
+   * @generated from field: int32 kernel_size = 1 [json_name = "kernel_size"];
+   */
+  kernelSize = 0;
+
+  /**
+   * @generated from field: float sigma = 3;
+   */
+  sigma = 0;
+
+  /**
+   * @generated from field: cuda_learning.BorderMode border_mode = 5 [json_name = "border_mode"];
+   */
+  borderMode = BorderMode.UNSPECIFIED;
+
+  /**
+   * @generated from field: bool separable = 7;
+   */
+  separable = false;
+
+  constructor(data?: PartialMessage<GaussianBlurParameters>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GaussianBlurParameters";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kernel_size", jsonName: "kernel_size", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "sigma", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 5, name: "border_mode", jsonName: "border_mode", kind: "enum", T: proto3.getEnumType(BorderMode) },
+    { no: 7, name: "separable", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GaussianBlurParameters {
+    return new GaussianBlurParameters().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GaussianBlurParameters {
+    return new GaussianBlurParameters().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GaussianBlurParameters {
+    return new GaussianBlurParameters().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GaussianBlurParameters | PlainMessage<GaussianBlurParameters> | undefined, b: GaussianBlurParameters | PlainMessage<GaussianBlurParameters> | undefined): boolean {
+    return proto3.util.equals(GaussianBlurParameters, a, b);
   }
 }
 

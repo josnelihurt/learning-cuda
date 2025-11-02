@@ -14,6 +14,7 @@ type FilterType string
 const (
 	FilterNone      FilterType = "none"
 	FilterGrayscale FilterType = "grayscale"
+	FilterBlur      FilterType = "blur"
 )
 
 // AcceleratorType represents the processing unit to use

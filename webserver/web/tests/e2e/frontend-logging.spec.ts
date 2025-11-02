@@ -48,14 +48,19 @@ test.describe('Frontend Logging System', () => {
         await page.evaluate(() => {
             const logger = (window as any).logger;
             logger.initialize('WARN', false);
+            logger.flush();
         });
 
+        await page.waitForTimeout(1000);
+
         let logRequestReceived = false;
-        page.on('request', request => {
-            if (request.url().includes('/api/logs')) {
+        const requestListener = (request: any) => {
+            if (request.url().includes('/api/logs') && request.method() === 'POST') {
                 logRequestReceived = true;
             }
-        });
+        };
+        
+        page.on('request', requestListener);
 
         await page.evaluate(() => {
             const logger = (window as any).logger;
@@ -63,7 +68,9 @@ test.describe('Frontend Logging System', () => {
             logger.info('This should not be sent');
         });
 
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(3000);
+
+        page.off('request', requestListener);
 
         expect(logRequestReceived).toBe(false);
     });

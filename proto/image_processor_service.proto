@@ -3,6 +3,7 @@ syntax = "proto3";
 package cuda_learning;
 
 import "common.proto";
+import "google/api/annotations.proto";
 
 option go_package = "github.com/jrb/cuda-learning/proto/gen";
 
@@ -103,7 +104,13 @@ message GetCapabilitiesResponse {
 }
 
 service ImageProcessorService {
-  rpc ProcessImage(ProcessImageRequest) returns (ProcessImageResponse);
+  rpc ProcessImage(ProcessImageRequest) returns (ProcessImageResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/process/image"
+      body: "*"
+    };
+  }
+  
   rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
 }
 

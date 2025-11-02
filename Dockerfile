@@ -120,6 +120,7 @@ WORKDIR /build
 COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
 COPY .bazelrc ./
 COPY proto/BUILD ./proto/BUILD
+COPY proto/google/api/BUILD.bazel ./proto/google/api/BUILD.bazel
 COPY third_party/ ./third_party/
 # Fetch dependencies without compiling anything, strongly cached
 # Use bazel sync to fetch all module dependencies
@@ -135,6 +136,7 @@ WORKDIR /build
 # Copy minimal code needed for external deps build proto generated code
 COPY proto/*.proto ./proto/
 COPY proto/BUILD ./proto/BUILD
+COPY proto/google/ ./proto/google/
 COPY third_party/ ./third_party/
 COPY buf.yaml buf.lock buf.gen.yaml ./
 

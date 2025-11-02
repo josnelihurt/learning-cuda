@@ -74,6 +74,37 @@ The catch-all handler in `webserver/pkg/app/app.go` was intercepting Connect-RPC
 - `proto/file_service.proto`: Added `idempotency_level = NO_SIDE_EFFECTS` to GET methods
 - Frontend services: Added `useHttpGet: true` to Connect-RPC transport configuration
 
+### Staging Environment Updates (Nov 2, 2025)
+- [x] Updated staging to use pre-built Docker images from GitHub Container Registry (GHCR)
+- [x] Modified docker-compose.staging.yml to use `ghcr.io/josnelihurt/learning-cuda:amd64-latest`
+- [x] Removed local Docker build requirement for staging deployment
+- [x] Updated start.sh script to support `--pull` flag for fetching latest images from GHCR
+- [x] Maintained backward compatibility with `--build` flag (now performs pull operation)
+- [x] Staging now tests images compiled remotely in GitHub Actions
+
+**Benefits:**
+- Faster staging startup (no local compilation required)
+- Tests production-ready images compiled in CI/CD
+- Consistent builds across different development machines
+- Validates GitHub Actions Docker build process
+
+**Staging URLs:**
+- Main Application: https://app.localhost
+- Grafana Monitoring: https://grafana.localhost
+- Feature Flags (Flipt): https://flipt.localhost
+- Distributed Tracing (Jaeger): https://jaeger.localhost
+- Test Reports: https://reports.localhost
+
+**Usage:**
+```bash
+./scripts/deployment/staging_local/start.sh        # Start staging environment
+./scripts/deployment/staging_local/start.sh --pull # Pull latest image from GHCR
+./scripts/deployment/staging_local/stop.sh         # Stop services
+./scripts/deployment/staging_local/clean.sh        # Clean volumes and images
+```
+
+**Note:** Staging uses pre-built image from `ghcr.io/josnelihurt/learning-cuda:amd64-latest`
+
 ### Staging Environment (Oct 31, 2025)
 - [x] Added localhost staging environment with docker-compose.staging.yml
 - [x] Configured Traefik reverse proxy for staging with HTTPS auto-redirect
@@ -92,6 +123,7 @@ The catch-all handler in `webserver/pkg/app/app.go` was intercepting Connect-RPC
 **Usage:**
 ```bash
 ./scripts/deployment/staging_local/start.sh        # Start staging environment
+./scripts/deployment/staging_local/start.sh --build # Rebuild images
 ./scripts/deployment/staging_local/stop.sh         # Stop services
 ./scripts/deployment/staging_local/clean.sh        # Clean volumes and images
 ```

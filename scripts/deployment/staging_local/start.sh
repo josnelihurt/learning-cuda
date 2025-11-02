@@ -10,9 +10,12 @@
 #
 # Usage:
 #   ./scripts/deployment/staging_local/start.sh           # Run in background (default)
-#   ./scripts/deployment/staging_local/start.sh --build   # Force rebuild images
+#   ./scripts/deployment/staging_local/start.sh --pull    # Pull latest image from GHCR
 #   ./scripts/deployment/staging_local/start.sh --no-detach # Run in foreground (see logs)
 #   ./scripts/deployment/staging_local/start.sh --help    # Show help message
+#
+# Note: Uses pre-built image from GitHub Container Registry (GHCR)
+#       Image: ghcr.io/josnelihurt/learning-cuda:amd64-latest
 #
 # Access:
 #   https://app.localhost      - Main application
@@ -32,14 +35,14 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-BUILD=false
+PULL=false
 DETACHED=true
 SHOW_HELP=false
 
 for arg in "$@"; do
     case "$arg" in
-        --build|-b)
-            BUILD=true
+        --build|-b|--pull|-p)
+            PULL=true
             ;;
         --no-detach)
             DETACHED=false
@@ -57,15 +60,18 @@ if [ "$SHOW_HELP" = true ]; then
     echo "Usage: ./scripts/deployment/staging_local/start.sh [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --build, -b        Force rebuild of Docker images"
-    echo "  --no-detach         Run in foreground (see logs)"
-    echo "  --detach, -d        Run in background (default)"
-    echo "  --help, -h         Show this help message"
+    echo "  --build, -b, --pull, -p   Pull latest image from GHCR before starting"
+    echo "  --no-detach                Run in foreground (see logs)"
+    echo "  --detach, -d               Run in background (default)"
+    echo "  --help, -h                 Show this help message"
     echo ""
     echo "Examples:"
     echo "  ./scripts/deployment/staging_local/start.sh           # Background"
-    echo "  ./scripts/deployment/staging_local/start.sh --build   # Rebuild + start"
+    echo "  ./scripts/deployment/staging_local/start.sh --pull    # Pull latest + start"
     echo "  ./scripts/deployment/staging_local/start.sh --no-detach # See logs"
+    echo ""
+    echo "Note: Uses pre-built image from GitHub Container Registry (GHCR)"
+    echo "      Image: ghcr.io/josnelihurt/learning-cuda:amd64-latest"
     echo ""
     echo "Stop:  ./scripts/deployment/staging_local/stop.sh"
     echo "Clean: ./scripts/deployment/staging_local/clean.sh"
@@ -103,8 +109,16 @@ fi
 echo ""
 echo "All validation checks passed"
 
+if [ "$PULL" = true ]; then
+    echo ""
+    echo "Pulling latest image from GHCR..."
+    docker pull ghcr.io/josnelihurt/learning-cuda:amd64-latest || {
+        echo "  WARNING: Failed to pull image, using local cached version if available"
+    }
+    echo "  OK: Image pull completed"
+fi
+
 COMPOSE_CMD="docker compose -f docker-compose.staging.yml up"
-[ "$BUILD" = true ] && COMPOSE_CMD="$COMPOSE_CMD --build"
 [ "$DETACHED" = true ] && COMPOSE_CMD="$COMPOSE_CMD -d"
 
 echo ""

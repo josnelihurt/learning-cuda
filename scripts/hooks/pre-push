@@ -20,19 +20,18 @@ echo ""
 echo "Preparing Docker environment..."
 cd "$PROJECT_ROOT"
 
-# 1. Clean orphaned networks
-echo "Cleaning orphaned Docker networks..."
-docker network prune -f || true
+# 1. Stop staging containers first (they may use networks we're about to clean)
+echo "Stopping staging containers if running..."
+docker compose -f docker-compose.staging.yml down --remove-orphans 2>/dev/null || true
 
 # 2. Stop any existing services for reproducibility
 echo "Stopping existing services for clean start..."
 "$PROJECT_ROOT/scripts/dev/stop.sh" 2>/dev/null || true
 docker compose -f docker-compose.dev.yml down 2>/dev/null || true
 
-# Additional cleanup for problematic networks
-echo "Performing additional network cleanup..."
-docker system prune -f --volumes || true
-sleep 2
+# 3. Clean orphaned networks (after containers are stopped)
+echo "Cleaning orphaned Docker networks..."
+docker network prune -f || true
 
 SERVICES_STARTED=true
 

@@ -384,7 +384,7 @@ The system supports multiple input sources and a growing library of image proces
 
 ## Roadmap
 
-Evolving this into a full CUDA learning platform. See [docs/backlog/](docs/backlog/) for detailed plans.
+Evolving this into a full CUDA learning platform. See [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management and backlog. Historical backlog planning documents are archived in [docs/archive/](docs/archive/).
 
 ## Learning Journey
 

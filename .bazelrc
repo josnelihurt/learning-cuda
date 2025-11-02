@@ -1,7 +1,6 @@
-# Enable WORKSPACE for OpenTelemetry C++ dependencies
-common --enable_workspace
-
 # CUDA settings
+# Note: --enable_workspace is no longer needed in Bazel 7.0+
+# WORKSPACE support is automatic when WORKSPACE.bazel exists
 build --repo_env=HERMETIC_CUDA_VERSION="12.4.0"
 build --@rules_cuda//cuda:enable=True
 build --@rules_cuda//cuda:compiler=nvcc
@@ -17,8 +16,13 @@ common --color=yes
 # Keep going on errors
 build --keep_going
 
-# Performance
+# Performance - optimize for Docker containers
 build --jobs=auto
+# Note: local_ram_resources and local_cpu_resources are set dynamically in Dockerfile
+build --experimental_repository_cache_hardlinks
+build --disk_cache=/tmp/bazel-cache
+# Disable remote cache by default (can be enabled if remote cache is configured)
+build --remote_cache=
 
 # Coverage settings
 coverage --combined_report=lcov

@@ -18,9 +18,11 @@ filegroup(
 )
 
 # Package server binary and data files for Docker
+# Note: Go server is built with standard Go toolchain (make build), not Bazel
+# This target is not used in the main Dockerfile build process
 pkg_tar(
     name = "server_layer",
-    srcs = ["//webserver/cmd/server"],
+    srcs = [],
     package_dir = "/app",
 )
 

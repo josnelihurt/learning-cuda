@@ -78,10 +78,16 @@ RUN npm run build
 # Output: libcuda_processor_v{VERSION}.so (VERSION from cpp_accelerator/VERSION)
 #################################################################################
 
-FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS cpp-builder
+#################################################################################
+#                    BAZEL BASE SETUP STAGE                                     #
+#################################################################################
+FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS bazel-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV BAZEL_VERSION=7.0.2
+# Optimize Bazel performance in containers
+ENV BAZEL_DISABLE_AUTO_FETCH=1
+ENV USE_BAZEL_VERSION=7.0.2
 
 WORKDIR /build
 
@@ -103,19 +109,98 @@ RUN BAZEL_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "linux-amd64" || echo "linu
     wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-${BAZEL_ARCH} \
     && chmod +x /usr/local/bin/bazel
 
-# Copy only files needed for C++ compilation
-# This includes Bazel workspace files, C++ source, and generated protobuf code
+#################################################################################
+#                    BAZEL DEPS FETCH STAGE                                     #
+#################################################################################
+FROM bazel-base AS bazel-deps-fetch
+
+WORKDIR /build
+
+# Bazel workspace files only changes when we add/remove dependencies or update the workspace configuration
 COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
+COPY .bazelrc ./
+COPY proto/BUILD ./proto/BUILD
 COPY third_party/ ./third_party/
-COPY cpp_accelerator/ ./cpp_accelerator/
+# Fetch dependencies without compiling anything, strongly cached
+# Use bazel sync to fetch all module dependencies
+RUN bazel fetch //... 
+
+#################################################################################
+#                    BAZEL EXTERNAL DEPS BUILD STAGE                            #
+#################################################################################
+FROM bazel-deps-fetch AS bazel-external-deps
+
+WORKDIR /build
+
+# Copy minimal code needed for external deps build proto generated code
 COPY proto/*.proto ./proto/
 COPY proto/BUILD ./proto/BUILD
+COPY third_party/ ./third_party/
 COPY buf.yaml buf.lock buf.gen.yaml ./
 
-# Copy generated protobuf code from proto-generator stage
+RUN bazel build \
+    --show_timestamps \
+    --announce_rc \
+    @spdlog//:spdlog \
+    @protobuf//:protobuf \
+    //proto:proto_cc \
+    //third_party/stb:stb_image \
+    //third_party/stb:stb_image_write \
+    || echo "External deps build completed"
+
+#################################################################################
+#                    BAZEL CODE BUILD STAGE                                   #
+#################################################################################
+FROM bazel-external-deps AS bazel-code-build
+
+WORKDIR /build
+
+# Copy remaining source
+COPY cpp_accelerator/ ./cpp_accelerator/
+
+# Copy generated protobuf code
 COPY --from=proto-generator /workspace/proto/gen/ ./proto/gen/
 
-RUN bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+# Build cpp accelerator shared library
+ARG TARGETARCH
+# Detect available resources for Bazel optimization
+RUN echo "Detected TARGETARCH: $TARGETARCH" && \
+    NPROC=$(nproc) && \
+    MEM_GB=$(free -g | awk '/^Mem:/{print $2}') && \
+    echo "Available CPUs: $NPROC, RAM: ${MEM_GB}GB" && \
+    echo "$NPROC $MEM_GB" > /tmp/resources.txt
+
+# Build with optimized settings
+RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
+    MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
+        bazel build \
+          --show_timestamps \
+          --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache \
+          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
+        echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    else \
+        echo "Building AMD64 with verbose output" && \
+        bazel build \
+          --show_timestamps \
+          --announce_rc \
+          --verbose_failures \
+          --subcommands \
+          --jobs=$NPROC \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache \
+          --linkopt="-Wl,--verbose" \
+          --linkopt="-Wl,--stats" \
+          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
+        echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    fi
 
 RUN VERSION=$(cat cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/lib && \
@@ -207,7 +292,7 @@ COPY . .
 
 # Copy compiled server binary and C++ libraries from builder stages
 COPY --from=go-builder /artifacts/bin/server /workspace/bin/server
-COPY --from=cpp-builder /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
+COPY --from=bazel-code-build /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
@@ -315,7 +400,10 @@ FROM nvidia/cuda:12.5.1-runtime-ubuntu24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install minimal runtime dependencies including FFmpeg libraries
-RUN apt-get update && apt-get install -y \
+# For ARM64 builds in QEMU, GPG verification can fail due to timing/emulation issues
+ARG TARGETARCH
+RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
+    apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     ffmpeg \
@@ -325,13 +413,24 @@ RUN apt-get update && apt-get install -y \
     libswscale-dev \
     libavfilter-dev \
     libavdevice-dev \
-    && rm -rf /var/lib/apt/lists/*
+    || (echo "Retrying with GPG fix..." && \
+        apt-get install -y --no-install-recommends --allow-unauthenticated \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        libavcodec-dev \
+        libavformat-dev \
+        libavutil-dev \
+        libswscale-dev \
+        libavfilter-dev \
+        libavdevice-dev) && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copy compiled artifacts from builder stages
 COPY --from=go-builder /artifacts/bin/server /app/server
-COPY --from=cpp-builder /artifacts/lib/ /app/lib/
+COPY --from=bazel-code-build /artifacts/lib/ /app/lib/
 COPY --from=frontend-builder /build/webserver/web/static/ /app/web/static/
 COPY --from=frontend-builder /build/webserver/web/templates/ /app/web/templates/
 

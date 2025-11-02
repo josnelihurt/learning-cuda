@@ -19,6 +19,8 @@ func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterTy
 		switch f {
 		case pb.FilterType_FILTER_TYPE_GRAYSCALE:
 			filters = append(filters, domain.FilterGrayscale)
+		case pb.FilterType_FILTER_TYPE_BLUR:
+			filters = append(filters, domain.FilterBlur)
 		case pb.FilterType_FILTER_TYPE_NONE:
 			filters = append(filters, domain.FilterNone)
 		case pb.FilterType_FILTER_TYPE_UNSPECIFIED:

@@ -15,7 +15,29 @@ enum FilterType {
   FILTER_TYPE_UNSPECIFIED = 0;
   FILTER_TYPE_NONE = 1;
   FILTER_TYPE_GRAYSCALE = 2;
-  // Future: FILTER_TYPE_BLUR = 5, FILTER_TYPE_EDGE_DETECT = 10, etc.
+  FILTER_TYPE_BLUR = 3;
+}
+
+// Enum for blur types
+enum BlurType {
+  BLUR_TYPE_UNSPECIFIED = 0;
+  BLUR_TYPE_GAUSSIAN = 1;
+}
+
+// Enum for border handling modes
+enum BorderMode {
+  BORDER_MODE_UNSPECIFIED = 0;
+  BORDER_MODE_CLAMP = 1;
+  BORDER_MODE_REFLECT = 2;
+  BORDER_MODE_WRAP = 3;
+}
+
+// Gaussian blur parameters
+message GaussianBlurParameters {
+  int32 kernel_size = 1 [json_name = "kernel_size"];
+  float sigma = 3 [json_name = "sigma"];
+  BorderMode border_mode = 5 [json_name = "border_mode"];
+  bool separable = 7 [json_name = "separable"];
 }
 
 // Enum for accelerator types

@@ -22,7 +22,7 @@ void initialize_logger() {
 
   try {
     // Use basic_logger_mt which handles file creation and lifecycle better
-    logger = spdlog::basic_logger_mt("cpp_accelerator", log_file, true);
+    logger = spdlog::basic_logger_mt("main", log_file, true);
     std::cout << "DEBUG: basic_logger_mt created successfully" << std::endl;
 
     // Set JSON pattern for structured logs with Unix epoch timestamp
@@ -57,7 +57,7 @@ void initialize_logger() {
       // Fallback to console logger
       auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
       console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
-      logger = std::make_shared<spdlog::logger>("cpp_accelerator",
+      logger = std::make_shared<spdlog::logger>("main",
                                                 spdlog::sinks_init_list{console_sink});
       logger->set_level(spdlog::level::info);
       spdlog::set_default_logger(logger);
@@ -81,7 +81,7 @@ void initialize_logger() {
       // Fallback to console logger
       auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
       console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
-      logger = std::make_shared<spdlog::logger>("cpp_accelerator",
+      logger = std::make_shared<spdlog::logger>("main",
                                                 spdlog::sinks_init_list{console_sink});
       logger->set_level(spdlog::level::info);
       spdlog::set_default_logger(logger);

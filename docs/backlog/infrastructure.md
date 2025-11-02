@@ -201,6 +201,9 @@ Microservices, observability, testing, and cloud deployment.
 - [x] Services accessible via .localhost domains
 - [x] Production-like Docker deployment for local testing
 - [x] Staging configuration file (config.staging.yaml)
+- [x] Updated to use pre-built images from GHCR (Nov 2, 2025)
+- [x] Removed local Docker build requirement for staging
+- [x] Staging now tests images compiled in GitHub Actions CI/CD
 
 ### Jetson Nano Production Deployment
 - [x] Deploy application on Jetson Nano hardware
@@ -226,7 +229,11 @@ Microservices, observability, testing, and cloud deployment.
 - [ ] State management (Terraform Cloud or S3)
 
 ### CI/CD
-- [ ] GitHub Actions for build/test
+- [x] GitHub Actions workflow for Docker multi-arch builds (Nov 2, 2025)
+- [x] Docker images published to GitHub Container Registry (GHCR)
+- [x] Automated builds on push to main branch
+- [x] Support for AMD64 and ARM64 architectures
+- [x] Staging environment uses pre-built GHCR images
 - [ ] Auto deploy on merge to main
 - [ ] Deployment strategy: blue-green, rolling, or canary
 

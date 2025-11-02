@@ -145,7 +145,9 @@ RUN bazel build \
     --announce_rc \
     @spdlog//:spdlog \
     @protobuf//:protobuf \
-    //proto:proto_cc \
+    //proto:common_cc_proto \
+    //proto:image_processor_service_cc_proto \
+    //proto:config_service_cc_proto \
     //third_party/stb:stb_image \
     //third_party/stb:stb_image_write \
     || echo "External deps build completed"

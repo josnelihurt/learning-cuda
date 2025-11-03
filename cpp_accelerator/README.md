@@ -95,8 +95,7 @@ sequenceDiagram
     participant CGO as CGO Adapter
     participant Init as Initialization Code
     participant TM as Telemetry Manager
-    participant GPU as CUDA Processor
-    participant CPU as CPU Processor
+    participant Pipeline as FilterPipeline
     
     Go->>Loader: dlopen(libcuda_processor.so)
     Loader->>API: processor_api_version()
@@ -106,15 +105,12 @@ sequenceDiagram
     CGO->>Init: Parse InitRequest
     Init->>TM: Initialize("cuda-image-processor-cpp", "localhost:4317")
     TM->>TM: Create OTel exporter
-    Init->>GPU: Create GrayscaleProcessor()
-    GPU->>GPU: Setup CUDA context
-    Init->>CPU: Create CpuGrayscaleProcessor()
     Init->>CGO: Build InitResponse
     CGO-->>API: response + success
     API-->>Loader: marshalled_response
     Loader-->>Go: InitResponse{code: 0}
     
-    Note over Go,CPU: Ready for processing
+    Note over Go,Pipeline: Ready for processing (filters created on-demand)
 ```
 
 ### Processing Flow
@@ -134,23 +130,25 @@ sequenceDiagram
     
     Note over CGO: Extract filters, accelerator, image data
     
-    CGO->>Command: Determine processor type
-    Command->>Proc: Create GrayscaleProcessor (GPU/CPU)
+    CGO->>Pipeline: Create FilterPipeline
     
     alt GPU Accelerator
-        Proc->>CUDA: Allocate device memory
+        Pipeline->>Pipeline: Add CudaGrayscaleFilter
+        Pipeline->>CUDA: Allocate device memory
         CUDA->>CUDA: Copy input to GPU
-        Proc->>CUDA: Launch grayscale kernel
+        Pipeline->>CUDA: Launch grayscale kernel
         CUDA->>CUDA: Process pixels in parallel
-        CUDA-->>Proc: Processed pixels
-        Proc->>CUDA: Copy output to host
+        CUDA-->>Pipeline: Processed pixels
+        Pipeline->>CUDA: Copy output to host
         CUDA->>CUDA: Free device memory
     else CPU Accelerator
-        Proc->>Proc: Process pixels sequentially
+        Pipeline->>Pipeline: Add CpuGrayscaleFilter
+        Pipeline->>CPU: Process pixels sequentially
+        CPU-->>Pipeline: Processed pixels
     end
     
-    Proc-->>Command: Processed image data
-    Command->>CGO: Build ProcessImageResponse
+    Pipeline-->>CGO: Processed image data
+    CGO->>CGO: Build ProcessImageResponse
     CGO-->>API: marshalled_response
     API-->>Go: ProcessImageResponse
 ```
@@ -184,9 +182,10 @@ cpp_accelerator/
 1. **Dependency Inversion**: Domain interfaces define contracts; infrastructure implements them
 2. **Single Responsibility**: Each component has one clear purpose
 3. **Open/Closed**: Extend via new implementations, not modification
-4. **Liskov Substitution**: All processor implementations are interchangeable
-5. **Interface Segregation**: Small, focused interfaces (IImageProcessor, ImageSource, ImageSink)
+4. **Liskov Substitution**: All filter implementations are interchangeable
+5. **Interface Segregation**: Small, focused interfaces (IFilter, ImageSource, ImageSink)
 6. **Separation of Concerns**: Clear boundaries between layers
+7. **Filter Pipeline**: Composable filter architecture for chaining multiple filters
 
 ## Adding New Filters
 

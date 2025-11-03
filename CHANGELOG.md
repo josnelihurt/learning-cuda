@@ -4,6 +4,30 @@ Completed features extracted from git commit history, organized by date.
 
 ## November 2025
 
+### Grayscale Filter Migration to FilterPipeline Architecture (Nov 3, 2025)
+- [x] Migrated grayscale processing from Processor pattern to FilterPipeline architecture
+- [x] Removed legacy GrayscaleProcessor implementations (CPU and CUDA)
+- [x] Unified GrayscaleAlgorithm enum in domain/interfaces for shared use
+- [x] Updated CpuGrayscaleFilter and CudaGrayscaleFilter to use shared enum
+- [x] Migrated entry points (cgo_api, cuda_processor_impl) to FilterPipeline exclusively
+- [x] Removed processor dependencies from BUILD files
+- [x] Temporarily disabled CudaImageFilters and CpuImageFilters commands (to be reimplemented)
+- [x] Updated config to use library version 2.1.0
+- [x] All unit tests passing (12/12)
+- [x] All E2E tests passing (101/101)
+- [x] Fixed test timing issues in panel synchronization tests
+
+**Removed Files:**
+- `cpp_accelerator/infrastructure/cpu/grayscale_processor.*`
+- `cpp_accelerator/infrastructure/cuda/grayscale_processor.*`
+- `cpp_accelerator/infrastructure/cuda/grayscale_processor_wrapper.cpp`
+
+**Benefits:**
+- Unified architecture: grayscale now uses same FilterPipeline as blur filter
+- Better composability: filters can be easily chained together
+- Cleaner codebase: removed ~1000 lines of legacy processor code
+- Consistent API: all filters follow the same IFilter interface
+
 ### Production Deployment & Infrastructure (Nov 1, 2025)
 - [x] Implemented production Docker deployment with CUDA separation
 - [x] Added Cloudflare tunnel integration for production environment on Jetson Nano

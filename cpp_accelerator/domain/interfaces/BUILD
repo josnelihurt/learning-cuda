@@ -1,6 +1,8 @@
 cc_library(
     name = "interfaces",
     hdrs = [
+        "i_pixel_getter.h",
+        "image_buffer.h",
         "image_sink.h",
         "image_source.h",
     ],

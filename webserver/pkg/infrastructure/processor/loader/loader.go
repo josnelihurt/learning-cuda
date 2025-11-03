@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const CurrentAPIVersion = "2.0.0"
+const CurrentAPIVersion = "2.1.0"
 
 type Loader struct {
 	handle       uintptr

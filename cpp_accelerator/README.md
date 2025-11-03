@@ -6,7 +6,7 @@ High-performance image processing library implementing Clean Architecture princi
 
 The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters using CUDA kernels. The architecture follows Clean Architecture patterns with clear separation between domain logic, application use cases, infrastructure implementations, and external adapters.
 
-**Version**: See `VERSION` file (currently 2.0.1)
+**Version**: See `VERSION` file (currently 2.1.0)
 
 **Features**:
 - GPU acceleration via CUDA kernels with CPU fallback

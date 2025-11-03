@@ -11,7 +11,7 @@ import (
 // Tests
 func TestCurrentAPIVersion(t *testing.T) {
 	// Test that the API version constant is defined
-	assert.Equal(t, "2.0.0", CurrentAPIVersion)
+	assert.Equal(t, "2.1.0", CurrentAPIVersion)
 }
 
 func TestIsCompatible(t *testing.T) {

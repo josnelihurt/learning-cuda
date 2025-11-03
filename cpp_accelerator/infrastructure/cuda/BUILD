@@ -85,3 +85,34 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "grayscale_filter",
+    srcs = ["grayscale_filter.cpp"],
+    hdrs = ["grayscale_filter.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":cuda_kernels",
+        ":cuda_wrappers",
+        "//cpp_accelerator/core:telemetry",
+        "//cpp_accelerator/domain/interfaces",
+        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "@spdlog",
+    ],
+)
+
+cc_test(
+    name = "grayscale_filter_test",
+    srcs = ["grayscale_filter_test.cpp"],
+    data = [
+        "//data:static_images/lena.png",
+    ],
+    deps = [
+        ":grayscale_filter",
+        "//cpp_accelerator/domain/interfaces",
+        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//cpp_accelerator/infrastructure/cpu:grayscale_filter",
+        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "@googletest//:gtest_main",
+    ],
+)

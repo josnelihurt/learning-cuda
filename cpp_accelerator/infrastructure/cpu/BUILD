@@ -63,3 +63,18 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "grayscale_filter_test",
+    srcs = ["grayscale_filter_test.cpp"],
+    data = [
+        "//data:static_images/lena.png",
+    ],
+    deps = [
+        ":grayscale_filter",
+        "//cpp_accelerator/domain/interfaces",
+        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "@googletest//:gtest_main",
+    ],
+)

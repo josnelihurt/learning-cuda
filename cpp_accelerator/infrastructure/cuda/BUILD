@@ -55,3 +55,18 @@ cc_library(
         ":cuda_wrappers",
     ],
 )
+
+cc_test(
+    name = "blur_processor_test",
+    srcs = ["blur_processor_test.cpp"],
+    data = [
+        "//data:static_images/lena.png",
+    ],
+    deps = [
+        ":cuda_wrappers",
+        "//cpp_accelerator/domain/interfaces",
+        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "@googletest//:gtest_main",
+    ],
+)

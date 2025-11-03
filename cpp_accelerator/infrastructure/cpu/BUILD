@@ -21,3 +21,18 @@ cc_library(
         "//cpp_accelerator/domain/interfaces/filters:filters",
     ],
 )
+
+cc_test(
+    name = "blur_filter_test",
+    srcs = ["blur_filter_test.cpp"],
+    data = [
+        "//data:static_images/lena.png",
+    ],
+    deps = [
+        ":blur_filter",
+        "//cpp_accelerator/domain/interfaces",
+        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "@googletest//:gtest_main",
+    ],
+)

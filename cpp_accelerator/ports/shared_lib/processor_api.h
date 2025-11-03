@@ -33,14 +33,14 @@ extern "C" {
 /**
  * Library version as a string in semantic versioning format (MAJOR.MINOR.PATCH)
  */
-#define PROCESSOR_API_VERSION "2.0.0"
+#define PROCESSOR_API_VERSION "2.1.0"
 
 /**
  * Library version as a single hex number: 0xMMNNPP
  * MM = major, NN = minor, PP = patch
  * Used for compile-time version checks
  */
-#define PROCESSOR_API_VERNUM 0x020000
+#define PROCESSOR_API_VERNUM 0x020100
 
 /**
  * @brief Version information structure

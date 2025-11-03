@@ -134,7 +134,7 @@ fi
 
 echo "Starting E2E tests..."
 echo "User: $USER_ID:$GROUP_ID"
-echo "Processor Library: 2.0.0"
+echo "Processor Library: 2.1.0"
 echo "System CPUs: $(nproc) cores"
 [ -n "$WORKERS" ] && echo "Workers: $WORKERS" || echo "Workers: 25 (default)"
 [ -n "$BROWSER" ] && echo "Browser: $BROWSER" || echo "Browsers: All (chromium, firefox, webkit)"

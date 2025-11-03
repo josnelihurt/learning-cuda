@@ -66,7 +66,18 @@ export class TestHelpers {
     const card = this.page.locator(`[data-source-number="${sourceNumber}"]`);
     const sourceNumberBadge = card.locator('.source-number');
     await sourceNumberBadge.click();
-    await this.page.waitForTimeout(100);
+    await this.page.waitForTimeout(150);
+    
+    await this.page.waitForFunction(
+      (num) => {
+        const grid = document.querySelector('video-grid') as any;
+        if (!grid) return false;
+        const selected = grid.getSelectedSource();
+        return selected && selected.number === num;
+      },
+      sourceNumber,
+      { timeout: 2000 }
+    );
   }
 
   async removeSource(sourceNumber: number): Promise<void> {
@@ -133,12 +144,17 @@ export class TestHelpers {
 
   async isFilterEnabled(filterId: string): Promise<boolean> {
     const filterPanel = this.page.locator('filter-panel');
-    return await filterPanel.locator(`[data-testid="filter-checkbox-${filterId}"]`).isChecked();
+    await filterPanel.waitFor({ state: 'visible', timeout: 2000 });
+    const checkbox = filterPanel.locator(`[data-testid="filter-checkbox-${filterId}"]`);
+    await checkbox.waitFor({ state: 'visible', timeout: 2000 });
+    return await checkbox.isChecked();
   }
 
   async getSelectedParameter(filterId: string, paramId: string): Promise<string | null> {
     const filterPanel = this.page.locator('filter-panel');
+    await filterPanel.waitFor({ state: 'visible', timeout: 2000 });
     const radios = filterPanel.locator(`input[name="${filterId}-${paramId}"]`);
+    await radios.first().waitFor({ state: 'attached', timeout: 2000 });
     const count = await radios.count();
     
     for (let i = 0; i < count; i++) {

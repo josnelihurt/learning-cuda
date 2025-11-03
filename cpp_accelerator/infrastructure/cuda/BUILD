@@ -27,12 +27,10 @@ cc_library(
     name = "cuda_wrappers",
     srcs = [
         "blur_processor_wrapper.cpp",
-        "grayscale_processor_wrapper.cpp",
         "simple_kernel_processor_wrapper.cpp",
     ],
     hdrs = [
         "blur_processor.h",
-        "grayscale_processor.h",
         "simple_kernel_processor.h",
     ],
     visibility = ["//visibility:public"],
@@ -71,21 +69,6 @@ cc_test(
     ],
 )
 
-cc_test(
-    name = "grayscale_processor_test",
-    srcs = ["grayscale_processor_test.cpp"],
-    data = [
-        "//data:static_images/lena.png",
-    ],
-    deps = [
-        ":cuda_wrappers",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces:processors",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
-        "@googletest//:gtest_main",
-    ],
-)
-
 cc_library(
     name = "grayscale_filter",
     srcs = ["grayscale_filter.cpp"],
@@ -93,7 +76,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":cuda_kernels",
-        ":cuda_wrappers",
         "//cpp_accelerator/core:telemetry",
         "//cpp_accelerator/domain/interfaces",
         "//cpp_accelerator/domain/interfaces/filters:filters",

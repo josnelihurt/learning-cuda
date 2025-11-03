@@ -22,6 +22,17 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "grayscale_filter",
+    srcs = ["grayscale_filter.cpp"],
+    hdrs = ["grayscale_filter.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cpp_accelerator/domain/interfaces",
+        "//cpp_accelerator/domain/interfaces/filters:filters",
+    ],
+)
+
 cc_test(
     name = "blur_filter_test",
     srcs = ["blur_filter_test.cpp"],

@@ -38,8 +38,7 @@ cc_library(
         ":command_interface",
         ":commands",
         "//cpp_accelerator/infrastructure/config",
-        "//cpp_accelerator/infrastructure/cpu:grayscale_processor",
-        "//cpp_accelerator/infrastructure/cuda:cuda_processors",
+        "//cpp_accelerator/infrastructure/cuda:cuda_wrappers",
         "//cpp_accelerator/infrastructure/image:image_adapters",
     ],
 )

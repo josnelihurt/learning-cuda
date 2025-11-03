@@ -1,6 +1,7 @@
 cc_library(
     name = "interfaces",
     hdrs = [
+        "grayscale_algorithm.h",
         "i_pixel_getter.h",
         "image_buffer.h",
         "image_sink.h",

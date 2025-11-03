@@ -1,10 +1,9 @@
 #pragma once
 
 #include "cpp_accelerator/domain/interfaces/filters/i_filter.h"
+#include "cpp_accelerator/infrastructure/cpu/grayscale_processor.h"
 
 namespace jrb::infrastructure::cpu {
-
-enum class GrayscaleAlgorithm { BT601, BT709, Average, Lightness, Luminosity };
 
 class GrayscaleFilter : public jrb::domain::interfaces::IFilter {
 public:

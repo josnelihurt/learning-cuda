@@ -7,8 +7,13 @@
 #include <string>
 
 #include "common.pb.h"
+#include "cpp_accelerator/application/pipeline/filter_pipeline.h"
 #include "cpp_accelerator/core/logger.h"
 #include "cpp_accelerator/core/telemetry.h"
+#include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
+#include "cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
+// TODO(migration): Remove these includes after creating CudaGrayscaleFilter and migrating to
+// FilterPipeline Steps: See TODO at line 24
 #include "cpp_accelerator/infrastructure/cpu/grayscale_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_processor.h"
 #include "image_buffer_adapter.h"
@@ -17,7 +22,14 @@
 
 namespace {
 
-// Singleton processor instances (initialized once at startup)
+// TODO(migration): Remove these singleton processor instances after implementing
+// CudaGrayscaleFilter. Migration plan:
+// 1. Create CudaGrayscaleFilter in cpp_accelerator/infrastructure/cuda/grayscale_filter.h
+// 2. Update processor_init() to remove GrayscaleProcessor initialization
+// 3. Update processor_process_image() to always use FilterPipeline (remove else branch at line 286)
+// 4. Update processor_cleanup() to remove processor cleanup
+// 5. Remove includes for grayscale_processor.h files
+// 6. Delete this TODO and the singleton instances below
 std::unique_ptr<jrb::infrastructure::cuda::GrayscaleProcessor> g_cuda_grayscale_processor;
 std::unique_ptr<jrb::infrastructure::cpu::CpuGrayscaleProcessor> g_cpu_grayscale_processor;
 
@@ -29,6 +41,9 @@ uint8_t* allocate_response(const std::string& serialized, int* out_len) {
   return buffer;
 }
 
+// TODO(migration): After creating CudaGrayscaleFilter, unify these conversion functions.
+// Both CPU and CUDA filters can share the same GrayscaleAlgorithm enum (move to domain/interfaces).
+// Then create a single proto_to_algorithm() function that returns the unified enum.
 // Convert protobuf GrayscaleType to CUDA algorithm
 jrb::infrastructure::cuda::GrayscaleAlgorithm proto_to_cuda_algorithm(
     cuda_learning::GrayscaleType type) {
@@ -64,6 +79,20 @@ jrb::infrastructure::cpu::GrayscaleAlgorithm proto_to_cpu_algorithm(
       return jrb::infrastructure::cpu::GrayscaleAlgorithm::Luminosity;
     default:
       return jrb::infrastructure::cpu::GrayscaleAlgorithm::BT601;
+  }
+}
+
+// Convert protobuf BorderMode to C++ BorderMode
+jrb::infrastructure::cpu::BorderMode proto_to_border_mode(cuda_learning::BorderMode mode) {
+  switch (mode) {
+    case cuda_learning::BORDER_MODE_CLAMP:
+      return jrb::infrastructure::cpu::BorderMode::CLAMP;
+    case cuda_learning::BORDER_MODE_REFLECT:
+      return jrb::infrastructure::cpu::BorderMode::REFLECT;
+    case cuda_learning::BORDER_MODE_WRAP:
+      return jrb::infrastructure::cpu::BorderMode::WRAP;
+    default:
+      return jrb::infrastructure::cpu::BorderMode::REFLECT;
   }
 }
 
@@ -114,7 +143,9 @@ bool processor_init(const uint8_t* request, int request_len, uint8_t** response,
     auto& telemetry = jrb::core::telemetry::TelemetryManager::GetInstance();
     telemetry.Initialize("cuda-image-processor-cpp", "localhost:4317", true);
 
-    // Create singleton processor instances (GPU and CPU)
+    // TODO(migration): Remove GrayscaleProcessor initialization. After implementing
+    // CudaGrayscaleFilter, this initialization should be removed. FilterPipeline will create
+    // filters on-demand. See migration plan at line 24
     g_cuda_grayscale_processor = std::make_unique<jrb::infrastructure::cuda::GrayscaleProcessor>();
     g_cpu_grayscale_processor = std::make_unique<jrb::infrastructure::cpu::CpuGrayscaleProcessor>();
 
@@ -135,6 +166,8 @@ bool processor_init(const uint8_t* request, int request_len, uint8_t** response,
 
 void processor_cleanup() {
   spdlog::info("Cleaning up CUDA context, CPU processors, and telemetry");
+  // TODO(migration): Remove GrayscaleProcessor cleanup after removing singletons.
+  // See migration plan at line 24
   g_cuda_grayscale_processor.reset();
   g_cpu_grayscale_processor.reset();
 
@@ -163,7 +196,9 @@ bool processor_process_image(const uint8_t* request, int request_len, uint8_t** 
                                 static_cast<uint8_t>(proc_req.trace_flags()));
   jrb::core::telemetry::ScopedSpan scoped_span(span);
 
-  // Check if processors are initialized
+  // TODO(migration): Remove this check after removing GrayscaleProcessor singletons.
+  // FilterPipeline creates filters on-demand, so no initialization check needed.
+  // See migration plan at line 24
   if (!g_cuda_grayscale_processor || !g_cpu_grayscale_processor) {
     spdlog::error("Processors not initialized. Call CudaInit first");
     proc_resp.set_code(3);
@@ -197,6 +232,14 @@ bool processor_process_image(const uint8_t* request, int request_len, uint8_t** 
   scoped_span.SetAttribute("filters_count", static_cast<int64_t>(proc_req.filters_size()));
 
   try {
+    bool has_blur_filter = false;
+    for (int i = 0; i < proc_req.filters_size(); i++) {
+      if (proc_req.filters(i) == cuda_learning::FILTER_TYPE_BLUR) {
+        has_blur_filter = true;
+        break;
+      }
+    }
+
     jrb::ports::cgo::ImageBufferSource source(
         reinterpret_cast<const uint8_t*>(proc_req.image_data().data()), proc_req.width(),
         proc_req.height(), proc_req.channels());
@@ -204,36 +247,116 @@ bool processor_process_image(const uint8_t* request, int request_len, uint8_t** 
     jrb::ports::cgo::ImageBufferSink sink;
     bool success = false;
 
-    for (int i = 0; i < proc_req.filters_size(); i++) {
-      cuda_learning::FilterType filter = proc_req.filters(i);
+    // TODO(migration): Remove the conditional check. Always use FilterPipeline after migration.
+    // Steps:
+    // 1. Remove "if (has_blur_filter || proc_req.filters_size() > 1)" condition
+    // 2. Remove the entire else branch (lines 286-319)
+    // 3. Always create FilterPipeline and add filters based on accelerator type
+    // 4. For CUDA accelerator, use CudaGrayscaleFilter instead of CpuGrayscaleFilter
+    // 5. Update proto_to_cuda_algorithm and proto_to_cpu_algorithm to proto_to_algorithm (unified)
+    if (has_blur_filter || proc_req.filters_size() > 1) {
+      scoped_span.AddEvent("Using FilterPipeline for multi-filter processing");
+      jrb::application::pipeline::FilterPipeline pipeline;
+      using jrb::domain::interfaces::ImageBuffer;
+      using jrb::domain::interfaces::ImageBufferMut;
 
-      if (filter == cuda_learning::FILTER_TYPE_NONE) {
-        continue;
+      for (int i = 0; i < proc_req.filters_size(); i++) {
+        cuda_learning::FilterType filter = proc_req.filters(i);
+
+        if (filter == cuda_learning::FILTER_TYPE_NONE) {
+          continue;
+        }
+
+        // TODO(migration): Use CudaGrayscaleFilter when accelerator == ACCELERATOR_TYPE_CUDA
+        // Currently only CPU filter exists. After creating CudaGrayscaleFilter, add:
+        // if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
+        //   pipeline.AddFilter(std::make_unique<jrb::infrastructure::cuda::GrayscaleFilter>(
+        //       proto_to_algorithm(grayscale_type)));
+        // } else {
+        //   pipeline.AddFilter(std::make_unique<jrb::infrastructure::cpu::GrayscaleFilter>(
+        //       proto_to_algorithm(grayscale_type)));
+        // }
+        if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
+          pipeline.AddFilter(std::make_unique<jrb::infrastructure::cpu::GrayscaleFilter>(
+              proto_to_cpu_algorithm(grayscale_type)));
+          scoped_span.AddEvent("Added grayscale filter to pipeline");
+        } else if (filter == cuda_learning::FILTER_TYPE_BLUR) {
+          int kernel_size = 5;
+          float sigma = 1.0F;
+          jrb::infrastructure::cpu::BorderMode border_mode =
+              jrb::infrastructure::cpu::BorderMode::REFLECT;
+          bool separable = true;
+
+          if (proc_req.has_blur_params()) {
+            const auto& blur_params = proc_req.blur_params();
+            kernel_size = blur_params.kernel_size() > 0 ? blur_params.kernel_size() : 5;
+            sigma = blur_params.sigma() > 0.0F ? blur_params.sigma() : 1.0F;
+            border_mode = proto_to_border_mode(blur_params.border_mode());
+            separable = blur_params.separable();
+          }
+
+          pipeline.AddFilter(std::make_unique<jrb::infrastructure::cpu::GaussianBlurFilter>(
+              kernel_size, sigma, border_mode, separable));
+          scoped_span.AddEvent("Added blur filter to pipeline");
+        }
       }
 
-      if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
-        if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
-          scoped_span.AddEvent("Starting CUDA grayscale processing");
-          g_cuda_grayscale_processor->set_algorithm(proto_to_cuda_algorithm(grayscale_type));
-          success = g_cuda_grayscale_processor->process(source, sink, "");
-          scoped_span.AddEvent("CUDA grayscale processing completed");
-        } else {
-          scoped_span.AddEvent("Starting CPU grayscale processing");
-          g_cpu_grayscale_processor->set_algorithm(proto_to_cpu_algorithm(grayscale_type));
-          success = g_cpu_grayscale_processor->process(source, sink, "");
-          scoped_span.AddEvent("CPU grayscale processing completed");
+      ImageBuffer input_buffer(source.data(), source.width(), source.height(), source.channels());
+      std::vector<unsigned char> output_data(source.width() * source.height());
+      ImageBufferMut output_buffer(output_data.data(), source.width(), source.height(), 1);
+
+      success = pipeline.Apply(input_buffer, output_buffer);
+
+      if (!success) {
+        spdlog::error("Filter pipeline processing failed");
+        scoped_span.RecordError("Filter pipeline processing failed");
+        proc_resp.set_code(7);
+        proc_resp.set_message("Filter pipeline processing failed");
+        *response = allocate_response(proc_resp.SerializeAsString(), response_len);
+        return false;
+      }
+
+      sink.write("", output_data.data(), source.width(), source.height(), 1);
+    } else {
+      // TODO(migration): DELETE THIS ENTIRE ELSE BRANCH (lines 286-319).
+      // After implementing CudaGrayscaleFilter, remove this branch and always use FilterPipeline.
+      // This legacy code path uses GrayscaleProcessor directly and should be eliminated.
+      // Migration steps:
+      // 1. Remove the conditional check "if (has_blur_filter || proc_req.filters_size() > 1)"
+      // 2. Always create FilterPipeline
+      // 3. Add filters based on accelerator type (CudaGrayscaleFilter or CpuGrayscaleFilter)
+      // See migration plan at line 24
+      for (int i = 0; i < proc_req.filters_size(); i++) {
+        cuda_learning::FilterType filter = proc_req.filters(i);
+
+        if (filter == cuda_learning::FILTER_TYPE_NONE) {
+          continue;
         }
 
-        if (!success) {
-          spdlog::error("Grayscale filter processing failed");
-          scoped_span.RecordError("Grayscale filter processing failed");
-          proc_resp.set_code(5);
-          proc_resp.set_message("Grayscale filter processing failed");
-          *response = allocate_response(proc_resp.SerializeAsString(), response_len);
-          return false;
+        if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
+          if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
+            scoped_span.AddEvent("Starting CUDA grayscale processing");
+            g_cuda_grayscale_processor->set_algorithm(proto_to_cuda_algorithm(grayscale_type));
+            success = g_cuda_grayscale_processor->process(source, sink, "");
+            scoped_span.AddEvent("CUDA grayscale processing completed");
+          } else {
+            scoped_span.AddEvent("Starting CPU grayscale processing");
+            g_cpu_grayscale_processor->set_algorithm(proto_to_cpu_algorithm(grayscale_type));
+            success = g_cpu_grayscale_processor->process(source, sink, "");
+            scoped_span.AddEvent("CPU grayscale processing completed");
+          }
+
+          if (!success) {
+            spdlog::error("Grayscale filter processing failed");
+            scoped_span.RecordError("Grayscale filter processing failed");
+            proc_resp.set_code(5);
+            proc_resp.set_message("Grayscale filter processing failed");
+            *response = allocate_response(proc_resp.SerializeAsString(), response_len);
+            return false;
+          }
+        } else {
+          spdlog::warn("Unsupported filter type: {}", filter);
         }
-      } else {
-        spdlog::warn("Unsupported filter type: {}", filter);
       }
     }
 

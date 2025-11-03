@@ -5,10 +5,12 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 cuda_library(
     name = "cuda_kernels",
     srcs = [
+        "blur_kernel.cu",
         "grayscale_kernel.cu",
         "simple_kernel_pure.cu",
     ],
     hdrs = [
+        "blur_kernel.h",
         "grayscale_kernel.h",
         "simple_kernel_pure.h",
     ],
@@ -24,10 +26,12 @@ cuda_library(
 cc_library(
     name = "cuda_wrappers",
     srcs = [
+        "blur_processor_wrapper.cpp",
         "grayscale_processor_wrapper.cpp",
         "simple_kernel_processor_wrapper.cpp",
     ],
     hdrs = [
+        "blur_processor.h",
         "grayscale_processor.h",
         "simple_kernel_processor.h",
     ],
@@ -37,6 +41,7 @@ cc_library(
         "//cpp_accelerator/core:telemetry",
         "//cpp_accelerator/domain/interfaces",
         "//cpp_accelerator/domain/interfaces:processors",
+        "//cpp_accelerator/domain/interfaces/filters:filters",
         "@spdlog",
     ],
 )

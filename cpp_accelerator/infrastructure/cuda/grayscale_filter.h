@@ -1,9 +1,11 @@
 #pragma once
 
 #include "cpp_accelerator/domain/interfaces/filters/i_filter.h"
-#include "cpp_accelerator/infrastructure/cuda/grayscale_processor.h"
+#include "cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
 
 namespace jrb::infrastructure::cuda {
+
+using jrb::domain::interfaces::GrayscaleAlgorithm;
 
 class GrayscaleFilter : public jrb::domain::interfaces::IFilter {
 public:

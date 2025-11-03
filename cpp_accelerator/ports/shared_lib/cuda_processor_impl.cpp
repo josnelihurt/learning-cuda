@@ -274,8 +274,16 @@ bool processor_get_capabilities(const uint8_t* request, int request_len, uint8_t
   resp.set_message("OK");
 
   auto* caps = resp.mutable_capabilities();
-  caps->set_api_version("2.0.0");
-  caps->set_library_version("2.0.0");
+  caps->set_api_version(PROCESSOR_API_VERSION);
+  char version_buf[64];
+  std::string library_version;
+  if (processor_get_library_version(version_buf, sizeof(version_buf))) {
+    library_version = version_buf;
+  }
+  if (library_version.empty()) {
+    library_version = PROCESSOR_API_VERSION;
+  }
+  caps->set_library_version(library_version);
   caps->set_supports_streaming(false);
   caps->set_build_date(__DATE__);
 #ifdef BUILD_COMMIT
@@ -335,8 +343,8 @@ bool processor_get_library_version(char* version_buf, int buf_len) {
   }
 
   if (!found) {
-    version = "2.0.1";
-    spdlog::warn("VERSION file not found, using default version: {}", version);
+    version = PROCESSOR_API_VERSION;
+    spdlog::warn("VERSION file not found, using API version as fallback: {}", version);
   }
 
   size_t copy_len = version.size();

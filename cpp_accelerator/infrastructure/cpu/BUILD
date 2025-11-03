@@ -47,3 +47,18 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "grayscale_processor_test",
+    srcs = ["grayscale_processor_test.cpp"],
+    data = [
+        "//data:static_images/lena.png",
+    ],
+    deps = [
+        ":grayscale_processor",
+        "//cpp_accelerator/domain/interfaces",
+        "//cpp_accelerator/domain/interfaces:processors",
+        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "@googletest//:gtest_main",
+    ],
+)

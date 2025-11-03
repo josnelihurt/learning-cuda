@@ -3,6 +3,14 @@
 #include "cpp_accelerator/application/commands/cpu_image_filters_command.h"
 #include "cpp_accelerator/application/commands/cuda_image_filters_command.h"
 #include "cpp_accelerator/application/commands/passthrough_command.h"
+// TODO(migration): DECIDE: Keep GrayscaleProcessor for internal commands OR migrate to FilterPipeline.
+// This is the only remaining use case for GrayscaleProcessor (internal CLI commands).
+// Options:
+// A) Keep processors here for simplicity (internal CLI doesn't need pipeline complexity)
+// B) Migrate to FilterPipeline for consistency across entire codebase
+// See migration TODOs in:
+// - cpp_accelerator/ports/shared_lib/cuda_processor_impl.cpp (line 24)
+// - cpp_accelerator/infrastructure/cpu/grayscale_processor.h
 #include "cpp_accelerator/infrastructure/cpu/grayscale_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/simple_kernel_processor.h"

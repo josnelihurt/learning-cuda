@@ -67,6 +67,7 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 	}
 
 	var protoFilters []pb.FilterType
+	var blurParams *pb.GaussianBlurParameters
 	for _, filter := range filters {
 		switch filter {
 		case domain.FilterNone:
@@ -74,7 +75,15 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		case domain.FilterGrayscale:
 			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_GRAYSCALE)
 		case domain.FilterBlur:
-			return nil, fmt.Errorf("blur filter not yet implemented in Go integration")
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_BLUR)
+			if blurParams == nil {
+				blurParams = &pb.GaussianBlurParameters{
+					KernelSize: 5,
+					Sigma:      1.0,
+					BorderMode: pb.BorderMode_BORDER_MODE_REFLECT,
+					Separable:  true,
+				}
+			}
 		default:
 			return nil, fmt.Errorf("unsupported filter type: %s", filter)
 		}
@@ -131,6 +140,9 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		TraceId:       traceID,
 		SpanId:        spanID,
 		TraceFlags:    traceFlags,
+	}
+	if blurParams != nil {
+		procReq.BlurParams = blurParams
 	}
 
 	span.AddEvent("Dynamic library call started")

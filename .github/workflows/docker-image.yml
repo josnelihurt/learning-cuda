@@ -49,8 +49,8 @@ jobs:
 
   build-arm64:
     runs-on: ubuntu-latest
-    # To enable ARM64 on push to main, change false to true in the condition below
-    if: github.event.inputs.build_arm64 == 'true' || (github.ref == 'refs/heads/main' && false)
+    # ARM64 builds enabled on push to main, PRs to main, and via workflow_dispatch
+    if: github.event.inputs.build_arm64 == 'true' || github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.base_ref == 'main')
     permissions:
       contents: read
       packages: write

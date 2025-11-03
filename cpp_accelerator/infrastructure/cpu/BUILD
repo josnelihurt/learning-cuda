@@ -30,6 +30,7 @@ cc_library(
     deps = [
         "//cpp_accelerator/domain/interfaces",
         "//cpp_accelerator/domain/interfaces/filters:filters",
+        ":grayscale_processor",
     ],
 )
 

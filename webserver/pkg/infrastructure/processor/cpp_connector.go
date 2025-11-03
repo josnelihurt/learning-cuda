@@ -74,7 +74,7 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		case domain.FilterGrayscale:
 			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_GRAYSCALE)
 		case domain.FilterBlur:
-			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_BLUR)
+			return nil, fmt.Errorf("blur filter not yet implemented in Go integration")
 		default:
 			return nil, fmt.Errorf("unsupported filter type: %s", filter)
 		}

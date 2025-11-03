@@ -33,3 +33,12 @@ cc_test(
         "@spdlog",
     ],
 )
+
+cc_test(
+    name = "result_test",
+    srcs = ["result_test.cpp"],
+    deps = [
+        ":result",
+        "@googletest//:gtest_main",
+    ],
+)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,8 +16,8 @@ type mockImageProcessor struct {
 	mock.Mock
 }
 
-func (m *mockImageProcessor) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
-	args := m.Called(ctx, img, filters, accelerator, grayscaleType)
+func (m *mockImageProcessor) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *gen.GaussianBlurParameters) (*domain.Image, error) {
+	args := m.Called(ctx, img, filters, accelerator, grayscaleType, blurParams)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -168,13 +169,14 @@ func TestProcessImageUseCase_Execute(t *testing.T) {
 				tt.filters,
 				tt.accelerator,
 				tt.grayscaleType,
+				mock.Anything, // blurParams
 			).Return(tt.mockResult, tt.mockError).Once()
 
 			sut := NewProcessImageUseCase(mockProc)
 			ctx := context.Background()
 
 			// Act
-			result, err := sut.Execute(ctx, tt.inputImage, tt.filters, tt.accelerator, tt.grayscaleType)
+			result, err := sut.Execute(ctx, tt.inputImage, tt.filters, tt.accelerator, tt.grayscaleType, nil)
 
 			// Assert
 			tt.assertResult(t, result, err)
@@ -196,12 +198,13 @@ func TestProcessImageUseCase_Execute_ContextCancellation(t *testing.T) {
 		[]domain.FilterType{domain.FilterGrayscale},
 		domain.AcceleratorCPU,
 		domain.GrayscaleAverage,
+		mock.Anything, // blurParams
 	).Return(nil, ctx.Err()).Once()
 
 	sut := NewProcessImageUseCase(mockProc)
 
 	// Act
-	result, err := sut.Execute(ctx, img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorCPU, domain.GrayscaleAverage)
+	result, err := sut.Execute(ctx, img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorCPU, domain.GrayscaleAverage, nil)
 
 	// Assert
 	assert.Error(t, err, "expected error from canceled context")

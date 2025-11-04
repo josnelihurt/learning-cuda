@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -23,7 +24,7 @@ func NewProcessImageUseCase(processor domain.ImageProcessor) *ProcessImageUseCas
 }
 
 // Execute processes an image with the specified filters, accelerator, and grayscale type
-func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
+func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *gen.GaussianBlurParameters) (*domain.Image, error) {
 	tracer := otel.Tracer("process-image-use-case")
 	ctx, span := tracer.Start(ctx, "ProcessImageUseCase.Execute",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -45,7 +46,16 @@ func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, f
 	}
 	span.SetAttributes(attribute.StringSlice("filters", filterNames))
 
-	result, err := uc.processor.ProcessImage(ctx, img, filters, accelerator, grayscaleType)
+	if blurParams != nil {
+		span.SetAttributes(
+			attribute.Int("blur.kernel_size", int(blurParams.KernelSize)),
+			attribute.Float64("blur.sigma", float64(blurParams.Sigma)),
+			attribute.String("blur.border_mode", blurParams.BorderMode.String()),
+			attribute.Bool("blur.separable", blurParams.Separable),
+		)
+	}
+
+	result, err := uc.processor.ProcessImage(ctx, img, filters, accelerator, grayscaleType, blurParams)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to process image: %w", err)

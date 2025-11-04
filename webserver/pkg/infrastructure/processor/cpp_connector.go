@@ -50,7 +50,7 @@ func New(libraryPath string) (*CppConnector, error) {
 }
 
 //nolint:gocyclo // Complex processing logic that needs to handle multiple filter types
-func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType) (*domain.Image, error) {
+func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *pb.GaussianBlurParameters) (*domain.Image, error) {
 	tracer := otel.Tracer("cpp-connector")
 	ctx, span := tracer.Start(ctx, "CppConnector.ProcessImage",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -67,7 +67,9 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 	}
 
 	var protoFilters []pb.FilterType
-	var blurParams *pb.GaussianBlurParameters
+	var finalBlurParams *pb.GaussianBlurParameters
+
+	hasBlur := false
 	for _, filter := range filters {
 		switch filter {
 		case domain.FilterNone:
@@ -76,16 +78,23 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_GRAYSCALE)
 		case domain.FilterBlur:
 			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_BLUR)
-			if blurParams == nil {
-				blurParams = &pb.GaussianBlurParameters{
-					KernelSize: 5,
-					Sigma:      1.0,
-					BorderMode: pb.BorderMode_BORDER_MODE_REFLECT,
-					Separable:  true,
-				}
-			}
+			hasBlur = true
 		default:
 			return nil, fmt.Errorf("unsupported filter type: %s", filter)
+		}
+	}
+
+	// Use provided blurParams if available, otherwise use defaults
+	if hasBlur {
+		if blurParams != nil {
+			finalBlurParams = blurParams
+		} else {
+			finalBlurParams = &pb.GaussianBlurParameters{
+				KernelSize: 5,
+				Sigma:      1.0,
+				BorderMode: pb.BorderMode_BORDER_MODE_REFLECT,
+				Separable:  true,
+			}
 		}
 	}
 
@@ -141,8 +150,8 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		SpanId:        spanID,
 		TraceFlags:    traceFlags,
 	}
-	if blurParams != nil {
-		procReq.BlurParams = blurParams
+	if finalBlurParams != nil {
+		procReq.BlurParams = finalBlurParams
 	}
 
 	span.AddEvent("Dynamic library call started")

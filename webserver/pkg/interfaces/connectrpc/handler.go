@@ -32,8 +32,9 @@ func (h *ImageProcessorHandler) ProcessImage(
 	accelerator := h.adapter.ToAccelerator(msg.Accelerator)
 	grayscaleType := h.adapter.ToGrayscaleType(msg.GrayscaleType)
 	domainImg := h.adapter.ToDomainImage(msg)
+	blurParams := msg.BlurParams
 
-	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType)
+	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

@@ -301,14 +301,6 @@ bool GetCapabilities(const uint8_t* request, int request_len, uint8_t** response
   auto* caps = resp.mutable_capabilities();
   caps->set_api_version("1.0.0");
   caps->set_library_version("1.0.0");
-  caps->add_supported_filters("grayscale");
-  caps->add_supported_accelerators("gpu");
-  caps->add_supported_accelerators("cpu");
-  caps->add_supported_algorithms("bt601");
-  caps->add_supported_algorithms("bt709");
-  caps->add_supported_algorithms("average");
-  caps->add_supported_algorithms("lightness");
-  caps->add_supported_algorithms("luminosity");
   caps->set_supports_streaming(false);
   caps->set_build_date(__DATE__);
 #ifdef BUILD_COMMIT
@@ -316,6 +308,56 @@ bool GetCapabilities(const uint8_t* request, int request_len, uint8_t** response
 #else
   caps->set_build_commit("unknown");
 #endif
+
+  auto* grayscale_filter = caps->add_filters();
+  grayscale_filter->set_id("grayscale");
+  grayscale_filter->set_name("Grayscale");
+  grayscale_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CUDA);
+  grayscale_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CPU);
+
+  auto* algorithm_param = grayscale_filter->add_parameters();
+  algorithm_param->set_id("algorithm");
+  algorithm_param->set_name("Algorithm");
+  algorithm_param->set_type("select");
+  algorithm_param->add_options("bt601");
+  algorithm_param->add_options("bt709");
+  algorithm_param->add_options("average");
+  algorithm_param->add_options("lightness");
+  algorithm_param->add_options("luminosity");
+  algorithm_param->set_default_value("bt601");
+
+  auto* blur_filter = caps->add_filters();
+  blur_filter->set_id("blur");
+  blur_filter->set_name("Gaussian Blur");
+  blur_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CUDA);
+  blur_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CPU);
+
+  auto* kernel_size_param = blur_filter->add_parameters();
+  kernel_size_param->set_id("kernel_size");
+  kernel_size_param->set_name("Kernel Size");
+  kernel_size_param->set_type("range");
+  kernel_size_param->set_default_value("5");
+
+  auto* sigma_param = blur_filter->add_parameters();
+  sigma_param->set_id("sigma");
+  sigma_param->set_name("Sigma");
+  sigma_param->set_type("number");
+  sigma_param->set_default_value("1.0");
+
+  auto* border_mode_param = blur_filter->add_parameters();
+  border_mode_param->set_id("border_mode");
+  border_mode_param->set_name("Border Mode");
+  border_mode_param->set_type("select");
+  border_mode_param->add_options("CLAMP");
+  border_mode_param->add_options("REFLECT");
+  border_mode_param->add_options("WRAP");
+  border_mode_param->set_default_value("REFLECT");
+
+  auto* separable_param = blur_filter->add_parameters();
+  separable_param->set_id("separable");
+  separable_param->set_name("Separable");
+  separable_param->set_type("checkbox");
+  separable_param->set_default_value("true");
 
   *response = allocate_response(resp.SerializeAsString(), response_len);
   return true;

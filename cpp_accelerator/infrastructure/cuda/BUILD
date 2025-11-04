@@ -7,12 +7,10 @@ cuda_library(
     srcs = [
         "blur_kernel.cu",
         "grayscale_kernel.cu",
-        "simple_kernel_pure.cu",
     ],
     hdrs = [
         "blur_kernel.h",
         "grayscale_kernel.h",
-        "simple_kernel_pure.h",
     ],
     copts = [
         "--expt-relaxed-constexpr",
@@ -27,11 +25,9 @@ cc_library(
     name = "cuda_wrappers",
     srcs = [
         "blur_processor_wrapper.cpp",
-        "simple_kernel_processor_wrapper.cpp",
     ],
     hdrs = [
         "blur_processor.h",
-        "simple_kernel_processor.h",
     ],
     visibility = ["//visibility:public"],
     deps = [

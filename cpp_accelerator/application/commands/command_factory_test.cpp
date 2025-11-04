@@ -11,106 +11,44 @@ protected:
 };
 
 TEST_F(CommandFactoryTest, FactoryIsConstructed) {
-  // Arrange & Act & Assert
   EXPECT_NO_THROW(CommandFactory factory);
 }
 
-TEST_F(CommandFactoryTest, SimpleTypeIsRegistered) {
-  // Arrange
+TEST_F(CommandFactoryTest, PassthroughTypeIsNotRegistered) {
   auto program_type = infrastructure::config::models::ProgramType::Passthrough;
-
-  // Act
   bool is_registered = uut.is_registered(program_type);
-
-  // Assert
-  EXPECT_TRUE(is_registered);
-}
-
-TEST_F(CommandFactoryTest, GrayscaleTypeIsRegistered) {
-  // Arrange
-  auto program_type = infrastructure::config::models::ProgramType::CudaImageFilters;
-
-  // Act
-  bool is_registered = uut.is_registered(program_type);
-
-  // Assert
-  // TODO: Re-enable after migrating CudaImageFilters command to FilterPipeline
   EXPECT_FALSE(is_registered);
 }
 
-TEST_F(CommandFactoryTest, CreateSimpleCommand) {
-  // Arrange
+TEST_F(CommandFactoryTest, CudaImageFiltersTypeIsNotRegistered) {
+  auto program_type = infrastructure::config::models::ProgramType::CudaImageFilters;
+  bool is_registered = uut.is_registered(program_type);
+  EXPECT_FALSE(is_registered);
+}
+
+TEST_F(CommandFactoryTest, CpuImageFiltersTypeIsNotRegistered) {
+  auto program_type = infrastructure::config::models::ProgramType::CpuImageFilters;
+  bool is_registered = uut.is_registered(program_type);
+  EXPECT_FALSE(is_registered);
+}
+
+TEST_F(CommandFactoryTest, CreatePassthroughCommandReturnsNull) {
   infrastructure::config::models::ProgramConfig config{
       .input_image_path = "data/static_images/lena.png",
       .output_image_path = "data/output.png",
       .program_type = infrastructure::config::models::ProgramType::Passthrough};
 
-  // Act
   auto command = uut.create(config.program_type, config);
-
-  // Assert
-  ASSERT_NE(command, nullptr);
-  EXPECT_NO_THROW(command->execute());
+  ASSERT_EQ(command, nullptr);
 }
 
-TEST_F(CommandFactoryTest, CreateGrayscaleCommand) {
-  // Arrange
+TEST_F(CommandFactoryTest, CreateCudaImageFiltersCommandReturnsNull) {
   infrastructure::config::models::ProgramConfig config{
       .input_image_path = "data/static_images/lena.png",
       .output_image_path = "/tmp/test_grayscale_output.png",
       .program_type = infrastructure::config::models::ProgramType::CudaImageFilters};
 
-  // Act
   auto command = uut.create(config.program_type, config);
-
-  // Assert
-  // TODO: Re-enable after migrating CudaImageFilters command to FilterPipeline
-  ASSERT_EQ(command, nullptr);
-}
-
-TEST_F(CommandFactoryTest, CreateCommandUsesConfig) {
-  // Arrange
-  infrastructure::config::models::ProgramConfig config{
-      .input_image_path = "data/static_images/lena.png",
-      .output_image_path = "/tmp/custom_output.png",
-      .program_type = infrastructure::config::models::ProgramType::CudaImageFilters};
-
-  // Act
-  auto command = uut.create(config.program_type, config);
-
-  // Assert
-  // TODO: Re-enable after migrating CudaImageFilters command to FilterPipeline
-  ASSERT_EQ(command, nullptr);
-}
-
-TEST_F(CommandFactoryTest, CreateWithSimpleTypeReturnsValidCommand) {
-  // Arrange
-  infrastructure::config::models::ProgramConfig config{
-      .input_image_path = "",
-      .output_image_path = "",
-      .program_type = infrastructure::config::models::ProgramType::Passthrough};
-
-  // Act
-  auto command = uut.create(infrastructure::config::models::ProgramType::Passthrough, config);
-
-  // Assert
-  ASSERT_NE(command, nullptr);
-  auto result = command->execute();
-  EXPECT_TRUE(result.success);
-}
-
-TEST_F(CommandFactoryTest, CreateWithGrayscaleTypeReturnsValidCommand) {
-  // Arrange
-  infrastructure::config::models::ProgramConfig config{
-      .input_image_path = "data/static_images/lena.png",
-      .output_image_path = "/tmp/factory_test_output.png",
-      .program_type = infrastructure::config::models::ProgramType::CudaImageFilters};
-
-  // Act
-  auto command = uut.create(infrastructure::config::models::ProgramType::CudaImageFilters, config);
-
-  // Assert
-  // TODO: Re-enable after migrating CudaImageFilters command to FilterPipeline
   ASSERT_EQ(command, nullptr);
 }
 

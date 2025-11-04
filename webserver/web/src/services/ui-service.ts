@@ -157,6 +157,7 @@ export class UIService implements IUIService {
     const filters = this.filterManager.getSelectedFilters();
     const filterParam = filters.includes('grayscale') ? 'grayscale' : 'none';
     const grayscaleType = this.filterManager.getGrayscaleType();
+    const blurParams = this.filterManager.getBlurParams();
 
     this.heroImage.classList.add('loading');
 
@@ -197,7 +198,8 @@ export class UIService implements IUIService {
             canvas.height,
             filters,
             this.selectedAccelerator,
-            grayscaleType
+            grayscaleType,
+            blurParams
           );
 
           span?.addEvent('Updating browser history');

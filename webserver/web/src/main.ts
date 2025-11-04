@@ -95,18 +95,20 @@ const app = {
     }
 
     if (this.filterManager) {
-      this.filterManager.addEventListener('filter-change', () => {
+      this.filterManager.addEventListener('filter-change', ((e: CustomEvent) => {
         if (this.videoGrid) {
           const filters = this.filterManager.getSelectedFilters();
           const grayscaleType = this.filterManager.getGrayscaleType();
+          const blurParams = e.detail?.blurParams;
           this.videoGrid.applyFilterToSelected(
             filters,
             this.selectedAccelerator,
             grayscaleType,
-            this.selectedResolution
+            this.selectedResolution,
+            blurParams
           );
         }
-      });
+      }) as EventListener);
     }
 
     const resolutionSelect = document.getElementById('resolutionSelect') as HTMLSelectElement;
@@ -116,11 +118,13 @@ const app = {
         if (this.videoGrid && this.filterManager) {
           const filters = this.filterManager.getSelectedFilters();
           const grayscaleType = this.filterManager.getGrayscaleType();
+          const blurParams = this.filterManager.getBlurParams();
           this.videoGrid.applyFilterToSelected(
             filters,
             this.selectedAccelerator,
             grayscaleType,
-            this.selectedResolution
+            this.selectedResolution,
+            blurParams
           );
         }
       });
@@ -133,7 +137,8 @@ const app = {
         if (this.filterManager && e.detail.filters !== undefined) {
           const filters = e.detail.filters.length > 0 ? e.detail.filters : [];
           const grayscaleType = e.detail.grayscaleType || 'bt601';
-          this.filterManager.setFilters(filters, grayscaleType);
+          const blurParams = e.detail.blurParams;
+          this.filterManager.setFilters(filters, grayscaleType, blurParams);
         }
 
         const resolutionSelect = document.getElementById('resolutionSelect') as HTMLSelectElement;
@@ -230,7 +235,8 @@ const app = {
   if (app.videoGrid && app.filterManager) {
     const filters = app.filterManager.getSelectedFilters();
     const grayscaleType = app.filterManager.getGrayscaleType();
-    app.videoGrid.applyFilterToSelected(filters, type, grayscaleType, app.selectedResolution);
+    const blurParams = app.filterManager.getBlurParams();
+    app.videoGrid.applyFilterToSelected(filters, type, grayscaleType, app.selectedResolution, blurParams);
   }
 };
 

@@ -12,6 +12,11 @@ func (tc *TestContext) iCallProcessImageWith(filter, accelerator, grayscaleType 
 	return tc.WhenICallProcessImageWith(filter, accelerator, grayscaleType)
 }
 
+func (tc *TestContext) iCallProcessImageWithBlurFilter(accelerator string, kernelSize int, sigma float64, borderMode string, separableStr string) error {
+	separable := separableStr == "true"
+	return tc.WhenICallProcessImageWithBlurFilter(accelerator, kernelSize, sigma, borderMode, separable)
+}
+
 func (tc *TestContext) iCallProcessImageWithInvalidData(errorType string) error {
 	return tc.WhenICallProcessImageWithInvalidData(errorType)
 }
@@ -26,6 +31,11 @@ func (tc *TestContext) iConnectToWebSocket(transportFormat string) error {
 
 func (tc *TestContext) iSendWebSocketFrame(filter, accelerator, grayscaleType string) error {
 	return tc.WhenISendWebSocketFrame(filter, accelerator, grayscaleType)
+}
+
+func (tc *TestContext) iSendWebSocketFrameWithBlurFilter(accelerator string, kernelSize int, sigma float64, borderMode string, separableStr string) error {
+	separable := separableStr == "true"
+	return tc.WhenISendWebSocketFrameWithBlurFilter(accelerator, kernelSize, sigma, borderMode, separable)
 }
 
 func (tc *TestContext) iSendInvalidWebSocketFrame(errorType string) error {
@@ -64,10 +74,12 @@ func (tc *TestContext) closeWebSocketConnection() error {
 func InitializeImageSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I have image "([^"]*)"$`, tc.iHaveImage)
 	ctx.Step(`^I call ProcessImage with filter "([^"]*)", accelerator "([^"]*)", grayscale type "([^"]*)"$`, tc.iCallProcessImageWith)
+	ctx.Step(`^I call ProcessImage with blur filter, accelerator "([^"]*)", kernel size (\d+), sigma ([\d.]+), border mode "([^"]*)", separable (true|false)$`, tc.iCallProcessImageWithBlurFilter)
 	ctx.Step(`^I call ProcessImage with invalid data "([^"]*)"$`, tc.iCallProcessImageWithInvalidData)
 	ctx.Step(`^I call StreamProcessVideo$`, tc.iCallStreamProcessVideo)
 	ctx.Step(`^I connect to WebSocket with transport format "([^"]*)"$`, tc.iConnectToWebSocket)
 	ctx.Step(`^I send WebSocket frame with filter "([^"]*)", accelerator "([^"]*)", grayscale type "([^"]*)"$`, tc.iSendWebSocketFrame)
+	ctx.Step(`^I send WebSocket frame with blur filter, accelerator "([^"]*)", kernel size (\d+), sigma ([\d.]+), border mode "([^"]*)", separable (true|false)$`, tc.iSendWebSocketFrameWithBlurFilter)
 	ctx.Step(`^I send invalid WebSocket frame "([^"]*)"$`, tc.iSendInvalidWebSocketFrame)
 	ctx.Step(`^the processing should succeed$`, tc.theProcessingShouldSucceed)
 	ctx.Step(`^the processing should fail$`, tc.theProcessingShouldFail)

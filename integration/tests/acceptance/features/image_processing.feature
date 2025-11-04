@@ -68,6 +68,34 @@ Feature: Image Processing via ConnectRPC
     Then the processing should succeed
     And the image checksum should match "lena.png" with filter "FILTER_TYPE_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CPU", grayscale "GRAYSCALE_TYPE_LUMINOSITY"
 
+  Scenario: Process image with blur filter using GPU with default params
+    When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CUDA", kernel size 5, sigma 1.0, border mode "REFLECT", separable true
+    Then the processing should succeed
+
+  Scenario: Process image with blur filter using CPU with default params
+    When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CPU", kernel size 5, sigma 1.0, border mode "REFLECT", separable true
+    Then the processing should succeed
+
+  Scenario: Process image with blur filter using GPU with custom kernel size
+    When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CUDA", kernel size 7, sigma 1.5, border mode "REFLECT", separable true
+    Then the processing should succeed
+
+  Scenario: Process image with blur filter using GPU with CLAMP border mode
+    When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CUDA", kernel size 5, sigma 1.0, border mode "CLAMP", separable true
+    Then the processing should succeed
+
+  Scenario: Process image with blur filter using GPU with WRAP border mode
+    When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CUDA", kernel size 5, sigma 1.0, border mode "WRAP", separable true
+    Then the processing should succeed
+
+  Scenario: Process image with blur filter using GPU with non-separable
+    When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CUDA", kernel size 5, sigma 1.0, border mode "REFLECT", separable false
+    Then the processing should succeed
+
+  Scenario: Process image with blur filter using CPU with custom params
+    When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CPU", kernel size 9, sigma 2.0, border mode "REFLECT", separable true
+    Then the processing should succeed
+
   Scenario: Fail to process empty image
     When I call ProcessImage with invalid data "empty_image"
     Then the processing should fail

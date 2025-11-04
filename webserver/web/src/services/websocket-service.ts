@@ -154,14 +154,20 @@ export class WebSocketService implements IWebSocketService {
     height: number,
     filters: string[],
     accelerator: string,
-    grayscaleType: string
+    grayscaleType: string,
+    blurParams?: Record<string, any>
   ): void {
     const image = new ImageData(base64Data, width, height);
-    this.sendFrameWithImageData(image, filters, accelerator, grayscaleType);
+    this.sendFrameWithImageData(image, filters, accelerator, grayscaleType, blurParams);
   }
 
-  sendFrameWithImageData(image: ImageData, filters: string[], accelerator: string, grayscaleType: string): void {
-    const filterObjects = filters.map(f => new FilterData(f as any));
+  sendFrameWithImageData(image: ImageData, filters: string[], accelerator: string, grayscaleType: string, blurParams?: Record<string, any>): void {
+    const filterObjects = filters.map(f => {
+      if (f === 'blur' && blurParams) {
+        return new FilterData('blur', blurParams);
+      }
+      return new FilterData(f as any);
+    });
     this.sendFrameWithValueObjects(image, filterObjects, accelerator, grayscaleType);
   }
 
@@ -237,7 +243,7 @@ export class WebSocketService implements IWebSocketService {
       height: image.getHeight(),
       aspectRatio: image.getAspectRatio(),
       filterCount: filters.length,
-      filterTypes: filters.map(f => f.getType()),
+      filterTypes: filters.map(f => f.getType()).join(','),
     });
   }
 
@@ -292,7 +298,7 @@ export class WebSocketService implements IWebSocketService {
       height: image.getHeight(),
       aspectRatio: image.getAspectRatio(),
       filterCount: filters.length,
-      filterTypes: filters.map(f => f.getType()),
+      filterTypes: filters.map(f => f.getType()).join(','),
       accelerator: accelerator.toString(),
       grayscale: grayscale.toString(),
     });
@@ -304,7 +310,8 @@ export class WebSocketService implements IWebSocketService {
     height: number,
     filters: string[],
     accelerator: string,
-    grayscaleType: string
+    grayscaleType: string,
+    blurParams?: Record<string, any>
   ): Promise<WebSocketFrameResponse> {
     return telemetryService.withSpanAsync(
       'WebSocket.sendSingleFrame',
@@ -340,7 +347,7 @@ export class WebSocketService implements IWebSocketService {
           };
 
           span?.addEvent('Sending frame via WebSocket');
-          this.sendFrame(base64Data, width, height, filters, accelerator, grayscaleType);
+          this.sendFrame(base64Data, width, height, filters, accelerator, grayscaleType, blurParams);
         });
       }
     );
@@ -367,7 +374,8 @@ export class WebSocketService implements IWebSocketService {
     videoId: string,
     filters: string[],
     accelerator: string,
-    grayscaleType: string
+    grayscaleType: string,
+    blurParams?: Record<string, any>
   ): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       logger.error('WebSocket not connected');
@@ -388,20 +396,53 @@ export class WebSocketService implements IWebSocketService {
       const grayscaleTypeEnum =
         grayscaleType === 'bt709' ? GrayscaleType.BT709 : GrayscaleType.BT601;
 
-      const hasBlur = filters.includes('blur');
-      const blurParams = hasBlur ? new GaussianBlurParameters({
-        kernelSize: 5,
-        sigma: 1.0,
-        borderMode: BorderMode.REFLECT,
-        separable: true,
-      }) : undefined;
+      let protoBlurParams: GaussianBlurParameters | undefined = undefined;
+      if (filters.includes('blur')) {
+        if (blurParams) {
+          const kernelSize = blurParams.kernel_size !== undefined ? blurParams.kernel_size : 5;
+          const sigma = blurParams.sigma !== undefined ? blurParams.sigma : 1.0;
+          const separable = blurParams.separable !== undefined ? blurParams.separable : true;
+          
+          let borderMode = BorderMode.REFLECT;
+          if (blurParams.border_mode !== undefined) {
+            const borderModeStr = String(blurParams.border_mode).toUpperCase();
+            switch (borderModeStr) {
+              case 'CLAMP':
+                borderMode = BorderMode.CLAMP;
+                break;
+              case 'REFLECT':
+                borderMode = BorderMode.REFLECT;
+                break;
+              case 'WRAP':
+                borderMode = BorderMode.WRAP;
+                break;
+              default:
+                borderMode = BorderMode.REFLECT;
+            }
+          }
+
+          protoBlurParams = new GaussianBlurParameters({
+            kernelSize,
+            sigma,
+            borderMode,
+            separable,
+          });
+        } else {
+          protoBlurParams = new GaussianBlurParameters({
+            kernelSize: 5,
+            sigma: 1.0,
+            borderMode: BorderMode.REFLECT,
+            separable: true,
+          });
+        }
+      }
 
       const startVideoRequest = new StartVideoPlaybackRequest({
         videoId,
         filters: filterTypes,
         accelerator: acceleratorType,
         grayscaleType: grayscaleTypeEnum,
-        blurParams: blurParams,
+        blurParams: protoBlurParams,
       });
 
       const frameRequest = new WebSocketFrameRequest({

@@ -78,6 +78,65 @@ func (a *ProtobufAdapter) ToGrayscaleType(pbType pb.GrayscaleType) domain.Graysc
 	}
 }
 
+func (a *ProtobufAdapter) ToBorderMode(pbMode pb.BorderMode) domain.BorderMode {
+	switch pbMode {
+	case pb.BorderMode_BORDER_MODE_CLAMP:
+		return domain.BorderModeClamp
+	case pb.BorderMode_BORDER_MODE_REFLECT:
+		return domain.BorderModeReflect
+	case pb.BorderMode_BORDER_MODE_WRAP:
+		return domain.BorderModeWrap
+	case pb.BorderMode_BORDER_MODE_UNSPECIFIED:
+		// Log warning for unspecified border mode
+		log.Printf("Warning: received unspecified border mode, defaulting to REFLECT")
+		return domain.BorderModeReflect
+	default:
+		// Log warning for unknown border mode
+		log.Printf("Warning: received unknown border mode %v, defaulting to REFLECT", pbMode)
+		return domain.BorderModeReflect
+	}
+}
+
+func (a *ProtobufAdapter) ToBlurParameters(pbBlur *pb.GaussianBlurParameters) *domain.BlurParameters {
+	if pbBlur == nil {
+		return nil
+	}
+
+	return &domain.BlurParameters{
+		KernelSize: pbBlur.KernelSize,
+		Sigma:      pbBlur.Sigma,
+		BorderMode: a.ToBorderMode(pbBlur.BorderMode),
+		Separable:  pbBlur.Separable,
+	}
+}
+
+func (a *ProtobufAdapter) ToProtobufBorderMode(mode domain.BorderMode) pb.BorderMode {
+	switch mode {
+	case domain.BorderModeClamp:
+		return pb.BorderMode_BORDER_MODE_CLAMP
+	case domain.BorderModeReflect:
+		return pb.BorderMode_BORDER_MODE_REFLECT
+	case domain.BorderModeWrap:
+		return pb.BorderMode_BORDER_MODE_WRAP
+	default:
+		log.Printf("Warning: unknown border mode %v, defaulting to REFLECT", mode)
+		return pb.BorderMode_BORDER_MODE_REFLECT
+	}
+}
+
+func (a *ProtobufAdapter) ToProtobufBlurParameters(blur *domain.BlurParameters) *pb.GaussianBlurParameters {
+	if blur == nil {
+		return nil
+	}
+
+	return &pb.GaussianBlurParameters{
+		KernelSize: blur.KernelSize,
+		Sigma:      blur.Sigma,
+		BorderMode: a.ToProtobufBorderMode(blur.BorderMode),
+		Separable:  blur.Separable,
+	}
+}
+
 func (a *ProtobufAdapter) ToDomainImage(req *pb.ProcessImageRequest) *domain.Image {
 	return &domain.Image{
 		Data:   req.ImageData,

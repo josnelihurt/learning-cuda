@@ -51,19 +51,17 @@ __device__ int ClampY(int y, int height, BorderMode mode) {
   }
 }
 
-__device__ float GetPixelValue(const unsigned char* data, int x, int y, int width, int height,
-                               int channels, BorderMode border_mode) {
+__device__ float GetPixelChannelValue(const unsigned char* data, int x, int y, int width,
+                                      int height, int channels, int channel_idx,
+                                      BorderMode border_mode) {
   int clamped_x = ClampX(x, width, border_mode);
   int clamped_y = ClampY(y, height, border_mode);
 
   int index = (clamped_y * width + clamped_x) * channels;
-  if (channels >= 3) {
-    float r = static_cast<float>(data[index]);
-    float g = static_cast<float>(data[index + 1]);
-    float b = static_cast<float>(data[index + 2]);
-    return LUMA_RED_WEIGHT_BT601 * r + LUMA_GREEN_WEIGHT_BT601 * g + LUMA_BLUE_WEIGHT_BT601 * b;
+  if (channel_idx < channels) {
+    return static_cast<float>(data[index + channel_idx]);
   }
-  return static_cast<float>(data[index]);
+  return 0.0F;
 }
 
 __global__ void ApplyHorizontalBlurKernel(const unsigned char* input, unsigned char* output,
@@ -76,22 +74,19 @@ __global__ void ApplyHorizontalBlurKernel(const unsigned char* input, unsigned c
   }
 
   int radius = kernel_size / 2;
-  float sum = 0.0F;
 
   for (int y = 0; y < height; y++) {
-    sum = 0.0F;
-    for (int k = -radius; k <= radius; k++) {
-      int pixel_x = x + k;
-      float weight = kernel[k + radius];
-      sum += GetPixelValue(input, pixel_x, y, width, height, channels, border_mode) * weight;
-    }
-
     int output_idx = (y * width + x) * channels;
-    unsigned char value = static_cast<unsigned char>(max(0.0F, min(sum, 255.0F)));
-    output[output_idx] = value;
-    if (channels >= 3) {
-      output[output_idx + 1] = value;
-      output[output_idx + 2] = value;
+
+    for (int c = 0; c < channels; c++) {
+      float sum = 0.0F;
+      for (int k = -radius; k <= radius; k++) {
+        int pixel_x = x + k;
+        float weight = kernel[k + radius];
+        sum += GetPixelChannelValue(input, pixel_x, y, width, height, channels, c, border_mode) *
+               weight;
+      }
+      output[output_idx + c] = static_cast<unsigned char>(max(0.0F, min(sum, 255.0F)));
     }
   }
 }
@@ -106,22 +101,19 @@ __global__ void ApplyVerticalBlurKernel(const unsigned char* input, unsigned cha
   }
 
   int radius = kernel_size / 2;
-  float sum = 0.0F;
 
   for (int x = 0; x < width; x++) {
-    sum = 0.0F;
-    for (int k = -radius; k <= radius; k++) {
-      int pixel_y = y + k;
-      float weight = kernel[k + radius];
-      sum += GetPixelValue(input, x, pixel_y, width, height, channels, border_mode) * weight;
-    }
-
     int output_idx = (y * width + x) * channels;
-    unsigned char value = static_cast<unsigned char>(max(0.0F, min(sum, 255.0F)));
-    output[output_idx] = value;
-    if (channels >= 3) {
-      output[output_idx + 1] = value;
-      output[output_idx + 2] = value;
+
+    for (int c = 0; c < channels; c++) {
+      float sum = 0.0F;
+      for (int k = -radius; k <= radius; k++) {
+        int pixel_y = y + k;
+        float weight = kernel[k + radius];
+        sum += GetPixelChannelValue(input, x, pixel_y, width, height, channels, c, border_mode) *
+               weight;
+      }
+      output[output_idx + c] = static_cast<unsigned char>(max(0.0F, min(sum, 255.0F)));
     }
   }
 }

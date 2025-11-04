@@ -49,8 +49,21 @@ func New(libraryPath string) (*CppConnector, error) {
 	return &CppConnector{loader: l}, nil
 }
 
+func (c *CppConnector) domainToProtoBorderMode(mode domain.BorderMode) pb.BorderMode {
+	switch mode {
+	case domain.BorderModeClamp:
+		return pb.BorderMode_BORDER_MODE_CLAMP
+	case domain.BorderModeReflect:
+		return pb.BorderMode_BORDER_MODE_REFLECT
+	case domain.BorderModeWrap:
+		return pb.BorderMode_BORDER_MODE_WRAP
+	default:
+		return pb.BorderMode_BORDER_MODE_REFLECT
+	}
+}
+
 //nolint:gocyclo // Complex processing logic that needs to handle multiple filter types
-func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *pb.GaussianBlurParameters) (*domain.Image, error) {
+func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *domain.BlurParameters) (*domain.Image, error) {
 	tracer := otel.Tracer("cpp-connector")
 	ctx, span := tracer.Start(ctx, "CppConnector.ProcessImage",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -87,7 +100,12 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 	// Use provided blurParams if available, otherwise use defaults
 	if hasBlur {
 		if blurParams != nil {
-			finalBlurParams = blurParams
+			finalBlurParams = &pb.GaussianBlurParameters{
+				KernelSize: blurParams.KernelSize,
+				Sigma:      blurParams.Sigma,
+				BorderMode: c.domainToProtoBorderMode(blurParams.BorderMode),
+				Separable:  blurParams.Separable,
+			}
 		} else {
 			finalBlurParams = &pb.GaussianBlurParameters{
 				KernelSize: 5,
@@ -142,7 +160,7 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 		ImageData:     img.Data,
 		Width:         int32(img.Width),
 		Height:        int32(img.Height),
-		Channels:      int32(4),
+		Channels:      int32(3),
 		Filters:       protoFilters,
 		Accelerator:   protoAccelerator,
 		GrayscaleType: protoGrayscaleType,

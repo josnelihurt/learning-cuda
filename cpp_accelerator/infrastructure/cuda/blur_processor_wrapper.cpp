@@ -92,17 +92,19 @@ bool CudaGaussianBlurFilter::Apply(FilterContext& context) {
   scoped_span.SetAttribute("kernel.sigma", static_cast<double>(sigma_));
   scoped_span.SetAttribute("kernel.separable", separable_);
 
-  if (!separable_) {
-    scoped_span.RecordError("Non-separable blur not yet implemented in CUDA");
-    spdlog::warn("Non-separable blur not yet implemented in CUDA");
-    return false;
+  scoped_span.AddEvent(separable_ ? "Calling pure CUDA separable blur kernel"
+                                   : "Calling pure CUDA non-separable blur kernel");
+
+  cudaError_t error;
+  if (separable_) {
+    error = cuda_apply_gaussian_blur_separable(
+        context.input.data, context.output.data, context.input.width, context.input.height,
+        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_));
+  } else {
+    error = cuda_apply_gaussian_blur_non_separable(
+        context.input.data, context.output.data, context.input.width, context.input.height,
+        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_));
   }
-
-  scoped_span.AddEvent("Calling pure CUDA blur kernel");
-
-  cudaError_t error = cuda_apply_gaussian_blur_separable(
-      context.input.data, context.output.data, context.input.width, context.input.height,
-      context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_));
 
   if (error != cudaSuccess) {
     std::string error_msg = std::string("CUDA blur kernel failed: ") + cudaGetErrorString(error);

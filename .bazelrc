@@ -52,6 +52,10 @@ build --per_file_copt=.*\.pb\.(cc|h)@-w
 # Enable warnings for our own code
 # Exclude third_party code from -Werror first (it's external code, must come before general rules)
 build --per_file_copt=.*third_party.*\.(cc|cpp|h)@-Wno-error
+build --per_file_copt=.*third_party.*\.(cc|cpp|h)@-Wno-missing-field-initializers
 build --per_file_copt=^//cpp_accelerator/.*\.(cc|cpp|h)@-Wall
 build --per_file_copt=^//cpp_accelerator/.*\.(cc|cpp|h)@-Wextra
 build --per_file_copt=^//cpp_accelerator/.*\.(cc|cpp|h)@-Werror
+# Exclude cpp_accelerator files that include third_party (they get processed together)
+build --per_file_copt=.*stb_image.*@-Wno-error
+build --per_file_copt=.*stb_image.*@-Wno-missing-field-initializers

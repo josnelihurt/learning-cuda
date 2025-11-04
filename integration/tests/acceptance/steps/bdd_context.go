@@ -390,22 +390,21 @@ func (c *BDDContext) GivenIHaveImage(imageName string) error {
 	width := bounds.Dx()
 	height := bounds.Dy()
 
-	rawData := make([]byte, width*height*4)
+	rawData := make([]byte, width*height*3)
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			idx := (y*width + x) * 4
+			r, g, b, _ := img.At(x, y).RGBA()
+			idx := (y*width + x) * 3
 			rawData[idx] = byte(r >> 8)
 			rawData[idx+1] = byte(g >> 8)
 			rawData[idx+2] = byte(b >> 8)
-			rawData[idx+3] = byte(a >> 8)
 		}
 	}
 
 	c.currentImage = rawData
 	c.currentImageWidth = int32(width)
 	c.currentImageHeight = int32(height)
-	c.currentChannels = 4
+	c.currentChannels = 3
 
 	return nil
 }

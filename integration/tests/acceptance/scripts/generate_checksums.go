@@ -136,19 +136,18 @@ func loadImage(path string) (data []byte, width, height, channels int32, err err
 	width = int32(bounds.Dx())
 	height = int32(bounds.Dy())
 
-	data = make([]byte, width*height*4)
+	data = make([]byte, width*height*3)
 	for y := int32(0); y < height; y++ {
 		for x := int32(0); x < width; x++ {
-			r, g, b, a := img.At(int(x), int(y)).RGBA()
-			idx := (y*width + x) * 4
+			r, g, b, _ := img.At(int(x), int(y)).RGBA()
+			idx := (y*width + x) * 3
 			data[idx] = byte(r >> 8)
 			data[idx+1] = byte(g >> 8)
 			data[idx+2] = byte(b >> 8)
-			data[idx+3] = byte(a >> 8)
 		}
 	}
 
-	channels = 4
+	channels = 3
 	return data, width, height, channels, nil
 }
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +15,7 @@ type mockImageProcessor struct {
 	mock.Mock
 }
 
-func (m *mockImageProcessor) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *gen.GaussianBlurParameters) (*domain.Image, error) {
+func (m *mockImageProcessor) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *domain.BlurParameters) (*domain.Image, error) {
 	args := m.Called(ctx, img, filters, accelerator, grayscaleType, blurParams)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

@@ -195,9 +195,9 @@ test.describe('Video Playback', () => {
 
         // Calculate pixel-by-pixel difference
         let differentPixels = 0;
-        const totalPixels = bytes1!.length / 4; // RGBA = 4 bytes per pixel
+        const totalPixels = bytes1!.length / 3; // RGB = 3 bytes per pixel
 
-        for (let i = 0; i < bytes1!.length; i += 4) {
+        for (let i = 0; i < bytes1!.length; i += 3) {
             const r1 = bytes1![i], g1 = bytes1![i+1], b1 = bytes1![i+2];
             const r2 = bytes2![i], g2 = bytes2![i+1], b2 = bytes2![i+2];
             

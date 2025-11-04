@@ -22,6 +22,7 @@ interface GridSource {
   filters: string[];
   grayscaleType: string;
   resolution: string;
+  blurParams?: Record<string, any>;
   videoId?: string;
 }
 
@@ -348,6 +349,7 @@ export class VideoGrid extends LitElement {
           filters: source.filters,
           grayscaleType: source.grayscaleType,
           resolution: source.resolution,
+          blurParams: source.blurParams,
         },
       })
     );
@@ -381,6 +383,7 @@ export class VideoGrid extends LitElement {
     selectedSource.filters = filters;
     selectedSource.grayscaleType = grayscaleType;
     selectedSource.resolution = resolution;
+    selectedSource.blurParams = blurParams;
 
     logger.debug(`Applying filter to source ${selectedSource.number} ${grayscaleType}`, {
       'source.number': selectedSource.number,

@@ -70,7 +70,12 @@ bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
 # Copy library and create metadata...
 mkdir -p .ignore/lib/cuda_learning
 VERSION=$(cat cpp_accelerator/VERSION)
-cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
+TARGET_FILE=".ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so"
+if [ -f "$TARGET_FILE" ]; then
+    rm -f "$TARGET_FILE"
+fi
+cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so "$TARGET_FILE"
+chmod 644 "$TARGET_FILE"
 
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

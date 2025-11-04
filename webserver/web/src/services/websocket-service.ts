@@ -8,7 +8,7 @@ import {
   StartVideoPlaybackRequest,
   StopVideoPlaybackRequest,
 } from '../gen/image_processor_service_pb';
-import { FilterType, AcceleratorType, GrayscaleType, TraceContext } from '../gen/common_pb';
+import { FilterType, AcceleratorType, GrayscaleType, TraceContext, GaussianBlurParameters, BorderMode } from '../gen/common_pb';
 import { streamConfigService } from './config-service';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
@@ -17,6 +17,43 @@ import type { IWebSocketService } from '../domain/interfaces/IWebSocketService';
 import { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../domain/value-objects';
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
+
+function extractBlurParams(filters: FilterData[]): GaussianBlurParameters | undefined {
+  const blurFilter = filters.find(f => f.isBlur());
+  if (!blurFilter) {
+    return undefined;
+  }
+
+  const params = blurFilter.getParameters();
+  const kernelSize = params.kernel_size !== undefined ? params.kernel_size : 5;
+  const sigma = params.sigma !== undefined ? params.sigma : 1.0;
+  const separable = params.separable !== undefined ? params.separable : true;
+  
+  let borderMode = BorderMode.REFLECT;
+  if (params.border_mode !== undefined) {
+    const borderModeStr = String(params.border_mode).toUpperCase();
+    switch (borderModeStr) {
+      case 'CLAMP':
+        borderMode = BorderMode.CLAMP;
+        break;
+      case 'REFLECT':
+        borderMode = BorderMode.REFLECT;
+        break;
+      case 'WRAP':
+        borderMode = BorderMode.WRAP;
+        break;
+      default:
+        borderMode = BorderMode.REFLECT;
+    }
+  }
+
+  return new GaussianBlurParameters({
+    kernelSize,
+    sigma,
+    borderMode,
+    separable,
+  });
+}
 
 // TODO: To be replaced by Connect-RPC bidirectional streaming client
 // Target replacement: Use createPromiseClient with ImageProcessorService.streamProcessVideo
@@ -161,6 +198,8 @@ export class WebSocketService implements IWebSocketService {
     const imageDataB64 = image.getBase64().replace(/^data:image\/(png|jpeg);base64,/, '');
     const imageBytes = Uint8Array.from(atob(imageDataB64), (c) => c.charCodeAt(0));
 
+    const blurParams = extractBlurParams(filters);
+
     const request = new ProcessImageRequest({
       imageData: imageBytes,
       width: image.getWidth(),
@@ -169,6 +208,7 @@ export class WebSocketService implements IWebSocketService {
       filters: protoFilters,
       accelerator: protoAccelerator,
       grayscaleType: protoGrayscaleType,
+      blurParams: blurParams,
     });
 
     const carrier: { [key: string]: string } = {};
@@ -213,6 +253,8 @@ export class WebSocketService implements IWebSocketService {
     const imageDataB64 = image.getBase64().replace(/^data:image\/(png|jpeg);base64,/, '');
     const imageBytes = Uint8Array.from(atob(imageDataB64), (c) => c.charCodeAt(0));
 
+    const blurParams = extractBlurParams(filters);
+
     const request = new ProcessImageRequest({
       imageData: imageBytes,
       width: image.getWidth(),
@@ -221,6 +263,7 @@ export class WebSocketService implements IWebSocketService {
       filters: protoFilters,
       accelerator: protoAccelerator,
       grayscaleType: protoGrayscaleType,
+      blurParams: blurParams,
     });
 
     const carrier: { [key: string]: string } = {};
@@ -337,6 +380,7 @@ export class WebSocketService implements IWebSocketService {
       const filterTypes = filters.map((f) => {
         if (f === 'none') return FilterType.NONE;
         if (f === 'grayscale') return FilterType.GRAYSCALE;
+        if (f === 'blur') return FilterType.BLUR;
         return FilterType.NONE;
       });
 
@@ -344,11 +388,20 @@ export class WebSocketService implements IWebSocketService {
       const grayscaleTypeEnum =
         grayscaleType === 'bt709' ? GrayscaleType.BT709 : GrayscaleType.BT601;
 
+      const hasBlur = filters.includes('blur');
+      const blurParams = hasBlur ? new GaussianBlurParameters({
+        kernelSize: 5,
+        sigma: 1.0,
+        borderMode: BorderMode.REFLECT,
+        separable: true,
+      }) : undefined;
+
       const startVideoRequest = new StartVideoPlaybackRequest({
         videoId,
         filters: filterTypes,
         accelerator: acceleratorType,
         grayscaleType: grayscaleTypeEnum,
+        blurParams: blurParams,
       });
 
       const frameRequest = new WebSocketFrameRequest({

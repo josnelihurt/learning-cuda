@@ -159,4 +159,113 @@ export const filterPanelStyles = css`
     font-size: 13px;
     color: #333;
   }
+
+  .param-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 8px;
+  }
+
+  .param-control {
+    margin-bottom: 16px;
+  }
+
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  input[type='range'] {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #e0e0e0;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffa400;
+    cursor: pointer;
+  }
+
+  input[type='range']::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffa400;
+    cursor: pointer;
+    border: none;
+  }
+
+  .slider-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    min-width: 30px;
+    text-align: right;
+  }
+
+  input[type='number'] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type='number']:focus {
+    border-color: #ffa400;
+  }
+
+  .checkbox-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .checkbox-option:hover {
+    background: #f5f5f5;
+  }
+
+  .checkbox-option input[type='checkbox'] {
+    cursor: pointer;
+  }
+
+  .checkbox-option span {
+    font-size: 13px;
+    color: #333;
+  }
+
+  select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+    background: white;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  select:focus {
+    border-color: #ffa400;
+  }
 `;

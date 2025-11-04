@@ -293,13 +293,8 @@ TEST_F(GaussianBlurFilterTest, NonSeparableBlurProducesValidOutput) {
   // Assert
   ASSERT_TRUE(result);
   EXPECT_TRUE(context.output.IsValid());
-  bool has_valid_values = true;
-  for (size_t i = 0; i < output.size() && has_valid_values; ++i) {
-    if (output[i] > 255) {
-      has_valid_values = false;
-    }
-  }
-  EXPECT_TRUE(has_valid_values);
+  // output is unsigned char, so values are always in range [0, 255]
+  // No need to check for invalid values
 }
 
 TEST_F(GaussianBlurFilterTest, AllBorderModesHandleEdgePixels) {

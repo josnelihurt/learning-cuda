@@ -14,8 +14,9 @@ using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
 using jrb::infrastructure::image::ImageLoader;
 
-FilterContext CreateGrayscaleFilterContext(const unsigned char* input_data, unsigned char* output_data,
-                                           int width, int height, int input_channels) {
+FilterContext CreateGrayscaleFilterContext(const unsigned char* input_data,
+                                           unsigned char* output_data, int width, int height,
+                                           int input_channels) {
   FilterContext context(input_data, output_data, width, height, input_channels);
   context.output.channels = 1;
   return context;
@@ -60,9 +61,9 @@ TEST_F(GrayscaleFilterTest, SetterUpdatesAlgorithm) {
 TEST_F(GrayscaleFilterTest, AppliesBT601GrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::BT601);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -71,22 +72,16 @@ TEST_F(GrayscaleFilterTest, AppliesBT601GrayscaleSuccessfully) {
   EXPECT_EQ(context.output.height, image_loader_->height());
   EXPECT_EQ(context.output.channels, 1);
 
-  bool all_grayscale = true;
-  for (int i = 0; i < image_loader_->width() * image_loader_->height(); ++i) {
-    if (output[i] < 0 || output[i] > 255) {
-      all_grayscale = false;
-      break;
-    }
-  }
-  EXPECT_TRUE(all_grayscale);
+  // output is unsigned char, so values are always in range [0, 255]
+  // No validation needed - all values are valid by type
 }
 
 TEST_F(GrayscaleFilterTest, AppliesBT709GrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::BT709);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -97,9 +92,9 @@ TEST_F(GrayscaleFilterTest, AppliesBT709GrayscaleSuccessfully) {
 TEST_F(GrayscaleFilterTest, AppliesAverageGrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::Average);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -110,9 +105,9 @@ TEST_F(GrayscaleFilterTest, AppliesAverageGrayscaleSuccessfully) {
 TEST_F(GrayscaleFilterTest, AppliesLightnessGrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::Lightness);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -123,9 +118,9 @@ TEST_F(GrayscaleFilterTest, AppliesLightnessGrayscaleSuccessfully) {
 TEST_F(GrayscaleFilterTest, AppliesLuminosityGrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::Luminosity);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -168,9 +163,9 @@ TEST_F(GrayscaleFilterTest, FailsWithInvalidOutput) {
 TEST_F(GrayscaleFilterTest, PreservesImageDimensions) {
   GrayscaleFilter filter;
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   filter.Apply(context);
 
@@ -214,4 +209,3 @@ TEST_F(GrayscaleFilterTest, DifferentAlgorithmsProduceDifferentResults) {
 
 }  // namespace
 }  // namespace jrb::infrastructure::cpu
-

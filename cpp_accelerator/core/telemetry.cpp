@@ -1,6 +1,10 @@
 #include "cpp_accelerator/core/telemetry.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
 
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter_options.h"

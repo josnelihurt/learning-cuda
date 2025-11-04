@@ -3,7 +3,11 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "third_party/stb/stb_image_write.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
 
 namespace jrb::infrastructure::image {
 

@@ -11,7 +11,7 @@ CommandFactory::CommandFactory() {
 
 void CommandFactory::register_commands() {
   creators_[infrastructure::config::models::ProgramType::Passthrough] =
-      [](const infrastructure::config::models::ProgramConfig& config) {
+      []([[maybe_unused]] const infrastructure::config::models::ProgramConfig& config) {
         auto processor = std::make_unique<infrastructure::cuda::SimpleKernelProcessor>();
         return std::make_unique<PassthroughCommand>(std::move(processor));
       };

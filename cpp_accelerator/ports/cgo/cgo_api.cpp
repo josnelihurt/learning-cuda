@@ -1,11 +1,21 @@
 #include "cpp_accelerator/ports/cgo/cgo_api.h"
 
-#include <spdlog/spdlog.h>
-
 #include <cstring>
 #include <memory>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
+#include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include "common.pb.h"
+#include "image_processor_service.pb.h"
+#pragma GCC diagnostic pop
+
 #include "cpp_accelerator/application/pipeline/filter_pipeline.h"
 #include "cpp_accelerator/core/telemetry.h"
 #include "cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
@@ -14,7 +24,6 @@
 #include "cpp_accelerator/infrastructure/cuda/blur_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 #include "cpp_accelerator/ports/cgo/image_buffer_adapter.h"
-#include "image_processor_service.pb.h"
 
 namespace {
 

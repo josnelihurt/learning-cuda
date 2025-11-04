@@ -24,8 +24,8 @@ cc_library(
         ":command_interface",
         "//cpp_accelerator/core:logger",
         "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces:processors",
         "@spdlog",
+        "//cpp_accelerator/domain/interfaces:processors",
     ],
 )
 

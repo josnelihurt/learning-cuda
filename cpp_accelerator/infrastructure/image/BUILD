@@ -11,9 +11,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//cpp_accelerator/domain/interfaces",
+        "@spdlog",
         "//third_party/stb:stb_image",
         "//third_party/stb:stb_image_write",
-        "@spdlog",
     ],
 )
 

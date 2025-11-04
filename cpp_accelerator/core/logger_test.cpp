@@ -1,54 +1,59 @@
 #include "cpp_accelerator/core/logger.h"
 #include <gtest/gtest.h>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
 
 namespace jrb::core {
 namespace {
 
 class LoggerTest : public ::testing::Test {
 protected:
-    void TearDown() override {
-        // Reset logger after each test
-        spdlog::drop_all();
-        spdlog::set_default_logger(nullptr);
-    }
+  void TearDown() override {
+    // Reset logger after each test
+    spdlog::drop_all();
+    spdlog::set_default_logger(nullptr);
+  }
 };
 
 TEST_F(LoggerTest, InitializeLoggerCreatesDefaultLogger) {
-    // Arrange
-    auto uut = initialize_logger;
+  // Arrange
+  auto uut = initialize_logger;
 
-    // Act
-    uut();
+  // Act
+  uut();
 
-    // Assert
-    auto default_logger = spdlog::default_logger();
-    ASSERT_NE(default_logger, nullptr);
-    EXPECT_EQ(default_logger->name(), "cpp_accelerator");
+  // Assert
+  auto default_logger = spdlog::default_logger();
+  ASSERT_NE(default_logger, nullptr);
+  EXPECT_EQ(default_logger->name(), "cpp_accelerator");
 }
 
 TEST_F(LoggerTest, InitializeLoggerSetsInfoLevel) {
-    // Arrange
-    auto uut = initialize_logger;
+  // Arrange
+  auto uut = initialize_logger;
 
-    // Act
-    uut();
+  // Act
+  uut();
 
-    // Assert
-    auto default_logger = spdlog::default_logger();
-    ASSERT_NE(default_logger, nullptr);
-    EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+  // Assert
+  auto default_logger = spdlog::default_logger();
+  ASSERT_NE(default_logger, nullptr);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
 TEST_F(LoggerTest, LoggerCanBeUsedAfterInitialization) {
-    // Arrange
-    auto uut = initialize_logger;
-    uut();
+  // Arrange
+  auto uut = initialize_logger;
+  uut();
 
-    // Act & Assert (should not throw)
-    EXPECT_NO_THROW(spdlog::info("Test log message"));
-    EXPECT_NO_THROW(spdlog::debug("Debug message"));
-    EXPECT_NO_THROW(spdlog::error("Error message"));
+  // Act & Assert (should not throw)
+  EXPECT_NO_THROW(spdlog::info("Test log message"));
+  EXPECT_NO_THROW(spdlog::debug("Debug message"));
+  EXPECT_NO_THROW(spdlog::error("Error message"));
 }
 
 }  // namespace

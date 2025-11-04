@@ -1,11 +1,11 @@
 {
-  "generated_at": "2025-10-15T12:55:47-07:00",
+  "generated_at": "2025-11-04T10:35:01-08:00",
   "checksums": [
     {
       "image": "lena.png",
       "filter": "FILTER_TYPE_NONE",
       "accelerator": "ACCELERATOR_TYPE_CUDA",
-      "checksum": "f9d6e659deaf5380779b3b7602691fe668ac483b94ecbb35f544e9263b2fb656",
+      "checksum": "01f8ff0e23a809255ae52a9857a7aeb0f89d92610205fef29c36c3d359ac3339",
       "width": 512,
       "height": 512,
       "channels": 3
@@ -14,7 +14,7 @@
       "image": "lena.png",
       "filter": "FILTER_TYPE_NONE",
       "accelerator": "ACCELERATOR_TYPE_CPU",
-      "checksum": "f9d6e659deaf5380779b3b7602691fe668ac483b94ecbb35f544e9263b2fb656",
+      "checksum": "01f8ff0e23a809255ae52a9857a7aeb0f89d92610205fef29c36c3d359ac3339",
       "width": 512,
       "height": 512,
       "channels": 3

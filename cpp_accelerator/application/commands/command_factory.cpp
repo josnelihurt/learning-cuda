@@ -1,8 +1,5 @@
 #include "cpp_accelerator/application/commands/command_factory.h"
 
-#include "cpp_accelerator/application/commands/passthrough_command.h"
-#include "cpp_accelerator/infrastructure/cuda/simple_kernel_processor.h"
-
 namespace jrb::application::commands {
 
 CommandFactory::CommandFactory() {
@@ -10,17 +7,9 @@ CommandFactory::CommandFactory() {
 }
 
 void CommandFactory::register_commands() {
-  creators_[infrastructure::config::models::ProgramType::Passthrough] =
-      []([[maybe_unused]] const infrastructure::config::models::ProgramConfig& config) {
-        auto processor = std::make_unique<infrastructure::cuda::SimpleKernelProcessor>();
-        return std::make_unique<PassthroughCommand>(std::move(processor));
-      };
-
-  // TODO: Migrate CudaImageFilters and CpuImageFilters commands to use FilterPipeline
-  // These commands were temporarily disabled during processor removal.
-  // They should be reimplemented using FilterPipeline with GrayscaleFilter.
-  // creators_[infrastructure::config::models::ProgramType::CudaImageFilters] = ...
-  // creators_[infrastructure::config::models::ProgramType::CpuImageFilters] = ...
+  // Command factory is currently empty as all commands have been migrated to FilterPipeline.
+  // This factory is kept as a placeholder for future command implementations if needed.
+  // Production code uses FilterPipeline directly via ports/cgo and ports/shared_lib.
 }
 
 std::unique_ptr<ICommand> CommandFactory::create(

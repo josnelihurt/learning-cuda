@@ -29,34 +29,29 @@ graph TB
     end
     
     subgraph "Application Layer"
-        CommandFactory[Command Factory]
-        PassthroughCmd[Passthrough Command]
-        CudaFiltersCmd[CUDA Filters Command]
-        CpuFiltersCmd[CPU Filters Command]
+        FilterPipeline[Filter Pipeline]
     end
     
     subgraph "Domain Layer"
-        ProcessorInterface[IImageProcessor]
-        ImageSource[IImageSource]
-        ImageSink[IImageSink]
+        IFilter[IFilter Interface]
+        ImageBuffer[ImageBuffer]
     end
     
     subgraph "Infrastructure Layer"
-        subgraph "CUDA Implementation"
-            GrayscaleCUDA[Grayscale CUDA Kernel]
-            KernelWrapper[CUDA Wrapper]
+        subgraph "CUDA Filters"
+            GrayscaleCUDA[Grayscale CUDA Filter]
+            BlurCUDA[Blur CUDA Filter]
         end
         
-        subgraph "CPU Implementation"
-            GrayscaleCPU[Grayscale CPU]
+        subgraph "CPU Filters"
+            GrayscaleCPU[Grayscale CPU Filter]
+            BlurCPU[Blur CPU Filter]
         end
         
         subgraph "Image I/O"
             ImageLoader[Image Loader]
             ImageWriter[Image Writer]
         end
-        
-        ConfigManager[Config Manager]
     end
     
     subgraph "Core Layer"
@@ -67,22 +62,15 @@ graph TB
     
     API --> CGO
     CGO --> SharedLib
-    SharedLib --> CommandFactory
-    CommandFactory --> PassthroughCmd
-    CommandFactory --> CudaFiltersCmd
-    CommandFactory --> CpuFiltersCmd
-    CudaFiltersCmd --> ProcessorInterface
-    CpuFiltersCmd --> ProcessorInterface
-    ProcessorInterface --> ImageSource
-    ProcessorInterface --> ImageSink
-    ImageSource --> ImageLoader
-    ImageSink --> ImageWriter
-    CudaFiltersCmd --> GrayscaleCUDA
-    GrayscaleCUDA --> KernelWrapper
-    CpuFiltersCmd --> GrayscaleCPU
+    SharedLib --> FilterPipeline
+    FilterPipeline --> IFilter
+    IFilter --> GrayscaleCUDA
+    IFilter --> BlurCUDA
+    IFilter --> GrayscaleCPU
+    IFilter --> BlurCPU
+    FilterPipeline --> ImageBuffer
     SharedLib --> Logger
     SharedLib --> Telemetry
-    CommandFactory --> ConfigManager
 ```
 
 ### Initialization Sequence
@@ -120,9 +108,8 @@ sequenceDiagram
     participant Go as Go Application
     participant API as C API
     participant CGO as CGO Adapter
-    participant Command as Command Layer
-    participant Proc as Processor
-    participant CUDA as CUDA Kernel
+    participant Pipeline as FilterPipeline
+    participant Filter as Filter (CUDA/CPU)
     
     Go->>API: processor_process_image(request)
     API->>CGO: CudaProcessImage(marshalled_request)
@@ -131,20 +118,23 @@ sequenceDiagram
     Note over CGO: Extract filters, accelerator, image data
     
     CGO->>Pipeline: Create FilterPipeline
+    CGO->>Pipeline: Add filters based on request
     
     alt GPU Accelerator
-        Pipeline->>Pipeline: Add CudaGrayscaleFilter
-        Pipeline->>CUDA: Allocate device memory
-        CUDA->>CUDA: Copy input to GPU
-        Pipeline->>CUDA: Launch grayscale kernel
-        CUDA->>CUDA: Process pixels in parallel
-        CUDA-->>Pipeline: Processed pixels
-        Pipeline->>CUDA: Copy output to host
-        CUDA->>CUDA: Free device memory
+        Pipeline->>Pipeline: Add CudaGrayscaleFilter/CudaBlurFilter
+        Pipeline->>Filter: Apply(input_buffer, output_buffer)
+        Filter->>Filter: Allocate device memory
+        Filter->>Filter: Copy input to GPU
+        Filter->>Filter: Launch CUDA kernel
+        Filter->>Filter: Process pixels in parallel
+        Filter->>Filter: Copy output to host
+        Filter->>Filter: Free device memory
+        Filter-->>Pipeline: Success
     else CPU Accelerator
-        Pipeline->>Pipeline: Add CpuGrayscaleFilter
-        Pipeline->>CPU: Process pixels sequentially
-        CPU-->>Pipeline: Processed pixels
+        Pipeline->>Pipeline: Add CpuGrayscaleFilter/CpuBlurFilter
+        Pipeline->>Filter: Apply(input_buffer, output_buffer)
+        Filter->>Filter: Process pixels sequentially
+        Filter-->>Pipeline: Success
     end
     
     Pipeline-->>CGO: Processed image data
@@ -158,7 +148,8 @@ sequenceDiagram
 ```
 cpp_accelerator/
 ├── application/          # Application layer - use cases and orchestration
-│   └── commands/         # Command pattern implementations
+│   ├── commands/         # Command pattern (placeholder for future use)
+│   └── pipeline/         # Filter pipeline implementation
 ├── domain/               # Domain layer - business logic interfaces
 │   └── interfaces/       # Abstraction interfaces
 ├── infrastructure/       # Infrastructure layer - concrete implementations
@@ -173,7 +164,6 @@ cpp_accelerator/
 │   ├── logger/          # Logging infrastructure
 │   ├── telemetry/       # OpenTelemetry integration
 │   └── result.h         # Error handling types
-├── cmd/                 # CLI entry points
 └── VERSION              # Library version file
 ```
 
@@ -183,7 +173,7 @@ cpp_accelerator/
 2. **Single Responsibility**: Each component has one clear purpose
 3. **Open/Closed**: Extend via new implementations, not modification
 4. **Liskov Substitution**: All filter implementations are interchangeable
-5. **Interface Segregation**: Small, focused interfaces (IFilter, ImageSource, ImageSink)
+5. **Interface Segregation**: Small, focused interfaces (IFilter, ImageBuffer)
 6. **Separation of Concerns**: Clear boundaries between layers
 7. **Filter Pipeline**: Composable filter architecture for chaining multiple filters
 
@@ -246,18 +236,21 @@ All code in `cpp_accelerator/` compiles without warnings when `-Werror` is enabl
 
 To add a new filter (e.g., Gaussian Blur):
 
-1. **Domain**: Define filter contract if needed (current filters use existing interfaces)
-2. **Infrastructure**: Implement CPU and CUDA kernels
-3. **Application**: Add command or extend factory if needed
-4. **Ports**: Update C API handlers if new parameters required
+1. **Domain**: Implement `IFilter` interface if needed (current filters use existing interfaces)
+2. **Infrastructure**: Implement CPU and CUDA filter classes
+3. **Application**: Filters are automatically usable via FilterPipeline
+4. **Ports**: Update C API handlers in `ports/cgo/` and `ports/shared_lib/` if new parameters required
 
-Example flow for Gaussian Blur:
+Example flow for a new filter:
 ```
-proto/common.proto: Define GaussianBlurParameters
-infrastructure/cpu/: Implement blur algorithm
-infrastructure/cuda/: Implement CUDA kernel
-shared_lib/: Wire up parameters to kernels
+proto/common.proto: Define filter parameters (if needed)
+infrastructure/cpu/: Implement CPU filter class
+infrastructure/cuda/: Implement CUDA filter class
+ports/shared_lib/: Wire up parameters to filters in cuda_processor_impl.cpp
+ports/cgo/: Wire up parameters to filters in cgo_api.cpp (if using CGO)
 ```
+
+The FilterPipeline automatically handles filter composition and execution order.
 
 ## Testing
 

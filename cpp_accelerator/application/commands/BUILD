@@ -9,23 +9,11 @@ cc_library(
 
 cc_library(
     name = "commands",
-    srcs = [
-        "cpu_image_filters_command.cpp",
-        "cuda_image_filters_command.cpp",
-        "passthrough_command.cpp",
-    ],
-    hdrs = [
-        "cpu_image_filters_command.h",
-        "cuda_image_filters_command.h",
-        "passthrough_command.h",
-    ],
+    srcs = [],
+    hdrs = [],
     visibility = ["//visibility:public"],
     deps = [
         ":command_interface",
-        "//cpp_accelerator/core:logger",
-        "//cpp_accelerator/domain/interfaces",
-        "@spdlog",
-        "//cpp_accelerator/domain/interfaces:processors",
     ],
 )
 
@@ -38,8 +26,6 @@ cc_library(
         ":command_interface",
         ":commands",
         "//cpp_accelerator/infrastructure/config",
-        "//cpp_accelerator/infrastructure/cuda:cuda_wrappers",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
     ],
 )
 
@@ -56,8 +42,6 @@ cc_test(
         ":command_interface",
         ":commands",
         "//cpp_accelerator/core:result",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces:processors",
         "//cpp_accelerator/infrastructure/config",
         "@googletest//:gtest_main",
     ],

@@ -76,6 +76,7 @@ message StartVideoPlaybackRequest {
   repeated FilterType filters = 3 [json_name = "filters"];
   AcceleratorType accelerator = 5 [json_name = "accelerator"];
   GrayscaleType grayscale_type = 7 [json_name = "grayscaleType"];
+  GaussianBlurParameters blur_params = 11 [json_name = "blur_params"];
   TraceContext trace_context = 9 [json_name = "trace_context"];
 }
 

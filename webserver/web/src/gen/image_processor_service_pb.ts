@@ -462,6 +462,11 @@ export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest
   grayscaleType = GrayscaleType.UNSPECIFIED;
 
   /**
+   * @generated from field: cuda_learning.GaussianBlurParameters blur_params = 11 [json_name = "blur_params"];
+   */
+  blurParams?: GaussianBlurParameters;
+
+  /**
    * @generated from field: cuda_learning.TraceContext trace_context = 9 [json_name = "trace_context"];
    */
   traceContext?: TraceContext;
@@ -478,6 +483,7 @@ export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest
     { no: 3, name: "filters", kind: "enum", T: proto3.getEnumType(FilterType), repeated: true },
     { no: 5, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
     { no: 7, name: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
+    { no: 11, name: "blur_params", jsonName: "blur_params", kind: "message", T: GaussianBlurParameters },
     { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 

@@ -369,7 +369,8 @@ export class VideoGrid extends LitElement {
     filters: string[],
     accelerator: string,
     grayscaleType: string,
-    resolution: string = 'original'
+    resolution: string = 'original',
+    blurParams?: Record<string, any>
   ): Promise<void> {
     const selectedSource = this.getSelectedSource();
     if (!selectedSource) {
@@ -412,7 +413,7 @@ export class VideoGrid extends LitElement {
             logger.debug('Starting video with filters', {
               filters: filters.join(','),
             });
-            selectedSource.ws.sendStartVideo(videoId, filters, accelerator, grayscaleType);
+            selectedSource.ws.sendStartVideo(videoId, filters, accelerator, grayscaleType, blurParams);
           }
         }, 200);
       } catch (error) {
@@ -482,7 +483,8 @@ export class VideoGrid extends LitElement {
         targetHeight,
         filters,
         accelerator,
-        grayscaleType
+        grayscaleType,
+        blurParams
       );
 
       if (response.success && response.response) {

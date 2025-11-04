@@ -265,6 +265,7 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 	filters := h.adapter.ToFilters(req.Filters)
 	accelerator := h.adapter.ToAccelerator(req.Accelerator)
 	grayscaleType := h.adapter.ToGrayscaleType(req.GrayscaleType)
+	blurParams := req.BlurParams
 
 	h.frameCounter++
 	span.SetAttributes(
@@ -273,7 +274,7 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 		attribute.String("accelerator", req.Accelerator.String()),
 	)
 
-	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType)
+	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
 	if err != nil {
 		result.Error = "processing failed: " + err.Error()
 		return result
@@ -345,6 +346,7 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 	domainFilters := h.adapter.ToFilters(req.Filters)
 	domainAccelerator := h.adapter.ToAccelerator(req.Accelerator)
 	domainGrayscale := h.adapter.ToGrayscaleType(req.GrayscaleType)
+	blurParams := req.BlurParams
 
 	for _, f := range domainFilters {
 		if f == domain.FilterGrayscale {
@@ -360,7 +362,7 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 		default:
 		}
 
-		result, err := h.useCase.Execute(ctx, domainImg, domainFilters, domainAccelerator, domainGrayscale)
+		result, err := h.useCase.Execute(ctx, domainImg, domainFilters, domainAccelerator, domainGrayscale, blurParams)
 		if err != nil {
 			log.Error().Err(err).Int("frame", frameNumber).Msg("Failed to process video frame")
 			return err

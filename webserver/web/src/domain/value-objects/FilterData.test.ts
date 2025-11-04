@@ -6,9 +6,11 @@ describe('FilterData', () => {
   // Test data builders
   const makeNoneFilter = () => new FilterData('none');
   const makeGrayscaleFilter = () => new FilterData('grayscale');
+  const makeBlurFilter = () => new FilterData('blur');
+  const makeBlurFilterWithParams = (params: Record<string, any>) => new FilterData('blur', params);
   const makeFilterWithRadius = (radius: number) => new FilterData('none', { radius });
   const makeFilterWithIntensity = (intensity: number) => new FilterData('none', { intensity });
-  const makeInvalidType = () => 'blur' as any;
+  const makeInvalidType = () => 'invalid' as any;
 
   describe('Success Cases', () => {
     it('Success_NoneFilter', () => {
@@ -29,6 +31,17 @@ describe('FilterData', () => {
       expect(sut.getType()).toBe('grayscale');
       expect(sut.isGrayscale()).toBe(true);
       expect(sut.isNone()).toBe(false);
+    });
+
+    it('Success_BlurFilter', () => {
+      // Arrange / Act
+      const sut = makeBlurFilter();
+
+      // Assert
+      expect(sut.getType()).toBe('blur');
+      expect(sut.isBlur()).toBe(true);
+      expect(sut.isNone()).toBe(false);
+      expect(sut.isGrayscale()).toBe(false);
     });
 
     it('Success_FilterWithValidParameters', () => {
@@ -58,6 +71,15 @@ describe('FilterData', () => {
       expect(protocol).toBe(FilterType.GRAYSCALE);
     });
 
+    it('Success_ProtocolConversionBlur', () => {
+      // Arrange / Act
+      const sut = makeBlurFilter();
+      const protocol = sut.toProtocol();
+
+      // Assert
+      expect(protocol).toBe(FilterType.BLUR);
+    });
+
     it('Success_EqualityCheck', () => {
       // Arrange
       const filter1 = makeNoneFilter();
@@ -85,12 +107,18 @@ describe('FilterData', () => {
       // Arrange
       const noneFilter = makeNoneFilter();
       const grayscaleFilter = makeGrayscaleFilter();
+      const blurFilter = makeBlurFilter();
 
       // Assert
       expect(noneFilter.isNone()).toBe(true);
       expect(noneFilter.isGrayscale()).toBe(false);
+      expect(noneFilter.isBlur()).toBe(false);
       expect(grayscaleFilter.isNone()).toBe(false);
       expect(grayscaleFilter.isGrayscale()).toBe(true);
+      expect(grayscaleFilter.isBlur()).toBe(false);
+      expect(blurFilter.isNone()).toBe(false);
+      expect(blurFilter.isGrayscale()).toBe(false);
+      expect(blurFilter.isBlur()).toBe(true);
     });
 
     it('Success_ToString', () => {
@@ -108,7 +136,7 @@ describe('FilterData', () => {
   describe('Error Cases', () => {
     it('Error_EmptyFilterType', () => {
       // Arrange / Act / Assert
-      expect(() => new FilterData(''))
+      expect(() => new FilterData('' as any))
         .toThrow('Filter type cannot be empty');
     });
 
@@ -121,7 +149,7 @@ describe('FilterData', () => {
     it('Error_InvalidFilterType', () => {
       // Arrange / Act / Assert
       expect(() => new FilterData(makeInvalidType()))
-        .toThrow('Invalid filter type: blur');
+        .toThrow('Invalid filter type: invalid');
     });
 
     it('Error_InvalidRadiusNegative', () => {
@@ -159,6 +187,42 @@ describe('FilterData', () => {
       expect(() => new FilterData('none', { intensity: 'invalid' }))
         .toThrow('Intensity must be a number between 0 and 1');
     });
+
+    it('Error_InvalidKernelSizeNegative', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ kernel_size: -1 }))
+        .toThrow('kernel_size must be a positive odd number');
+    });
+
+    it('Error_InvalidKernelSizeEven', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ kernel_size: 4 }))
+        .toThrow('kernel_size must be a positive odd number');
+    });
+
+    it('Error_InvalidKernelSizeNotNumber', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ kernel_size: 'invalid' }))
+        .toThrow('kernel_size must be a positive odd number');
+    });
+
+    it('Error_InvalidSigmaNegative', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ sigma: -0.1 }))
+        .toThrow('sigma must be a non-negative number');
+    });
+
+    it('Error_InvalidSigmaNotNumber', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ sigma: 'invalid' }))
+        .toThrow('sigma must be a non-negative number');
+    });
+
+    it('Error_InvalidSeparableNotBoolean', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ separable: 'invalid' }))
+        .toThrow('separable must be a boolean');
+    });
   });
 
   describe('Edge Cases', () => {
@@ -192,6 +256,34 @@ describe('FilterData', () => {
       expect(() => makeFilterWithIntensity(1)).not.toThrow();
     });
 
+    it('Edge_BlurFilterWithValidParams', () => {
+      // Arrange / Act
+      const sut = makeBlurFilterWithParams({ 
+        kernel_size: 5, 
+        sigma: 1.0, 
+        separable: true 
+      });
+
+      // Assert
+      expect(sut.getParameter('kernel_size')).toBe(5);
+      expect(sut.getParameter('sigma')).toBe(1.0);
+      expect(sut.getParameter('separable')).toBe(true);
+    });
+
+    it('Edge_KernelSizeBoundaries', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ kernel_size: 1 })).not.toThrow();
+      expect(() => makeBlurFilterWithParams({ kernel_size: 3 })).not.toThrow();
+      expect(() => makeBlurFilterWithParams({ kernel_size: 5 })).not.toThrow();
+    });
+
+    it('Edge_SigmaBoundaries', () => {
+      // Arrange / Act / Assert
+      expect(() => makeBlurFilterWithParams({ sigma: 0 })).not.toThrow();
+      expect(() => makeBlurFilterWithParams({ sigma: 1.0 })).not.toThrow();
+      expect(() => makeBlurFilterWithParams({ sigma: 10.5 })).not.toThrow();
+    });
+
     it('Edge_WhitespaceInType', () => {
       // Arrange / Act / Assert
       expect(() => new FilterData('  none  ' as any))
@@ -216,8 +308,15 @@ describe('FilterData', () => {
         shouldThrow: false
       },
       {
-        name: 'Error_InvalidTypeBlur',
-        type: 'blur' as any,
+        name: 'Success_BlurFilterNoParams',
+        type: 'blur' as const,
+        params: {},
+        expectedProtocol: FilterType.BLUR,
+        shouldThrow: false
+      },
+      {
+        name: 'Error_InvalidTypeUnknown',
+        type: 'unknown' as any,
         params: {},
         expectedProtocol: FilterType.NONE,
         shouldThrow: true,

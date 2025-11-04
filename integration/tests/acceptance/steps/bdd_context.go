@@ -445,6 +445,57 @@ func (c *BDDContext) WhenICallProcessImageWith(filter, accelerator, grayscaleTyp
 	return nil
 }
 
+func (c *BDDContext) WhenICallProcessImageWithBlurFilter(accelerator string, kernelSize int, sigma float64, borderMode string, separable bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	acceleratorEnum := parseAcceleratorType(accelerator)
+
+	borderModeEnum := pb.BorderMode_BORDER_MODE_REFLECT
+	switch borderMode {
+	case "CLAMP":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_CLAMP
+	case "REFLECT":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_REFLECT
+	case "WRAP":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_WRAP
+	}
+
+	blurParams := &pb.GaussianBlurParameters{
+		KernelSize: int32(kernelSize),
+		Sigma:      float32(sigma),
+		BorderMode: borderModeEnum,
+		Separable:  separable,
+	}
+
+	req := &pb.ProcessImageRequest{
+		ImageData:     c.currentImage,
+		Width:         c.currentImageWidth,
+		Height:        c.currentImageHeight,
+		Channels:      c.currentChannels,
+		Filters:       []pb.FilterType{pb.FilterType_FILTER_TYPE_BLUR},
+		Accelerator:   acceleratorEnum,
+		GrayscaleType: pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED,
+		BlurParams:    blurParams,
+	}
+
+	resp, err := c.connectClient.ProcessImage(ctx, connect.NewRequest(req))
+	if err != nil {
+		c.lastError = err
+		return nil
+	}
+
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
+	c.processedImage = resp.Msg.ImageData
+	c.lastError = nil
+
+	if resp.Msg.Code != 0 {
+		c.lastError = fmt.Errorf("processing failed: %s", resp.Msg.Message)
+	}
+
+	return nil
+}
+
 func (c *BDDContext) WhenICallProcessImageWithInvalidData(errorType string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -547,6 +598,90 @@ func (c *BDDContext) WhenISendWebSocketFrame(filter, accelerator, grayscaleType 
 			Filters:       []pb.FilterType{filterEnum},
 			Accelerator:   acceleratorEnum,
 			GrayscaleType: grayscaleEnum,
+		},
+	}
+
+	var messageData []byte
+	var err error
+	var messageType int
+
+	if c.defaultFormat == "binary" {
+		messageData, err = proto.Marshal(frameReq)
+		messageType = websocket.BinaryMessage
+	} else {
+		messageData, err = protojson.Marshal(frameReq)
+		messageType = websocket.TextMessage
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to marshal frame request: %w", err)
+	}
+
+	c.wsConnection.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if writeErr := c.wsConnection.WriteMessage(messageType, messageData); writeErr != nil {
+		return fmt.Errorf("failed to send websocket message: %w", writeErr)
+	}
+
+	c.wsConnection.SetReadDeadline(time.Now().Add(10 * time.Second))
+	msgType, responseData, err := c.wsConnection.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("failed to read websocket response: %w", err)
+	}
+
+	var frameResp pb.WebSocketFrameResponse
+	if msgType == websocket.BinaryMessage {
+		err = proto.Unmarshal(responseData, &frameResp)
+	} else {
+		err = protojson.Unmarshal(responseData, &frameResp)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal websocket response: %w", err)
+	}
+
+	c.wsResponse = &frameResp
+	if frameResp.Response != nil {
+		c.processedImage = frameResp.Response.ImageData
+	}
+
+	return nil
+}
+
+func (c *BDDContext) WhenISendWebSocketFrameWithBlurFilter(accelerator string, kernelSize int, sigma float64, borderMode string, separable bool) error {
+	if c.wsConnection == nil {
+		return fmt.Errorf("websocket not connected")
+	}
+
+	acceleratorEnum := parseAcceleratorType(accelerator)
+
+	borderModeEnum := pb.BorderMode_BORDER_MODE_REFLECT
+	switch borderMode {
+	case "CLAMP":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_CLAMP
+	case "REFLECT":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_REFLECT
+	case "WRAP":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_WRAP
+	}
+
+	blurParams := &pb.GaussianBlurParameters{
+		KernelSize: int32(kernelSize),
+		Sigma:      float32(sigma),
+		BorderMode: borderModeEnum,
+		Separable:  separable,
+	}
+
+	frameReq := &pb.WebSocketFrameRequest{
+		Type: "process_frame",
+		Request: &pb.ProcessImageRequest{
+			ImageData:     c.currentImagePNG,
+			Width:         c.currentImageWidth,
+			Height:        c.currentImageHeight,
+			Channels:      c.currentChannels,
+			Filters:       []pb.FilterType{pb.FilterType_FILTER_TYPE_BLUR},
+			Accelerator:   acceleratorEnum,
+			GrayscaleType: pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED,
+			BlurParams:    blurParams,
 		},
 	}
 
@@ -775,6 +910,8 @@ func parseFilterType(filter string) pb.FilterType {
 		return pb.FilterType_FILTER_TYPE_NONE
 	case "FILTER_TYPE_GRAYSCALE", "GRAYSCALE":
 		return pb.FilterType_FILTER_TYPE_GRAYSCALE
+	case "FILTER_TYPE_BLUR", "BLUR":
+		return pb.FilterType_FILTER_TYPE_BLUR
 	default:
 		return pb.FilterType_FILTER_TYPE_UNSPECIFIED
 	}

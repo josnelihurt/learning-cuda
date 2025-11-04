@@ -166,6 +166,57 @@ export class TestHelpers {
     return null;
   }
 
+  async setBlurParameter(filterId: string, paramId: string, value: string | number): Promise<void> {
+    const filterPanel = this.page.locator('filter-panel');
+    await filterPanel.waitFor({ state: 'visible', timeout: 2000 });
+    const paramControl = filterPanel.locator(`[data-testid="filter-parameter-${filterId}-${paramId}"]`);
+    await paramControl.waitFor({ state: 'visible', timeout: 2000 });
+    
+    const tagName = await paramControl.evaluate(el => el.tagName.toLowerCase());
+    
+    if (tagName === 'input') {
+      const inputType = await paramControl.getAttribute('type');
+      if (inputType === 'range' || inputType === 'number') {
+        await paramControl.fill(value.toString());
+        await paramControl.dispatchEvent('input');
+      } else if (inputType === 'checkbox') {
+        const isChecked = value === true || value === 'true';
+        if (isChecked) {
+          await paramControl.check();
+        } else {
+          await paramControl.uncheck();
+        }
+      }
+    } else if (tagName === 'select') {
+      await paramControl.selectOption(value.toString());
+    }
+    
+    await this.page.waitForTimeout(300);
+  }
+
+  async getBlurParameter(filterId: string, paramId: string): Promise<string | null> {
+    const filterPanel = this.page.locator('filter-panel');
+    await filterPanel.waitFor({ state: 'visible', timeout: 2000 });
+    const paramControl = filterPanel.locator(`[data-testid="filter-parameter-${filterId}-${paramId}"]`);
+    await paramControl.waitFor({ state: 'visible', timeout: 2000 });
+    
+    const tagName = await paramControl.evaluate(el => el.tagName.toLowerCase());
+    
+    if (tagName === 'input') {
+      const inputType = await paramControl.getAttribute('type');
+      if (inputType === 'range' || inputType === 'number') {
+        return await paramControl.inputValue();
+      } else if (inputType === 'checkbox') {
+        const checked = await paramControl.isChecked();
+        return checked ? 'true' : 'false';
+      }
+    } else if (tagName === 'select') {
+      return await paramControl.inputValue();
+    }
+    
+    return null;
+  }
+
   async openDrawer(): Promise<void> {
     await this.page.click('[data-testid="add-input-fab"]');
     await this.page.waitForSelector('[data-testid="source-drawer"]', { state: 'visible' });

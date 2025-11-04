@@ -3,9 +3,6 @@
 namespace jrb::infrastructure::cuda {
 
 constexpr float SQRT_2PI = 2.506628274631000242F;
-constexpr float LUMA_RED_WEIGHT_BT601 = 0.299F;
-constexpr float LUMA_GREEN_WEIGHT_BT601 = 0.587F;
-constexpr float LUMA_BLUE_WEIGHT_BT601 = 0.114F;
 
 enum class BorderMode : int { CLAMP = 0, REFLECT = 1, WRAP = 2 };
 

@@ -96,6 +96,14 @@ Feature: Image Processing via ConnectRPC
     When I call ProcessImage with blur filter, accelerator "ACCELERATOR_TYPE_CPU", kernel size 9, sigma 2.0, border mode "REFLECT", separable true
     Then the processing should succeed
 
+  Scenario: Process image with grayscale and blur filters using GPU
+    When I call ProcessImage with multiple filters "GRAYSCALE_AND_BLUR", accelerator "ACCELERATOR_TYPE_CUDA", grayscale type "GRAYSCALE_TYPE_BT601", blur kernel size 5, blur sigma 1.0, blur border mode "REFLECT", blur separable true
+    Then the processing should succeed
+
+  Scenario: Process image with blur and grayscale filters using CPU
+    When I call ProcessImage with multiple filters "BLUR_AND_GRAYSCALE", accelerator "ACCELERATOR_TYPE_CPU", grayscale type "GRAYSCALE_TYPE_BT709", blur kernel size 7, blur sigma 1.5, blur border mode "REFLECT", blur separable true
+    Then the processing should succeed
+
   Scenario: Fail to process empty image
     When I call ProcessImage with invalid data "empty_image"
     Then the processing should fail

@@ -40,6 +40,7 @@ cc_library(
     hdrs = glob(["include/**/*.hpp"]),
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
+    copts = ["-w"],
 )
 """,
     sha256 = "a93f247ed89eba11ca36eb24c4f8ba7be636bf24e74aaaa8e1066e0954bec7e3",
@@ -58,6 +59,7 @@ cc_library(
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
     defines = ["SPDLOG_COMPILED_LIB"],
+    copts = ["-w"],
 )
 """,
     sha256 = "4dccf2d10f410c1e2feaff89966bfc49a1abb29ef6f08246335b110e001e09a9",

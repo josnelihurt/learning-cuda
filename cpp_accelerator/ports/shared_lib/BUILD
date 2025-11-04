@@ -33,8 +33,8 @@ cc_binary(
         "//cpp_accelerator/infrastructure/cuda:cuda_wrappers",
         "//cpp_accelerator/infrastructure/cuda:grayscale_filter",
         "//proto:common_cc_proto",
-        "//proto:image_processor_service_cc_proto",
         "@spdlog",
+        "//proto:image_processor_service_cc_proto",
     ],
 )
 
@@ -53,6 +53,8 @@ cc_test(
         "//cpp_accelerator/application/pipeline:filter_pipeline",
         "//cpp_accelerator/core:logger",
         "//cpp_accelerator/core:telemetry",
+        "@googletest//:gtest_main",
+        "@spdlog",
         "//cpp_accelerator/domain/interfaces",
         "//cpp_accelerator/infrastructure/cpu:blur_filter",
         "//cpp_accelerator/infrastructure/cpu:grayscale_filter",
@@ -62,8 +64,6 @@ cc_test(
         "//cpp_accelerator/infrastructure/image:image_adapters",
         "//proto:common_cc_proto",
         "//proto:image_processor_service_cc_proto",
-        "@googletest//:gtest_main",
-        "@spdlog",
     ],
 )
 

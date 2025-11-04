@@ -6,7 +6,12 @@
 
 #include "cpp_accelerator/core/telemetry.h"
 #include "cpp_accelerator/infrastructure/cuda/blur_kernel.h"
-#include "spdlog/spdlog.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
+#include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
 
 namespace jrb::infrastructure::cuda {
 

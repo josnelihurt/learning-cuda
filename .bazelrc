@@ -30,3 +30,28 @@ coverage --instrumentation_filter="//cpp_accelerator/..."
 coverage --instrument_test_targets
 coverage --build_tests_only
 coverage --experimental_generate_llvm_lcov
+
+# Warning suppression for external libraries and generated code
+# Suppress warnings from all external repositories (including virtual headers in bazel-out)
+# Note: --host_per_file_copt is needed for tools that compile for the host platform
+build --per_file_copt=external/.*\.(cc|cpp|h|hpp)@-w
+build --per_file_copt=bazel-out/.*/external/.*\.(cc|cpp|h|hpp)@-w
+build --per_file_copt=bazel-out/.*/external/.*/.*\.(cc|cpp|h|hpp)@-w
+build --host_per_file_copt=external/.*\.(cc|cpp|h|hpp)@-w
+build --host_per_file_copt=bazel-out/.*/external/.*\.(cc|cpp|h|hpp)@-w
+build --host_per_file_copt=bazel-out/.*/external/.*/.*\.(cc|cpp|h|hpp)@-w
+
+# Note: Specific warnings from external headers (deprecated-declarations, missing-requires)
+# are suppressed using #pragma GCC diagnostic directives directly in each file that includes
+# external headers. This approach is explicit and local, making it clear which warnings are
+# being suppressed and why.
+
+# Suppress warnings from generated protobuf code
+build --per_file_copt=.*\.pb\.(cc|h)@-w
+
+# Enable warnings for our own code
+# Exclude third_party code from -Werror first (it's external code, must come before general rules)
+build --per_file_copt=.*third_party.*\.(cc|cpp|h)@-Wno-error
+build --per_file_copt=^//cpp_accelerator/.*\.(cc|cpp|h)@-Wall
+build --per_file_copt=^//cpp_accelerator/.*\.(cc|cpp|h)@-Wextra
+build --per_file_copt=^//cpp_accelerator/.*\.(cc|cpp|h)@-Werror

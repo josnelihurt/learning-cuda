@@ -1,12 +1,22 @@
-#include <spdlog/spdlog.h>
-
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <memory>
 #include <string>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
+#include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include "common.pb.h"
+#include "image_processor_service.pb.h"
+#pragma GCC diagnostic pop
+
 #include "cpp_accelerator/application/pipeline/filter_pipeline.h"
 #include "cpp_accelerator/core/logger.h"
 #include "cpp_accelerator/core/telemetry.h"
@@ -16,7 +26,6 @@
 #include "cpp_accelerator/infrastructure/cuda/blur_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 #include "image_buffer_adapter.h"
-#include "image_processor_service.pb.h"
 #include "processor_api.h"
 
 namespace {

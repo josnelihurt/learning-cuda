@@ -1,8 +1,8 @@
 #include "cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 
+#include <gtest/gtest.h>
 #include <algorithm>
 #include <cmath>
-#include <gtest/gtest.h>
 #include <vector>
 
 #include "cpp_accelerator/domain/interfaces/image_buffer.h"
@@ -17,8 +17,9 @@ using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
 using jrb::infrastructure::image::ImageLoader;
 
-FilterContext CreateGrayscaleFilterContext(const unsigned char* input_data, unsigned char* output_data,
-                                           int width, int height, int input_channels) {
+FilterContext CreateGrayscaleFilterContext(const unsigned char* input_data,
+                                           unsigned char* output_data, int width, int height,
+                                           int input_channels) {
   FilterContext context(input_data, output_data, width, height, input_channels);
   context.output.channels = 1;
   return context;
@@ -63,9 +64,9 @@ TEST_F(GrayscaleFilterTest, SetterUpdatesAlgorithm) {
 TEST_F(GrayscaleFilterTest, AppliesBT601GrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::BT601);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -74,22 +75,16 @@ TEST_F(GrayscaleFilterTest, AppliesBT601GrayscaleSuccessfully) {
   EXPECT_EQ(context.output.height, image_loader_->height());
   EXPECT_EQ(context.output.channels, 1);
 
-  bool all_grayscale = true;
-  for (int i = 0; i < image_loader_->width() * image_loader_->height(); ++i) {
-    if (output[i] < 0 || output[i] > 255) {
-      all_grayscale = false;
-      break;
-    }
-  }
-  EXPECT_TRUE(all_grayscale);
+  // output is unsigned char, so values are always in range [0, 255]
+  // No validation needed - all values are valid by type
 }
 
 TEST_F(GrayscaleFilterTest, AppliesBT709GrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::BT709);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -100,9 +95,9 @@ TEST_F(GrayscaleFilterTest, AppliesBT709GrayscaleSuccessfully) {
 TEST_F(GrayscaleFilterTest, AppliesAverageGrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::Average);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -113,9 +108,9 @@ TEST_F(GrayscaleFilterTest, AppliesAverageGrayscaleSuccessfully) {
 TEST_F(GrayscaleFilterTest, AppliesLightnessGrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::Lightness);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -126,9 +121,9 @@ TEST_F(GrayscaleFilterTest, AppliesLightnessGrayscaleSuccessfully) {
 TEST_F(GrayscaleFilterTest, AppliesLuminosityGrayscaleSuccessfully) {
   GrayscaleFilter filter(GrayscaleAlgorithm::Luminosity);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   bool result = filter.Apply(context);
 
@@ -171,9 +166,9 @@ TEST_F(GrayscaleFilterTest, FailsWithInvalidOutput) {
 TEST_F(GrayscaleFilterTest, PreservesImageDimensions) {
   GrayscaleFilter filter;
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() * 1);
-  FilterContext context = CreateGrayscaleFilterContext(
-      image_loader_->data(), output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext context =
+      CreateGrayscaleFilterContext(image_loader_->data(), output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   filter.Apply(context);
 
@@ -183,7 +178,8 @@ TEST_F(GrayscaleFilterTest, PreservesImageDimensions) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT601) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::BT601);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(jrb::infrastructure::cpu::GrayscaleAlgorithm::BT601);
+  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
+      jrb::infrastructure::cpu::GrayscaleAlgorithm::BT601);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -191,9 +187,9 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT601) {
   FilterContext cuda_context = CreateGrayscaleFilterContext(
       image_loader_->data(), cuda_output.data(), image_loader_->width(), image_loader_->height(),
       image_loader_->channels());
-  FilterContext cpu_context = CreateGrayscaleFilterContext(
-      image_loader_->data(), cpu_output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext cpu_context =
+      CreateGrayscaleFilterContext(image_loader_->data(), cpu_output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   ASSERT_TRUE(cuda_filter.Apply(cuda_context));
   ASSERT_TRUE(cpu_filter.Apply(cpu_context));
@@ -207,7 +203,7 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT601) {
       max_diff = std::max(max_diff, diff);
     }
   }
-  
+
   EXPECT_LE(mismatches, image_loader_->width() * image_loader_->height() * 0.01)
       << "Too many mismatches: " << mismatches << " out of "
       << image_loader_->width() * image_loader_->height();
@@ -216,7 +212,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT601) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT709) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::BT709);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(jrb::infrastructure::cpu::GrayscaleAlgorithm::BT709);
+  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
+      jrb::infrastructure::cpu::GrayscaleAlgorithm::BT709);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -224,9 +221,9 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT709) {
   FilterContext cuda_context = CreateGrayscaleFilterContext(
       image_loader_->data(), cuda_output.data(), image_loader_->width(), image_loader_->height(),
       image_loader_->channels());
-  FilterContext cpu_context = CreateGrayscaleFilterContext(
-      image_loader_->data(), cpu_output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext cpu_context =
+      CreateGrayscaleFilterContext(image_loader_->data(), cpu_output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   ASSERT_TRUE(cuda_filter.Apply(cuda_context));
   ASSERT_TRUE(cpu_filter.Apply(cpu_context));
@@ -240,7 +237,7 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT709) {
       max_diff = std::max(max_diff, diff);
     }
   }
-  
+
   EXPECT_LE(mismatches, image_loader_->width() * image_loader_->height() * 0.01)
       << "Too many mismatches: " << mismatches << " out of "
       << image_loader_->width() * image_loader_->height();
@@ -249,7 +246,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT709) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForAverage) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::Average);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(jrb::infrastructure::cpu::GrayscaleAlgorithm::Average);
+  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
+      jrb::infrastructure::cpu::GrayscaleAlgorithm::Average);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -257,9 +255,9 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForAverage) {
   FilterContext cuda_context = CreateGrayscaleFilterContext(
       image_loader_->data(), cuda_output.data(), image_loader_->width(), image_loader_->height(),
       image_loader_->channels());
-  FilterContext cpu_context = CreateGrayscaleFilterContext(
-      image_loader_->data(), cpu_output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext cpu_context =
+      CreateGrayscaleFilterContext(image_loader_->data(), cpu_output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   ASSERT_TRUE(cuda_filter.Apply(cuda_context));
   ASSERT_TRUE(cpu_filter.Apply(cpu_context));
@@ -273,7 +271,7 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForAverage) {
       max_diff = std::max(max_diff, diff);
     }
   }
-  
+
   EXPECT_LE(mismatches, image_loader_->width() * image_loader_->height() * 0.01)
       << "Too many mismatches: " << mismatches << " out of "
       << image_loader_->width() * image_loader_->height();
@@ -282,7 +280,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForAverage) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLightness) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::Lightness);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(jrb::infrastructure::cpu::GrayscaleAlgorithm::Lightness);
+  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
+      jrb::infrastructure::cpu::GrayscaleAlgorithm::Lightness);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -290,9 +289,9 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLightness) {
   FilterContext cuda_context = CreateGrayscaleFilterContext(
       image_loader_->data(), cuda_output.data(), image_loader_->width(), image_loader_->height(),
       image_loader_->channels());
-  FilterContext cpu_context = CreateGrayscaleFilterContext(
-      image_loader_->data(), cpu_output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext cpu_context =
+      CreateGrayscaleFilterContext(image_loader_->data(), cpu_output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   ASSERT_TRUE(cuda_filter.Apply(cuda_context));
   ASSERT_TRUE(cpu_filter.Apply(cpu_context));
@@ -306,7 +305,7 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLightness) {
       max_diff = std::max(max_diff, diff);
     }
   }
-  
+
   EXPECT_LE(mismatches, image_loader_->width() * image_loader_->height() * 0.01)
       << "Too many mismatches: " << mismatches << " out of "
       << image_loader_->width() * image_loader_->height();
@@ -315,7 +314,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLightness) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLuminosity) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::Luminosity);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(jrb::infrastructure::cpu::GrayscaleAlgorithm::Luminosity);
+  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
+      jrb::infrastructure::cpu::GrayscaleAlgorithm::Luminosity);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -323,9 +323,9 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLuminosity) {
   FilterContext cuda_context = CreateGrayscaleFilterContext(
       image_loader_->data(), cuda_output.data(), image_loader_->width(), image_loader_->height(),
       image_loader_->channels());
-  FilterContext cpu_context = CreateGrayscaleFilterContext(
-      image_loader_->data(), cpu_output.data(), image_loader_->width(), image_loader_->height(),
-      image_loader_->channels());
+  FilterContext cpu_context =
+      CreateGrayscaleFilterContext(image_loader_->data(), cpu_output.data(), image_loader_->width(),
+                                   image_loader_->height(), image_loader_->channels());
 
   ASSERT_TRUE(cuda_filter.Apply(cuda_context));
   ASSERT_TRUE(cpu_filter.Apply(cpu_context));
@@ -339,7 +339,7 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLuminosity) {
       max_diff = std::max(max_diff, diff);
     }
   }
-  
+
   EXPECT_LE(mismatches, image_loader_->width() * image_loader_->height() * 0.01)
       << "Too many mismatches: " << mismatches << " out of "
       << image_loader_->width() * image_loader_->height();
@@ -348,4 +348,3 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLuminosity) {
 
 }  // namespace
 }  // namespace jrb::infrastructure::cuda
-

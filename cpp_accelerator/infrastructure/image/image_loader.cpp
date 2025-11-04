@@ -3,8 +3,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
 
-#include <spdlog/spdlog.h>
 #include <cstring>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
+#include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
 
 namespace jrb::infrastructure::image {
 

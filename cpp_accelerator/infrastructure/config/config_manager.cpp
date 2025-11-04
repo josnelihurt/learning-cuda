@@ -1,7 +1,12 @@
 #include "cpp_accelerator/infrastructure/config/config_manager.h"
-#include <spdlog/spdlog.h>
 #include <lyra/lyra.hpp>
 #include <sstream>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
+#include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
 
 namespace jrb::infrastructure::config {
 

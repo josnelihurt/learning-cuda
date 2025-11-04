@@ -187,6 +187,61 @@ cpp_accelerator/
 6. **Separation of Concerns**: Clear boundaries between layers
 7. **Filter Pipeline**: Composable filter architecture for chaining multiple filters
 
+## Code Quality & Compiler Warnings
+
+The project enforces strict compiler warning standards to maintain high code quality. All warnings are treated as errors for the project's own code.
+
+### Warning Configuration
+
+The build system (configured in `.bazelrc`) enables aggressive warning detection for all code in `cpp_accelerator/`:
+
+- **`-Wall`**: Enable all standard warnings
+- **`-Wextra`**: Enable additional warnings beyond `-Wall`
+- **`-Werror`**: Treat all warnings as errors, preventing compilation if warnings are present
+
+This configuration applies only to the project's own code. External dependencies and generated code (protobuf, third-party libraries) are excluded from `-Werror` to avoid build failures from code we don't control.
+
+### Warning Suppression Strategy
+
+When external headers generate warnings that cannot be fixed (e.g., deprecated APIs in spdlog or protobuf), the project uses localized `#pragma GCC diagnostic` directives around the problematic includes:
+
+```cpp
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
+#include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
+```
+
+This approach is explicit and local—each file that includes external headers shows clearly which warnings are being suppressed and why.
+
+### Unused Parameters
+
+For parameters that are part of interface contracts but not used in specific implementations (e.g., stub implementations or test code), the `[[maybe_unused]]` attribute is used:
+
+```cpp
+bool TelemetryManager::Initialize(
+    [[maybe_unused]] const std::string& service_name,
+    [[maybe_unused]] const std::string& collector_endpoint,
+    bool enabled) {
+  // Stub implementation - parameters required by interface but not used
+}
+```
+
+This is preferred over removing parameters or using `(void)parameter` casts, as it maintains interface compatibility while clearly indicating intentional non-use.
+
+### Current Status
+
+All code in `cpp_accelerator/` compiles without warnings when `-Werror` is enabled. The project maintains a zero-warning policy for its own code.
+
+### Potential Improvements
+
+1. **Static Analysis Integration**: Add clang-static-analyzer or cppcheck to CI/CD pipeline for deeper analysis beyond compiler warnings
+2. **Warning Categories**: Consider enabling additional warning categories like `-Wpedantic` or `-Weffc++` for even stricter checks
+3. **Custom Warnings**: Define project-specific warnings for common anti-patterns using compiler-specific extensions
+4. **Automated Warning Suppression**: Create a script to audit and validate all `#pragma` suppressions, ensuring they're still necessary after dependency updates
+5. **Documentation**: Generate warning reports as part of build artifacts to track warning trends over time
+
 ## Adding New Filters
 
 To add a new filter (e.g., Gaussian Blur):

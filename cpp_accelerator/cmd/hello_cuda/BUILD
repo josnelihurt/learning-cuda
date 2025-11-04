@@ -6,6 +6,5 @@ cc_binary(
         "//cpp_accelerator/application/commands:command_factory",
         "//cpp_accelerator/core:logger",
         "//cpp_accelerator/infrastructure/config",
-        "@spdlog",
     ],
 )

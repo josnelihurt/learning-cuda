@@ -1,10 +1,15 @@
 #include "cpp_accelerator/core/logger.h"
 
+#include <fstream>
+#include <iostream>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
-#include <fstream>
-#include <iostream>
+#pragma GCC diagnostic pop
 
 namespace jrb::core {
 

@@ -3,11 +3,16 @@
 #include <string>
 #include <vector>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include "common.pb.h"
+#include "image_processor_service.pb.h"
+#pragma GCC diagnostic pop
+
 #include "cpp_accelerator/domain/interfaces/image_buffer.h"
 #include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
 #include "cpp_accelerator/infrastructure/image/image_loader.h"
-#include "image_processor_service.pb.h"
 #include "processor_api.h"
 
 namespace jrb::ports::shared_lib {

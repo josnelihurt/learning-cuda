@@ -496,6 +496,69 @@ func (c *BDDContext) WhenICallProcessImageWithBlurFilter(accelerator string, ker
 	return nil
 }
 
+func (c *BDDContext) WhenICallProcessImageWithMultipleFilters(filters string, accelerator string, grayscaleType string, blurKernelSize int, blurSigma float64, blurBorderMode string, blurSeparable bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	acceleratorEnum := parseAcceleratorType(accelerator)
+	grayscaleEnum := parseGrayscaleType(grayscaleType)
+
+	var protoFilters []pb.FilterType
+	var blurParams *pb.GaussianBlurParameters
+
+	if filters == "GRAYSCALE_AND_BLUR" {
+		protoFilters = []pb.FilterType{pb.FilterType_FILTER_TYPE_GRAYSCALE, pb.FilterType_FILTER_TYPE_BLUR}
+	} else if filters == "BLUR_AND_GRAYSCALE" {
+		protoFilters = []pb.FilterType{pb.FilterType_FILTER_TYPE_BLUR, pb.FilterType_FILTER_TYPE_GRAYSCALE}
+	} else {
+		return fmt.Errorf("unsupported filter combination: %s", filters)
+	}
+
+	borderModeEnum := pb.BorderMode_BORDER_MODE_REFLECT
+	switch blurBorderMode {
+	case "CLAMP":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_CLAMP
+	case "REFLECT":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_REFLECT
+	case "WRAP":
+		borderModeEnum = pb.BorderMode_BORDER_MODE_WRAP
+	}
+
+	blurParams = &pb.GaussianBlurParameters{
+		KernelSize: int32(blurKernelSize),
+		Sigma:      float32(blurSigma),
+		BorderMode: borderModeEnum,
+		Separable:  blurSeparable,
+	}
+
+	req := &pb.ProcessImageRequest{
+		ImageData:     c.currentImage,
+		Width:         c.currentImageWidth,
+		Height:        c.currentImageHeight,
+		Channels:      c.currentChannels,
+		Filters:       protoFilters,
+		Accelerator:   acceleratorEnum,
+		GrayscaleType: grayscaleEnum,
+		BlurParams:    blurParams,
+	}
+
+	resp, err := c.connectClient.ProcessImage(ctx, connect.NewRequest(req))
+	if err != nil {
+		c.lastError = err
+		return nil
+	}
+
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
+	c.processedImage = resp.Msg.ImageData
+	c.lastError = nil
+
+	if resp.Msg.Code != 0 {
+		c.lastError = fmt.Errorf("processing failed: %s", resp.Msg.Message)
+	}
+
+	return nil
+}
+
 func (c *BDDContext) WhenICallProcessImageWithInvalidData(errorType string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

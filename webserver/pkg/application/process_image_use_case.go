@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -24,7 +23,7 @@ func NewProcessImageUseCase(processor domain.ImageProcessor) *ProcessImageUseCas
 }
 
 // Execute processes an image with the specified filters, accelerator, and grayscale type
-func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *gen.GaussianBlurParameters) (*domain.Image, error) {
+func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *domain.BlurParameters) (*domain.Image, error) {
 	tracer := otel.Tracer("process-image-use-case")
 	ctx, span := tracer.Start(ctx, "ProcessImageUseCase.Execute",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -50,7 +49,7 @@ func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, f
 		span.SetAttributes(
 			attribute.Int("blur.kernel_size", int(blurParams.KernelSize)),
 			attribute.Float64("blur.sigma", float64(blurParams.Sigma)),
-			attribute.String("blur.border_mode", blurParams.BorderMode.String()),
+			attribute.String("blur.border_mode", string(blurParams.BorderMode)),
 			attribute.Bool("blur.separable", blurParams.Separable),
 		)
 	}

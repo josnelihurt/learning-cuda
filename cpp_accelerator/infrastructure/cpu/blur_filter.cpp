@@ -19,65 +19,6 @@ using jrb::domain::interfaces::IPixelGetter;
 constexpr float SQRT_2PI = 2.506628274631000242F;
 
 namespace {
-constexpr float LUMA_RED_WEIGHT_BT601 = 0.299F;
-constexpr float LUMA_GREEN_WEIGHT_BT601 = 0.587F;
-constexpr float LUMA_BLUE_WEIGHT_BT601 = 0.114F;
-
-enum class BlurDirection { HORIZONTAL, VERTICAL };
-
-float Compute1DConvolution(const ImageBuffer& buffer, int center_x, int center_y,
-                           const std::vector<float>& kernel, int radius,
-                           const IPixelGetter& pixel_getter, BlurDirection direction) {
-  float sum = 0.0F;
-
-  for (int k = -radius; k <= radius; k++) {
-    int pixel_x = (direction == BlurDirection::HORIZONTAL) ? center_x + k : center_x;
-    int pixel_y = (direction == BlurDirection::HORIZONTAL) ? center_y : center_y + k;
-    float weight = kernel[k + radius];
-    sum += pixel_getter.GetPixelValue(buffer, pixel_x, pixel_y) * weight;
-  }
-
-  return sum;
-}
-
-float Compute2DConvolution(const ImageBuffer& buffer, int center_x, int center_y,
-                           const std::vector<float>& kernel, int radius,
-                           const IPixelGetter& pixel_getter) {
-  float sum = 0.0F;
-
-  for (int ky = -radius; ky <= radius; ky++) {
-    for (int kx = -radius; kx <= radius; kx++) {
-      float weight_y = kernel[ky + radius];
-      float weight_x = kernel[kx + radius];
-      float weight = weight_x * weight_y;
-      sum += pixel_getter.GetPixelValue(buffer, center_x + kx, center_y + ky) * weight;
-    }
-  }
-
-  return sum;
-}
-
-void WritePixelToOutput(ImageBufferMut& output, int x, int y, float blurred_value) {
-  int output_idx = (y * output.width + x) * output.channels;
-  unsigned char value = static_cast<unsigned char>(std::clamp(blurred_value, 0.0F, 255.0F));
-  output.data[output_idx] = value;
-  if (output.channels >= 3) {
-    output.data[output_idx + 1] = value;
-    output.data[output_idx + 2] = value;
-  }
-}
-
-template <BlurDirection Direction>
-void Apply1DBlur(const ImageBuffer& input, ImageBufferMut& output, const std::vector<float>& kernel,
-                 int radius, const IPixelGetter& pixel_getter) {
-  for (int y = 0; y < input.height; y++) {
-    for (int x = 0; x < input.width; x++) {
-      float sum = Compute1DConvolution(input, x, y, kernel, radius, pixel_getter, Direction);
-      WritePixelToOutput(output, x, y, sum);
-    }
-  }
-}
-
 std::vector<float> GenerateGaussianKernel(int size, float sigma) {
   if (size % 2 == 0) {
     size++;
@@ -186,6 +127,44 @@ private:
 };
 }  // namespace internal
 
+namespace {
+enum class BlurDirection { HORIZONTAL, VERTICAL };
+
+float GetPixelChannelValue(const ImageBuffer& buffer, int x, int y, int channel_idx,
+                           const internal::IBorderClamper& clamper) {
+  int clamped_x = clamper.ClampX(x, buffer.width);
+  int clamped_y = clamper.ClampY(y, buffer.height);
+
+  int index = (clamped_y * buffer.width + clamped_x) * buffer.channels;
+  if (channel_idx < buffer.channels) {
+    return static_cast<float>(buffer.data[index + channel_idx]);
+  }
+  return 0.0F;
+}
+
+template <BlurDirection Direction>
+void Apply1DBlur(const ImageBuffer& input, ImageBufferMut& output, const std::vector<float>& kernel,
+                 int radius, const internal::IBorderClamper& clamper) {
+  for (int y = 0; y < input.height; y++) {
+    for (int x = 0; x < input.width; x++) {
+      int output_idx = (y * output.width + x) * output.channels;
+
+      for (int c = 0; c < output.channels; c++) {
+        float sum = 0.0F;
+        for (int k = -radius; k <= radius; k++) {
+          int pixel_x = (Direction == BlurDirection::HORIZONTAL) ? x + k : x;
+          int pixel_y = (Direction == BlurDirection::HORIZONTAL) ? y : y + k;
+          float weight = kernel[k + radius];
+          sum += GetPixelChannelValue(input, pixel_x, pixel_y, c, clamper) * weight;
+        }
+        output.data[output_idx + c] = static_cast<unsigned char>(std::clamp(sum, 0.0F, 255.0F));
+      }
+    }
+  }
+}
+
+}  // anonymous namespace
+
 GaussianBlurFilter::GaussianBlurFilter(int kernel_size, float sigma, BorderMode border_mode,
                                        bool separable)
     : kernel_size_(kernel_size), sigma_(sigma), border_mode_(border_mode), separable_(separable) {
@@ -231,40 +210,41 @@ BorderMode GaussianBlurFilter::GetBorderMode() const {
 
 float GaussianBlurFilter::GetPixelValue(const ImageBuffer& buffer, int x, int y) const {
   const internal::IBorderClamper& clamper = border_clamper_factory_->Get(border_mode_);
-
-  int clamped_x = clamper.ClampX(x, buffer.width);
-  int clamped_y = clamper.ClampY(y, buffer.height);
-
-  int index = (clamped_y * buffer.width + clamped_x) * buffer.channels;
-  if (buffer.channels >= 3) {
-    float r = static_cast<float>(buffer.data[index]);
-    float g = static_cast<float>(buffer.data[index + 1]);
-    float b = static_cast<float>(buffer.data[index + 2]);
-    return LUMA_RED_WEIGHT_BT601 * r + LUMA_GREEN_WEIGHT_BT601 * g + LUMA_BLUE_WEIGHT_BT601 * b;
-  }
-  return static_cast<float>(buffer.data[index]);
+  return GetPixelChannelValue(buffer, x, y, 0, clamper);
 }
 
 void GaussianBlurFilter::ApplyHorizontalBlur(const ImageBuffer& input, ImageBufferMut& output) {
   int radius = kernel_size_ / 2;
-  Apply1DBlur<BlurDirection::HORIZONTAL>(input, output, kernel_, radius,
-                                         static_cast<const IPixelGetter&>(*this));
+  const internal::IBorderClamper& clamper = border_clamper_factory_->Get(border_mode_);
+  Apply1DBlur<BlurDirection::HORIZONTAL>(input, output, kernel_, radius, clamper);
 }
 
 void GaussianBlurFilter::ApplyVerticalBlur(const ImageBuffer& input, ImageBufferMut& output) {
   int radius = kernel_size_ / 2;
-  Apply1DBlur<BlurDirection::VERTICAL>(input, output, kernel_, radius,
-                                       static_cast<const IPixelGetter&>(*this));
+  const internal::IBorderClamper& clamper = border_clamper_factory_->Get(border_mode_);
+  Apply1DBlur<BlurDirection::VERTICAL>(input, output, kernel_, radius, clamper);
 }
 
 void GaussianBlurFilter::ApplyFullBlur(const ImageBuffer& input, ImageBufferMut& output) {
   int radius = kernel_size_ / 2;
+  const internal::IBorderClamper& clamper = border_clamper_factory_->Get(border_mode_);
 
   for (int y = 0; y < input.height; y++) {
     for (int x = 0; x < input.width; x++) {
-      float sum = Compute2DConvolution(input, x, y, kernel_, radius,
-                                       static_cast<const IPixelGetter&>(*this));
-      WritePixelToOutput(output, x, y, sum);
+      int output_idx = (y * output.width + x) * output.channels;
+
+      for (int c = 0; c < output.channels; c++) {
+        float sum = 0.0F;
+        for (int ky = -radius; ky <= radius; ky++) {
+          for (int kx = -radius; kx <= radius; kx++) {
+            float weight_y = kernel_[ky + radius];
+            float weight_x = kernel_[kx + radius];
+            float weight = weight_x * weight_y;
+            sum += GetPixelChannelValue(input, x + kx, y + ky, c, clamper) * weight;
+          }
+        }
+        output.data[output_idx + c] = static_cast<unsigned char>(std::clamp(sum, 0.0F, 255.0F));
+      }
     }
   }
 }

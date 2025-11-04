@@ -13,6 +13,7 @@
 #include "cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
 #include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
 #include "cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
+#include "cpp_accelerator/infrastructure/cuda/blur_processor.h"
 #include "cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 #include "image_buffer_adapter.h"
 #include "image_processor_service.pb.h"
@@ -47,7 +48,7 @@ GrayscaleAlgorithm proto_to_algorithm(cuda_learning::GrayscaleType type) {
   }
 }
 
-// Convert protobuf BorderMode to C++ BorderMode
+// Convert protobuf BorderMode to C++ BorderMode (CPU)
 jrb::infrastructure::cpu::BorderMode proto_to_border_mode(cuda_learning::BorderMode mode) {
   switch (mode) {
     case cuda_learning::BORDER_MODE_CLAMP:
@@ -58,6 +59,20 @@ jrb::infrastructure::cpu::BorderMode proto_to_border_mode(cuda_learning::BorderM
       return jrb::infrastructure::cpu::BorderMode::WRAP;
     default:
       return jrb::infrastructure::cpu::BorderMode::REFLECT;
+  }
+}
+
+// Convert protobuf BorderMode to C++ BorderMode (CUDA)
+jrb::infrastructure::cuda::BorderMode proto_to_cuda_border_mode(cuda_learning::BorderMode mode) {
+  switch (mode) {
+    case cuda_learning::BORDER_MODE_CLAMP:
+      return jrb::infrastructure::cuda::BorderMode::CLAMP;
+    case cuda_learning::BORDER_MODE_REFLECT:
+      return jrb::infrastructure::cuda::BorderMode::REFLECT;
+    case cuda_learning::BORDER_MODE_WRAP:
+      return jrb::infrastructure::cuda::BorderMode::WRAP;
+    default:
+      return jrb::infrastructure::cuda::BorderMode::REFLECT;
   }
 }
 
@@ -200,21 +215,34 @@ bool processor_process_image(const uint8_t* request, int request_len, uint8_t** 
       } else if (filter == cuda_learning::FILTER_TYPE_BLUR) {
         int kernel_size = 5;
         float sigma = 1.0F;
-        jrb::infrastructure::cpu::BorderMode border_mode =
-            jrb::infrastructure::cpu::BorderMode::REFLECT;
         bool separable = true;
 
         if (proc_req.has_blur_params()) {
           const auto& blur_params = proc_req.blur_params();
           kernel_size = blur_params.kernel_size() > 0 ? blur_params.kernel_size() : 5;
           sigma = blur_params.sigma() > 0.0F ? blur_params.sigma() : 1.0F;
-          border_mode = proto_to_border_mode(blur_params.border_mode());
           separable = blur_params.separable();
         }
 
-        pipeline.AddFilter(std::make_unique<jrb::infrastructure::cpu::GaussianBlurFilter>(
-            kernel_size, sigma, border_mode, separable));
-        scoped_span.AddEvent("Added blur filter to pipeline");
+        if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
+          jrb::infrastructure::cuda::BorderMode border_mode =
+              jrb::infrastructure::cuda::BorderMode::REFLECT;
+          if (proc_req.has_blur_params()) {
+            border_mode = proto_to_cuda_border_mode(proc_req.blur_params().border_mode());
+          }
+          pipeline.AddFilter(std::make_unique<jrb::infrastructure::cuda::CudaGaussianBlurFilter>(
+              kernel_size, sigma, border_mode, separable));
+          scoped_span.AddEvent("Added CUDA blur filter to pipeline");
+        } else {
+          jrb::infrastructure::cpu::BorderMode border_mode =
+              jrb::infrastructure::cpu::BorderMode::REFLECT;
+          if (proc_req.has_blur_params()) {
+            border_mode = proto_to_border_mode(proc_req.blur_params().border_mode());
+          }
+          pipeline.AddFilter(std::make_unique<jrb::infrastructure::cpu::GaussianBlurFilter>(
+              kernel_size, sigma, border_mode, separable));
+          scoped_span.AddEvent("Added CPU blur filter to pipeline");
+        }
       } else {
         spdlog::warn("Unsupported filter type: {}", filter);
       }
@@ -324,6 +352,39 @@ bool processor_get_capabilities(const uint8_t* request, int request_len, uint8_t
   algorithm_param->add_options("lightness");
   algorithm_param->add_options("luminosity");
   algorithm_param->set_default_value("bt601");
+
+  auto* blur_filter = caps->add_filters();
+  blur_filter->set_id("blur");
+  blur_filter->set_name("Gaussian Blur");
+  blur_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CUDA);
+  blur_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CPU);
+
+  auto* kernel_size_param = blur_filter->add_parameters();
+  kernel_size_param->set_id("kernel_size");
+  kernel_size_param->set_name("Kernel Size");
+  kernel_size_param->set_type("range");
+  kernel_size_param->set_default_value("5");
+
+  auto* sigma_param = blur_filter->add_parameters();
+  sigma_param->set_id("sigma");
+  sigma_param->set_name("Sigma");
+  sigma_param->set_type("number");
+  sigma_param->set_default_value("1.0");
+
+  auto* border_mode_param = blur_filter->add_parameters();
+  border_mode_param->set_id("border_mode");
+  border_mode_param->set_name("Border Mode");
+  border_mode_param->set_type("select");
+  border_mode_param->add_options("CLAMP");
+  border_mode_param->add_options("REFLECT");
+  border_mode_param->add_options("WRAP");
+  border_mode_param->set_default_value("REFLECT");
+
+  auto* separable_param = blur_filter->add_parameters();
+  separable_param->set_id("separable");
+  separable_param->set_name("Separable");
+  separable_param->set_type("checkbox");
+  separable_param->set_default_value("true");
 
   *response = allocate_response(resp.SerializeAsString(), response_len);
   return true;

@@ -70,7 +70,7 @@ func probeVideo(videoPath string) (width, height int, fps float64, err error) {
 }
 
 // Play starts video playback and calls the frameCallback for each decoded frame
-// The callback receives the raw RGBA image data
+// The callback receives the raw RGB image data
 func (p *FFmpegVideoPlayer) Play(ctx context.Context, frameCallback func(*domain.Image, int, time.Duration) error) error {
 	log.Info().
 		Str("video", p.videoPath).
@@ -79,13 +79,13 @@ func (p *FFmpegVideoPlayer) Play(ctx context.Context, frameCallback func(*domain
 		Float64("fps", p.fps).
 		Msg("Starting video playback with FFmpeg")
 
-	// Start ffmpeg to decode video to raw RGBA frames
+	// Start ffmpeg to decode video to raw RGB frames
 	// #nosec G204 -- videoPath is validated by caller from trusted video repository
 	cmd := exec.CommandContext(ctx,
 		"ffmpeg",
 		"-i", p.videoPath,
 		"-f", "rawvideo",
-		"-pix_fmt", "rgba",
+		"-pix_fmt", "rgb24",
 		"-an",    // No audio
 		"-sn",    // No subtitles
 		"pipe:1", // Output to stdout
@@ -114,8 +114,8 @@ func (p *FFmpegVideoPlayer) Play(ctx context.Context, frameCallback func(*domain
 		}
 	}()
 
-	// Calculate frame size (RGBA = 4 bytes per pixel)
-	frameSize := p.width * p.height * 4
+	// Calculate frame size (RGB = 3 bytes per pixel)
+	frameSize := p.width * p.height * 3
 	frameBuffer := make([]byte, frameSize)
 
 	frameNumber := 0

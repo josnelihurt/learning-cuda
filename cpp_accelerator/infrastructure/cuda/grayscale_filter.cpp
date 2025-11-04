@@ -43,8 +43,8 @@ bool GrayscaleFilter::Apply(FilterContext& context) {
   scoped_span.SetAttribute("image.channels", static_cast<int64_t>(context.input.channels));
   scoped_span.SetAttribute("algorithm", static_cast<int64_t>(algorithm_));
 
-  // Accept 3 channels (RGB), 4 channels (RGBA), or 1 channel (grayscale)
-  if (context.input.channels != 3 && context.input.channels != 4 && context.input.channels != 1) {
+  // Accept 3 channels (RGB) or 1 channel (grayscale)
+  if (context.input.channels != 3 && context.input.channels != 1) {
     std::string error_msg = "Unsupported channel count: " + std::to_string(context.input.channels);
     spdlog::error(error_msg);
     scoped_span.RecordError(error_msg);

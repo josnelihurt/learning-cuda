@@ -25,10 +25,40 @@ function extractBlurParams(filters: FilterData[]): GaussianBlurParameters | unde
   }
 
   const params = blurFilter.getParameters();
-  const kernelSize = params.kernel_size !== undefined ? params.kernel_size : 5;
-  const sigma = params.sigma !== undefined ? params.sigma : 1.0;
-  const separable = params.separable !== undefined ? params.separable : true;
   
+  // Convert kernel_size to number, handling both string and number inputs
+  let kernelSize = 5;
+  if (params.kernel_size !== undefined) {
+    const kernelSizeValue = typeof params.kernel_size === 'string' 
+      ? parseInt(params.kernel_size, 10) 
+      : params.kernel_size;
+    kernelSize = !isNaN(kernelSizeValue) && kernelSizeValue > 0 ? kernelSizeValue : 5;
+    // Ensure it's odd
+    if (kernelSize % 2 === 0) {
+      kernelSize += 1;
+    }
+  }
+  
+  // Convert sigma to number, handling both string and number inputs
+  let sigma = 1.0;
+  if (params.sigma !== undefined) {
+    const sigmaValue = typeof params.sigma === 'string' 
+      ? parseFloat(params.sigma) 
+      : params.sigma;
+    sigma = !isNaN(sigmaValue) && sigmaValue >= 0 ? sigmaValue : 1.0;
+  }
+  
+  // Convert separable to boolean, handling both string and boolean inputs
+  let separable = true;
+  if (params.separable !== undefined) {
+    if (typeof params.separable === 'string') {
+      separable = params.separable === 'true' || params.separable === '1';
+    } else {
+      separable = Boolean(params.separable);
+    }
+  }
+  
+  // Convert border_mode to enum
   let borderMode = BorderMode.REFLECT;
   if (params.border_mode !== undefined) {
     const borderModeStr = String(params.border_mode).toUpperCase();
@@ -210,7 +240,7 @@ export class WebSocketService implements IWebSocketService {
       imageData: imageBytes,
       width: image.getWidth(),
       height: image.getHeight(),
-      channels: 4,
+      channels: 3,
       filters: protoFilters,
       accelerator: protoAccelerator,
       grayscaleType: protoGrayscaleType,
@@ -265,7 +295,7 @@ export class WebSocketService implements IWebSocketService {
       imageData: imageBytes,
       width: image.getWidth(),
       height: image.getHeight(),
-      channels: 4,
+      channels: 3,
       filters: protoFilters,
       accelerator: protoAccelerator,
       grayscaleType: protoGrayscaleType,

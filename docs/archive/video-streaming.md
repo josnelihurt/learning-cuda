@@ -66,14 +66,14 @@ Research and POC tasks for improving video transport from current WebSocket + ba
 **Current Flow:**
 ```
 Browser → canvas.toDataURL('png') → base64 → WebSocket → 
-Go decode PNG → RGBA raw → RPC → C++/CUDA → 
-RGBA raw → encode PNG → base64 → WebSocket → Browser
+Go decode PNG → RGB raw → RPC → C++/CUDA → 
+RGB raw → encode PNG → base64 → WebSocket → Browser
 ```
 
 **Proposed Flow:**
 ```
-Browser → canvas.getImageData() → raw RGBA → WebSocket binary → 
-RPC → C++/CUDA → raw RGBA → WebSocket binary → Browser
+Browser → canvas.getImageData() → raw RGB → WebSocket binary → 
+RPC → C++/CUDA → raw RGB → WebSocket binary → Browser
 ```
 
 #### Tasks

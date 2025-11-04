@@ -4,6 +4,34 @@ Completed features extracted from git commit history, organized by date.
 
 ## November 2025
 
+### Remove Alpha Channel Support (Nov 4, 2025)
+- [x] Removed alpha channel (A) support from all image processing layers
+- [x] Changed from RGBA (4 channels) to RGB (3 channels) throughout codebase
+- [x] Updated FFmpeg video player to use `rgb24` pixel format instead of `rgba`
+- [x] Renamed `DecodeToRGBA` to `DecodeToRGB` in image codec
+- [x] Updated image codec to extract RGB channels and discard alpha during decode
+- [x] Updated image codec to convert RGB to RGBA only for PNG encoding (PNG requires RGBA)
+- [x] Updated processor connector to use 3 channels instead of 4
+- [x] Updated frontend WebSocket service to send 3 channels
+- [x] Updated C++ grayscale filter validation to remove 4-channel support
+- [x] Updated all integration tests to use RGB (3 channels)
+- [x] Updated checksums JSON to reflect 3 channels (checksums regenerated)
+- [x] Updated documentation to reference RGB instead of RGBA
+
+**Performance Impact:**
+- 25% reduction in memory usage per frame (3 bytes vs 4 bytes per pixel)
+- 25% reduction in processing overhead (one less channel to process)
+- 25% reduction in bandwidth for video streaming
+
+**Files Changed:**
+- Backend: `ffmpeg_video_player.go`, `codec.go`, `cpp_connector.go`, `handler.go`
+- Frontend: `websocket-service.ts`, `video-playback.spec.ts`
+- C++: `grayscale_filter.cpp`, `image_writer_test.cpp`
+- Tests: `bdd_context.go`, `generate_checksums.go`, `checksums.json`
+- Documentation: `video-streaming.md`, `archive/video-streaming.md`
+
+**Note:** Historical CHANGELOG entries mentioning RGBA are preserved for reference.
+
 ### Grayscale Filter Migration to FilterPipeline Architecture (Nov 3, 2025)
 - [x] Migrated grayscale processing from Processor pattern to FilterPipeline architecture
 - [x] Removed legacy GrayscaleProcessor implementations (CPU and CUDA)

@@ -123,7 +123,7 @@ echo "Stopping previous application services..."
 {
   "name": "CUDA Image Processor",
   "version": "${VERSION}",
-  "api_version": "2.0.0",
+  "api_version": "2.1.0",
   "type": "gpu",
   "build_date": "${DATE}",
   "build_commit": "${COMMIT}",

@@ -10,7 +10,7 @@ Feature: Processor Capabilities
   Scenario: Query processor capabilities
     When I call GetProcessorStatus
     Then the response should include capabilities
-    And the capabilities should have API version "2.0.0"
+    And the capabilities should have API version "2.1.0"
 
   Scenario: Capabilities include filter definitions
     When I call GetProcessorStatus

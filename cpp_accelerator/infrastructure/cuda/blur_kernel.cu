@@ -110,9 +110,9 @@ __global__ void ApplyFullBlurKernel(const unsigned char* input, unsigned char* o
         float weight_y = kernel[ky + radius];
         float weight_x = kernel[kx + radius];
         float weight = weight_x * weight_y;
-        sum += GetPixelChannelValue(input, pixel_x, pixel_y, width, height, channels, c,
-                                    border_mode) *
-               weight;
+        sum +=
+            GetPixelChannelValue(input, pixel_x, pixel_y, width, height, channels, c, border_mode) *
+            weight;
       }
     }
     output[output_idx + c] = static_cast<unsigned char>(max(0.0F, min(sum, 255.0F)));
@@ -174,15 +174,17 @@ static cudaError_t allocate_memory(int width, int height, int channels, int kern
     return error;
   }
 
-  error = cudaMalloc(d_temp, data_size);
-  if (error != cudaSuccess) {
-    cleanup_memory(*d_input, *d_output, nullptr, nullptr);
-    return error;
+  if (d_temp != nullptr) {
+    error = cudaMalloc(d_temp, data_size);
+    if (error != cudaSuccess) {
+      cleanup_memory(*d_input, *d_output, nullptr, nullptr);
+      return error;
+    }
   }
 
   error = cudaMalloc(d_kernel, kernel_size * sizeof(float));
   if (error != cudaSuccess) {
-    cleanup_memory(*d_input, *d_output, *d_temp, nullptr);
+    cleanup_memory(*d_input, *d_output, d_temp != nullptr ? *d_temp : nullptr, nullptr);
     return error;
   }
 
@@ -291,10 +293,10 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_vertical(const unsigned char*
 }
 
 extern "C" cudaError_t cuda_apply_gaussian_blur_non_separable(const unsigned char* input,
-                                                               unsigned char* output, int width,
-                                                               int height, int channels,
-                                                               const float* kernel, int kernel_size,
-                                                               int border_mode) {
+                                                              unsigned char* output, int width,
+                                                              int height, int channels,
+                                                              const float* kernel, int kernel_size,
+                                                              int border_mode) {
   unsigned char* d_input = nullptr;
   unsigned char* d_output = nullptr;
   float* d_kernel = nullptr;
@@ -322,7 +324,7 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_non_separable(const unsigned cha
   dim3 grid_size((width + block_size.x - 1) / block_size.x,
                  (height + block_size.y - 1) / block_size.y);
   ApplyFullBlurKernel<<<grid_size, block_size>>>(d_input, d_output, width, height, channels,
-                                                  d_kernel, kernel_size, kernel_border_mode);
+                                                 d_kernel, kernel_size, kernel_border_mode);
 
   error = cudaDeviceSynchronize();
   if (error != cudaSuccess) {

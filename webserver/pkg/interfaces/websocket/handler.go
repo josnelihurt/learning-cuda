@@ -116,8 +116,17 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		log.Info().Int("message_size", len(message)).Int("message_type", messageType).Msg("Received WebSocket message")
 
+		// Detect transport format from message type: BinaryMessage = binary, TextMessage = json
+		// This allows clients to specify format dynamically even if server config differs
+		detectedFormat := transportFormat
+		if messageType == websocket.BinaryMessage {
+			detectedFormat = transportFormatBinary
+		} else if messageType == websocket.TextMessage {
+			detectedFormat = "json"
+		}
+
 		var frameMsg pb.WebSocketFrameRequest
-		if transportFormat == transportFormatBinary {
+		if detectedFormat == transportFormatBinary {
 			err = proto.Unmarshal(message, &frameMsg)
 		} else {
 			unmarshalOptions := protojson.UnmarshalOptions{
@@ -148,7 +157,8 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		result := h.processFrame(ctx, tracer, &frameMsg)
 
 		var responseBytes []byte
-		if transportFormat == transportFormatBinary {
+		// Use detected format for response to match request format
+		if detectedFormat == transportFormatBinary {
 			responseBytes, err = proto.Marshal(result)
 		} else {
 			responseBytes, err = protojson.Marshal(result)

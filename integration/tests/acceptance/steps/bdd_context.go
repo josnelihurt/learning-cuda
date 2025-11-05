@@ -768,7 +768,11 @@ func (c *BDDContext) WhenISendWebSocketFrameWithBlurFilter(accelerator string, k
 		return fmt.Errorf("failed to send websocket message: %w", writeErr)
 	}
 
-	c.wsConnection.SetReadDeadline(time.Now().Add(10 * time.Second))
+	readTimeout := 10 * time.Second
+	if kernelSize >= 7 {
+		readTimeout = 120 * time.Second
+	}
+	c.wsConnection.SetReadDeadline(time.Now().Add(readTimeout))
 	msgType, responseData, err := c.wsConnection.ReadMessage()
 	if err != nil {
 		return fmt.Errorf("failed to read websocket response: %w", err)

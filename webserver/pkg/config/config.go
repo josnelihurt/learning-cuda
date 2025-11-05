@@ -117,10 +117,10 @@ func setDefaults(v *viper.Viper) {
 		"logging.include_caller": true,
 
 		"processor.library_base_path": ".ignore/lib/cuda_learning",
-		"processor.default_library":   "2.0.0",
+		"processor.default_library":   "2.1.0",
 		"processor.enable_hot_reload": false,
 		"processor.fallback_enabled":  true,
-		"processor.fallback_chain":    []string{"2.0.0", "1.0.0"},
+		"processor.fallback_chain":    []string{"2.1.0", "2.0.0", "1.0.0"},
 
 		"static_images.directory": "/data/static_images",
 	}

@@ -1,0 +1,767 @@
+name: Docker Monorepo Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'proto/**'
+      - 'cpp_accelerator/**'
+      - 'webserver/**'
+      - 'runtime/**'
+      - 'integration/**'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
+      - 'WORKSPACE.bazel'
+      - 'BUILD.bazel'
+      - '.bazelrc'
+      - 'third_party/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.backend.yaml'
+      - '.github/workflows/docker-monorepo-build.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'proto/**'
+      - 'cpp_accelerator/**'
+      - 'webserver/**'
+      - 'runtime/**'
+      - 'integration/**'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
+      - 'WORKSPACE.bazel'
+      - 'BUILD.bazel'
+      - '.bazelrc'
+      - 'third_party/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.backend.yaml'
+      - '.github/workflows/docker-monorepo-build.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BASE_IMAGE_PREFIX: josnelihurt/learning-cuda
+
+concurrency:
+  group: docker-monorepo-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prepare:
+    name: Prepare versions
+    runs-on: ubuntu-latest
+    outputs:
+      proto_version: ${{ steps.versions.outputs.proto_version }}
+      cpp_version: ${{ steps.versions.outputs.cpp_version }}
+      golang_version: ${{ steps.versions.outputs.golang_version }}
+      proto_tools_version: ${{ steps.versions.outputs.proto_tools_version }}
+      go_builder_version: ${{ steps.versions.outputs.go_builder_version }}
+      bazel_base_version: ${{ steps.versions.outputs.bazel_base_version }}
+      runtime_base_version: ${{ steps.versions.outputs.runtime_base_version }}
+      integration_base_version: ${{ steps.versions.outputs.integration_base_version }}
+      proto_tools_build_amd64: ${{ steps.determine.outputs.proto_tools_build_amd64 }}
+      proto_tools_build_arm64: ${{ steps.determine.outputs.proto_tools_build_arm64 }}
+      go_builder_build_amd64: ${{ steps.determine.outputs.go_builder_build_amd64 }}
+      go_builder_build_arm64: ${{ steps.determine.outputs.go_builder_build_arm64 }}
+      bazel_base_build_amd64: ${{ steps.determine.outputs.bazel_base_build_amd64 }}
+      bazel_base_build_arm64: ${{ steps.determine.outputs.bazel_base_build_arm64 }}
+      runtime_base_build_amd64: ${{ steps.determine.outputs.runtime_base_build_amd64 }}
+      runtime_base_build_arm64: ${{ steps.determine.outputs.runtime_base_build_arm64 }}
+      integration_base_build_amd64: ${{ steps.determine.outputs.integration_base_build_amd64 }}
+      integration_base_build_arm64: ${{ steps.determine.outputs.integration_base_build_arm64 }}
+      proto_build_amd64: ${{ steps.determine.outputs.proto_build_amd64 }}
+      proto_build_arm64: ${{ steps.determine.outputs.proto_build_arm64 }}
+      cpp_build_amd64: ${{ steps.determine.outputs.cpp_build_amd64 }}
+      cpp_build_arm64: ${{ steps.determine.outputs.cpp_build_arm64 }}
+      golang_build_amd64: ${{ steps.determine.outputs.golang_build_amd64 }}
+      golang_build_arm64: ${{ steps.determine.outputs.golang_build_arm64 }}
+      app_build_amd64: ${{ steps.determine.outputs.app_build_amd64 }}
+      app_build_arm64: ${{ steps.determine.outputs.app_build_arm64 }}
+      app_version: ${{ steps.determine.outputs.app_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read versions
+        id: versions
+        run: |
+          echo "proto_version=$(tr -d '\n' < proto/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "cpp_version=$(tr -d '\n' < cpp_accelerator/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "golang_version=$(tr -d '\n' < webserver/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "proto_tools_version=$(tr -d '\n' < proto/TOOLS_VERSION)" >> "$GITHUB_OUTPUT"
+          echo "go_builder_version=$(tr -d '\n' < webserver/builder/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "bazel_base_version=$(tr -d '\n' < cpp_accelerator/docker-build-base/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "runtime_base_version=$(tr -d '\n' < runtime/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "integration_base_version=$(tr -d '\n' < integration/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Log versions
+        run: |
+          echo "Proto version: ${{ steps.versions.outputs.proto_version }}"
+          echo "C++ version: ${{ steps.versions.outputs.cpp_version }}"
+          echo "Golang version: ${{ steps.versions.outputs.golang_version }}"
+          echo "Proto tools version: ${{ steps.versions.outputs.proto_tools_version }}"
+          echo "Go builder version: ${{ steps.versions.outputs.go_builder_version }}"
+          echo "Bazel base version: ${{ steps.versions.outputs.bazel_base_version }}"
+          echo "Runtime base version: ${{ steps.versions.outputs.runtime_base_version }}"
+          echo "Integration base version: ${{ steps.versions.outputs.integration_base_version }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine build requirements
+        id: determine
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          PROTO_VERSION: ${{ steps.versions.outputs.proto_version }}
+          CPP_VERSION: ${{ steps.versions.outputs.cpp_version }}
+          GOLANG_VERSION: ${{ steps.versions.outputs.golang_version }}
+          PROTO_TOOLS_VERSION: ${{ steps.versions.outputs.proto_tools_version }}
+          GO_BUILDER_VERSION: ${{ steps.versions.outputs.go_builder_version }}
+          BAZEL_BASE_VERSION: ${{ steps.versions.outputs.bazel_base_version }}
+          RUNTIME_BASE_VERSION: ${{ steps.versions.outputs.runtime_base_version }}
+          INTEGRATION_BASE_VERSION: ${{ steps.versions.outputs.integration_base_version }}
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import subprocess
+
+          arches = ["amd64", "arm64"]
+          registry = os.environ["REGISTRY"]
+          base_prefix = os.environ["BASE_PREFIX"]
+          proto_version = os.environ["PROTO_VERSION"]
+          cpp_version = os.environ["CPP_VERSION"]
+          golang_version = os.environ["GOLANG_VERSION"]
+          proto_tools_version = os.environ["PROTO_TOOLS_VERSION"]
+          go_builder_version = os.environ["GO_BUILDER_VERSION"]
+          bazel_base_version = os.environ["BAZEL_BASE_VERSION"]
+          runtime_base_version = os.environ["RUNTIME_BASE_VERSION"]
+          integration_base_version = os.environ["INTEGRATION_BASE_VERSION"]
+
+          def manifest_exists(image: str) -> bool:
+              result = subprocess.run(
+                  ["docker", "manifest", "inspect", image],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+              )
+              return result.returncode == 0
+
+          def needs_build(image_base: str) -> dict:
+              status = {}
+              for arch in arches:
+                  ref = f"{image_base}-{arch}"
+                  status[arch] = not manifest_exists(ref)
+              return status
+
+          prefix = f"{registry}/{base_prefix}"
+
+          proto_matrix = needs_build(f"{prefix}/intermediate:proto-generated-{proto_version}")
+          cpp_matrix = needs_build(f"{prefix}/intermediate:cpp-built-{cpp_version}")
+          golang_matrix = needs_build(f"{prefix}/intermediate:golang-built-{golang_version}")
+
+          proto_tools_matrix = needs_build(f"{prefix}/base:proto-tools-{proto_tools_version}")
+          go_builder_matrix = needs_build(f"{prefix}/base:go-builder-{go_builder_version}")
+          bazel_matrix = needs_build(f"{prefix}/base:bazel-base-{bazel_base_version}")
+          runtime_matrix = needs_build(f"{prefix}/base:runtime-base-{runtime_base_version}")
+          integration_matrix = needs_build(f"{prefix}/base:integration-tests-base-{integration_base_version}")
+
+          app_version = f"{proto_version}-{cpp_version}-{golang_version}"
+          app_matrix = {}
+          for arch in arches:
+              version_tag_missing = not manifest_exists(f"{prefix}/app:{app_version}-{arch}")
+              latest_missing = not manifest_exists(f"{prefix}/app:latest-{arch}")
+              app_matrix[arch] = (
+                  proto_matrix[arch]
+                  or cpp_matrix[arch]
+                  or golang_matrix[arch]
+                  or runtime_matrix[arch]
+                  or integration_matrix[arch]
+                  or version_tag_missing
+                  or latest_missing
+              )
+
+          outputs = {"app_version": app_version}
+
+          def add_component(prefix: str, status_map: dict) -> None:
+              for arch in arches:
+                  outputs[f"{prefix}_{arch}"] = "true" if status_map[arch] else "false"
+
+          add_component("proto_tools_build", proto_tools_matrix)
+          add_component("go_builder_build", go_builder_matrix)
+          add_component("bazel_base_build", bazel_matrix)
+          add_component("runtime_base_build", runtime_matrix)
+          add_component("integration_base_build", integration_matrix)
+          add_component("proto_build", proto_matrix)
+          add_component("cpp_build", cpp_matrix)
+          add_component("golang_build", golang_matrix)
+          add_component("app_build", app_matrix)
+
+          for key, value in outputs.items():
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"{key}={value}\n")
+
+          print("Build decisions:")
+          for key, value in outputs.items():
+              print(f"  {key}: {value}")
+          PY
+
+  build_proto_tools:
+    name: Build proto tools base
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.proto_tools_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.proto_tools_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Proto tools base already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push proto-tools
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./proto/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-${{ needs.prepare.outputs.proto_tools_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_go_builder:
+    name: Build go builder base
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.go_builder_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.go_builder_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Go builder base already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push go-builder
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./webserver/builder/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-${{ needs.prepare.outputs.go_builder_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_bazel_base:
+    name: Build bazel base
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.bazel_base_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.bazel_base_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Bazel base already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push bazel-base
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./cpp_accelerator/docker-build-base/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            TARGETARCH=${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-${{ needs.prepare.outputs.bazel_base_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_runtime_base:
+    name: Build runtime base
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.runtime_base_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.runtime_base_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Runtime base already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push runtime-base
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./runtime/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            TARGETARCH=${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-${{ needs.prepare.outputs.runtime_base_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_integration_base:
+    name: Build integration tests base
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.integration_base_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.integration_base_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Integration base already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push integration-tests-base
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./integration/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            TARGETARCH=${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-${{ needs.prepare.outputs.integration_base_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_proto:
+    name: Build proto intermediate
+    needs:
+      - prepare
+      - build_proto_tools
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.proto_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.proto_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Proto intermediate already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push proto-generated
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./proto/Dockerfile.generated
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
+            BASE_TAG=latest
+            TARGETARCH=${{ matrix.arch }}
+            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_cpp:
+    name: Build cpp intermediate
+    needs:
+      - prepare
+      - build_proto
+      - build_bazel_base
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.cpp_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.cpp_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "C++ intermediate already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push cpp-built
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./cpp_accelerator/Dockerfile.build
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
+            BASE_TAG=latest
+            TARGETARCH=${{ matrix.arch }}
+            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_golang:
+    name: Build golang intermediate
+    needs:
+      - prepare
+      - build_proto
+      - build_go_builder
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.golang_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.golang_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Golang intermediate already available for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push golang-built
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./webserver/Dockerfile.build
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
+            BASE_TAG=latest
+            TARGETARCH=${{ matrix.arch }}
+            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build_app:
+    name: Build application image
+    needs:
+      - prepare
+      - build_proto
+      - build_cpp
+      - build_golang
+      - build_runtime_base
+      - build_integration_base
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            FLAG="${{ needs.prepare.outputs.app_build_amd64 }}"
+          else
+            FLAG="${{ needs.prepare.outputs.app_build_arm64 }}"
+          fi
+          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Application image already up to date for ${{ matrix.arch }}"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify intermediate images exist
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          REGISTRY="${{ env.REGISTRY }}"
+          BASE_PREFIX="${{ env.BASE_IMAGE_PREFIX }}"
+          ARCH="${{ matrix.arch }}"
+
+          PROTO_IMAGE="${REGISTRY}/${BASE_PREFIX}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${ARCH}"
+          CPP_IMAGE="${REGISTRY}/${BASE_PREFIX}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${ARCH}"
+          GOLANG_IMAGE="${REGISTRY}/${BASE_PREFIX}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${ARCH}"
+
+          for image in "$PROTO_IMAGE" "$CPP_IMAGE" "$GOLANG_IMAGE"; do
+            if ! docker manifest inspect "$image" >/dev/null 2>&1; then
+              echo "Missing dependency: $image"
+              exit 1
+            fi
+          done
+
+      - name: Build and push application image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
+            BASE_TAG=latest
+            TARGETARCH=${{ matrix.arch }}
+            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
+            CPP_VERSION=${{ needs.prepare.outputs.cpp_version }}
+            GOLANG_VERSION=${{ needs.prepare.outputs.golang_version }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:${{ needs.prepare.outputs.app_version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+

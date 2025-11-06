@@ -1,0 +1,59 @@
+name: Build Integration Tests Base Image
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BASE_IMAGE_PREFIX: josnelihurt/learning-cuda
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read integration base version
+        id: version
+        run: |
+          VERSION=$(cat integration/VERSION | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Integration base version: $VERSION"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push integration-tests-base
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./integration/Dockerfile
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            TARGETARCH=${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-${{ steps.version.outputs.version }}-${{ matrix.arch }}
+            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+

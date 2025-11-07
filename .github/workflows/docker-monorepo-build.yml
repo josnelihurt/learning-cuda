@@ -62,7 +62,7 @@ permissions:
 jobs:
   prepare:
     name: Prepare versions
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       proto_version: ${{ steps.versions.outputs.proto_version }}
       cpp_version: ${{ steps.versions.outputs.cpp_version }}
@@ -231,7 +231,7 @@ jobs:
   build_proto_tools:
     name: Build proto tools base
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -284,7 +284,7 @@ jobs:
   build_go_builder:
     name: Build go builder base
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -337,7 +337,7 @@ jobs:
   build_bazel_base:
     name: Build bazel base
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -392,7 +392,7 @@ jobs:
   build_runtime_base:
     name: Build runtime base
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -447,7 +447,7 @@ jobs:
   build_integration_base:
     name: Build integration tests base
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -504,7 +504,7 @@ jobs:
     needs:
       - prepare
       - build_proto_tools
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -565,7 +565,7 @@ jobs:
       - prepare
       - build_proto
       - build_bazel_base
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -626,7 +626,7 @@ jobs:
       - prepare
       - build_proto
       - build_go_builder
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -690,7 +690,7 @@ jobs:
       - build_golang
       - build_runtime_base
       - build_integration_base
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       matrix:
         arch: [amd64, arm64]

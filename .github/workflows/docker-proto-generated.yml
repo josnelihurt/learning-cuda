@@ -48,10 +48,10 @@ jobs:
           context: .
           file: ./proto/Dockerfile.generated
           platforms: ${{ matrix.platform }}
-          build-args:
-            BASE_REGISTRY: ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
-            BASE_TAG: latest
-            TARGETARCH: ${{ matrix.arch }}
+          build-args: |
+            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
+            BASE_TAG=latest
+            TARGETARCH=${{ matrix.arch }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ steps.version.outputs.version }}-${{ matrix.arch }}

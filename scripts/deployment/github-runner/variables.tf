@@ -94,7 +94,7 @@ variable "runner_vm_id" {
 variable "runner_memory" {
   type        = number
   description = "Memory allocation (MB) for the LXC container."
-  default     = 4096
+  default     = 32768
 }
 
 variable "runner_cores" {
@@ -106,7 +106,7 @@ variable "runner_cores" {
 variable "runner_rootfs_size" {
   type        = string
   description = "Disk size for the runner container rootfs."
-  default     = "40G"
+  default     = "256G"
 }
 
 variable "runner_timezone" {

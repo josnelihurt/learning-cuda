@@ -1,0 +1,171 @@
+---
+- name: Prepare Proxmox host for GitHub runner template
+  hosts: proxmox
+  gather_facts: false
+  become: true
+  vars:
+    runner_template_storage: "{{ runner_template.split(':')[0] }}"
+    runner_template_path: "{{ runner_template.split(':')[1] }}"
+    runner_template_filename: "{{ runner_template_path.split('/')[-1] }}"
+    runner_template_cache_dir: "/var/lib/vz/template/cache"
+    runner_template_cache_path: "{{ runner_template_cache_dir }}/{{ runner_template_filename }}"
+  tasks:
+    - name: Prepare template cache on Proxmox
+      when: proxmox_host_tasks_enabled | bool
+      block:
+        - name: Ensure template cache directory exists
+          ansible.builtin.file:
+            path: "{{ runner_template_cache_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Download runner template if missing
+          ansible.builtin.command:
+            cmd: "pveam download {{ runner_template_storage }} {{ runner_template_filename }}"
+            creates: "{{ runner_template_cache_path }}"
+          register: runner_template_download
+          changed_when: runner_template_download.rc == 0
+
+        - name: Display token guidance
+          ansible.builtin.debug:
+            msg:
+              - "Ensure the Proxmox API token configured in .secrets/proxmox-api.key has Administrator privileges."
+              - "Current API endpoint: {{ proxmox_host }}"
+
+    - name: Proxmox host tasks skipped
+      ansible.builtin.debug:
+        msg: "Skipping Proxmox host preparation (set PROXMOX_SSH_KEY_PATH to enable)."
+      when: not (proxmox_host_tasks_enabled | bool)
+
+- name: Configure GitHub Actions runner container
+  hosts: runner
+  gather_facts: false
+  vars:
+    runner_labels_list: >-
+      {% if runner_labels is iterable and runner_labels is not string %}
+      {{ runner_labels | list }}
+      {% elif runner_labels is string %}
+      {{ runner_labels | from_yaml }}
+      {% else %}
+      []
+      {% endif %}
+    runner_labels_csv: "{{ runner_labels_csv | default(runner_labels_list | join(',')) }}"
+    runner_service_name: "actions.runner.{{ runner_repo | replace('/', '-') }}.{{ runner_name }}"
+  tasks:
+    - name: Wait for SSH on runner container
+      become: false
+      ansible.builtin.wait_for:
+        host: "{{ runner_host }}"
+        port: 22
+        state: started
+        timeout: 300
+      delegate_to: localhost
+
+    - name: Install runner dependencies
+      ansible.builtin.apt:
+        name:
+          - curl
+          - jq
+          - tar
+          - git
+          - ca-certificates
+          - apt-transport-https
+          - software-properties-common
+          - docker.io
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker service is enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create runner working directory
+      ansible.builtin.file:
+        path: "{{ runner_workdir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Check existing runner configuration
+      ansible.builtin.stat:
+        path: "{{ runner_workdir }}/.runner"
+      register: runner_state
+
+    - name: Obtain GitHub Actions registration token
+      become: false
+      ansible.builtin.command:
+        cmd: "gh api --method POST repos/{{ runner_repo }}/actions/runners/registration-token --jq .token"
+      delegate_to: localhost
+      register: runner_registration_token
+      changed_when: false
+      when: not runner_state.stat.exists
+
+    - name: Lookup existing runner ID
+      become: false
+      ansible.builtin.command:
+        cmd: >-
+          gh api repos/{{ runner_repo }}/actions/runners --paginate
+          --jq '.runners[] | select(.name == "{{ runner_name }}") | .id'
+      delegate_to: localhost
+      register: runner_existing_id
+      changed_when: false
+
+    - name: Remove existing runner with same name
+      become: false
+      ansible.builtin.command:
+        cmd: "gh api repos/{{ runner_repo }}/actions/runners/{{ runner_existing_id.stdout }} --method DELETE"
+      delegate_to: localhost
+      register: runner_removed
+      changed_when: runner_removed.rc == 0
+      when: runner_existing_id.stdout | length > 0
+
+    - name: Download runner archive
+      ansible.builtin.get_url:
+        url: "{{ runner_image_url }}"
+        dest: "{{ runner_workdir }}/runner.tar.gz"
+        mode: "0644"
+      when: not runner_state.stat.exists
+
+    - name: Extract runner archive
+      ansible.builtin.unarchive:
+        src: "{{ runner_workdir }}/runner.tar.gz"
+        dest: "{{ runner_workdir }}"
+        remote_src: true
+      when: not runner_state.stat.exists
+
+    - name: Configure runner service
+      ansible.builtin.shell: >-
+        ./config.sh --unattended
+        --url https://github.com/{{ runner_repo }}
+        --token {{ runner_registration_token.stdout }}
+        {% if runner_labels_csv %} --labels {{ runner_labels_csv }}{% endif %}
+        --name {{ runner_name }}
+      args:
+        chdir: "{{ runner_workdir }}"
+      environment:
+        RUNNER_ALLOW_RUNASROOT: "1"
+      when: not runner_state.stat.exists
+
+    - name: Install runner service
+      ansible.builtin.command:
+        cmd: "./svc.sh install"
+        chdir: "{{ runner_workdir }}"
+      environment:
+        RUNNER_ALLOW_RUNASROOT: "1"
+      when: not runner_state.stat.exists
+
+    - name: Ensure runner service is running
+      ansible.builtin.command:
+        cmd: "./svc.sh start"
+        chdir: "{{ runner_workdir }}"
+      register: runner_start
+      changed_when: runner_start.rc == 0
+
+    - name: Summarize runner service status
+      ansible.builtin.debug:
+        msg:
+          - "Runner service started: {{ runner_service_name }}"
+          - "Runner labels: {{ runner_labels_csv if runner_labels_csv else 'none' }}"

@@ -1,0 +1,24 @@
+all:
+  vars:
+    runner_workdir: "/opt/actions-runner"
+    runner_image_url: "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-x64-2.321.0.tar.gz"
+  children:
+    proxmox:
+      vars:
+        proxmox_host_tasks_enabled: "{{ proxmox_host_tasks_enabled | default(false) }}"
+      hosts:
+        prox4:
+          ansible_host: "{{ proxmox_host }}"
+          ansible_user: "{{ proxmox_user | default('root') }}"
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_ssh_private_key_file: "{{ proxmox_private_key_path | default(omit, true) }}"
+          ansible_ssh_common_args: "{{ proxmox_ssh_common_args | default('-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null') }}"
+          runner_template: "{{ runner_template }}"
+    runner:
+      hosts:
+        github_runner:
+          ansible_host: "{{ runner_host }}"
+          ansible_user: "{{ runner_user | default('root') }}"
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_ssh_private_key_file: "{{ runner_private_key_path }}"
+          ansible_ssh_common_args: "{{ runner_ssh_common_args | default('-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null') }}"

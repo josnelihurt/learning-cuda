@@ -99,3 +99,10 @@ webserver/web/.env.local
 .actrc
 .secrets/git-hub.token
 server
+.docker-cache/
+
+# Terraform artifacts
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.backup

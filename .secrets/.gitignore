@@ -9,6 +9,7 @@
 
 # Cloudflare tunnel credentials
 cloudflare/
+keys/
 
 # But keep example files
 !*.example

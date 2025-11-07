@@ -26,4 +26,3 @@ COPY buf.yaml buf.lock buf.gen.backend.yaml ./
 COPY proto/*.proto ./proto/
 
 RUN buf generate --template buf.gen.backend.yaml
-

@@ -90,3 +90,7 @@ RUN VERSION=$(cat cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/lib && \
     cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so
 
+FROM scratch AS artifacts
+
+COPY --from=cpp-built /artifacts/ /artifacts/
+

@@ -765,14 +765,16 @@ jobs:
           check_ref() {
             local name="$1"
             local ref="$2"
-            local attempt=1
-            until docker manifest inspect "$ref" >/dev/null 2>&1; do
-              if [ $attempt -ge 3 ]; then
+            local attempt
+            for attempt in 1 2 3; do
+              if docker manifest inspect "$ref" >/dev/null 2>&1; then
+                return 0
+              fi
+              if [ "$attempt" -eq 3 ]; then
                 echo "Failed to locate manifest for ${name} (${ref})" >&2
                 exit 1
               fi
               echo "Manifest for ${name} not yet visible (attempt ${attempt}); retrying in 10s..." >&2
-              attempt=$((attempt + 1))
               sleep 10
             done
           }

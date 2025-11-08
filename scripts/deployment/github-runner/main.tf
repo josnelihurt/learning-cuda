@@ -32,10 +32,33 @@ locals {
   pm_api_host_port = element(split("/", local.pm_api_url_clean), 0)
   proxmox_host     = element(split(":", local.pm_api_host_port), 0)
 
-  runner_ipv4_address     = element(split("/", var.runner_ipv4_cidr), 0)
   runner_private_key_path = can(regex("^/", var.runner_ssh_private_key_path)) ? var.runner_ssh_private_key_path : abspath("${local.project_root}/${var.runner_ssh_private_key_path}")
   runner_label_list       = distinct(compact(concat(["proxmox", "lxc"], var.runner_labels)))
   runner_label_string     = length(local.runner_label_list) > 0 ? join(",", local.runner_label_list) : ""
+
+  runner_instances_map = {
+    for instance in var.runner_instances :
+    instance.name => instance
+  }
+
+  runner_connections = {
+    for name, instance in local.runner_instances_map :
+    name => {
+      host             = element(split("/", instance.ipv4_cidr), 0)
+      user             = "root"
+      private_key_path = local.runner_private_key_path
+    }
+  }
+
+  runner_instance_details = {
+    for name, instance in local.runner_instances_map :
+    name => {
+      vm_id        = instance.vm_id
+      ipv4_cidr    = instance.ipv4_cidr
+      ipv4_address = element(split("/", instance.ipv4_cidr), 0)
+      ipv4_gateway = try(instance.ipv4_gateway, null)
+    }
+  }
 }
 
 provider "proxmox" {
@@ -47,17 +70,19 @@ provider "proxmox" {
 }
 
 resource "random_password" "runner_root" {
+  for_each        = local.runner_instances_map
   length           = 24
   special          = true
   override_special = "!#%^*-_"
 }
 
 resource "proxmox_lxc" "runner" {
+  for_each     = local.runner_instances_map
   target_node  = var.pm_target_node
-  vmid         = var.runner_vm_id
-  hostname     = var.runner_name
+  vmid         = each.value.vm_id
+  hostname     = each.value.name
   ostemplate   = var.pm_lxc_template
-  password     = random_password.runner_root.result
+  password     = random_password.runner_root[each.key].result
   start        = true
   onboot       = true
   unprivileged = true
@@ -79,8 +104,8 @@ resource "proxmox_lxc" "runner" {
   network {
     name   = "eth0"
     bridge = var.pm_network_bridge
-    ip     = var.runner_ipv4_cidr
-    gw     = var.runner_ipv4_gateway
+    ip     = each.value.ipv4_cidr
+    gw     = try(each.value.ipv4_gateway, null)
   }
 
   ssh_public_keys = var.runner_ssh_public_key

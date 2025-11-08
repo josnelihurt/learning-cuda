@@ -11,4 +11,5 @@ runner_ssh_public_key       = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPa6IR4wZReEI
 runner_ssh_private_key_path = ".secrets/keys/github-runner-prox4_ed25519"
 runner_ipv4_cidr            = "192.168.10.90/24"
 runner_ipv4_gateway         = "192.168.10.1"
+runner_cores                = 8
 

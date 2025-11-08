@@ -283,8 +283,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-${{ needs.prepare.outputs.proto_tools_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_go_builder:
     name: Build go builder base
@@ -341,8 +339,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-${{ needs.prepare.outputs.go_builder_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_bazel_base:
     name: Build bazel base
@@ -401,8 +397,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-${{ needs.prepare.outputs.bazel_base_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_runtime_base:
     name: Build runtime base
@@ -461,8 +455,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-${{ needs.prepare.outputs.runtime_base_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_integration_base:
     name: Build integration tests base
@@ -521,8 +513,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-${{ needs.prepare.outputs.integration_base_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_proto:
     name: Build proto intermediate
@@ -586,8 +576,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_cpp:
     name: Build cpp intermediate
@@ -653,8 +641,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_golang:
     name: Build golang intermediate
@@ -720,8 +706,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   build_app:
     name: Build application image
@@ -809,6 +793,4 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:${{ needs.prepare.outputs.app_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 

@@ -98,8 +98,8 @@
       ansible.builtin.file:
         path: "{{ runner_root }}"
         state: directory
-        owner: root
-        group: root
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
         mode: "0755"
         recurse: true
       when: runner_state == 'present'
@@ -108,8 +108,8 @@
       ansible.builtin.file:
         path: "{{ runner_root }}/_diag"
         state: directory
-        owner: root
-        group: root
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
         mode: "0775"
       when: runner_state == 'present'
 

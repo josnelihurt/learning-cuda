@@ -27,17 +27,10 @@ if [[ -z "${REPO_SLUG}" ]]; then
 fi
 
 RUNNER_NAME="learning-cuda-jetson-nano-1"
-<<<<<<< HEAD
 RUNNER_LABELS="${RUNNER_LABELS:-self-hosted,Linux,ARM64,jetson,jetson-nano}"
 RUNNER_VERSION="${RUNNER_VERSION:-$(gh api repos/actions/runner/releases/latest --jq .tag_name)}"
 RUNNER_VERSION_NUMBER="${RUNNER_VERSION#v}"
 RUNNER_DOWNLOAD_URL="${RUNNER_DOWNLOAD_URL:-https://github.com/actions/runner/releases/download/${RUNNER_VERSION}/actions-runner-linux-arm64-${RUNNER_VERSION_NUMBER}.tar.gz}"
-=======
-RUNNER_CONTAINER="learning-cuda-runner"
-RUNNER_IMAGE="${RUNNER_IMAGE:-ghcr.io/actions/actions-runner:latest}"
-RUNNER_LABELS="${RUNNER_LABELS:-self-hosted,Linux,ARM64,jetson,jetson-nano}"
-JETSON_TARGET="${JETSON_USER}@${JETSON_HOST}"
->>>>>>> 4a78ccf (fix: align runner labels with github)
 
 run_ansible() {
   local state="$1"

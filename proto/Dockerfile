@@ -1,16 +1,28 @@
-ARG GO_VERSION=1.23
+ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
+ARG BASE_TAG=latest
+ARG TARGETARCH=amd64
+ARG PROTO_VERSION=1.0.0
+ARG ALPINE_VERSION=3.19
 
-FROM golang:${GO_VERSION}-alpine AS proto-tools
+FROM ${BASE_REGISTRY}/base:proto-tools-${BASE_TAG}-${TARGETARCH} AS proto-gen-builder
 
-ARG BUF_VERSION=v1.47.2
-ARG PROTOC_GEN_GO_VERSION=v1.35.2
-ARG PROTOC_GEN_CONNECT_GO_VERSION=v1.17.0
+FROM alpine:${ALPINE_VERSION} AS proto-generated
 
-RUN go install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION} && \
-    go install connectrpc.com/connect/cmd/protoc-gen-connect-go@${PROTOC_GEN_CONNECT_GO_VERSION} && \
-    go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}
+RUN apk add --update --no-cache \
+    ca-certificates \
+    git \
+    protoc \
+    protobuf-dev \
+    && rm -rf /var/cache/apk/*
 
-WORKDIR /tools
+COPY --from=proto-gen-builder /go/bin/buf /usr/local/bin/buf
+COPY --from=proto-gen-builder /go/bin/protoc-gen-go /usr/local/bin/protoc-gen-go
+COPY --from=proto-gen-builder /go/bin/protoc-gen-connect-go /usr/local/bin/protoc-gen-connect-go
 
-ENTRYPOINT ["/go/bin/buf"]
+WORKDIR /workspace
+ENV XDG_CACHE_HOME=/workspace/.cache
 
+COPY buf.yaml buf.lock buf.gen.backend.yaml ./
+COPY proto/*.proto ./proto/
+
+RUN buf generate --template buf.gen.backend.yaml

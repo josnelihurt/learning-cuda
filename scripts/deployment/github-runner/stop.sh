@@ -31,15 +31,15 @@ if terraform output -json >"${OUTPUT_JSON_FILE}"; then
 
   if [[ -n "${RUNNER_REPO}" && ${#RUNNER_NAMES[@]} -gt 0 ]]; then
     for RUNNER_NAME in "${RUNNER_NAMES[@]}"; do
-      echo "Searching for runner '${RUNNER_NAME}' in ${RUNNER_REPO}..."
-      RUNNER_ID=$(gh api "repos/${RUNNER_REPO}/actions/runners" --paginate --jq ".runners[] | select(.name==\"${RUNNER_NAME}\") | .id" || true)
+    echo "Searching for runner '${RUNNER_NAME}' in ${RUNNER_REPO}..."
+    RUNNER_ID=$(gh api "repos/${RUNNER_REPO}/actions/runners" --paginate --jq ".runners[] | select(.name==\"${RUNNER_NAME}\") | .id" || true)
 
-      if [[ -n "${RUNNER_ID}" ]]; then
-        echo "Removing GitHub runner '${RUNNER_NAME}' (ID: ${RUNNER_ID})"
-        gh api "repos/${RUNNER_REPO}/actions/runners/${RUNNER_ID}" --method DELETE >/dev/null
-      else
-        echo "Runner '${RUNNER_NAME}' not found in GitHub; skipping removal."
-      fi
+    if [[ -n "${RUNNER_ID}" ]]; then
+      echo "Removing GitHub runner '${RUNNER_NAME}' (ID: ${RUNNER_ID})"
+      gh api "repos/${RUNNER_REPO}/actions/runners/${RUNNER_ID}" --method DELETE >/dev/null
+    else
+      echo "Runner '${RUNNER_NAME}' not found in GitHub; skipping removal."
+    fi
     done
   fi
 else

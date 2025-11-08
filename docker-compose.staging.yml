@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/josnelihurt/learning-cuda:amd64-latest
+    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda:amd64-latest}
     container_name: cuda-image-processor-staging
     restart: unless-stopped
     runtime: nvidia

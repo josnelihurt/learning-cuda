@@ -1,0 +1,92 @@
+ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
+ARG BASE_TAG=latest
+ARG TARGETARCH=amd64
+ARG PROTO_VERSION=1.0.0
+
+FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
+
+FROM bazel-base AS bazel-deps-fetch
+
+WORKDIR /build
+
+COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
+COPY .bazelrc ./
+COPY proto/BUILD ./proto/BUILD
+COPY proto/google/api/BUILD.bazel ./proto/google/api/BUILD.bazel
+COPY third_party/ ./third_party/
+
+RUN bazel fetch //...
+
+FROM bazel-deps-fetch AS bazel-external-deps
+
+WORKDIR /build
+
+COPY proto/*.proto ./proto/
+COPY proto/BUILD ./proto/BUILD
+COPY proto/google/ ./proto/google/
+COPY third_party/ ./third_party/
+COPY buf.yaml buf.lock buf.gen.yaml ./
+
+RUN bazel build \
+    --show_timestamps \
+    --announce_rc \
+    @spdlog//:spdlog \
+    @protobuf//:protobuf \
+    //proto:common_cc_proto \
+    //proto:image_processor_service_cc_proto \
+    //proto:config_service_cc_proto \
+    //third_party/stb:stb_image \
+    //third_party/stb:stb_image_write \
+    || echo "External deps build completed"
+
+FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
+
+FROM bazel-external-deps AS cpp-built
+
+WORKDIR /build
+
+COPY cpp_accelerator/ ./cpp_accelerator/
+
+COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
+
+RUN echo "Detected TARGETARCH: $TARGETARCH" && \
+    NPROC=$(nproc) && \
+    MEM_GB=$(free -g | awk '/^Mem:/{print $2}') && \
+    echo "Available CPUs: $NPROC, RAM: ${MEM_GB}GB" && \
+    echo "$NPROC $MEM_GB" > /tmp/resources.txt
+
+RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
+    MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
+        bazel build \
+          --show_timestamps \
+          --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache \
+          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
+        echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    else \
+        echo "Building AMD64 with verbose output" && \
+        bazel build \
+          --show_timestamps \
+          --announce_rc \
+          --verbose_failures \
+          --subcommands \
+          --jobs=$NPROC \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache \
+          --linkopt="-Wl,--verbose" \
+          --linkopt="-Wl,--stats" \
+          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
+        echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    fi
+
+RUN VERSION=$(cat cpp_accelerator/VERSION) && \
+    mkdir -p /artifacts/lib && \
+    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so
+

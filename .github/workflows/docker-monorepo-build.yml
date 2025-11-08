@@ -62,7 +62,7 @@ permissions:
 jobs:
   prepare:
     name: Prepare versions
-    runs-on: self-hosted
+    runs-on: ["self-hosted", "linux", "x86_64"]
     outputs:
       proto_version: ${{ steps.versions.outputs.proto_version }}
       cpp_version: ${{ steps.versions.outputs.cpp_version }}
@@ -231,10 +231,15 @@ jobs:
   build_proto_tools:
     name: Build proto tools base
     needs: prepare
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -284,10 +289,15 @@ jobs:
   build_go_builder:
     name: Build go builder base
     needs: prepare
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -337,10 +347,15 @@ jobs:
   build_bazel_base:
     name: Build bazel base
     needs: prepare
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -392,10 +407,15 @@ jobs:
   build_runtime_base:
     name: Build runtime base
     needs: prepare
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -447,10 +467,15 @@ jobs:
   build_integration_base:
     name: Build integration tests base
     needs: prepare
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -504,10 +529,15 @@ jobs:
     needs:
       - prepare
       - build_proto_tools
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -565,10 +595,15 @@ jobs:
       - prepare
       - build_proto
       - build_bazel_base
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -626,10 +661,15 @@ jobs:
       - prepare
       - build_proto
       - build_go_builder
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -690,10 +730,15 @@ jobs:
       - build_golang
       - build_runtime_base
       - build_integration_base
-    runs-on: self-hosted
+    runs-on: ${{ matrix.runner_labels }}
     strategy:
       matrix:
         arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner_labels: ["self-hosted", "linux", "x86_64"]
+          - arch: arm64
+            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate

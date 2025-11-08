@@ -62,7 +62,7 @@ permissions:
 jobs:
   prepare:
     name: Prepare versions
-    runs-on: ["self-hosted", "linux", "x86_64"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     outputs:
       proto_version: ${{ steps.versions.outputs.proto_version }}
       cpp_version: ${{ steps.versions.outputs.cpp_version }}
@@ -237,9 +237,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -295,9 +295,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -353,9 +353,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -413,9 +413,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -473,9 +473,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -535,9 +535,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -601,9 +601,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -667,9 +667,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -736,9 +736,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner_labels: ["self-hosted", "linux", "x86_64"]
+            runner_labels: ["self-hosted", "Linux", "X64"]
           - arch: arm64
-            runner_labels: ["self-hosted", "linux", "arm64", "jetson-nano"]
+            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate

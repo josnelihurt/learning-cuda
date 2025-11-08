@@ -29,7 +29,7 @@ fi
 RUNNER_NAME="learning-cuda-jetson-nano-1"
 RUNNER_CONTAINER="learning-cuda-runner"
 RUNNER_IMAGE="${RUNNER_IMAGE:-ghcr.io/actions/actions-runner:latest}"
-RUNNER_LABELS="${RUNNER_LABELS:-self-hosted,linux,arm64,jetson,jetson-nano}"
+RUNNER_LABELS="${RUNNER_LABELS:-self-hosted,Linux,ARM64,jetson,jetson-nano}"
 JETSON_TARGET="${JETSON_USER}@${JETSON_HOST}"
 
 ensure_runner_removed() {

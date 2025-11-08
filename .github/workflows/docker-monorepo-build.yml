@@ -585,18 +585,7 @@ jobs:
             DIGEST="${{ steps.build.outputs.digest }}"
           else
             REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | python - <<'PY' || true
-            import json, sys
-            try:
-                data = json.load(sys.stdin)
-            except json.JSONDecodeError:
-                sys.exit(1)
-            if "manifests" in data and data["manifests"]:
-                print(data["manifests"][0]["digest"])
-            elif "config" in data:
-                print(data["config"]["digest"])
-            PY
-            )
+            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
           fi
           if [ -z "$DIGEST" ]; then
             echo "Failed to resolve digest for proto image (${REF:-built image})" >&2
@@ -677,18 +666,7 @@ jobs:
             DIGEST="${{ steps.build.outputs.digest }}"
           else
             REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | python - <<'PY' || true
-            import json, sys
-            try:
-                data = json.load(sys.stdin)
-            except json.JSONDecodeError:
-                sys.exit(1)
-            if "manifests" in data and data["manifests"]:
-                print(data["manifests"][0]["digest"])
-            elif "config" in data:
-                print(data["config"]["digest"])
-            PY
-            )
+            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
           fi
           if [ -z "$DIGEST" ]; then
             echo "Failed to resolve digest for cpp image (${REF:-built image})" >&2
@@ -769,18 +747,7 @@ jobs:
             DIGEST="${{ steps.build.outputs.digest }}"
           else
             REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | python - <<'PY' || true
-            import json, sys
-            try:
-                data = json.load(sys.stdin)
-            except json.JSONDecodeError:
-                sys.exit(1)
-            if "manifests" in data and data["manifests"]:
-                print(data["manifests"][0]["digest"])
-            elif "config" in data:
-                print(data["config"]["digest"])
-            PY
-            )
+            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
           fi
           if [ -z "$DIGEST" ]; then
             echo "Failed to resolve digest for golang image (${REF:-built image})" >&2

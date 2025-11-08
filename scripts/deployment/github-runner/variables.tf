@@ -54,17 +54,6 @@ variable "runner_repo" {
   }
 }
 
-variable "runner_labels" {
-  type        = list(string)
-  description = "Extra labels to assign to the self-hosted runner."
-  default     = []
-}
-
-variable "runner_name" {
-  type        = string
-  description = "Static name to assign to the runner."
-}
-
 variable "runner_ssh_public_key" {
   type        = string
   description = "SSH public key injected into the runner container for provisioning access."
@@ -80,21 +69,10 @@ variable "runner_ssh_private_key_path" {
   description = "Filesystem path to the SSH private key matching runner_ssh_public_key. May be relative to the project root."
 }
 
-variable "runner_image" {
-  type        = string
-  description = "GitHub Actions runner tarball URL."
-  default     = "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-x64-2.321.0.tar.gz"
-}
-
-variable "runner_vm_id" {
-  type        = number
-  description = "Unique VMID for the runner LXC container."
-}
-
 variable "runner_memory" {
   type        = number
   description = "Memory allocation (MB) for the LXC container."
-  default     = 4096
+  default     = 32768
 }
 
 variable "runner_cores" {
@@ -106,7 +84,7 @@ variable "runner_cores" {
 variable "runner_rootfs_size" {
   type        = string
   description = "Disk size for the runner container rootfs."
-  default     = "40G"
+  default     = "256G"
 }
 
 variable "runner_timezone" {
@@ -115,14 +93,25 @@ variable "runner_timezone" {
   default     = "UTC"
 }
 
-variable "runner_ipv4_cidr" {
-  type        = string
-  description = "IPv4 configuration for the runner container (CIDR or dhcp)."
+variable "runner_labels" {
+  type        = list(string)
+  description = "Extra labels to assign to the self-hosted runner."
+  default     = []
 }
 
-variable "runner_ipv4_gateway" {
+variable "runner_image" {
   type        = string
-  description = "Default gateway for the runner container IPv4 address."
-  default     = null
+  description = "GitHub Actions runner tarball URL."
+  default     = "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-x64-2.321.0.tar.gz"
+}
+
+variable "runner_instances" {
+  description = "Runner instances to provision on Proxmox."
+  type = list(object({
+    name         = string
+    vm_id        = number
+    ipv4_cidr    = string
+    ipv4_gateway = optional(string)
+  }))
 }
 

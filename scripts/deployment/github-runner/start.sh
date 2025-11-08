@@ -56,12 +56,10 @@ terraform apply -input=false -auto-approve "$@"
 
 OUTPUT_JSON_FILE="$(mktemp)"
 ANSIBLE_VARS_FILE="$(mktemp)"
-trap 'rm -f "${OUTPUT_JSON_FILE}" "${ANSIBLE_VARS_FILE}"' EXIT
+TMP_FILES=("${OUTPUT_JSON_FILE}" "${ANSIBLE_VARS_FILE}")
+trap 'rm -f "${TMP_FILES[@]}"' EXIT
 
 terraform output -json >"${OUTPUT_JSON_FILE}"
-
-RUNNER_REPO=$(jq -r '.runner_repo.value' "${OUTPUT_JSON_FILE}")
-RUNNER_NAME=$(jq -r '.runner_name.value' "${OUTPUT_JSON_FILE}")
 
 export PROXMOX_SSH_USER="${PROXMOX_SSH_USER:-root}"
 if [[ -z "${PROXMOX_HOST_TASKS_ENABLED:-}" ]]; then
@@ -91,38 +89,73 @@ with open(output_path, "r", encoding="utf-8") as fh:
 def get_value(name):
     return outputs[name]["value"]
 
-connection = get_value("runner_connection")
 raw_labels = get_value("runner_labels")
 if isinstance(raw_labels, str):
     runner_labels = [label.strip() for label in raw_labels.split(",") if label.strip()]
 else:
     runner_labels = list(raw_labels)
 
-vars_payload = {
+runner_repo = get_value("runner_repo")
+runner_template = get_value("runner_template")
+runner_image_url = get_value("runner_image_url")
+runner_connections = get_value("runner_connections")
+runner_names = get_value("runner_names")
+
+base_vars = {
     "proxmox_host": get_value("proxmox_host"),
     "proxmox_user": os.environ.get("PROXMOX_SSH_USER", "root"),
     "proxmox_private_key_path": os.environ.get("PROXMOX_SSH_KEY_PATH") or None,
     "proxmox_host_tasks_enabled": os.environ.get("PROXMOX_HOST_TASKS_ENABLED", "false").lower() in ("1", "true", "yes"),
-    "runner_host": connection.get("host"),
-    "runner_user": connection.get("user", "root"),
-    "runner_private_key_path": connection.get("private_key_path"),
-    "runner_repo": get_value("runner_repo"),
-    "runner_name": get_value("runner_name"),
-    "runner_template": get_value("runner_template"),
-    "runner_image_url": get_value("runner_image_url"),
+    "runner_template": runner_template,
+    "runner_image_url": runner_image_url,
     "runner_labels": runner_labels,
     "runner_labels_csv": ",".join(runner_labels),
     "runner_workdir": "/opt/actions-runner",
 }
 
+runs = []
+
+for name in runner_names:
+    connection = runner_connections.get(name, {})
+    run_vars = dict(base_vars)
+    run_vars.update(
+        {
+            "runner_repo": runner_repo,
+            "runner_name": name,
+            "runner_host": connection.get("host"),
+            "runner_user": connection.get("user", "root"),
+            "runner_private_key_path": connection.get("private_key_path"),
+        }
+    )
+    runs.append(run_vars)
+
+payload = {
+    "runner_repo": runner_repo,
+    "runner_runs": runs,
+}
+
 with open(vars_path, "w", encoding="utf-8") as fh:
-    json.dump(vars_payload, fh)
+    json.dump(payload, fh)
 PY
 
 ANSIBLE_DIR="${PROJECT_ROOT}/scripts/deployment/prox4/ansible"
 pushd "${ANSIBLE_DIR}" >/dev/null
-ansible-playbook site.yml -e "@${ANSIBLE_VARS_FILE}"
-popd >/dev/null
+RUNNER_COUNT=$(jq '.runner_runs | length' "${ANSIBLE_VARS_FILE}")
+if [[ "${RUNNER_COUNT}" -eq 0 ]]; then
+  echo "No runner instances defined in Terraform outputs." >&2
+  exit 1
+fi
+RUNNER_REPO=$(jq -r '.runner_repo' "${ANSIBLE_VARS_FILE}")
 
-verify_runner_registration "${RUNNER_REPO}" "${RUNNER_NAME}"
+for ((index = 0; index < RUNNER_COUNT; index++)); do
+  RUNNER_VARS_FILE="$(mktemp)"
+  TMP_FILES+=("${RUNNER_VARS_FILE}")
+  jq ".runner_runs[${index}]" "${ANSIBLE_VARS_FILE}" >"${RUNNER_VARS_FILE}"
+  RUNNER_NAME=$(jq -r '.runner_name' "${RUNNER_VARS_FILE}")
+  echo "Provisioning runner '${RUNNER_NAME}'..."
+  ansible-playbook site.yml -e "@${RUNNER_VARS_FILE}"
+  verify_runner_registration "${RUNNER_REPO}" "${RUNNER_NAME}"
+done
+
+popd >/dev/null
 

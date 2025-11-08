@@ -1,0 +1,30 @@
+ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
+ARG BASE_TAG=latest
+ARG TARGETARCH=amd64
+ARG PROTO_VERSION=1.0.0
+
+FROM ${BASE_REGISTRY}/base:go-builder-${BASE_TAG}-${TARGETARCH} AS go-builder-base
+
+FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
+
+FROM go-builder-base AS golang-built
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY webserver/ ./webserver/
+
+COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
+
+WORKDIR /build/webserver
+
+ARG CGO_ENABLED=1
+ENV CGO_ENABLED=${CGO_ENABLED}
+
+RUN make build
+
+RUN mkdir -p /artifacts/bin && \
+    cp ../bin/server /artifacts/bin/
+

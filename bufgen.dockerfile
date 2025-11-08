@@ -1,9 +1,17 @@
-FROM golang:1.24-alpine AS proto-builder
-RUN go install github.com/bufbuild/buf/cmd/buf@v1.47.2
-RUN go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.19.1
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
+ARG GO_VERSION=1.24
+ARG ALPINE_VERSION=3.19
 
-FROM alpine:3.19
+FROM golang:${GO_VERSION}-alpine AS proto-builder
+
+ARG BUF_VERSION=v1.47.2
+ARG PROTOC_GEN_CONNECT_GO_VERSION=v1.19.1
+ARG PROTOC_GEN_GO_VERSION=v1.35.2
+
+RUN go install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION} && \
+    go install connectrpc.com/connect/cmd/protoc-gen-connect-go@${PROTOC_GEN_CONNECT_GO_VERSION} && \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}
+
+FROM alpine:${ALPINE_VERSION}
 RUN apk add --update --no-cache \
     ca-certificates \
     git \

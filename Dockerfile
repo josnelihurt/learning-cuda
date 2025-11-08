@@ -1,35 +1,26 @@
 #################################################################################
-#                          PROTOBUF GENERATOR STAGE                             #
+#                          DOCKERFILE ARGUMENTS                                 #
 #################################################################################
-# Generate Go and C++ code from protobuf definitions using buf
-# This must run first as both C++ and Go builds depend on generated code
-# Output: proto/gen/ directory with generated .pb.go and .pb.cc files
+ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
+ARG BASE_TAG=latest
+ARG TARGETARCH=amd64
+ARG PROTO_VERSION=1.0.0
+ARG CPP_VERSION=2.1.0
+ARG GOLANG_VERSION=1.0.0
+ARG NODE_VERSION=20
+ARG PLAYWRIGHT_VERSION=v1.56.1
+ARG UBUNTU_VARIANT=jammy
+
+#################################################################################
+#                    INTERMEDIATE IMAGES REFERENCES                              #
+#################################################################################
+# These stages reference the intermediate images from GHCR
+# The actual compilation happens in separate workflows
 #################################################################################
 
-FROM golang:1.23-alpine AS proto-gen-builder
-RUN go install github.com/bufbuild/buf/cmd/buf@v1.47.2 && \
-    go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.17.0 && \
-    go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
-
-FROM alpine:3.19 AS proto-generator
-RUN apk add --update --no-cache \
-    ca-certificates \
-    git \
-    protoc \
-    protobuf-dev \
-    && rm -rf /var/cache/apk/*
-
-COPY --from=proto-gen-builder /go/bin/buf /usr/local/bin/buf
-COPY --from=proto-gen-builder /go/bin/protoc-gen-go /usr/local/bin/protoc-gen-go
-COPY --from=proto-gen-builder /go/bin/protoc-gen-connect-go /usr/local/bin/protoc-gen-connect-go
-
-WORKDIR /workspace
-ENV XDG_CACHE_HOME=/workspace/.cache
-
-COPY buf.yaml buf.lock buf.gen.backend.yaml ./
-COPY proto/*.proto ./proto/
-
-RUN buf generate --template buf.gen.backend.yaml
+FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
+FROM ${BASE_REGISTRY}/intermediate:cpp-built-${CPP_VERSION}-${TARGETARCH} AS cpp-built-ref
+FROM ${BASE_REGISTRY}/intermediate:golang-built-${GOLANG_VERSION}-${TARGETARCH} AS golang-built-ref
 
 #################################################################################
 #                            FRONTEND BUILDER STAGE                             #
@@ -40,14 +31,16 @@ RUN buf generate --template buf.gen.backend.yaml
 # Output: Compiled JS/CSS in /build/static and HTML templates
 #################################################################################
 
-FROM node:20-alpine AS frontend-builder
+FROM ${BASE_REGISTRY}/base:proto-tools-${BASE_TAG}-${TARGETARCH} AS proto-gen-builder
+
+FROM node:${NODE_VERSION}-alpine AS frontend-builder
 
 WORKDIR /build
 
 # Install protoc and buf for protobuf generation
 RUN apk add --no-cache protobuf-dev
 
-# Copy buf and Go protobuf plugins from proto-gen-builder
+# Copy buf and Go protobuf plugins from proto-tools base image
 COPY --from=proto-gen-builder /go/bin/buf /usr/local/bin/buf
 COPY --from=proto-gen-builder /go/bin/protoc-gen-go /usr/local/bin/protoc-gen-go
 COPY --from=proto-gen-builder /go/bin/protoc-gen-connect-go /usr/local/bin/protoc-gen-connect-go
@@ -70,191 +63,6 @@ RUN buf generate
 WORKDIR /build/webserver/web
 RUN npm run build
 
-#################################################################################
-#                         C++ LIBRARIES BUILDER STAGE                           #
-#################################################################################
-# Compile CUDA C++ shared libraries (.so) using Bazel + NVIDIA compiler
-# Requires: CUDA toolkit, Bazel, protobuf definitions
-# Output: libcuda_processor_v{VERSION}.so (VERSION from cpp_accelerator/VERSION)
-#################################################################################
-
-#################################################################################
-#                    BAZEL BASE SETUP STAGE                                     #
-#################################################################################
-FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS bazel-base
-
-ENV DEBIAN_FRONTEND=noninteractive
-ENV BAZEL_VERSION=7.0.2
-# Optimize Bazel performance in containers
-ENV BAZEL_DISABLE_AUTO_FETCH=1
-ENV USE_BAZEL_VERSION=7.0.2
-
-WORKDIR /build
-
-RUN apt-get update && apt-get install -y \
-    wget \
-    git \
-    build-essential \
-    pkg-config \
-    zip \
-    unzip \
-    python3 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Download Bazel for current platform (using Docker buildx variables)
-ARG TARGETARCH
-RUN BAZEL_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "linux-amd64" || echo "linux-arm64") && \
-    echo "Downloading Bazel for architecture: $BAZEL_ARCH (TARGETARCH=$TARGETARCH)" && \
-    wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-${BAZEL_ARCH} \
-    && chmod +x /usr/local/bin/bazel
-
-#################################################################################
-#                    BAZEL DEPS FETCH STAGE                                     #
-#################################################################################
-FROM bazel-base AS bazel-deps-fetch
-
-WORKDIR /build
-
-# Bazel workspace files only changes when we add/remove dependencies or update the workspace configuration
-COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
-COPY .bazelrc ./
-COPY proto/BUILD ./proto/BUILD
-COPY proto/google/api/BUILD.bazel ./proto/google/api/BUILD.bazel
-COPY third_party/ ./third_party/
-# Fetch dependencies without compiling anything, strongly cached
-# Use bazel sync to fetch all module dependencies
-RUN bazel fetch //... 
-
-#################################################################################
-#                    BAZEL EXTERNAL DEPS BUILD STAGE                            #
-#################################################################################
-FROM bazel-deps-fetch AS bazel-external-deps
-
-WORKDIR /build
-
-# Copy minimal code needed for external deps build proto generated code
-COPY proto/*.proto ./proto/
-COPY proto/BUILD ./proto/BUILD
-COPY proto/google/ ./proto/google/
-COPY third_party/ ./third_party/
-COPY buf.yaml buf.lock buf.gen.yaml ./
-
-RUN bazel build \
-    --show_timestamps \
-    --announce_rc \
-    @spdlog//:spdlog \
-    @protobuf//:protobuf \
-    //proto:common_cc_proto \
-    //proto:image_processor_service_cc_proto \
-    //proto:config_service_cc_proto \
-    //third_party/stb:stb_image \
-    //third_party/stb:stb_image_write \
-    || echo "External deps build completed"
-
-#################################################################################
-#                    BAZEL CODE BUILD STAGE                                   #
-#################################################################################
-FROM bazel-external-deps AS bazel-code-build
-
-WORKDIR /build
-
-# Copy remaining source
-COPY cpp_accelerator/ ./cpp_accelerator/
-
-# Copy generated protobuf code
-COPY --from=proto-generator /workspace/proto/gen/ ./proto/gen/
-
-# Build cpp accelerator shared library
-ARG TARGETARCH
-# Detect available resources for Bazel optimization
-RUN echo "Detected TARGETARCH: $TARGETARCH" && \
-    NPROC=$(nproc) && \
-    MEM_GB=$(free -g | awk '/^Mem:/{print $2}') && \
-    echo "Available CPUs: $NPROC, RAM: ${MEM_GB}GB" && \
-    echo "$NPROC $MEM_GB" > /tmp/resources.txt
-
-# Build with optimized settings
-RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
-    MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
-    if [ "$TARGETARCH" = "arm64" ]; then \
-        echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
-        bazel build \
-          --show_timestamps \
-          --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
-          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
-          --local_cpu_resources=$(($NPROC - 1)) \
-          --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache \
-          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
-        echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
-    else \
-        echo "Building AMD64 with verbose output" && \
-        bazel build \
-          --show_timestamps \
-          --announce_rc \
-          --verbose_failures \
-          --subcommands \
-          --jobs=$NPROC \
-          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
-          --local_cpu_resources=$(($NPROC - 1)) \
-          --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache \
-          --linkopt="-Wl,--verbose" \
-          --linkopt="-Wl,--stats" \
-          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
-        echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
-    fi
-
-RUN VERSION=$(cat cpp_accelerator/VERSION) && \
-    mkdir -p /artifacts/lib && \
-    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so
-
-#################################################################################
-#                          GO WEBSERVER BUILDER STAGE                           #
-#################################################################################
-# Compile Go webserver using standard Go toolchain (no Bazel)
-# The server dynamically loads C++ libraries at runtime via dlopen
-# Output: /artifacts/bin/server executable
-#################################################################################
-
-FROM golang:1.24-bookworm AS go-builder
-
-RUN apt-get update && apt-get install -y \
-    libavcodec-dev \
-    libavformat-dev \
-    libavutil-dev \
-    libswscale-dev \
-    libavfilter-dev \
-    libavdevice-dev \
-    pkg-config \
-    gcc \
-    libc6-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /build
-
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY webserver/ ./webserver/
-
-# Copy generated protobuf code from proto-generator stage
-COPY --from=proto-generator /workspace/proto/gen/ ./proto/gen/
-
-WORKDIR /build/webserver
-
-# Enable CGO for real loader compilation
-ENV CGO_ENABLED=1
-
-# Skip stub creation - use real loader with CGO
-# The real loader is in webserver/pkg/infrastructure/processor/loader/
-# and will be compiled with CGO enabled
-
-RUN make build
-
-RUN mkdir -p /artifacts/bin && \
-    cp ../bin/server /artifacts/bin/
 
 #################################################################################
 #                        INTEGRATION TESTS STAGE                                #
@@ -265,38 +73,17 @@ RUN mkdir -p /artifacts/bin && \
 # This stage is optional and only runs when explicitly targeted
 #################################################################################
 
-FROM ubuntu:24.04 AS integration-tests
+FROM ${BASE_REGISTRY}/base:integration-tests-base-${BASE_TAG}-${TARGETARCH} AS integration-tests-base
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV GO_VERSION=1.24.0
-
-WORKDIR /workspace
-
-# Install Go and runtime dependencies
-ARG TARGETARCH
-RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && GO_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "linux-amd64" || echo "linux-arm64") && \
-    echo "Downloading Go for architecture: $GO_ARCH (TARGETARCH=$TARGETARCH)" && \
-    wget https://go.dev/dl/go${GO_VERSION}.${GO_ARCH}.tar.gz \
-    && tar -C /usr/local -xzf go${GO_VERSION}.${GO_ARCH}.tar.gz \
-    && rm go${GO_VERSION}.${GO_ARCH}.tar.gz
-
-ENV PATH="/usr/local/go/bin:${PATH}"
-ENV GOPATH="/go"
-ENV GO111MODULE=on
-
+FROM integration-tests-base AS integration-tests
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-# Copy compiled server binary and C++ libraries from builder stages
-COPY --from=go-builder /artifacts/bin/server /workspace/bin/server
-COPY --from=bazel-code-build /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
+# Copy compiled server binary and C++ libraries from intermediate images
+COPY --from=golang-built-ref /artifacts/bin/server /workspace/bin/server
+COPY --from=cpp-built-ref /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
@@ -324,7 +111,7 @@ CMD ["sh", "-c", "go test . -run TestFeatures -v"]
 # This stage is optional and only runs when explicitly targeted
 #################################################################################
 
-FROM mcr.microsoft.com/playwright:v1.56.1-jammy AS e2e-tests
+FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}-${UBUNTU_VARIANT} AS e2e-tests
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
@@ -362,7 +149,7 @@ ENTRYPOINT ["sh", "-c", "npx playwright test ${PLAYWRIGHT_OPTS}"]
 # Output: /app/reports/ directory with index.html and assets
 #################################################################################
 
-FROM node:20-alpine AS test-reports
+FROM node:${NODE_VERSION}-alpine AS test-reports
 
 WORKDIR /app
 
@@ -399,42 +186,15 @@ RUN npm install multiple-cucumber-html-reporter && \
 # The Go server loads C++ .so dynamically based on config
 #################################################################################
 
-FROM nvidia/cuda:12.5.1-runtime-ubuntu24.04
+FROM ${BASE_REGISTRY}/base:runtime-base-${BASE_TAG}-${TARGETARCH} AS runtime-base
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install minimal runtime dependencies including FFmpeg libraries
-# For ARM64 builds in QEMU, GPG verification can fail due to timing/emulation issues
-ARG TARGETARCH
-RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    ffmpeg \
-    libavcodec-dev \
-    libavformat-dev \
-    libavutil-dev \
-    libswscale-dev \
-    libavfilter-dev \
-    libavdevice-dev \
-    || (echo "Retrying with GPG fix..." && \
-        apt-get install -y --no-install-recommends --allow-unauthenticated \
-        ca-certificates \
-        curl \
-        ffmpeg \
-        libavcodec-dev \
-        libavformat-dev \
-        libavutil-dev \
-        libswscale-dev \
-        libavfilter-dev \
-        libavdevice-dev) && \
-    rm -rf /var/lib/apt/lists/*
+FROM runtime-base AS runtime
 
 WORKDIR /app
 
-# Copy compiled artifacts from builder stages
-COPY --from=go-builder /artifacts/bin/server /app/server
-COPY --from=bazel-code-build /artifacts/lib/ /app/lib/
+# Copy compiled artifacts from intermediate images
+COPY --from=golang-built-ref /artifacts/bin/server /app/server
+COPY --from=cpp-built-ref /artifacts/lib/ /app/lib/
 COPY --from=frontend-builder /build/webserver/web/static/ /app/web/static/
 COPY --from=frontend-builder /build/webserver/web/templates/ /app/web/templates/
 

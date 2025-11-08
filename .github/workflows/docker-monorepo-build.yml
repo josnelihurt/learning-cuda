@@ -521,8 +521,6 @@ jobs:
       - prepare
       - build_proto_tools
     runs-on: ${{ matrix.runner_labels }}
-    outputs:
-      digest: ${{ steps.record_digest.outputs.digest }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -563,7 +561,6 @@ jobs:
 
       - name: Build and push proto-generated
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -579,21 +576,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-latest-${{ matrix.arch }}
 
-      - name: Capture image digest
-        id: record_digest
-        run: |
-          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
-          else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
-          fi
-          if [ -z "$DIGEST" ]; then
-            echo "Failed to resolve digest for proto image (${REF:-built image})" >&2
-            exit 1
-          fi
-          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
-
   build_cpp:
     name: Build cpp intermediate
     needs:
@@ -601,8 +583,6 @@ jobs:
       - build_proto
       - build_bazel_base
     runs-on: ${{ matrix.runner_labels }}
-    outputs:
-      digest: ${{ steps.record_digest.outputs.digest }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -643,7 +623,6 @@ jobs:
 
       - name: Build and push cpp-built
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -660,21 +639,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-latest-${{ matrix.arch }}
 
-      - name: Capture image digest
-        id: record_digest
-        run: |
-          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
-          else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
-          fi
-          if [ -z "$DIGEST" ]; then
-            echo "Failed to resolve digest for cpp image (${REF:-built image})" >&2
-            exit 1
-          fi
-          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
-
   build_golang:
     name: Build golang intermediate
     needs:
@@ -682,8 +646,6 @@ jobs:
       - build_proto
       - build_go_builder
     runs-on: ${{ matrix.runner_labels }}
-    outputs:
-      digest: ${{ steps.record_digest.outputs.digest }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -724,7 +686,6 @@ jobs:
 
       - name: Build and push golang-built
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -740,21 +701,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-latest-${{ matrix.arch }}
-
-      - name: Capture image digest
-        id: record_digest
-        run: |
-          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
-          else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
-          fi
-          if [ -z "$DIGEST" ]; then
-            echo "Failed to resolve digest for golang image (${REF:-built image})" >&2
-            exit 1
-          fi
-          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
 
   build_app:
     name: Build application image
@@ -799,7 +745,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -812,30 +758,28 @@ jobs:
           REGISTRY="${{ env.REGISTRY }}"
           BASE_PREFIX="${{ env.BASE_IMAGE_PREFIX }}"
           ARCH="${{ matrix.arch }}"
-          PROTO_DIGEST="${{ needs.build_proto.outputs.digest }}"
-          CPP_DIGEST="${{ needs.build_cpp.outputs.digest }}"
-          GOLANG_DIGEST="${{ needs.build_golang.outputs.digest }}"
+          PROTO_REF="${REGISTRY}/${BASE_PREFIX}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${ARCH}"
+          CPP_REF="${REGISTRY}/${BASE_PREFIX}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${ARCH}"
+          GOLANG_REF="${REGISTRY}/${BASE_PREFIX}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${ARCH}"
 
-          check_digest() {
+          check_ref() {
             local name="$1"
-            local digest="$2"
-            if [ -z "$digest" ]; then
-              echo "Missing digest for ${name} (${ARCH})" >&2
-              exit 1
-            fi
-            local ref="${REGISTRY}/${BASE_PREFIX}/intermediate@${digest}"
-            if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
-              echo "Manifest not yet visible for ${ref}; retrying in 10 seconds..." >&2
-              sleep 10
-              if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
-                echo "Warning: Manifest still not visible for ${ref}. Proceeding with recorded digest." >&2
+            local ref="$2"
+            local attempt=1
+            until docker manifest inspect "$ref" >/dev/null 2>&1; do
+              if [ $attempt -ge 3 ]; then
+                echo "Failed to locate manifest for ${name} (${ref})" >&2
+                exit 1
               fi
-            fi
+              echo "Manifest for ${name} not yet visible (attempt ${attempt}); retrying in 10s..." >&2
+              attempt=$((attempt + 1))
+              sleep 10
+            done
           }
 
-          check_digest "proto-generated" "$PROTO_DIGEST"
-          check_digest "cpp-built" "$CPP_DIGEST"
-          check_digest "golang-built" "$GOLANG_DIGEST"
+          check_ref "proto-generated" "$PROTO_REF"
+          check_ref "cpp-built" "$CPP_REF"
+          check_ref "golang-built" "$GOLANG_REF"
 
       - name: Build and push application image
         if: ${{ steps.gate.outputs.build == 'true' }}

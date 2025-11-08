@@ -1,0 +1,78 @@
+---
+- name: Manage GitHub Actions runner on Jetson Nano
+  hosts: jetson
+  become: yes
+  vars:
+    runner_name: "{{ runner_name | default('learning-cuda-jetson-nano-1') }}"
+    runner_container: "{{ runner_container | default('learning-cuda-runner') }}"
+    runner_image: "{{ runner_image | default('ghcr.io/actions/actions-runner:latest') }}"
+    runner_labels: "{{ runner_labels | default('self-hosted,Linux,ARM64,jetson,jetson-nano') }}"
+    runner_state: "{{ runner_state | default('present') }}"
+    repo_slug: "{{ repo_slug }}"
+  tasks:
+    - name: Stop existing runner container if present
+      ansible.builtin.command:
+        cmd: "docker stop {{ runner_container }}"
+      register: stop_result
+      failed_when: false
+      changed_when: stop_result.rc == 0
+      when: runner_state in ['present', 'absent']
+
+    - name: Remove existing runner container if present
+      ansible.builtin.command:
+        cmd: "docker rm {{ runner_container }}"
+      register: remove_result
+      failed_when: false
+      changed_when: remove_result.rc == 0
+      when: runner_state in ['present', 'absent']
+
+    - name: Lookup existing runner registration
+      ansible.builtin.command: >
+        gh api repos/{{ repo_slug }}/actions/runners --paginate
+        --jq '.runners[] | select(.name == "{{ runner_name }}") | .id'
+      register: runner_existing_id
+      changed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Remove existing runner registration
+      ansible.builtin.command: >
+        gh api repos/{{ repo_slug }}/actions/runners/{{ runner_existing_id.stdout }} --method DELETE
+      when:
+        - runner_existing_id.stdout | length > 0
+        - runner_state in ['present', 'absent']
+      changed_when: true
+      delegate_to: localhost
+      become: false
+
+    - name: Request registration token
+      ansible.builtin.command: >
+        gh api --method POST repos/{{ repo_slug }}/actions/runners/registration-token --jq .token
+      register: runner_registration_token
+      when: runner_state == 'present'
+      changed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Pull runner image
+      ansible.builtin.command:
+        cmd: "docker pull {{ runner_image }}"
+      when: runner_state == 'present'
+
+    - name: Launch runner container
+      ansible.builtin.shell: |
+        docker run -d --restart always \
+          --name {{ runner_container }} \
+          -e ACTIONS_RUNNER_NAME="{{ runner_name }}" \
+          -e ACTIONS_RUNNER_REPO_URL="https://github.com/{{ repo_slug }}" \
+          -e ACTIONS_RUNNER_TOKEN="{{ runner_registration_token.stdout }}" \
+          -e ACTIONS_RUNNER_LABELS="{{ runner_labels }}" \
+          -e ACTIONS_RUNNER_WORKDIR="/tmp/actions-runner" \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          {{ runner_image }}
+      args:
+        executable: /bin/bash
+      when: runner_state == 'present'
+      register: run_result
+      changed_when: "'Error response from daemon' not in run_result.stderr"
+

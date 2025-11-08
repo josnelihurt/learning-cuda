@@ -27,9 +27,10 @@ if [[ -z "${REPO_SLUG}" ]]; then
 fi
 
 RUNNER_NAME="learning-cuda-jetson-nano-1"
-RUNNER_CONTAINER="learning-cuda-runner"
-RUNNER_IMAGE="${RUNNER_IMAGE:-ghcr.io/actions/actions-runner:latest}"
 RUNNER_LABELS="${RUNNER_LABELS:-self-hosted,Linux,ARM64,jetson,jetson-nano}"
+RUNNER_VERSION="${RUNNER_VERSION:-$(gh api repos/actions/runner/releases/latest --jq .tag_name)}"
+RUNNER_VERSION_NUMBER="${RUNNER_VERSION#v}"
+RUNNER_DOWNLOAD_URL="${RUNNER_DOWNLOAD_URL:-https://github.com/actions/runner/releases/download/${RUNNER_VERSION}/actions-runner-linux-arm64-${RUNNER_VERSION_NUMBER}.tar.gz}"
 
 run_ansible() {
   local state="$1"
@@ -39,9 +40,8 @@ run_ansible() {
     -e "runner_state=${state}" \
     -e "repo_slug=${REPO_SLUG}" \
     -e "runner_name=${RUNNER_NAME}" \
-    -e "runner_container=${RUNNER_CONTAINER}" \
-    -e "runner_image=${RUNNER_IMAGE}" \
-    -e "runner_labels=${RUNNER_LABELS}"
+    -e "runner_labels=${RUNNER_LABELS}" \
+    -e "runner_download_url=${RUNNER_DOWNLOAD_URL}"
 }
 
 wait_for_runner() {

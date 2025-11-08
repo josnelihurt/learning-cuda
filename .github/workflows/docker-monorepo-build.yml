@@ -642,6 +642,7 @@ jobs:
         with:
           context: .
           file: ./cpp_accelerator/Dockerfile.build
+          target: artifacts
           platforms: linux/${{ matrix.arch }}
           build-args: |
             BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
@@ -708,6 +709,7 @@ jobs:
         with:
           context: .
           file: ./webserver/Dockerfile.build
+          target: artifacts
           platforms: linux/${{ matrix.arch }}
           build-args: |
             BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}

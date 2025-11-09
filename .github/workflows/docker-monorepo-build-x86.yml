@@ -272,7 +272,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.proto_tools_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:proto-tools-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:proto-tools-latest-amd64"
-          docker build --no-cache -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"
@@ -312,7 +312,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.go_builder_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:go-builder-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:go-builder-latest-amd64"
-          docker build --no-cache -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"
@@ -352,7 +352,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.bazel_base_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:bazel-base-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:bazel-base-latest-amd64"
-          docker build --no-cache \
+          docker build \
             --build-arg TARGETARCH=amd64 \
             -f cpp_accelerator/docker-build-base/Dockerfile \
             -t "$TAG_VERSION" \
@@ -397,9 +397,9 @@ jobs:
           VERSION="${{ needs.prepare.outputs.runtime_base_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:runtime-base-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:runtime-base-latest-amd64"
-          docker build --no-cache \
+          docker build \
             --build-arg TARGETARCH=amd64 \
-            -f runtime/Dockerfile.mock \
+            -f runtime/Dockerfile \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -442,9 +442,9 @@ jobs:
           VERSION="${{ needs.prepare.outputs.integration_base_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:integration-tests-base-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:integration-tests-base-latest-amd64"
-          docker build --no-cache \
+          docker build \
             --build-arg TARGETARCH=amd64 \
-            -f integration/Dockerfile.mock \
+            -f integration/Dockerfile \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -491,7 +491,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.proto_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:proto-generated-latest-amd64"
-          docker build --no-cache \
+          docker build \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
@@ -569,7 +569,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.cpp_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:cpp-built-latest-amd64"
-          docker build --no-cache \
+          docker build \
             --target artifacts \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
@@ -648,7 +648,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.golang_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:golang-built-latest-amd64"
-          docker build --no-cache \
+          docker build \
             --target artifacts \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
@@ -758,7 +758,7 @@ jobs:
           APP_TAG="${{ needs.prepare.outputs.app_tag }}"
           TAG_VERSION="${IMAGE_BASE}/app:${APP_TAG}-amd64"
           TAG_LATEST="${IMAGE_BASE}/app:latest-amd64"
-          docker build --no-cache \
+          docker build \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \

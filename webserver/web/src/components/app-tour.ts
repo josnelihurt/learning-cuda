@@ -25,8 +25,8 @@ export class AppTour extends LitElement {
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.72);
-      backdrop-filter: blur(2px);
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(1.5px);
       z-index: 2200;
       pointer-events: auto;
     }
@@ -37,9 +37,10 @@ export class AppTour extends LitElement {
 
     .focus-ring {
       position: fixed;
-      border-radius: 16px;
-      box-shadow: 0 0 0 2000px rgba(15, 23, 42, 0.72);
-      background: transparent;
+      border-radius: 14px;
+      box-shadow: 0 0 0 2000px rgba(15, 23, 42, 0.45);
+      border: 2px solid var(--accent-color, #38bdf8);
+      background: rgba(56, 189, 248, 0.08);
       pointer-events: none;
       transition: all 0.22s ease;
     }
@@ -48,7 +49,7 @@ export class AppTour extends LitElement {
       position: fixed;
       max-width: 320px;
       color: #f8fafc;
-      background: rgba(15, 23, 42, 0.92);
+      background: rgba(15, 23, 42, 0.88);
       border-radius: 16px;
       padding: 20px 24px;
       box-shadow: 0 18px 42px rgba(15, 23, 42, 0.45);
@@ -56,6 +57,44 @@ export class AppTour extends LitElement {
       flex-direction: column;
       gap: 16px;
       transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .content::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: inherit;
+      transform: rotate(45deg);
+      z-index: -1;
+    }
+
+    .content.placement-right::after {
+      left: -6px;
+      top: 50%;
+      margin-top: -6px;
+      box-shadow: -3px 3px 10px rgba(15, 23, 42, 0.35);
+    }
+
+    .content.placement-left::after {
+      right: -6px;
+      top: 50%;
+      margin-top: -6px;
+      box-shadow: 3px -3px 10px rgba(15, 23, 42, 0.35);
+    }
+
+    .content.placement-bottom::after {
+      top: -6px;
+      left: 50%;
+      margin-left: -6px;
+      box-shadow: -3px -3px 10px rgba(15, 23, 42, 0.35);
+    }
+
+    .content.placement-top::after {
+      bottom: -6px;
+      left: 50%;
+      margin-left: -6px;
+      box-shadow: 3px 3px 10px rgba(15, 23, 42, 0.35);
     }
 
     .step-label {
@@ -127,28 +166,47 @@ export class AppTour extends LitElement {
   @state() private stepIndex = 0;
   @state() private focusStyle: Record<string, string> = {};
   @state() private tooltipStyle: Record<string, string> = {};
+  @state() private tooltipPlacement: 'right' | 'left' | 'top' | 'bottom' = 'right';
 
   private readonly steps: TourStep[] = [
     {
       id: 'add-source',
-      selector: 'button[data-testid="add-input-fab"]',
+      selector: 'button[data-testid="add-input-fab"], add-source-fab',
       title: 'Add Input',
       description:
         'Use Add Input to bring new static images, live cameras, or videos into the workspace.',
     },
     {
       id: 'filter-panel',
-      selector: '.sidebar .filters-section',
+      selector: '.sidebar .filters-section, filter-panel',
       title: 'Filter Panel',
       description:
-        'Drag, toggle, and fine tune filters. GPU runs accelerated processing, while CPU keeps everything local.',
+        'Drag, toggle, and fine tune filters. GPU runs filters on server GPU, while CPU keeps everything on server CPU processing.',
     },
     {
       id: 'change-image',
-      selector: 'video-source-card[data-source-number="1"]',
+      selector: 'video-source-card[data-source-number="1"], video-grid',
       title: 'Switch Images',
       description:
-        'Select a source and use the change image control to swap between available test images instantly.',
+        'Select a source and use the change image control (right upper corner) to swap between available test images.',
+    },
+    {
+      id: 'tools-dropdown',
+      selector: '[data-testid="tools-dropdown-button"], tools-dropdown',
+      title: 'Tools Menu',
+      description: 'Open Tools to access Grafana, Jaeger, Playwright reports, and other utilities.',
+    },
+    {
+      id: 'feature-flags',
+      selector: 'feature-flags-button',
+      title: 'Feature Flags',
+      description: 'Manage feature toggles for experiments. Connect to Flipt to enable or disable flags.',
+    },
+    {
+      id: 'version-info',
+      selector: 'version-tooltip-lit button.info-btn, version-tooltip-lit',
+      title: 'Version Details',
+      description: 'Click the info icon to see build details for the frontend, backend, CPP library and more.',
     },
   ];
 
@@ -176,7 +234,7 @@ export class AppTour extends LitElement {
       <div class="overlay" role="presentation">
         <div class="focus-ring" style=${styleMap(this.focusStyle)}></div>
         <div
-          class="content"
+          class="content placement-${this.tooltipPlacement}"
           style=${styleMap(this.tooltipStyle)}
           role="dialog"
           aria-modal="true"
@@ -277,9 +335,28 @@ export class AppTour extends LitElement {
     const step = this.steps[this.stepIndex];
     if (!step) return;
 
-    const target = document.querySelector(step.selector) as HTMLElement | null;
+    const target = this.findTarget(step.selector);
     if (!target) {
-      this.scheduleRetry();
+      if (!withScroll && this.focusStyle.width) {
+        this.scheduleRetry();
+        return;
+      }
+
+      const fallbackRoot = this.findTarget('video-grid, filter-panel, add-source-fab, body');
+      const bounds = fallbackRoot?.getBoundingClientRect();
+      const fallbackRect = bounds
+        ? bounds
+        : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+
+      this.focusStyle = {
+        top: `${fallbackRect.top}px`,
+        left: `${fallbackRect.left}px`,
+        width: `${fallbackRect.width}px`,
+        height: `${fallbackRect.height}px`,
+      };
+      const { style, placement } = this.calculateTooltipPosition(fallbackRect);
+      this.tooltipStyle = style;
+      this.tooltipPlacement = placement;
       return;
     }
 
@@ -299,36 +376,65 @@ export class AppTour extends LitElement {
       height: `${rect.height + padding * 2}px`,
     };
 
-    this.tooltipStyle = this.calculateTooltipPosition(rect);
+    const { style, placement } = this.calculateTooltipPosition(rect);
+    this.tooltipStyle = style;
+    this.tooltipPlacement = placement;
   }
 
-  private calculateTooltipPosition(rect: DOMRect): Record<string, string> {
-    const margin = 18;
+  private calculateTooltipPosition(
+    rect: DOMRect
+  ): { style: Record<string, string>; placement: 'right' | 'left' | 'top' | 'bottom' } {
+    const margin = 20;
     const tooltipWidth = 320;
     const tooltipHeight = 220;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const centerY = rect.top + rect.height / 2;
+    const centerX = rect.left + rect.width / 2;
 
-    let top = rect.bottom + margin;
-    let left = rect.left;
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-    if (top + tooltipHeight > viewportHeight - margin) {
-      top = rect.top - tooltipHeight - margin;
-    }
-    if (top < margin) {
-      top = margin;
-    }
-
-    if (left + tooltipWidth > viewportWidth - margin) {
-      left = viewportWidth - tooltipWidth - margin;
-    }
-    if (left < margin) {
-      left = margin;
+    if (rect.right + margin + tooltipWidth <= viewportWidth) {
+      const top = clamp(centerY - tooltipHeight / 2, margin, viewportHeight - tooltipHeight - margin);
+      return {
+        style: {
+          top: `${top}px`,
+          left: `${rect.right + margin}px`,
+        },
+        placement: 'right',
+      };
     }
 
+    if (rect.left - margin - tooltipWidth >= 0) {
+      const top = clamp(centerY - tooltipHeight / 2, margin, viewportHeight - tooltipHeight - margin);
+      return {
+        style: {
+          top: `${top}px`,
+          left: `${rect.left - tooltipWidth - margin}px`,
+        },
+        placement: 'left',
+      };
+    }
+
+    if (rect.bottom + margin + tooltipHeight <= viewportHeight) {
+      const left = clamp(centerX - tooltipWidth / 2, margin, viewportWidth - tooltipWidth - margin);
+      return {
+        style: {
+          top: `${rect.bottom + margin}px`,
+          left: `${left}px`,
+        },
+        placement: 'bottom',
+      };
+    }
+
+    const left = clamp(centerX - tooltipWidth / 2, margin, viewportWidth - tooltipWidth - margin);
+    const top = clamp(rect.top - tooltipHeight - margin, margin, viewportHeight - tooltipHeight - margin);
     return {
-      top: `${top}px`,
-      left: `${left}px`,
+      style: {
+        top: `${top}px`,
+        left: `${left}px`,
+      },
+      placement: 'top',
     };
   }
 
@@ -339,6 +445,44 @@ export class AppTour extends LitElement {
 
   private clearHighlight(): void {
     this.currentTarget = null;
+  }
+
+  private findTarget(selector: string): HTMLElement | null {
+    const direct = document.querySelector(selector);
+    if (direct instanceof HTMLElement) {
+      return direct;
+    }
+
+    const body = document.body;
+    if (!body) {
+      return null;
+    }
+
+    const stack: (Element | ShadowRoot)[] = [body];
+    const visited = new Set<Element | ShadowRoot>();
+
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      if (visited.has(node)) {
+        continue;
+      }
+      visited.add(node);
+
+      if (node instanceof HTMLElement && node.matches(selector)) {
+        return node;
+      }
+
+      const children = Array.from(node.children ?? []);
+      for (let i = children.length - 1; i >= 0; i -= 1) {
+        stack.push(children[i]);
+      }
+
+      if (node instanceof Element && node.shadowRoot) {
+        stack.push(node.shadowRoot);
+      }
+    }
+
+    return null;
   }
 }
 

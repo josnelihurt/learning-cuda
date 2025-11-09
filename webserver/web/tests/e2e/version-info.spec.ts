@@ -56,9 +56,9 @@ test.describe('Version Info Tooltip', () => {
     
     const versionItems = versionInfo.locator('.version-item');
     const count = await versionItems.count();
-    expect(count).toBe(6);
+    expect(count).toBe(7);
     
-    const labels = ['C++:', 'Go:', 'JS:', 'Branch:', 'Build:', 'Commit:'];
+    const labels = ['C++:', 'Go:', 'JS:', 'Branch:', 'Build:', 'Commit:', 'Dockerfiles:'];
     for (let i = 0; i < labels.length; i++) {
       const item = versionItems.nth(i);
       const label = item.locator('.version-label');

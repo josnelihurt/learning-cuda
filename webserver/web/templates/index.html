@@ -36,38 +36,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-content">
-            <!-- Selected Source Indicator -->
-            <div class="control-section">
-                <label class="control-label">Selected</label>
-                <div class="selected-source-compact">
-                    <span class="source-badge" id="selectedSourceNumber">1</span>
-                    <span id="selectedSourceName">Lena</span>
-                </div>
-            </div>
-
-            <!-- Accelerator -->
-            <div class="control-section">
-                <label class="control-label">Accelerator</label>
-                <div class="segmented-control">
-                    <button class="segment active" data-value="gpu" onclick="setAccelerator('gpu')">
-                        GPU
-                    </button>
-                    <button class="segment" data-value="cpu" onclick="setAccelerator('cpu')">
-                        CPU
-                    </button>
-                </div>
-            </div>
-
-            <!-- Resolution -->
-            <div class="control-section">
-                <label class="control-label">Resolution</label>
-                <select id="resolutionSelect" class="compact-select" data-testid="resolution-select">
-                    <option value="original" selected>Original Size</option>
-                    <option value="half">Half</option>
-                    <option value="quarter">Quarter</option>
-                </select>
-            </div>
-
+            <app-root></app-root>
             <filter-panel></filter-panel>
         </div>
     </aside>

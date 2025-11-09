@@ -1,0 +1,18 @@
+CRITICAL: When tests fail after code changes, NEVER assume they are unrelated. 
+ALWAYS:
+1. Investigate the root cause of test failures
+2. Fix any issues that arise from your changes, even if they seem "unrelated"
+3. Verify tests pass after fixes
+4. Do NOT dismiss failures with phrases like "seems unrelated" or "appears to be"
+
+If a test fails:
+- Trace the failure to understand WHY it's failing
+- Check if your changes indirectly affected the failing code path
+- Fix the issue, don't just note it
+- Re-run tests to confirm the fix
+
+
+CRITICAL: When you finish writing the code
+ALWAYS: 
+1. Run the tests to confirm the fix
+2. Do not ask the user to run the tests, this is your responsibility

@@ -765,7 +765,7 @@ jobs:
             --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
             --build-arg CPP_VERSION="${{ needs.prepare.outputs.cpp_version }}" \
             --build-arg GOLANG_VERSION="${{ needs.prepare.outputs.golang_version }}" \
-            -f Dockerfile.mock \
+            -f Dockerfile \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .

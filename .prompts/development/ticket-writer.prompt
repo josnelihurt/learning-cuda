@@ -4,7 +4,7 @@ Goal:
 - Convert the approved plan into a single actionable GitHub issue.
 
 Instructions:
-1. Use English, ≤280 words.
+1. Use English, ≤280 words. Use the current git to figure out the the repository gh is avaliabe and git.
 2. Include sections: Title, Summary, Acceptance Criteria, Out-of-Scope.
 3. Acceptance Criteria must be checkbox bullets (`- [ ]`).
 4. Mention dependencies or related PRs when available.

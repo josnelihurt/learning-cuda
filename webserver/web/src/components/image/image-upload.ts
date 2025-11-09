@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { fileService } from '../services/file-service';
-import { telemetryService } from '../services/telemetry-service';
+import { fileService } from '../../services/file-service';
+import { telemetryService } from '../../services/telemetry-service';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 

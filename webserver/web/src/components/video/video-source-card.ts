@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { logger } from '../services/otel-logger';
-import { telemetryService } from '../services/telemetry-service';
+import { logger } from '../../services/otel-logger';
+import { telemetryService } from '../../services/telemetry-service';
 
 @customElement('video-source-card')
 export class VideoSourceCard extends LitElement {

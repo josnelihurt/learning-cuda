@@ -1,12 +1,12 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { InputSource } from '../gen/config_service_pb';
-import { WebSocketService } from '../services/websocket-service';
-import { telemetryService } from '../services/telemetry-service';
-import { processorCapabilitiesService } from '../services/processor-capabilities-service';
-import type { StatsPanel } from './stats-panel';
+import { InputSource } from '../../gen/config_service_pb';
+import { WebSocketService } from '../../services/websocket-service';
+import { telemetryService } from '../../services/telemetry-service';
+import { processorCapabilitiesService } from '../../services/processor-capabilities-service';
+import type { StatsPanel } from '../app/stats-panel';
 import type { CameraPreview } from './camera-preview';
-import type { ToastContainer } from './toast-container';
+import type { ToastContainer } from '../app/toast-container';
 import './video-source-card';
 
 interface GridSource {

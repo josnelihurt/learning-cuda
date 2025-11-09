@@ -4,7 +4,7 @@ import { ConfigService as ConfigServiceClient } from '../gen/config_service_conn
 import { FilterDefinition } from '../gen/common_pb';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
-import { Filter, createFilterFromDefinition } from '../components/filter-panel.types';
+import { Filter, createFilterFromDefinition } from '../components/app/filter-panel.types';
 import type { IProcessorCapabilitiesService } from '../domain/interfaces/IProcessorCapabilitiesService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {

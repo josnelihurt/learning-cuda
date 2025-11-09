@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
-import type { ToolCategory } from '../gen/config_service_pb';
+import type { ToolCategory } from '../../gen/config_service_pb';
 
 @customElement('tools-dropdown')
 export class ToolsDropdown extends LitElement {

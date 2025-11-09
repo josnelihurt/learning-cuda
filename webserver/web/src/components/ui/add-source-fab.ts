@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
-import { telemetryService } from '../services/telemetry-service';
-import { logger } from '../services/otel-logger';
+import { telemetryService } from '../../services/telemetry-service';
+import { logger } from '../../services/otel-logger';
 
 @customElement('add-source-fab')
 export class AddSourceFab extends LitElement {

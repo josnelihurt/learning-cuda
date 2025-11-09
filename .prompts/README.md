@@ -6,11 +6,14 @@ This directory contains AI prompts used for testing, development, and maintenanc
 
 ```
 .prompts/
-├── README.md              # This file
-├── testing/               # Testing and QA prompts
-│   └── manual-testing-*   # Manual testing procedures
-└── development/           # Development and architecture prompts
-    └── ...                # Future prompts
+├── README.md                         # This file
+├── testing/                          # Testing and QA prompts
+│   └── manual-testing-*              # Manual testing procedures
+└── development/
+    ├── frontend-agents/              # Modular prompts for frontend delivery agents
+    ├── common/                       # Shared guidance
+    ├── old/                          # Archived prompts
+    └── *.md                          # Scenario-specific guides
 ```
 
 ## Naming Convention

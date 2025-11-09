@@ -16,6 +16,7 @@ import './components/video-selector';
 import './components/video-upload';
 import './components/information-banner';
 import './components/app-tour';
+import './components/app-root';
 import { container } from './application/di';
 import type {
   IConfigService,
@@ -26,15 +27,10 @@ import type {
   IToolsService,
   IVideoService,
 } from './application/di';
-import type { VideoGrid } from './components/video-grid';
-import type { SourceDrawer } from './components/source-drawer';
-import type { ToolsDropdown } from './components/tools-dropdown';
-import type { ImageSelectorModal } from './components/image-selector-modal';
-import type { AppTour } from './components/app-tour';
+import type { AppRoot } from './components/app-root';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 
-// Get services from DI container
 const streamConfigService: IConfigService = container.getConfigService();
 const telemetryService: ITelemetryService = container.getTelemetryService();
 const logger: ILogger = container.getLogger();
@@ -44,196 +40,92 @@ const toolsService: IToolsService = container.getToolsService();
 const videoService: IVideoService = container.getVideoService();
 
 const app = {
-  toastManager: null as any,
-  statsManager: null as any,
-  filterManager: null as any,
-  videoGrid: null as VideoGrid | null,
-  sourceDrawer: null as SourceDrawer | null,
-  toolsDropdown: null as ToolsDropdown | null,
-  imageSelectorModal: null as ImageSelectorModal | null,
-  tour: null as AppTour | null,
-  currentSourceNumberForImageChange: null as number | null,
-
-  selectedAccelerator: 'gpu',
-  selectedResolution: 'original',
+  appRoot: null as AppRoot | null,
 
   async init() {
-    await telemetryService.initialize();
-    await streamConfigService.initialize();
-
-    logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging());
+    const toastManager = document.querySelector('toast-container');
+    if (toastManager) {
+      toastManager.configure({ duration: 7000 });
+    }
 
     logger.info('Initializing dashboard...');
 
-    await inputSourceService.initialize();
-    await processorCapabilitiesService.initialize();
-    await toolsService.initialize();
-    await videoService.initialize();
+    const coreServicesResults = await Promise.allSettled([
+      telemetryService.initialize(),
+      streamConfigService.initialize(),
+    ]);
 
-    await customElements.whenDefined('camera-preview');
-    await customElements.whenDefined('toast-container');
-    await customElements.whenDefined('stats-panel');
-    await customElements.whenDefined('filter-panel');
-    await customElements.whenDefined('video-grid');
-    await customElements.whenDefined('source-drawer');
-    await customElements.whenDefined('add-source-fab');
-    await customElements.whenDefined('tools-dropdown');
-    await customElements.whenDefined('image-selector-modal');
-    await customElements.whenDefined('video-selector');
-    await customElements.whenDefined('video-upload');
-    await customElements.whenDefined('information-banner');
-    await customElements.whenDefined('app-tour');
-
-    this.toastManager = document.querySelector('toast-container');
-    this.toastManager.configure({ duration: 7000 });
-
-    this.statsManager = document.querySelector('stats-panel');
-    this.filterManager = document.querySelector('filter-panel');
-    this.videoGrid = document.querySelector('video-grid');
-    this.sourceDrawer = document.querySelector('source-drawer');
-    this.toolsDropdown = document.querySelector('tools-dropdown');
-    this.imageSelectorModal = document.querySelector('image-selector-modal');
-    this.tour = document.querySelector('app-tour');
-
-    if (this.filterManager && processorCapabilitiesService.isInitialized()) {
-      this.filterManager.filters = processorCapabilitiesService.getFilters();
-    }
-
-    if (this.toolsDropdown && toolsService.isInitialized()) {
-      this.toolsDropdown.categories = toolsService.getCategories();
-    }
-
-    if (this.videoGrid) {
-      this.videoGrid.setManagers(this.statsManager, this.toastManager);
-    }
-
-    if (this.filterManager) {
-      this.filterManager.addEventListener('filter-change', ((e: CustomEvent) => {
-        if (this.videoGrid) {
-          const filters = this.filterManager.getSelectedFilters();
-          const grayscaleType = this.filterManager.getGrayscaleType();
-          const blurParams = e.detail?.blurParams;
-          this.videoGrid.applyFilterToSelected(
-            filters,
-            this.selectedAccelerator,
-            grayscaleType,
-            this.selectedResolution,
-            blurParams
-          );
-        }
-      }) as EventListener);
-    }
-
-    const resolutionSelect = document.getElementById('resolutionSelect') as HTMLSelectElement;
-    if (resolutionSelect) {
-      resolutionSelect.addEventListener('change', () => {
-        this.selectedResolution = resolutionSelect.value;
-        if (this.videoGrid && this.filterManager) {
-          const filters = this.filterManager.getSelectedFilters();
-          const grayscaleType = this.filterManager.getGrayscaleType();
-          const blurParams = this.filterManager.getBlurParams();
-          this.videoGrid.applyFilterToSelected(
-            filters,
-            this.selectedAccelerator,
-            grayscaleType,
-            this.selectedResolution,
-            blurParams
-          );
-        }
-      });
-    }
-
-    if (this.videoGrid) {
-      this.videoGrid.addEventListener('source-selection-changed', ((e: CustomEvent) => {
-        this.updateSelectedSourceIndicator(e.detail.sourceNumber, e.detail.sourceId);
-
-        if (this.filterManager && e.detail.filters !== undefined) {
-          const filters = e.detail.filters.length > 0 ? e.detail.filters : [];
-          const grayscaleType = e.detail.grayscaleType || 'bt601';
-          const blurParams = e.detail.blurParams;
-          this.filterManager.setFilters(filters, grayscaleType, blurParams);
-        }
-
-        const resolutionSelect = document.getElementById('resolutionSelect') as HTMLSelectElement;
-        if (resolutionSelect && e.detail.resolution) {
-          this.selectedResolution = e.detail.resolution;
-          resolutionSelect.value = e.detail.resolution;
-        }
-      }) as EventListener);
-    }
-
-    const fab = document.querySelector('add-source-fab');
-    if (fab) {
-      fab.addEventListener('open-drawer', () => {
-        if (this.sourceDrawer && this.videoGrid) {
-          const sources = inputSourceService.getSources();
-          const selectedIds = this.videoGrid.getSelectedSourceIds();
-          this.sourceDrawer.open(sources, selectedIds);
-        }
-      });
-    }
-
-    if (this.sourceDrawer) {
-      this.sourceDrawer.addEventListener('source-selected', ((e: CustomEvent) => {
-        if (this.videoGrid) {
-          this.videoGrid.addSource(e.detail.source);
-        }
-      }) as EventListener);
-    }
-
-    if (this.videoGrid) {
-      this.videoGrid.addEventListener('change-image-requested', (async (e: CustomEvent) => {
-        this.currentSourceNumberForImageChange = e.detail.sourceNumber;
-        if (this.imageSelectorModal) {
-          const images = await inputSourceService.listAvailableImages();
-          this.imageSelectorModal.open(images);
-        }
-      }) as EventListener);
-    }
-
-    if (this.imageSelectorModal) {
-      this.imageSelectorModal.addEventListener('image-selected', ((e: CustomEvent) => {
-        if (this.videoGrid && this.currentSourceNumberForImageChange !== null) {
-          const imagePath = e.detail.image.path;
-          this.videoGrid.changeSourceImage(this.currentSourceNumberForImageChange, imagePath);
-          this.currentSourceNumberForImageChange = null;
-        }
-      }) as EventListener);
-    }
-
-    const defaultSource = inputSourceService.getDefaultSource();
-    if (defaultSource && this.videoGrid) {
-      this.videoGrid.addSource(defaultSource);
-    }
-
-    this.statsManager.reset();
-
-    logger.info('Dashboard initialized');
-
-    if (this.videoGrid) {
-      await this.videoGrid.updateComplete;
-    }
-
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-
-    if (this.tour) {
-      this.tour.startIfNeeded();
-    }
-  },
-
-  updateSelectedSourceIndicator(sourceNumber: number, sourceId: string) {
-    const numberEl = document.getElementById('selectedSourceNumber');
-    const nameEl = document.getElementById('selectedSourceName');
-
-    if (numberEl) {
-      numberEl.textContent = String(sourceNumber);
-    }
-
-    if (nameEl && this.videoGrid) {
-      const source = this.videoGrid.getSources().find((s) => s.id === sourceId);
-      if (source) {
-        nameEl.textContent = source.name;
+    coreServicesResults.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const serviceName = index === 0 ? 'Telemetry' : 'Config';
+        logger.error(`${serviceName} service failed to initialize`, {
+          'error.message': result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+        toastManager?.error(`${serviceName} Error`, `Failed to initialize ${serviceName.toLowerCase()} service`);
       }
+    });
+
+    logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging());
+
+    const dataServicesResults = await Promise.allSettled([
+      inputSourceService.initialize(),
+      processorCapabilitiesService.initialize(),
+      toolsService.initialize(),
+      videoService.initialize(),
+    ]);
+
+    dataServicesResults.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const serviceNames = ['Input Source', 'Processor Capabilities', 'Tools', 'Video'];
+        const serviceName = serviceNames[index];
+        logger.error(`${serviceName} service failed to initialize`, {
+          'error.message': result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+        toastManager?.warning(`${serviceName} Error`, `Failed to load ${serviceName.toLowerCase()} data`);
+      }
+    });
+
+    const componentDefinitions = [
+      'camera-preview',
+      'toast-container',
+      'stats-panel',
+      'filter-panel',
+      'video-grid',
+      'source-drawer',
+      'add-source-fab',
+      'tools-dropdown',
+      'image-selector-modal',
+      'video-selector',
+      'video-upload',
+      'information-banner',
+      'app-tour',
+      'app-root',
+    ];
+
+    await Promise.all(componentDefinitions.map((name) => customElements.whenDefined(name)));
+
+    this.appRoot = document.querySelector('app-root');
+    if (this.appRoot) {
+      this.appRoot.configService = streamConfigService;
+      this.appRoot.telemetryService = telemetryService;
+      this.appRoot.logger = logger;
+      this.appRoot.inputSourceService = inputSourceService;
+      this.appRoot.processorCapabilitiesService = processorCapabilitiesService;
+      this.appRoot.toolsService = toolsService;
+      this.appRoot.videoService = videoService;
+
+      try {
+        await this.appRoot.initialize();
+        logger.info('Dashboard initialized successfully');
+      } catch (error) {
+        logger.error('Failed to initialize app-root', {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+        toastManager?.error('Initialization Error', 'Failed to initialize dashboard');
+      }
+    } else {
+      logger.error('app-root element not found in DOM');
+      toastManager?.error('Critical Error', 'Dashboard component not found');
     }
   },
 };
@@ -241,27 +133,6 @@ const app = {
 (window as any).app = app;
 (window as any).logger = logger;
 (window as any).streamConfigService = streamConfigService;
-
-(window as any).setAccelerator = function (type: string) {
-  app.selectedAccelerator = type;
-
-  document.querySelectorAll('.segmented-control .segment').forEach((btn) => {
-    const element = btn as HTMLButtonElement;
-    const controlSection = btn.closest('.control-section');
-    const label = controlSection?.querySelector('.control-label');
-
-    if (label?.textContent?.includes('Accelerator')) {
-      element.classList.toggle('active', element.dataset.value === type);
-    }
-  });
-
-  if (app.videoGrid && app.filterManager) {
-    const filters = app.filterManager.getSelectedFilters();
-    const grayscaleType = app.filterManager.getGrayscaleType();
-    const blurParams = app.filterManager.getBlurParams();
-    app.videoGrid.applyFilterToSelected(filters, type, grayscaleType, app.selectedResolution, blurParams);
-  }
-};
 
 document.addEventListener('DOMContentLoaded', () => {
   app.init();

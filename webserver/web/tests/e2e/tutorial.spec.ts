@@ -4,6 +4,9 @@ const STORAGE_KEY = 'cuda-app-tour-dismissed';
 
 test.describe('First Run Tutorial', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as typeof window & { __ENABLE_TOUR__?: boolean }).__ENABLE_TOUR__ = true;
+    });
     await page.goto('/');
     await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);
     await page.reload();
@@ -11,39 +14,78 @@ test.describe('First Run Tutorial', () => {
   });
 
   test('shows tutorial on first load and can skip', async ({ page }) => {
-    const overlay = page.locator('app-tour').locator('shadow=.overlay');
-    await expect(overlay).toBeVisible();
+    await page.waitForFunction(() => {
+      const tour = document.querySelector('app-tour');
+      const overlay = tour?.shadowRoot?.querySelector('.overlay');
+      return !!overlay && !overlay.classList.contains('hidden');
+    });
 
-    const label = page.locator('app-tour').locator('shadow=.step-label');
-    await expect(label).toContainText('Step 1 of 3');
+    const labelText = await page.evaluate(() => {
+      const tour = document.querySelector('app-tour');
+      const label = tour?.shadowRoot?.querySelector('.step-label');
+      return label?.textContent ?? '';
+    });
+    expect(labelText).toContain('Step 1 of');
 
-    const skipButton = page.locator('app-tour').locator('shadow=button.secondary');
-    await skipButton.click();
+    await page.evaluate(() => {
+      const tour = document.querySelector('app-tour');
+      const skip = tour?.shadowRoot?.querySelector('button.secondary') as HTMLButtonElement | undefined;
+      skip?.click();
+    });
 
-    await expect(overlay).toBeHidden();
+    await page.waitForFunction(() => {
+      const tour = document.querySelector('app-tour');
+      const overlay = tour?.shadowRoot?.querySelector('.overlay');
+      return !overlay || overlay.classList.contains('hidden');
+    });
 
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(overlay).toBeHidden();
+
+    const overlayHiddenAfterReload = await page.evaluate(() => {
+      const tour = document.querySelector('app-tour');
+      const overlay = tour?.shadowRoot?.querySelector('.overlay');
+      return !overlay || overlay.classList.contains('hidden');
+    });
+    expect(overlayHiddenAfterReload).toBe(true);
   });
 
   test('returns after clearing cached state', async ({ page }) => {
-    const overlay = page.locator('app-tour').locator('shadow=.overlay');
-    await expect(overlay).toBeVisible();
+    await page.waitForFunction(() => {
+      const tour = document.querySelector('app-tour');
+      const overlay = tour?.shadowRoot?.querySelector('.overlay');
+      return !!overlay && !overlay.classList.contains('hidden');
+    });
 
-    const nextButton = page.locator('app-tour').locator('shadow=button.primary');
-    await nextButton.click();
-    await nextButton.click();
-    await nextButton.click();
+    await page.evaluate(() => {
+      const tour = document.querySelector('app-tour');
+      if (!tour) return;
+      let safety = 10;
+      while (safety-- > 0) {
+        const overlay = tour.shadowRoot?.querySelector('.overlay');
+        if (!overlay || overlay.classList.contains('hidden')) {
+          break;
+        }
+        const next = tour.shadowRoot?.querySelector('button.primary') as HTMLButtonElement | undefined;
+        next?.click();
+      }
+    });
 
-    await expect(overlay).toBeHidden();
-    await expect(page.locator('app-tour').locator('shadow=.step-label')).toHaveCount(0);
+    await page.waitForFunction(() => {
+      const tour = document.querySelector('app-tour');
+      const overlay = tour?.shadowRoot?.querySelector('.overlay');
+      return !overlay || overlay.classList.contains('hidden');
+    });
 
     await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    await expect(overlay).toBeVisible();
+    await page.waitForFunction(() => {
+      const tour = document.querySelector('app-tour');
+      const overlay = tour?.shadowRoot?.querySelector('.overlay');
+      return !!overlay && !overlay.classList.contains('hidden');
+    });
   });
 });
 

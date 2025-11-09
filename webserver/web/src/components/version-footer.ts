@@ -20,7 +20,7 @@ export class VersionFooter extends LitElement {
       font-size: 11px;
       color: #666;
       font-family: 'Courier New', monospace;
-      background: rgba(0, 0, 0, 0.02);
+      background: rgba(0, 0, 0, 0.04);
     }
 
     .versions {

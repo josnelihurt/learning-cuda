@@ -1,0 +1,7 @@
+ARG TARGETARCH=amd64
+ARG PROTO_VERSION=1.0.0
+FROM scratch AS proto-generated
+LABEL mock.component="proto-generated" \
+      mock.targetarch="${TARGETARCH}" \
+      mock.proto="${PROTO_VERSION}"
+

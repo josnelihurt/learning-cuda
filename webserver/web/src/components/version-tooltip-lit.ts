@@ -183,6 +183,10 @@ export class VersionTooltipLit extends LitElement {
             <span class="version-label">Commit:</span>
             <span class="version-value">${this.commitHash}</span>
           </div>
+          <div class="version-item">
+            <span class="version-label">Dockerfiles:</span>
+            <span class="version-value"></span>
+          </div>
         </div>
       </div>
     `;

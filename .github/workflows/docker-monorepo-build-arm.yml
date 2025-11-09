@@ -37,7 +37,7 @@ jobs:
       cpp_build_arm64: ${{ steps.determine.outputs.cpp_build_arm64 }}
       golang_build_arm64: ${{ steps.determine.outputs.golang_build_arm64 }}
       app_build_arm64: ${{ steps.determine.outputs.app_build_arm64 }}
-      app_version: ${{ steps.determine.outputs.app_version }}
+      app_tag: ${{ steps.determine.outputs.app_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -134,10 +134,11 @@ jobs:
           runtime_matrix = needs_build(f"{prefix}/base:runtime-base-{runtime_base_version}")
           integration_matrix = needs_build(f"{prefix}/base:integration-tests-base-{integration_base_version}")
 
-          app_version = f"{proto_version}-{cpp_version}-{golang_version}"
+          app_base_version = golang_version
+          app_tag = f"{app_base_version}-proto{proto_version}-cpp{cpp_version}-go{golang_version}"
           app_matrix = {}
           for arch in arches:
-              version_tag_missing = not manifest_exists(f"{prefix}/app:{app_version}-{arch}")
+              version_tag_missing = not manifest_exists(f"{prefix}/app:{app_tag}-{arch}")
               latest_missing = not manifest_exists(f"{prefix}/app:latest-{arch}")
               app_matrix[arch] = (
                   proto_matrix[arch]
@@ -149,7 +150,9 @@ jobs:
                   or latest_missing
               )
 
-          outputs = {"app_version": app_version}
+          outputs = {
+              "app_tag": app_tag,
+          }
 
           version_lookup = {
               "proto_tools_build": proto_tools_version,
@@ -160,7 +163,7 @@ jobs:
               "proto_build": proto_version,
               "cpp_build": cpp_version,
               "golang_build": golang_version,
-              "app_build": app_version,
+              "app_build": app_tag,
           }
 
           def add_component(prefix: str, status_map: dict) -> None:
@@ -225,7 +228,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.proto_tools_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:proto-tools-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/base:proto-tools-latest-arm64"
-          docker build --no-cache -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"
@@ -265,7 +268,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.go_builder_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:go-builder-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/base:go-builder-latest-arm64"
-          docker build --no-cache -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"
@@ -305,7 +308,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.bazel_base_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:bazel-base-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/base:bazel-base-latest-arm64"
-          docker build --no-cache \
+          docker build \
             --build-arg TARGETARCH=arm64 \
             -f cpp_accelerator/docker-build-base/Dockerfile \
             -t "$TAG_VERSION" \
@@ -350,7 +353,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.runtime_base_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:runtime-base-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/base:runtime-base-latest-arm64"
-          docker build --no-cache \
+          docker build \
             --build-arg TARGETARCH=arm64 \
             -f runtime/Dockerfile \
             -t "$TAG_VERSION" \
@@ -395,7 +398,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.integration_base_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:integration-tests-base-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/base:integration-tests-base-latest-arm64"
-          docker build --no-cache \
+          docker build \
             --build-arg TARGETARCH=arm64 \
             -f integration/Dockerfile \
             -t "$TAG_VERSION" \
@@ -444,7 +447,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.proto_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:proto-generated-latest-arm64"
-          docker build --no-cache \
+          docker build \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=arm64 \
@@ -522,7 +525,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.cpp_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:cpp-built-latest-arm64"
-          docker build --no-cache \
+          DOCKER_BUILDKIT=0 docker build \
             --target artifacts \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
@@ -601,7 +604,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.golang_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:golang-built-latest-arm64"
-          docker build --no-cache \
+          docker build \
             --target artifacts \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
@@ -708,10 +711,10 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         run: |
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
-          APP_VERSION="${{ needs.prepare.outputs.app_version }}"
-          TAG_VERSION="${IMAGE_BASE}/app:${APP_VERSION}-arm64"
+          APP_TAG="${{ needs.prepare.outputs.app_tag }}"
+          TAG_VERSION="${IMAGE_BASE}/app:${APP_TAG}-arm64"
           TAG_LATEST="${IMAGE_BASE}/app:latest-arm64"
-          docker build --no-cache \
+          docker build \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=arm64 \

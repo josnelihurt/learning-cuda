@@ -496,7 +496,7 @@ jobs:
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
             --build-arg PROTO_VERSION="${VERSION}" \
-            -f proto/Dockerfile.mock \
+            -f proto/Dockerfile \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .

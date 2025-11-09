@@ -1,4 +1,4 @@
-name: Docker Monorepo Build
+name: Docker Monorepo Build (x86)
 
 on:
   push:
@@ -22,7 +22,7 @@ on:
       - 'buf.yaml'
       - 'buf.lock'
       - 'buf.gen.backend.yaml'
-      - '.github/workflows/docker-monorepo-build.yml'
+      - '.github/workflows/docker-monorepo-build-x86.yml'
   pull_request:
     branches:
       - main
@@ -44,7 +44,7 @@ on:
       - 'buf.yaml'
       - 'buf.lock'
       - 'buf.gen.backend.yaml'
-      - '.github/workflows/docker-monorepo-build.yml'
+      - '.github/workflows/docker-monorepo-build-x86.yml'
   workflow_dispatch:
 
 env:
@@ -52,7 +52,7 @@ env:
   BASE_IMAGE_PREFIX: josnelihurt/learning-cuda
 
 concurrency:
-  group: docker-monorepo-${{ github.ref }}
+  group: docker-monorepo-x86-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -73,23 +73,14 @@ jobs:
       runtime_base_version: ${{ steps.versions.outputs.runtime_base_version }}
       integration_base_version: ${{ steps.versions.outputs.integration_base_version }}
       proto_tools_build_amd64: ${{ steps.determine.outputs.proto_tools_build_amd64 }}
-      proto_tools_build_arm64: ${{ steps.determine.outputs.proto_tools_build_arm64 }}
       go_builder_build_amd64: ${{ steps.determine.outputs.go_builder_build_amd64 }}
-      go_builder_build_arm64: ${{ steps.determine.outputs.go_builder_build_arm64 }}
       bazel_base_build_amd64: ${{ steps.determine.outputs.bazel_base_build_amd64 }}
-      bazel_base_build_arm64: ${{ steps.determine.outputs.bazel_base_build_arm64 }}
       runtime_base_build_amd64: ${{ steps.determine.outputs.runtime_base_build_amd64 }}
-      runtime_base_build_arm64: ${{ steps.determine.outputs.runtime_base_build_arm64 }}
       integration_base_build_amd64: ${{ steps.determine.outputs.integration_base_build_amd64 }}
-      integration_base_build_arm64: ${{ steps.determine.outputs.integration_base_build_arm64 }}
       proto_build_amd64: ${{ steps.determine.outputs.proto_build_amd64 }}
-      proto_build_arm64: ${{ steps.determine.outputs.proto_build_arm64 }}
       cpp_build_amd64: ${{ steps.determine.outputs.cpp_build_amd64 }}
-      cpp_build_arm64: ${{ steps.determine.outputs.cpp_build_arm64 }}
       golang_build_amd64: ${{ steps.determine.outputs.golang_build_amd64 }}
-      golang_build_arm64: ${{ steps.determine.outputs.golang_build_arm64 }}
       app_build_amd64: ${{ steps.determine.outputs.app_build_amd64 }}
-      app_build_arm64: ${{ steps.determine.outputs.app_build_arm64 }}
       app_version: ${{ steps.determine.outputs.app_version }}
     steps:
       - name: Checkout repository
@@ -120,9 +111,6 @@ jobs:
           echo "Runtime base version: ${{ steps.versions.outputs.runtime_base_version }}"
           echo "Integration base version: ${{ steps.versions.outputs.integration_base_version }}"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
         if: ${{ github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
@@ -150,7 +138,7 @@ jobs:
           import os
           import subprocess
 
-          arches = ["amd64", "arm64"]
+          arches = ["amd64"]
           registry = os.environ["REGISTRY"]
           base_prefix = os.environ["BASE_PREFIX"]
           proto_version = os.environ["PROTO_VERSION"]
@@ -167,6 +155,7 @@ jobs:
                   ["docker", "manifest", "inspect", image],
                   stdout=subprocess.DEVNULL,
                   stderr=subprocess.DEVNULL,
+                  check=False,
               )
               return result.returncode == 0
 
@@ -216,9 +205,6 @@ jobs:
               "cpp_build": cpp_version,
               "golang_build": golang_version,
               "app_build": app_version,
-              "proto_version": proto_version,
-              "cpp_version": cpp_version,
-              "golang_version": golang_version,
           }
 
           def add_component(prefix: str, status_map: dict) -> None:
@@ -241,8 +227,8 @@ jobs:
 
           print("Build decisions:")
           for key, value in outputs.items():
-              prefix = key.rsplit("_", 1)[0] if "_" in key else key
-              version = version_lookup.get(key) or version_lookup.get(prefix)
+              prefix_key = key.rsplit("_", 1)[0] if "_" in key else key
+              version = version_lookup.get(prefix_key)
               if version:
                   print(f"  {key}: {value} (version: {version})")
               else:
@@ -250,369 +236,290 @@ jobs:
           PY
 
   build_proto_tools:
-    name: BASE Build proto tools
+    name: BASE Build proto tools (amd64)
     needs: prepare
-    runs-on: ${{ matrix.runner_labels }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.proto_tools_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.proto_tools_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.proto_tools_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Proto tools base already available for ${{ matrix.arch }}"
+        run: echo "Proto tools base already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push proto-tools
+      - name: Build proto tools image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./proto/docker-build-base/Dockerfile
-          platforms: linux/${{ matrix.arch }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-${{ needs.prepare.outputs.proto_tools_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.proto_tools_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:proto-tools-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:proto-tools-latest-amd64"
+          docker build --no-cache -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
   build_go_builder:
-    name: BASE Build go builder base
+    name: BASE Build go builder base (amd64)
     needs: prepare
-    runs-on: ${{ matrix.runner_labels }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.go_builder_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.go_builder_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.go_builder_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Go builder base already available for ${{ matrix.arch }}"
+        run: echo "Go builder base already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push go-builder
+      - name: Build go builder image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./webserver/builder/Dockerfile
-          platforms: linux/${{ matrix.arch }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-${{ needs.prepare.outputs.go_builder_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.go_builder_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:go-builder-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:go-builder-latest-amd64"
+          docker build --no-cache -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
   build_bazel_base:
-    name: BASE Build bazel base
+    name: BASE Build bazel base (amd64)
     needs: prepare
-    runs-on: ${{ matrix.runner_labels }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.bazel_base_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.bazel_base_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.bazel_base_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Bazel base already available for ${{ matrix.arch }}"
+        run: echo "Bazel base already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push bazel-base
+      - name: Build bazel base image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./cpp_accelerator/docker-build-base/Dockerfile
-          platforms: linux/${{ matrix.arch }}
-          build-args: |
-            TARGETARCH=${{ matrix.arch }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-${{ needs.prepare.outputs.bazel_base_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.bazel_base_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:bazel-base-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:bazel-base-latest-amd64"
+          docker build --no-cache \
+            --build-arg TARGETARCH=amd64 \
+            -f cpp_accelerator/docker-build-base/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
   build_runtime_base:
-    name: BASE Build runtime base
+    name: BASE Build runtime base (amd64)
     needs: prepare
-    runs-on: ${{ matrix.runner_labels }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.runtime_base_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.runtime_base_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.runtime_base_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Runtime base already available for ${{ matrix.arch }}"
+        run: echo "Runtime base already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push runtime-base
+      - name: Build runtime base image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./runtime/Dockerfile
-          platforms: linux/${{ matrix.arch }}
-          build-args: |
-            TARGETARCH=${{ matrix.arch }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-${{ needs.prepare.outputs.runtime_base_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.runtime_base_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:runtime-base-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:runtime-base-latest-amd64"
+          docker build --no-cache \
+            --build-arg TARGETARCH=amd64 \
+            -f runtime/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
   build_integration_base:
-    name: BASE Build integration tests base
+    name: BASE Build integration tests base (amd64)
     needs: prepare
-    runs-on: ${{ matrix.runner_labels }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.integration_base_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.integration_base_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.integration_base_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Integration base already available for ${{ matrix.arch }}"
+        run: echo "Integration base already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push integration-tests-base
+      - name: Build integration base image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./integration/Dockerfile
-          platforms: linux/${{ matrix.arch }}
-          build-args: |
-            TARGETARCH=${{ matrix.arch }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-${{ needs.prepare.outputs.integration_base_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.integration_base_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:integration-tests-base-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:integration-tests-base-latest-amd64"
+          docker build --no-cache \
+            --build-arg TARGETARCH=amd64 \
+            -f integration/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
   build_proto:
-    name: GENERATE PROTO Build proto intermediate
+    name: GENERATE PROTO Build proto intermediate (amd64)
     needs:
       - prepare
       - build_proto_tools
-    runs-on: ${{ matrix.runner_labels }}
+    runs-on: ["self-hosted", "Linux", "X64"]
     outputs:
       digest: ${{ steps.record_digest.outputs.digest }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.proto_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.proto_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.proto_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Proto intermediate already available for ${{ matrix.arch }}"
+        run: echo "Proto intermediate already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push proto-generated
+      - name: Build proto intermediate image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./proto/Dockerfile
-          platforms: linux/${{ matrix.arch }}
-          build-args: |
-            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
-            BASE_TAG=latest
-            TARGETARCH=${{ matrix.arch }}
-            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.proto_version }}"
+          TAG_VERSION="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/intermediate:proto-generated-latest-amd64"
+          docker build --no-cache \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${VERSION}" \
+            -f proto/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
       - name: Capture image digest
         id: record_digest
+        shell: bash
         run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.proto_version }}"
           if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
+            REF="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-amd64"
+            DIGEST=$(docker image inspect "$REF" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)
+            if [ -z "$DIGEST" ]; then
+              DIGEST=$(docker image inspect "$REF" --format '{{.Id}}')
+            fi
           else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}"
+            REF="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-amd64"
             DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
+          fi
+          if [[ "$DIGEST" == *"@"* ]]; then
+            DIGEST="${DIGEST#*@}"
           fi
           if [ -z "$DIGEST" ]; then
             echo "Failed to resolve digest for proto image (${REF:-built image})" >&2
@@ -621,80 +528,77 @@ jobs:
           echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
 
   build_cpp:
-    name: Build cpp intermediate
+    name: Build cpp intermediate (amd64)
     needs:
       - prepare
       - build_proto
       - build_bazel_base
-    runs-on: ${{ matrix.runner_labels }}
+    runs-on: ["self-hosted", "Linux", "X64"]
     outputs:
       digest: ${{ steps.record_digest.outputs.digest }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.cpp_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.cpp_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.cpp_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "C++ intermediate already available for ${{ matrix.arch }}"
+        run: echo "C++ intermediate already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push cpp-built
+      - name: Build cpp intermediate image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./cpp_accelerator/Dockerfile.build
-          target: artifacts
-          platforms: linux/${{ matrix.arch }}
-          build-args: |
-            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
-            BASE_TAG=latest
-            TARGETARCH=${{ matrix.arch }}
-            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.cpp_version }}"
+          TAG_VERSION="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/intermediate:cpp-built-latest-amd64"
+          docker build --no-cache \
+            --target artifacts \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+            -f cpp_accelerator/Dockerfile.build \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
       - name: Capture image digest
         id: record_digest
+        shell: bash
         run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.cpp_version }}"
           if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
+            REF="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
+            DIGEST=$(docker image inspect "$REF" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)
+            if [ -z "$DIGEST" ]; then
+              DIGEST=$(docker image inspect "$REF" --format '{{.Id}}')
+            fi
           else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}"
+            REF="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
             DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
+          fi
+          if [[ "$DIGEST" == *"@"* ]]; then
+            DIGEST="${DIGEST#*@}"
           fi
           if [ -z "$DIGEST" ]; then
             echo "Failed to resolve digest for cpp image (${REF:-built image})" >&2
@@ -703,80 +607,77 @@ jobs:
           echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
 
   build_golang:
-    name: Build golang intermediate
+    name: Build golang intermediate (amd64)
     needs:
       - prepare
       - build_proto
       - build_go_builder
-    runs-on: ${{ matrix.runner_labels }}
+    runs-on: ["self-hosted", "Linux", "X64"]
     outputs:
       digest: ${{ steps.record_digest.outputs.digest }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.golang_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.golang_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.golang_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Golang intermediate already available for ${{ matrix.arch }}"
+        run: echo "Golang intermediate already available for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push golang-built
+      - name: Build golang intermediate image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./webserver/Dockerfile.build
-          target: artifacts
-          platforms: linux/${{ matrix.arch }}
-          build-args: |
-            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
-            BASE_TAG=latest
-            TARGETARCH=${{ matrix.arch }}
-            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.golang_version }}"
+          TAG_VERSION="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/intermediate:golang-built-latest-amd64"
+          docker build --no-cache \
+            --target artifacts \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+            -f webserver/Dockerfile.build \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 
       - name: Capture image digest
         id: record_digest
+        shell: bash
         run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.golang_version }}"
           if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
+            REF="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-amd64"
+            DIGEST=$(docker image inspect "$REF" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)
+            if [ -z "$DIGEST" ]; then
+              DIGEST=$(docker image inspect "$REF" --format '{{.Id}}')
+            fi
           else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}"
+            REF="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-amd64"
             DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
+          fi
+          if [[ "$DIGEST" == *"@"* ]]; then
+            DIGEST="${DIGEST#*@}"
           fi
           if [ -z "$DIGEST" ]; then
             echo "Failed to resolve digest for golang image (${REF:-built image})" >&2
@@ -785,7 +686,7 @@ jobs:
           echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
 
   build_app:
-    name: Build application image
+    name: Build application image (amd64)
     needs:
       - prepare
       - build_proto
@@ -793,41 +694,24 @@ jobs:
       - build_golang
       - build_runtime_base
       - build_integration_base
-    runs-on: ${{ matrix.runner_labels }}
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner_labels: ["self-hosted", "Linux", "X64"]
-          - arch: arm64
-            runner_labels: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Determine build requirement
         id: gate
         shell: bash
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            FLAG="${{ needs.prepare.outputs.app_build_amd64 }}"
-          else
-            FLAG="${{ needs.prepare.outputs.app_build_arm64 }}"
-          fi
-          echo "build=$FLAG" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.prepare.outputs.app_build_amd64 }}" >> "$GITHUB_OUTPUT"
 
       - name: Skip build
         if: ${{ steps.gate.outputs.build != 'true' }}
-        run: echo "Application image already up to date for ${{ matrix.arch }}"
+        run: echo "Application image already up to date for amd64"
 
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -835,11 +719,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify intermediate artifacts
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         run: |
           REGISTRY="${{ env.REGISTRY }}"
           BASE_PREFIX="${{ env.BASE_IMAGE_PREFIX }}"
-          ARCH="${{ matrix.arch }}"
           PROTO_DIGEST="${{ needs.build_proto.outputs.digest }}"
           CPP_DIGEST="${{ needs.build_cpp.outputs.digest }}"
           GOLANG_DIGEST="${{ needs.build_golang.outputs.digest }}"
@@ -848,7 +731,7 @@ jobs:
             local name="$1"
             local digest="$2"
             if [ -z "$digest" ]; then
-              echo "Missing digest for ${name} (${ARCH})" >&2
+              echo "Missing digest for ${name}" >&2
               exit 1
             fi
             local ref="${REGISTRY}/${BASE_PREFIX}/intermediate@${digest}"
@@ -865,23 +748,26 @@ jobs:
           check_digest "cpp-built" "$CPP_DIGEST"
           check_digest "golang-built" "$GOLANG_DIGEST"
 
-      - name: Build and push application image
+      - name: Build application image
         if: ${{ steps.gate.outputs.build == 'true' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.mock
-          platforms: linux/${{ matrix.arch }}
-          build-args: |
-            BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
-            BASE_TAG=latest
-            TARGETARCH=${{ matrix.arch }}
-            PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
-            CPP_VERSION=${{ needs.prepare.outputs.cpp_version }}
-            GOLANG_VERSION=${{ needs.prepare.outputs.golang_version }}
-          no-cache: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:${{ needs.prepare.outputs.app_version }}-${{ matrix.arch }}
-            ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:latest-${{ matrix.arch }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          APP_VERSION="${{ needs.prepare.outputs.app_version }}"
+          TAG_VERSION="${IMAGE_BASE}/app:${APP_VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/app:latest-amd64"
+          docker build --no-cache \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+            --build-arg CPP_VERSION="${{ needs.prepare.outputs.cpp_version }}" \
+            --build-arg GOLANG_VERSION="${{ needs.prepare.outputs.golang_version }}" \
+            -f Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
 

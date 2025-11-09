@@ -82,6 +82,7 @@ jobs:
       golang_build_amd64: ${{ steps.determine.outputs.golang_build_amd64 }}
       app_build_amd64: ${{ steps.determine.outputs.app_build_amd64 }}
       app_version: ${{ steps.determine.outputs.app_version }}
+      app_components_version: ${{ steps.determine.outputs.app_components_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -178,8 +179,8 @@ jobs:
           runtime_matrix = needs_build(f"{prefix}/base:runtime-base-{runtime_base_version}")
           integration_matrix = needs_build(f"{prefix}/base:integration-tests-base-{integration_base_version}")
 
-          app_version = f"{proto_version}-{cpp_version}-{golang_version}"
-          app_tag_base = f"{app_version}-proto{proto_version}-cpp{cpp_version}-go{golang_version}"
+          app_components_version = f"{proto_version}-{cpp_version}-{golang_version}"
+          app_tag_base = f"{app_components_version}-proto{proto_version}-cpp{cpp_version}-go{golang_version}"
           app_matrix = {}
           for arch in arches:
               version_tag_missing = not manifest_exists(f"{prefix}/app:{app_tag_base}-{arch}")
@@ -194,7 +195,10 @@ jobs:
                   or latest_missing
               )
 
-          outputs = {"app_version": app_version}
+          outputs = {
+              "app_version": app_tag_base,
+              "app_components_version": app_components_version,
+          }
 
           version_lookup = {
               "proto_tools_build": proto_tools_version,
@@ -205,7 +209,8 @@ jobs:
               "proto_build": proto_version,
               "cpp_build": cpp_version,
               "golang_build": golang_version,
-              "app_build": app_version,
+              "app_build": app_tag_base,
+              "app_components_version": app_components_version,
           }
 
           def add_component(prefix: str, status_map: dict) -> None:
@@ -753,9 +758,8 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         run: |
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
-          APP_VERSION="${{ needs.prepare.outputs.app_version }}"
-          APP_TAG_BASE="${APP_VERSION}-proto${{ needs.prepare.outputs.proto_version }}-cpp${{ needs.prepare.outputs.cpp_version }}-go${{ needs.prepare.outputs.golang_version }}"
-          TAG_VERSION="${IMAGE_BASE}/app:${APP_TAG_BASE}-amd64"
+          APP_TAG="${{ needs.prepare.outputs.app_version }}"
+          TAG_VERSION="${IMAGE_BASE}/app:${APP_TAG}-amd64"
           TAG_LATEST="${IMAGE_BASE}/app:latest-amd64"
           docker build --no-cache \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \

@@ -28,3 +28,7 @@ RUN make build
 RUN mkdir -p /artifacts/bin && \
     cp ../bin/server /artifacts/bin/
 
+FROM scratch AS artifacts
+
+COPY --from=golang-built /artifacts/ /artifacts/
+

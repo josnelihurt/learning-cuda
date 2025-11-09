@@ -1,0 +1,6 @@
+ARG GO_VERSION=1.23
+
+FROM scratch AS proto-tools
+LABEL mock.component="proto-tools" \
+      mock.go_version="${GO_VERSION}"
+

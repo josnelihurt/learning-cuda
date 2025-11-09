@@ -1,0 +1,796 @@
+name: Docker Monorepo Build (x86)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'proto/**'
+      - 'cpp_accelerator/**'
+      - 'webserver/**'
+      - 'runtime/**'
+      - 'integration/**'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
+      - 'WORKSPACE.bazel'
+      - 'BUILD.bazel'
+      - '.bazelrc'
+      - 'third_party/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.backend.yaml'
+      - '.github/workflows/docker-monorepo-build-x86.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'proto/**'
+      - 'cpp_accelerator/**'
+      - 'webserver/**'
+      - 'runtime/**'
+      - 'integration/**'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
+      - 'WORKSPACE.bazel'
+      - 'BUILD.bazel'
+      - '.bazelrc'
+      - 'third_party/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.backend.yaml'
+      - '.github/workflows/docker-monorepo-build-x86.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BASE_IMAGE_PREFIX: josnelihurt/learning-cuda
+
+concurrency:
+  group: docker-monorepo-x86-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prepare:
+    name: Prepare versions
+    runs-on: ["self-hosted", "Linux", "X64"]
+    outputs:
+      proto_version: ${{ steps.versions.outputs.proto_version }}
+      cpp_version: ${{ steps.versions.outputs.cpp_version }}
+      golang_version: ${{ steps.versions.outputs.golang_version }}
+      proto_tools_version: ${{ steps.versions.outputs.proto_tools_version }}
+      go_builder_version: ${{ steps.versions.outputs.go_builder_version }}
+      bazel_base_version: ${{ steps.versions.outputs.bazel_base_version }}
+      runtime_base_version: ${{ steps.versions.outputs.runtime_base_version }}
+      integration_base_version: ${{ steps.versions.outputs.integration_base_version }}
+      proto_tools_build_amd64: ${{ steps.determine.outputs.proto_tools_build_amd64 }}
+      go_builder_build_amd64: ${{ steps.determine.outputs.go_builder_build_amd64 }}
+      bazel_base_build_amd64: ${{ steps.determine.outputs.bazel_base_build_amd64 }}
+      runtime_base_build_amd64: ${{ steps.determine.outputs.runtime_base_build_amd64 }}
+      integration_base_build_amd64: ${{ steps.determine.outputs.integration_base_build_amd64 }}
+      proto_build_amd64: ${{ steps.determine.outputs.proto_build_amd64 }}
+      cpp_build_amd64: ${{ steps.determine.outputs.cpp_build_amd64 }}
+      golang_build_amd64: ${{ steps.determine.outputs.golang_build_amd64 }}
+      app_build_amd64: ${{ steps.determine.outputs.app_build_amd64 }}
+      app_tag: ${{ steps.determine.outputs.app_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read versions
+        id: versions
+        run: |
+          echo "proto_version=$(tr -d '\n' < proto/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "cpp_version=$(tr -d '\n' < cpp_accelerator/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "golang_version=$(tr -d '\n' < webserver/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "proto_tools_version=$(tr -d '\n' < proto/docker-build-base/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "go_builder_version=$(tr -d '\n' < webserver/builder/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "bazel_base_version=$(tr -d '\n' < cpp_accelerator/docker-build-base/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "runtime_base_version=$(tr -d '\n' < runtime/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "integration_base_version=$(tr -d '\n' < integration/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Log versions
+        run: |
+          echo "Proto version: ${{ steps.versions.outputs.proto_version }}"
+          echo "C++ version: ${{ steps.versions.outputs.cpp_version }}"
+          echo "Golang version: ${{ steps.versions.outputs.golang_version }}"
+          echo "Proto tools version: ${{ steps.versions.outputs.proto_tools_version }}"
+          echo "Go builder version: ${{ steps.versions.outputs.go_builder_version }}"
+          echo "Bazel base version: ${{ steps.versions.outputs.bazel_base_version }}"
+          echo "Runtime base version: ${{ steps.versions.outputs.runtime_base_version }}"
+          echo "Integration base version: ${{ steps.versions.outputs.integration_base_version }}"
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine build requirements
+        id: determine
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          PROTO_VERSION: ${{ steps.versions.outputs.proto_version }}
+          CPP_VERSION: ${{ steps.versions.outputs.cpp_version }}
+          GOLANG_VERSION: ${{ steps.versions.outputs.golang_version }}
+          PROTO_TOOLS_VERSION: ${{ steps.versions.outputs.proto_tools_version }}
+          GO_BUILDER_VERSION: ${{ steps.versions.outputs.go_builder_version }}
+          BAZEL_BASE_VERSION: ${{ steps.versions.outputs.bazel_base_version }}
+          RUNTIME_BASE_VERSION: ${{ steps.versions.outputs.runtime_base_version }}
+          INTEGRATION_BASE_VERSION: ${{ steps.versions.outputs.integration_base_version }}
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import subprocess
+
+          arches = ["amd64"]
+          registry = os.environ["REGISTRY"]
+          base_prefix = os.environ["BASE_PREFIX"]
+          proto_version = os.environ["PROTO_VERSION"]
+          cpp_version = os.environ["CPP_VERSION"]
+          golang_version = os.environ["GOLANG_VERSION"]
+          proto_tools_version = os.environ["PROTO_TOOLS_VERSION"]
+          go_builder_version = os.environ["GO_BUILDER_VERSION"]
+          bazel_base_version = os.environ["BAZEL_BASE_VERSION"]
+          runtime_base_version = os.environ["RUNTIME_BASE_VERSION"]
+          integration_base_version = os.environ["INTEGRATION_BASE_VERSION"]
+
+          def manifest_exists(image: str) -> bool:
+              result = subprocess.run(
+                  ["docker", "manifest", "inspect", image],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              )
+              return result.returncode == 0
+
+          def needs_build(image_base: str) -> dict:
+              status = {}
+              for arch in arches:
+                  ref = f"{image_base}-{arch}"
+                  status[arch] = not manifest_exists(ref)
+              return status
+
+          prefix = f"{registry}/{base_prefix}"
+
+          proto_matrix = needs_build(f"{prefix}/intermediate:proto-generated-{proto_version}")
+          cpp_matrix = needs_build(f"{prefix}/intermediate:cpp-built-{cpp_version}")
+          golang_matrix = needs_build(f"{prefix}/intermediate:golang-built-{golang_version}")
+
+          proto_tools_matrix = needs_build(f"{prefix}/base:proto-tools-{proto_tools_version}")
+          go_builder_matrix = needs_build(f"{prefix}/base:go-builder-{go_builder_version}")
+          bazel_matrix = needs_build(f"{prefix}/base:bazel-base-{bazel_base_version}")
+          runtime_matrix = needs_build(f"{prefix}/base:runtime-base-{runtime_base_version}")
+          integration_matrix = needs_build(f"{prefix}/base:integration-tests-base-{integration_base_version}")
+
+          app_base_version = golang_version
+          app_tag = f"{app_base_version}-proto{proto_version}-cpp{cpp_version}-go{golang_version}"
+          app_matrix = {}
+          for arch in arches:
+              version_tag_missing = not manifest_exists(f"{prefix}/app:{app_tag}-{arch}")
+              latest_missing = not manifest_exists(f"{prefix}/app:latest-{arch}")
+              app_matrix[arch] = (
+                  proto_matrix[arch]
+                  or cpp_matrix[arch]
+                  or golang_matrix[arch]
+                  or runtime_matrix[arch]
+                  or integration_matrix[arch]
+                  or version_tag_missing
+                  or latest_missing
+              )
+
+          outputs = {
+              "app_tag": app_tag,
+          }
+
+          version_lookup = {
+              "proto_tools_build": proto_tools_version,
+              "go_builder_build": go_builder_version,
+              "bazel_base_build": bazel_base_version,
+              "runtime_base_build": runtime_base_version,
+              "integration_base_build": integration_base_version,
+              "proto_build": proto_version,
+              "cpp_build": cpp_version,
+              "golang_build": golang_version,
+              "app_build": app_tag,
+          }
+
+          def add_component(prefix: str, status_map: dict) -> None:
+              for arch in arches:
+                  outputs[f"{prefix}_{arch}"] = "true" if status_map[arch] else "false"
+
+          add_component("proto_tools_build", proto_tools_matrix)
+          add_component("go_builder_build", go_builder_matrix)
+          add_component("bazel_base_build", bazel_matrix)
+          add_component("runtime_base_build", runtime_matrix)
+          add_component("integration_base_build", integration_matrix)
+          add_component("proto_build", proto_matrix)
+          add_component("cpp_build", cpp_matrix)
+          add_component("golang_build", golang_matrix)
+          add_component("app_build", app_matrix)
+
+          for key, value in outputs.items():
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                  fh.write(f"{key}={value}\n")
+
+          print("Build decisions:")
+          for key, value in outputs.items():
+              prefix_key = key.rsplit("_", 1)[0] if "_" in key else key
+              version = version_lookup.get(prefix_key)
+              if version:
+                  print(f"  {key}: {value} (version: {version})")
+              else:
+                  print(f"  {key}: {value}")
+          PY
+
+  build_proto_tools:
+    name: BASE Build proto tools (amd64)
+    needs: prepare
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.proto_tools_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Proto tools base already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build proto tools image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.proto_tools_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:proto-tools-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:proto-tools-latest-amd64"
+          docker build -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+
+  build_go_builder:
+    name: BASE Build go builder base (amd64)
+    needs: prepare
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.go_builder_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Go builder base already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build go builder image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.go_builder_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:go-builder-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:go-builder-latest-amd64"
+          docker build -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+
+  build_bazel_base:
+    name: BASE Build bazel base (amd64)
+    needs: prepare
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.bazel_base_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Bazel base already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build bazel base image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.bazel_base_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:bazel-base-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:bazel-base-latest-amd64"
+          docker build \
+            --build-arg TARGETARCH=amd64 \
+            -f cpp_accelerator/docker-build-base/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+
+  build_runtime_base:
+    name: BASE Build runtime base (amd64)
+    needs: prepare
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.runtime_base_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Runtime base already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build runtime base image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.runtime_base_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:runtime-base-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:runtime-base-latest-amd64"
+          docker build \
+            --build-arg TARGETARCH=amd64 \
+            -f runtime/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+
+  build_integration_base:
+    name: BASE Build integration tests base (amd64)
+    needs: prepare
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.integration_base_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Integration base already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build integration base image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.integration_base_version }}"
+          TAG_VERSION="${IMAGE_BASE}/base:integration-tests-base-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/base:integration-tests-base-latest-amd64"
+          docker build \
+            --build-arg TARGETARCH=amd64 \
+            -f integration/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+
+  build_proto:
+    name: GENERATE PROTO Build proto intermediate (amd64)
+    needs:
+      - prepare
+      - build_proto_tools
+    runs-on: ["self-hosted", "Linux", "X64"]
+    outputs:
+      digest: ${{ steps.record_digest.outputs.digest }}
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.proto_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Proto intermediate already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build proto intermediate image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.proto_version }}"
+          TAG_VERSION="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/intermediate:proto-generated-latest-amd64"
+          docker build \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${VERSION}" \
+            -f proto/Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+
+      - name: Capture image digest
+        id: record_digest
+        shell: bash
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.proto_version }}"
+          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
+            REF="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-amd64"
+            DIGEST=$(docker image inspect "$REF" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)
+            if [ -z "$DIGEST" ]; then
+              DIGEST=$(docker image inspect "$REF" --format '{{.Id}}')
+            fi
+          else
+            REF="${IMAGE_BASE}/intermediate:proto-generated-${VERSION}-amd64"
+            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
+          fi
+          if [[ "$DIGEST" == *"@"* ]]; then
+            DIGEST="${DIGEST#*@}"
+          fi
+          if [ -z "$DIGEST" ]; then
+            echo "Failed to resolve digest for proto image (${REF:-built image})" >&2
+            exit 1
+          fi
+          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
+
+  build_cpp:
+    name: Build cpp intermediate (amd64)
+    needs:
+      - prepare
+      - build_proto
+      - build_bazel_base
+    runs-on: ["self-hosted", "Linux", "X64"]
+    outputs:
+      digest: ${{ steps.record_digest.outputs.digest }}
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.cpp_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "C++ intermediate already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build cpp intermediate image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        id: build_image
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.cpp_version }}"
+          TAG_VERSION="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/intermediate:cpp-built-latest-amd64"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            docker buildx build \
+              --platform linux/amd64 \
+              --target artifacts \
+              --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+              --build-arg BASE_TAG=latest \
+              --build-arg TARGETARCH=amd64 \
+              --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+              -f cpp_accelerator/Dockerfile.build \
+              -t "$TAG_VERSION" \
+              -t "$TAG_LATEST" \
+              --load \
+              .
+            DIGEST=$(docker image inspect "$TAG_VERSION" --format '{{.Id}}')
+          else
+            IIDFILE=$(mktemp)
+            docker buildx build \
+              --platform linux/amd64 \
+              --target artifacts \
+              --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+              --build-arg BASE_TAG=latest \
+              --build-arg TARGETARCH=amd64 \
+              --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+              -f cpp_accelerator/Dockerfile.build \
+              -t "$TAG_VERSION" \
+              -t "$TAG_LATEST" \
+              --push \
+              --iidfile "$IIDFILE" \
+              .
+            DIGEST=$(cat "$IIDFILE")
+          fi
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Capture image digest
+        id: record_digest
+        shell: bash
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.cpp_version }}"
+          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
+            DIGEST="${{ steps.build_image.outputs.digest }}"
+            REF="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
+          else
+            REF="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
+            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
+          fi
+          if [[ "$DIGEST" == *"@"* ]]; then
+            DIGEST="${DIGEST#*@}"
+          fi
+          if [ -z "$DIGEST" ]; then
+            echo "Failed to resolve digest for cpp image (${REF:-built image})" >&2
+            exit 1
+          fi
+          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
+
+  build_golang:
+    name: Build golang intermediate (amd64)
+    needs:
+      - prepare
+      - build_proto
+      - build_go_builder
+    runs-on: ["self-hosted", "Linux", "X64"]
+    outputs:
+      digest: ${{ steps.record_digest.outputs.digest }}
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.golang_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Golang intermediate already available for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build golang intermediate image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.golang_version }}"
+          TAG_VERSION="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/intermediate:golang-built-latest-amd64"
+          docker build \
+            --target artifacts \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+            -f webserver/Dockerfile.build \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+
+      - name: Capture image digest
+        id: record_digest
+        shell: bash
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          VERSION="${{ needs.prepare.outputs.golang_version }}"
+          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
+            REF="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-amd64"
+            DIGEST=$(docker image inspect "$REF" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)
+            if [ -z "$DIGEST" ]; then
+              DIGEST=$(docker image inspect "$REF" --format '{{.Id}}')
+            fi
+          else
+            REF="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-amd64"
+            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
+          fi
+          if [[ "$DIGEST" == *"@"* ]]; then
+            DIGEST="${DIGEST#*@}"
+          fi
+          if [ -z "$DIGEST" ]; then
+            echo "Failed to resolve digest for golang image (${REF:-built image})" >&2
+            exit 1
+          fi
+          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
+
+  build_app:
+    name: Build application image (amd64)
+    needs:
+      - prepare
+      - build_proto
+      - build_cpp
+      - build_golang
+      - build_runtime_base
+      - build_integration_base
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Determine build requirement
+        id: gate
+        shell: bash
+        run: |
+          echo "build=${{ needs.prepare.outputs.app_build_amd64 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip build
+        if: ${{ steps.gate.outputs.build != 'true' }}
+        run: echo "Application image already up to date for amd64"
+
+      - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify intermediate artifacts
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        run: |
+          REGISTRY="${{ env.REGISTRY }}"
+          BASE_PREFIX="${{ env.BASE_IMAGE_PREFIX }}"
+          PROTO_DIGEST="${{ needs.build_proto.outputs.digest }}"
+          CPP_DIGEST="${{ needs.build_cpp.outputs.digest }}"
+          GOLANG_DIGEST="${{ needs.build_golang.outputs.digest }}"
+
+          check_digest() {
+            local name="$1"
+            local digest="$2"
+            if [ -z "$digest" ]; then
+              echo "Missing digest for ${name}" >&2
+              exit 1
+            fi
+            local ref="${REGISTRY}/${BASE_PREFIX}/intermediate@${digest}"
+            if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
+              echo "Manifest not yet visible for ${ref}; retrying in 10 seconds..." >&2
+              sleep 10
+              if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
+                echo "Warning: Manifest still not visible for ${ref}. Proceeding with recorded digest." >&2
+              fi
+            fi
+          }
+
+          check_digest "proto-generated" "$PROTO_DIGEST"
+          check_digest "cpp-built" "$CPP_DIGEST"
+          check_digest "golang-built" "$GOLANG_DIGEST"
+
+      - name: Build application image
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          APP_TAG="${{ needs.prepare.outputs.app_tag }}"
+          TAG_VERSION="${IMAGE_BASE}/app:${APP_TAG}-amd64"
+          TAG_LATEST="${IMAGE_BASE}/app:latest-amd64"
+          docker build \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+            --build-arg CPP_VERSION="${{ needs.prepare.outputs.cpp_version }}" \
+            --build-arg GOLANG_VERSION="${{ needs.prepare.outputs.golang_version }}" \
+            -f Dockerfile \
+            -t "$TAG_VERSION" \
+            -t "$TAG_LATEST" \
+            .
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "$TAG_VERSION"
+            docker push "$TAG_LATEST"
+          fi
+

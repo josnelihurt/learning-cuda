@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import './image-upload';
 import type { ImageUpload } from './image-upload';
 
-vi.mock('../services/otel-logger', () => ({
+vi.mock('../../services/otel-logger', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -11,14 +11,14 @@ vi.mock('../services/otel-logger', () => ({
   },
 }));
 
-vi.mock('../services/file-service', () => ({
+vi.mock('../../services/file-service', () => ({
   fileService: {
     uploadImage: vi.fn(),
     initialize: vi.fn(),
   },
 }));
 
-vi.mock('../services/telemetry-service', () => ({
+vi.mock('../../services/telemetry-service', () => ({
   telemetryService: {
     createSpan: vi.fn().mockReturnValue({
       setAttribute: vi.fn(),

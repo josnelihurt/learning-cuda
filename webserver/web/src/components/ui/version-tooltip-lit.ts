@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { systemInfoService } from '../services/system-info-service';
+import { systemInfoService } from '../../services/system-info-service';
 
 @customElement('version-tooltip-lit')
 export class VersionTooltipLit extends LitElement {

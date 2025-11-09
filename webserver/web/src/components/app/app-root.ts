@@ -8,12 +8,12 @@ import type {
   IProcessorCapabilitiesService,
   IToolsService,
   IVideoService,
-} from '../application/di';
-import type { VideoGrid } from './video-grid';
+} from '../../application/di';
+import type { VideoGrid } from '../video/video-grid';
 import type { FilterPanel } from './filter-panel';
 import type { SourceDrawer } from './source-drawer';
-import type { ToolsDropdown } from './tools-dropdown';
-import type { ImageSelectorModal } from './image-selector-modal';
+import type { ToolsDropdown } from '../ui/tools-dropdown';
+import type { ImageSelectorModal } from '../image/image-selector-modal';
 import type { AppTour } from './app-tour';
 import type { ToastContainer } from './toast-container';
 import type { StatsPanel } from './stats-panel';

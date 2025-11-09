@@ -1,8 +1,8 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { StaticImage } from '../gen/common_pb';
-import { telemetryService } from '../services/telemetry-service';
-import { logger } from '../services/otel-logger';
+import { StaticImage } from '../../gen/common_pb';
+import { telemetryService } from '../../services/telemetry-service';
+import { logger } from '../../services/otel-logger';
 
 @customElement('image-selector-modal')
 export class ImageSelectorModal extends LitElement {

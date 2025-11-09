@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fixture, html } from '@open-wc/testing-helpers';
 import './image-selector-modal';
 import type { ImageSelectorModal } from './image-selector-modal';
-import { StaticImage } from '../gen/common_pb';
+import { StaticImage } from '../../gen/common_pb';
 
-vi.mock('../services/otel-logger', () => ({
+vi.mock('../../services/otel-logger', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),

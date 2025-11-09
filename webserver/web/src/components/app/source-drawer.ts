@@ -1,11 +1,11 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { InputSource } from '../gen/config_service_pb';
-import { telemetryService } from '../services/telemetry-service';
-import { logger } from '../services/otel-logger';
-import './image-upload';
-import './video-upload';
-import './video-selector';
+import { InputSource } from '../../gen/config_service_pb';
+import { telemetryService } from '../../services/telemetry-service';
+import { logger } from '../../services/otel-logger';
+import '../image/image-upload';
+import '../video/video-upload';
+import '../video/video-selector';
 
 @customElement('source-drawer')
 export class SourceDrawer extends LitElement {

@@ -354,7 +354,7 @@ jobs:
           TAG_LATEST="${IMAGE_BASE}/base:bazel-base-latest-amd64"
           docker build --no-cache \
             --build-arg TARGETARCH=amd64 \
-            -f cpp_accelerator/docker-build-base/Dockerfile.mock \
+            -f cpp_accelerator/docker-build-base/Dockerfile \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .

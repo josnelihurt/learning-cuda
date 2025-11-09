@@ -6,8 +6,6 @@ Learning CUDA and GPU programming by building something real. Started with a sim
 
 This isn't another tutorial project. It's my way of exploring CUDA, OpenCL, and other accelerators while applying the software engineering practices I actually use in production. Clean architecture, proper testing, observability, deployment automation—all while figuring out how to make GPUs do cool stuff.
 
-_Temporary test note for CI diagnostics._
-
 ![Screenshot](./data/screenshot.png)
 
 ## Table of Contents

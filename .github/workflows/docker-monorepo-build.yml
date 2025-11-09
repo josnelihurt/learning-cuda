@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/536-slim-artifact-images
     paths:
       - 'Dockerfile'
       - 'proto/**'
@@ -207,6 +206,21 @@ jobs:
 
           outputs = {"app_version": app_version}
 
+          version_lookup = {
+              "proto_tools_build": proto_tools_version,
+              "go_builder_build": go_builder_version,
+              "bazel_base_build": bazel_base_version,
+              "runtime_base_build": runtime_base_version,
+              "integration_base_build": integration_base_version,
+              "proto_build": proto_version,
+              "cpp_build": cpp_version,
+              "golang_build": golang_version,
+              "app_build": app_version,
+              "proto_version": proto_version,
+              "cpp_version": cpp_version,
+              "golang_version": golang_version,
+          }
+
           def add_component(prefix: str, status_map: dict) -> None:
               for arch in arches:
                   outputs[f"{prefix}_{arch}"] = "true" if status_map[arch] else "false"
@@ -227,7 +241,12 @@ jobs:
 
           print("Build decisions:")
           for key, value in outputs.items():
-              print(f"  {key}: {value}")
+              prefix = key.rsplit("_", 1)[0] if "_" in key else key
+              version = version_lookup.get(key) or version_lookup.get(prefix)
+              if version:
+                  print(f"  {key}: {value} (version: {version})")
+              else:
+                  print(f"  {key}: {value}")
           PY
 
   build_proto_tools:

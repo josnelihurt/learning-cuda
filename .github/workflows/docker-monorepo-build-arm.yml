@@ -1,6 +1,51 @@
 name: Docker Monorepo Build (ARM64)
 
+
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'proto/**'
+      - 'cpp_accelerator/**'
+      - 'webserver/**'
+      - 'runtime/**'
+      - 'integration/**'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
+      - 'WORKSPACE.bazel'
+      - 'BUILD.bazel'
+      - '.bazelrc'
+      - 'third_party/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.backend.yaml'
+      - '.github/workflows/docker-monorepo-build-x86.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'proto/**'
+      - 'cpp_accelerator/**'
+      - 'webserver/**'
+      - 'runtime/**'
+      - 'integration/**'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
+      - 'WORKSPACE.bazel'
+      - 'BUILD.bazel'
+      - '.bazelrc'
+      - 'third_party/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.backend.yaml'
+      - '.github/workflows/docker-monorepo-build-x86.yml'
   workflow_dispatch:
 
 env:

@@ -1,22 +1,22 @@
-import './components/camera-preview';
-import './components/toast-container';
-import './components/stats-panel';
-import './components/filter-panel';
-import './components/sync-flags-button';
-import './components/tools-dropdown';
-import './components/video-grid';
-import './components/source-drawer';
-import './components/add-source-fab';
-import './components/version-footer';
-import './components/version-tooltip-lit';
-import './components/image-selector-modal';
-import './components/feature-flags-modal';
-import './components/feature-flags-button';
-import './components/video-selector';
-import './components/video-upload';
-import './components/information-banner';
-import './components/app-tour';
-import './components/app-root';
+import './components/video/camera-preview';
+import './components/app/toast-container';
+import './components/app/stats-panel';
+import './components/app/filter-panel';
+import './components/flags/sync-flags-button';
+import './components/ui/tools-dropdown';
+import './components/video/video-grid';
+import './components/app/source-drawer';
+import './components/ui/add-source-fab';
+import './components/app/version-footer';
+import './components/ui/version-tooltip-lit';
+import './components/image/image-selector-modal';
+import './components/flags/feature-flags-modal';
+import './components/flags/feature-flags-button';
+import './components/video/video-selector';
+import './components/video/video-upload';
+import './components/app/information-banner';
+import './components/app/app-tour';
+import './components/app/app-root';
 import { container } from './application/di';
 import type {
   IConfigService,
@@ -27,7 +27,7 @@ import type {
   IToolsService,
   IVideoService,
 } from './application/di';
-import type { AppRoot } from './components/app-root';
+import type { AppRoot } from './components/app/app-root';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 

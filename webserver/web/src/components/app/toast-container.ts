@@ -1,3 +1,4 @@
+// emoji-allowed
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -240,11 +241,12 @@ export class ToastContainer extends LitElement {
   }
 
   private getIcon(type: ToastType): string {
+    // emoji-allowed
     const iconMap: Record<ToastType, string> = {
-      success: '✅',
-      error: '❌',
-      warning: '⚠️',
-      info: 'ℹ️',
+      success: '\u2705',
+      error: '\u274C',
+      warning: '\u26A0',
+      info: '\u2139',
     };
     return iconMap[type] || 'ℹ️';
   }

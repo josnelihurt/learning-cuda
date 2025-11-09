@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { videoService } from '../services/video-service';
-import { telemetryService } from '../services/telemetry-service';
+import { videoService } from '../../services/video-service';
+import { telemetryService } from '../../services/telemetry-service';
 
 @customElement('video-upload')
 export class VideoUpload extends LitElement {

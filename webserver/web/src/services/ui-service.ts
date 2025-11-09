@@ -1,7 +1,7 @@
-import type { StatsPanel } from '../components/stats-panel';
-import type { CameraPreview } from '../components/camera-preview';
-import type { FilterPanel } from '../components/filter-panel';
-import type { ToastContainer } from '../components/toast-container';
+import type { StatsPanel } from '../components/app/stats-panel';
+import type { CameraPreview } from '../components/video/camera-preview';
+import type { FilterPanel } from '../components/app/filter-panel';
+import type { ToastContainer } from '../components/app/toast-container';
 import type { WebSocketService } from './websocket-service';
 import { telemetryService } from './telemetry-service';
 import type { IUIService } from '../domain/interfaces/IUIService';

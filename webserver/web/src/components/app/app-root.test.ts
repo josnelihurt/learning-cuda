@@ -8,7 +8,7 @@ import type {
   IInputSourceService,
   IProcessorCapabilitiesService,
   IToolsService,
-} from '../application/di';
+} from '../../application/di';
 
 describe('AppRoot', () => {
   let element: AppRoot;

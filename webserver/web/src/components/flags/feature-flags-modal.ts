@@ -2,10 +2,10 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { createPromiseClient, PromiseClient, Interceptor, ConnectError } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ConfigService } from '../gen/config_service_connect';
-import { telemetryService } from '../services/telemetry-service';
-import { logger } from '../services/otel-logger';
-import { toolsService } from '../services/tools-service';
+import { ConfigService } from '../../gen/config_service_connect';
+import { telemetryService } from '../../services/telemetry-service';
+import { logger } from '../../services/otel-logger';
+import { toolsService } from '../../services/tools-service';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();

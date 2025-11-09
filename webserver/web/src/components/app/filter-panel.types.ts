@@ -1,4 +1,4 @@
-import type { FilterDefinition, FilterParameter } from '../gen/common_pb';
+import type { FilterDefinition, FilterParameter } from '../../gen/common_pb';
 
 export interface Filter {
   id: string;

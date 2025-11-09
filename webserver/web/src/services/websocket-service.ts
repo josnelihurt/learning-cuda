@@ -1,6 +1,6 @@
-import type { StatsPanel } from '../components/stats-panel';
-import type { CameraPreview } from '../components/camera-preview';
-import type { ToastContainer } from '../components/toast-container';
+import type { StatsPanel } from '../components/app/stats-panel';
+import type { CameraPreview } from '../components/video/camera-preview';
+import type { ToastContainer } from '../components/app/toast-container';
 import {
   WebSocketFrameRequest,
   WebSocketFrameResponse,

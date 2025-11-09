@@ -569,7 +569,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.cpp_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:cpp-built-latest-amd64"
-          docker build \
+          DOCKER_BUILDKIT=0 docker build \
             --target artifacts \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \

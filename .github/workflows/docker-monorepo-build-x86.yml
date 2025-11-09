@@ -312,7 +312,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.go_builder_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:go-builder-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:go-builder-latest-amd64"
-          docker build --no-cache -f webserver/builder/Dockerfile.mock -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build --no-cache -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"

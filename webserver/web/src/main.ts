@@ -15,12 +15,22 @@ import './components/feature-flags-button';
 import './components/video-selector';
 import './components/video-upload';
 import './components/information-banner';
+import './components/app-tour';
 import { container } from './application/di';
-import type { IConfigService, ITelemetryService, ILogger, IInputSourceService, IProcessorCapabilitiesService, IToolsService, IVideoService } from './application/di';
+import type {
+  IConfigService,
+  ITelemetryService,
+  ILogger,
+  IInputSourceService,
+  IProcessorCapabilitiesService,
+  IToolsService,
+  IVideoService,
+} from './application/di';
 import type { VideoGrid } from './components/video-grid';
 import type { SourceDrawer } from './components/source-drawer';
 import type { ToolsDropdown } from './components/tools-dropdown';
 import type { ImageSelectorModal } from './components/image-selector-modal';
+import type { AppTour } from './components/app-tour';
 
 console.log(`CUDA Image Processor v${__APP_VERSION__} (${__APP_BRANCH__}) - ${__BUILD_TIME__}`);
 
@@ -41,6 +51,7 @@ const app = {
   sourceDrawer: null as SourceDrawer | null,
   toolsDropdown: null as ToolsDropdown | null,
   imageSelectorModal: null as ImageSelectorModal | null,
+  tour: null as AppTour | null,
   currentSourceNumberForImageChange: null as number | null,
 
   selectedAccelerator: 'gpu',
@@ -71,6 +82,7 @@ const app = {
     await customElements.whenDefined('video-selector');
     await customElements.whenDefined('video-upload');
     await customElements.whenDefined('information-banner');
+    await customElements.whenDefined('app-tour');
 
     this.toastManager = document.querySelector('toast-container');
     this.toastManager.configure({ duration: 7000 });
@@ -81,6 +93,7 @@ const app = {
     this.sourceDrawer = document.querySelector('source-drawer');
     this.toolsDropdown = document.querySelector('tools-dropdown');
     this.imageSelectorModal = document.querySelector('image-selector-modal');
+    this.tour = document.querySelector('app-tour');
 
     if (this.filterManager && processorCapabilitiesService.isInitialized()) {
       this.filterManager.filters = processorCapabilitiesService.getFilters();
@@ -196,6 +209,16 @@ const app = {
     this.statsManager.reset();
 
     logger.info('Dashboard initialized');
+
+    if (this.videoGrid) {
+      await this.videoGrid.updateComplete;
+    }
+
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+
+    if (this.tour) {
+      this.tour.startIfNeeded();
+    }
   },
 
   updateSelectedSourceIndicator(sourceNumber: number, sourceId: string) {

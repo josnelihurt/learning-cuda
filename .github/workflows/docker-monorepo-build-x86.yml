@@ -269,7 +269,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.proto_tools_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:proto-tools-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:proto-tools-latest-amd64"
-          docker build --no-cache -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build --no-cache -f proto/docker-build-base/Dockerfile.mock -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"
@@ -309,7 +309,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.go_builder_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:go-builder-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:go-builder-latest-amd64"
-          docker build --no-cache -f webserver/builder/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build --no-cache -f webserver/builder/Dockerfile.mock -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"
@@ -351,7 +351,7 @@ jobs:
           TAG_LATEST="${IMAGE_BASE}/base:bazel-base-latest-amd64"
           docker build --no-cache \
             --build-arg TARGETARCH=amd64 \
-            -f cpp_accelerator/docker-build-base/Dockerfile \
+            -f cpp_accelerator/docker-build-base/Dockerfile.mock \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -396,7 +396,7 @@ jobs:
           TAG_LATEST="${IMAGE_BASE}/base:runtime-base-latest-amd64"
           docker build --no-cache \
             --build-arg TARGETARCH=amd64 \
-            -f runtime/Dockerfile \
+            -f runtime/Dockerfile.mock \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -441,7 +441,7 @@ jobs:
           TAG_LATEST="${IMAGE_BASE}/base:integration-tests-base-latest-amd64"
           docker build --no-cache \
             --build-arg TARGETARCH=amd64 \
-            -f integration/Dockerfile \
+            -f integration/Dockerfile.mock \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -493,7 +493,7 @@ jobs:
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
             --build-arg PROTO_VERSION="${VERSION}" \
-            -f proto/Dockerfile \
+            -f proto/Dockerfile.mock \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -572,7 +572,7 @@ jobs:
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
             --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
-            -f cpp_accelerator/Dockerfile.build \
+            -f cpp_accelerator/Dockerfile.build.mock \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -651,7 +651,7 @@ jobs:
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
             --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
-            -f webserver/Dockerfile.build \
+            -f webserver/Dockerfile.build.mock \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .
@@ -762,7 +762,7 @@ jobs:
             --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
             --build-arg CPP_VERSION="${{ needs.prepare.outputs.cpp_version }}" \
             --build-arg GOLANG_VERSION="${{ needs.prepare.outputs.golang_version }}" \
-            -f Dockerfile \
+            -f Dockerfile.mock \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
             .

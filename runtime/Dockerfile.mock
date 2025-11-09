@@ -1,8 +1,0 @@
-ARG CUDA_VERSION=12.5.1
-ARG UBUNTU_VERSION=24.04
-
-FROM scratch AS runtime-base
-LABEL mock.component="runtime-base" \
-      mock.cuda="${CUDA_VERSION}" \
-      mock.ubuntu="${UBUNTU_VERSION}"
-

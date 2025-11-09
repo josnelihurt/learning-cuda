@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/536-slim-artifact-images
     paths:
       - 'Dockerfile'
       - 'proto/**'
@@ -104,7 +103,7 @@ jobs:
           echo "proto_version=$(tr -d '\n' < proto/VERSION)" >> "$GITHUB_OUTPUT"
           echo "cpp_version=$(tr -d '\n' < cpp_accelerator/VERSION)" >> "$GITHUB_OUTPUT"
           echo "golang_version=$(tr -d '\n' < webserver/VERSION)" >> "$GITHUB_OUTPUT"
-          echo "proto_tools_version=$(tr -d '\n' < proto/docker-build-base/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "proto_tools_version=$(tr -d '\n' < proto/TOOLS_VERSION)" >> "$GITHUB_OUTPUT"
           echo "go_builder_version=$(tr -d '\n' < webserver/builder/VERSION)" >> "$GITHUB_OUTPUT"
           echo "bazel_base_version=$(tr -d '\n' < cpp_accelerator/docker-build-base/VERSION)" >> "$GITHUB_OUTPUT"
           echo "runtime_base_version=$(tr -d '\n' < runtime/VERSION)" >> "$GITHUB_OUTPUT"
@@ -231,7 +230,7 @@ jobs:
           PY
 
   build_proto_tools:
-    name: BASE Build proto tools
+    name: Build proto tools base
     needs: prepare
     runs-on: ${{ matrix.runner_labels }}
     strategy:
@@ -279,16 +278,15 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./proto/docker-build-base/Dockerfile
+          file: ./proto/Dockerfile
           platforms: linux/${{ matrix.arch }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-${{ needs.prepare.outputs.proto_tools_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:proto-tools-latest-${{ matrix.arch }}
 
   build_go_builder:
-    name: BASE Build go builder base
+    name: Build go builder base
     needs: prepare
     runs-on: ${{ matrix.runner_labels }}
     strategy:
@@ -338,14 +336,13 @@ jobs:
           context: .
           file: ./webserver/builder/Dockerfile
           platforms: linux/${{ matrix.arch }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-${{ needs.prepare.outputs.go_builder_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:go-builder-latest-${{ matrix.arch }}
 
   build_bazel_base:
-    name: BASE Build bazel base
+    name: Build bazel base
     needs: prepare
     runs-on: ${{ matrix.runner_labels }}
     strategy:
@@ -397,14 +394,13 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           build-args: |
             TARGETARCH=${{ matrix.arch }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-${{ needs.prepare.outputs.bazel_base_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:bazel-base-latest-${{ matrix.arch }}
 
   build_runtime_base:
-    name: BASE Build runtime base
+    name: Build runtime base
     needs: prepare
     runs-on: ${{ matrix.runner_labels }}
     strategy:
@@ -456,14 +452,13 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           build-args: |
             TARGETARCH=${{ matrix.arch }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-${{ needs.prepare.outputs.runtime_base_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:runtime-base-latest-${{ matrix.arch }}
 
   build_integration_base:
-    name: BASE Build integration tests base
+    name: Build integration tests base
     needs: prepare
     runs-on: ${{ matrix.runner_labels }}
     strategy:
@@ -515,20 +510,17 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           build-args: |
             TARGETARCH=${{ matrix.arch }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-${{ needs.prepare.outputs.integration_base_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/base:integration-tests-base-latest-${{ matrix.arch }}
 
   build_proto:
-    name: GENERATE PROTO Build proto intermediate
+    name: Build proto intermediate
     needs:
       - prepare
       - build_proto_tools
     runs-on: ${{ matrix.runner_labels }}
-    outputs:
-      digest: ${{ steps.record_digest.outputs.digest }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -569,37 +561,20 @@ jobs:
 
       - name: Build and push proto-generated
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./proto/Dockerfile
+          file: ./proto/Dockerfile.generated
           platforms: linux/${{ matrix.arch }}
           build-args: |
             BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
             BASE_TAG=latest
             TARGETARCH=${{ matrix.arch }}
             PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-latest-${{ matrix.arch }}
-
-      - name: Capture image digest
-        id: record_digest
-        run: |
-          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
-          else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
-          fi
-          if [ -z "$DIGEST" ]; then
-            echo "Failed to resolve digest for proto image (${REF:-built image})" >&2
-            exit 1
-          fi
-          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
 
   build_cpp:
     name: Build cpp intermediate
@@ -608,8 +583,6 @@ jobs:
       - build_proto
       - build_bazel_base
     runs-on: ${{ matrix.runner_labels }}
-    outputs:
-      digest: ${{ steps.record_digest.outputs.digest }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -650,7 +623,6 @@ jobs:
 
       - name: Build and push cpp-built
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -662,26 +634,10 @@ jobs:
             BASE_TAG=latest
             TARGETARCH=${{ matrix.arch }}
             PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-latest-${{ matrix.arch }}
-
-      - name: Capture image digest
-        id: record_digest
-        run: |
-          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
-          else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
-          fi
-          if [ -z "$DIGEST" ]; then
-            echo "Failed to resolve digest for cpp image (${REF:-built image})" >&2
-            exit 1
-          fi
-          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
 
   build_golang:
     name: Build golang intermediate
@@ -690,8 +646,6 @@ jobs:
       - build_proto
       - build_go_builder
     runs-on: ${{ matrix.runner_labels }}
-    outputs:
-      digest: ${{ steps.record_digest.outputs.digest }}
     strategy:
       matrix:
         arch: [amd64, arm64]
@@ -732,7 +686,6 @@ jobs:
 
       - name: Build and push golang-built
         if: ${{ steps.gate.outputs.build == 'true' }}
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -744,26 +697,10 @@ jobs:
             BASE_TAG=latest
             TARGETARCH=${{ matrix.arch }}
             PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-latest-${{ matrix.arch }}
-
-      - name: Capture image digest
-        id: record_digest
-        run: |
-          if [ "${{ steps.gate.outputs.build }}" = "true" ]; then
-            DIGEST="${{ steps.build.outputs.digest }}"
-          else
-            REF="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${{ matrix.arch }}"
-            DIGEST=$(docker manifest inspect "$REF" 2>/dev/null | jq -r '.manifests[0].digest // .config.digest // empty')
-          fi
-          if [ -z "$DIGEST" ]; then
-            echo "Failed to resolve digest for golang image (${REF:-built image})" >&2
-            exit 1
-          fi
-          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
 
   build_app:
     name: Build application image
@@ -808,7 +745,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -821,37 +758,37 @@ jobs:
           REGISTRY="${{ env.REGISTRY }}"
           BASE_PREFIX="${{ env.BASE_IMAGE_PREFIX }}"
           ARCH="${{ matrix.arch }}"
-          PROTO_DIGEST="${{ needs.build_proto.outputs.digest }}"
-          CPP_DIGEST="${{ needs.build_cpp.outputs.digest }}"
-          GOLANG_DIGEST="${{ needs.build_golang.outputs.digest }}"
+          PROTO_REF="${REGISTRY}/${BASE_PREFIX}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-${ARCH}"
+          CPP_REF="${REGISTRY}/${BASE_PREFIX}/intermediate:cpp-built-${{ needs.prepare.outputs.cpp_version }}-${ARCH}"
+          GOLANG_REF="${REGISTRY}/${BASE_PREFIX}/intermediate:golang-built-${{ needs.prepare.outputs.golang_version }}-${ARCH}"
 
-          check_digest() {
+          check_ref() {
             local name="$1"
-            local digest="$2"
-            if [ -z "$digest" ]; then
-              echo "Missing digest for ${name} (${ARCH})" >&2
-              exit 1
-            fi
-            local ref="${REGISTRY}/${BASE_PREFIX}/intermediate@${digest}"
-            if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
-              echo "Manifest not yet visible for ${ref}; retrying in 10 seconds..." >&2
-              sleep 10
-              if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
-                echo "Warning: Manifest still not visible for ${ref}. Proceeding with recorded digest." >&2
+            local ref="$2"
+            local attempt
+            for attempt in 1 2 3; do
+              if docker manifest inspect "$ref" >/dev/null 2>&1; then
+                return 0
               fi
-            fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Failed to locate manifest for ${name} (${ref})" >&2
+                exit 1
+              fi
+              echo "Manifest for ${name} not yet visible (attempt ${attempt}); retrying in 10s..." >&2
+              sleep 10
+            done
           }
 
-          check_digest "proto-generated" "$PROTO_DIGEST"
-          check_digest "cpp-built" "$CPP_DIGEST"
-          check_digest "golang-built" "$GOLANG_DIGEST"
+          check_ref "proto-generated" "$PROTO_REF"
+          check_ref "cpp-built" "$CPP_REF"
+          check_ref "golang-built" "$GOLANG_REF"
 
       - name: Build and push application image
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.mock
+          file: ./Dockerfile
           platforms: linux/${{ matrix.arch }}
           build-args: |
             BASE_REGISTRY=${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}
@@ -860,7 +797,6 @@ jobs:
             PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}
             CPP_VERSION=${{ needs.prepare.outputs.cpp_version }}
             GOLANG_VERSION=${{ needs.prepare.outputs.golang_version }}
-          no-cache: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:${{ needs.prepare.outputs.app_version }}-${{ matrix.arch }}

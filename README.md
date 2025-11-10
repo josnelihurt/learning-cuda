@@ -326,7 +326,7 @@ Add new tools by editing `config/config.yaml`, no code changes needed.
 
 ## CI Workflows
 
-Continuous integration for ARM64 and AMD64 builds runs via GitHub Actions. Detailed triggers, job flow, and runner expectations live in [`.github/README.md`](.github/README.md).
+Continuous integration for ARM64 and AMD64 builds runs via GitHub Actions. Detailed triggers, job flow, and runner expectations live in [`docs/ci-workflows.md`](docs/ci-workflows.md).
 
 ## Testing & Code Quality
 

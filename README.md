@@ -23,6 +23,7 @@ This isn't another tutorial project. It's my way of exploring CUDA, OpenCL, and 
 - [Image Processing Filters](#image-processing-filters)
 - [Commands](#commands)
 - [Development Tools](#development-tools)
+- [CI Workflows](#ci-workflows)
 - [Testing & Code Quality](#testing-code-quality)
 - [Code structure](#code-structure)
 - [Filter System](#filter-system)
@@ -322,6 +323,10 @@ The app includes a dynamic tools dropdown that adapts to your environment:
 - Code Coverage Reports - Unit test coverage dashboard
 
 Add new tools by editing `config/config.yaml`, no code changes needed.
+
+## CI Workflows
+
+Continuous integration for ARM64 and AMD64 builds runs via GitHub Actions. Detailed triggers, job flow, and runner expectations live in [`.github/README.md`](.github/README.md).
 
 ## Testing & Code Quality
 

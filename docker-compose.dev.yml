@@ -220,6 +220,11 @@ services:
       args:
         USER_ID: ${USER_ID:-1000}
         GROUP_ID: ${GROUP_ID:-1000}
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_TAG: ${BASE_TAG:-latest}
+        PROTO_VERSION: ${PROTO_VERSION:-1.0.0}
+        CPP_VERSION: ${CPP_VERSION:-2.1.0}
+        GOLANG_VERSION: ${GOLANG_VERSION:-1.0.0}
     container_name: integration-tests
     network_mode: host
     volumes:
@@ -235,6 +240,11 @@ services:
       args:
         USER_ID: ${USER_ID:-1000}
         GROUP_ID: ${GROUP_ID:-1000}
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_TAG: ${BASE_TAG:-latest}
+        PROTO_VERSION: ${PROTO_VERSION:-1.0.0}
+        CPP_VERSION: ${CPP_VERSION:-2.1.0}
+        GOLANG_VERSION: ${GOLANG_VERSION:-1.0.0}
     container_name: e2e-tests
     network_mode: host
     
@@ -249,7 +259,7 @@ services:
       - ./webserver/web/tests:/workspace/webserver/web/tests
       - ./webserver/web/playwright.config.ts:/workspace/webserver/web/playwright.config.ts:ro
       - ./webserver/web/tsconfig.json:/workspace/webserver/web/tsconfig.json:ro
-      - ./webserver/web/.ignore:/workspace/webserver/web/.ignore
+      - ./.ignore/webserver/web:/workspace/.ignore/webserver/web
       - ./data:/workspace/data:ro
     
     depends_on:
@@ -268,7 +278,7 @@ services:
       - "5051:8080"
     
     volumes:
-      - ./webserver/web/.ignore/playwright-report:/app
+      - ./.ignore/webserver/web/playwright-report:/app
     
     command: npx http-server /app -p 8080
     

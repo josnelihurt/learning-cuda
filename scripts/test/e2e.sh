@@ -141,8 +141,8 @@ echo "System CPUs: $(nproc) cores"
 [ -n "$PLAYWRIGHT_OPTS" ] && echo "Playwright Options: $PLAYWRIGHT_OPTS"
 echo ""
 
-mkdir -p webserver/web/.ignore/test-results
-mkdir -p webserver/web/.ignore/playwright-report
+mkdir -p .ignore/webserver/web/test-results
+mkdir -p .ignore/webserver/web/playwright-report
 
 # Set Flipt port based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
@@ -240,7 +240,7 @@ else
 fi
 
 echo ""
-echo "Results saved in webserver/web/.ignore/"
+echo "Results saved in .ignore/webserver/web/"
 echo "  - test-results/e2e-results.json"
 echo "  - test-results/e2e-junit.xml"
 echo "  - playwright-report/"

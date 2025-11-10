@@ -128,7 +128,7 @@ RUN cd webserver/web && npx playwright install chromium firefox webkit
 # Create user with same UID/GID as host
 RUN groupadd -g ${GROUP_ID} testuser || true && \
     useradd -u ${USER_ID} -g testuser -m -s /bin/bash testuser 2>/dev/null || true && \
-    mkdir -p /workspace/webserver/web/.ignore && \
+    mkdir -p /workspace/.ignore/webserver/web && \
     mkdir -p /home/testuser/.cache && \
     chown -R ${USER_ID}:${GROUP_ID} /workspace /home/testuser
 

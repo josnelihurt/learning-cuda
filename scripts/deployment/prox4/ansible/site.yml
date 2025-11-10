@@ -191,3 +191,133 @@
         msg:
           - "Runner service started: {{ runner_service_name }}"
           - "Runner labels: {{ runner_labels_csv if runner_labels_csv else 'none' }}"
+
+- name: Configure Bazel remote cache host
+  hosts: bazel_cache
+  gather_facts: false
+  become: true
+  vars:
+    bazel_remote_download_url: "https://github.com/buchgr/bazel-remote/releases/download/v{{ bazel_remote_version }}/bazel-remote-{{ bazel_remote_version }}-{{ bazel_remote_arch }}"
+    bazel_remote_flags: [
+      "--dir={{ bazel_remote_cache_dir }}",
+      "--max_size={{ bazel_remote_max_size_gib }}",
+      "--http_address={{ bazel_remote_http_address }}:{{ bazel_remote_http_port }}",
+      "--grpc_address={{ bazel_remote_grpc_address }}",
+    ]
+  tasks:
+    - name: Validate Bazel cache connection variables
+      ansible.builtin.assert:
+        that:
+          - bazel_cache_host is defined
+        fail_msg: "bazel_cache_host must be defined to configure the Bazel cache."
+
+    - name: Wait for SSH on Bazel cache host
+      become: false
+      ansible.builtin.wait_for:
+        host: "{{ bazel_cache_host }}"
+        port: 22
+        state: started
+        timeout: 300
+      delegate_to: localhost
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - xz-utils
+        state: present
+        update_cache: true
+
+    - name: Ensure Bazel remote service group exists
+      ansible.builtin.group:
+        name: "{{ bazel_remote_service_group }}"
+        system: true
+
+    - name: Ensure Bazel remote service user exists
+      ansible.builtin.user:
+        name: "{{ bazel_remote_service_user }}"
+        system: true
+        create_home: false
+        group: "{{ bazel_remote_service_group }}"
+
+    - name: Ensure Bazel cache directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ bazel_remote_service_user }}"
+        group: "{{ bazel_remote_service_group }}"
+        mode: "0750"
+      loop:
+        - "{{ bazel_remote_cache_dir }}"
+        - "{{ bazel_remote_tmp_dir }}"
+
+    - name: Remove legacy tmp directory inside cache root
+      ansible.builtin.file:
+        path: "{{ bazel_remote_cache_dir }}/tmp"
+        state: absent
+
+    - name: Download bazel-remote binary
+      ansible.builtin.get_url:
+        url: "{{ bazel_remote_download_url }}"
+        dest: "{{ bazel_remote_bin_path }}"
+        owner: root
+        group: root
+        mode: "0755"
+        checksum: "{{ bazel_remote_checksum | default(omit, true) }}"
+
+    - name: Configure systemd service for bazel-remote
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/bazel-remote.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Bazel Remote Cache
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User={{ bazel_remote_service_user }}
+          Group={{ bazel_remote_service_group }}
+          ExecStart={{ bazel_remote_bin_path }} {{ bazel_remote_flags | join(' ') }}
+          WorkingDirectory={{ bazel_remote_cache_dir }}
+          Environment=TMPDIR={{ bazel_remote_tmp_dir }}
+          Restart=on-failure
+          RestartSec=5
+          LimitNOFILE=65536
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Ensure bazel-remote service is enabled and running
+      ansible.builtin.systemd:
+        name: bazel-remote.service
+        state: started
+        enabled: true
+
+    - name: Wait for bazel-remote HTTP port
+      ansible.builtin.wait_for:
+        host: "{{ bazel_cache_host }}"
+        port: "{{ bazel_remote_http_port }}"
+        delay: 2
+        timeout: 60
+      delegate_to: localhost
+      become: false
+
+    - name: Validate bazel-remote status endpoint
+      become: false
+      ansible.builtin.uri:
+        url: "http://{{ bazel_cache_host }}:{{ bazel_remote_http_port }}/status"
+        method: GET
+        status_code: 200
+      register: bazel_remote_status
+      retries: 5
+      delay: 5
+      until: bazel_remote_status.status == 200

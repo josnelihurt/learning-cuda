@@ -53,3 +53,13 @@ output "runner_connections" {
   value       = local.runner_connections
 }
 
+output "bazel_cache_details" {
+  description = "Details about the Bazel cache LXC instance."
+  value       = local.bazel_cache_details
+}
+
+output "bazel_cache_connection" {
+  description = "Connection parameters for provisioning the Bazel cache host."
+  value       = local.bazel_cache_connection
+}
+

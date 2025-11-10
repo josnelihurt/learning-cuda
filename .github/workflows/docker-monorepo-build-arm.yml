@@ -491,6 +491,20 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
+      - name: Detect Bazel remote cache
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        shell: bash
+        run: |
+          CACHE_HOST="192.168.10.80"
+          CACHE_STATUS_URL="http://${CACHE_HOST}:9090/status"
+          if curl -sf --connect-timeout 2 --max-time 4 "${CACHE_STATUS_URL}" >/dev/null; then
+            echo "BAZEL_REMOTE_CACHE=grpc://${CACHE_HOST}:9092" >> "$GITHUB_ENV"
+            echo "BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS=true" >> "$GITHUB_ENV"
+            echo "Detected bazel-remote cache at ${CACHE_HOST}"
+          else
+            echo "Bazel-remote cache not reachable; proceeding without remote cache."
+          fi
+
       - name: Log in to GitHub Container Registry
         if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
         uses: docker/login-action@v3

@@ -32,39 +32,20 @@
       debug:
         msg: "Found secrets: {{ secrets_files.stdout_lines }}"
 
-    - name: You can connect to the remote machine using ssh and run the following command to see the progress
-      debug:
-        msg: "cd {{ app_directory }} && docker compose build --progress=plain"
-
-    - name: Build Docker images, go and grab a coffee dude, this will take a while...
-      shell: |
-        cd {{ app_directory }}
-        docker compose build --progress=plain
-      register: docker_build
-      changed_when: "'Successfully' in docker_build.stdout"
-
-    - name: Display build result
-      debug:
-        msg: "Build completed. Showing last 30 lines of output"
-
-    - name: Show build output tail
-      debug:
-        msg: "{{ docker_build.stdout_lines[-30:] }}"
-      when: docker_build.stdout is defined
-
-    - name: List built images
-      shell: docker images --format "table {{ '{{' }}.Repository{{ '}}' }}\t{{ '{{' }}.Tag{{ '}}' }}"
-      register: built_images
-
-    - name: Display built images
-      debug:
-        msg: "Built images: {{ item }}"
-      loop: "{{ built_images.stdout_lines }}"
+    - name: Pull latest container images
+      shell: cd {{ app_directory }} && docker compose --profile production pull
+      register: docker_pull
+      changed_when: "'Downloaded' in docker_pull.stdout or 'Updated' in docker_pull.stdout"
+      failed_when: docker_pull.rc != 0
+      environment:
+        APP_IMAGE: "{{ lookup('env', 'APP_IMAGE') | default('', true) }}"
 
     - name: Start services with docker compose
       shell: cd {{ app_directory }} && docker compose --profile production up -d
       register: docker_up
       ignore_errors: yes
+      environment:
+        APP_IMAGE: "{{ lookup('env', 'APP_IMAGE') | default('', true) }}"
 
     - name: Display docker up output
       debug:

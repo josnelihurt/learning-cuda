@@ -14,7 +14,7 @@
     owner: "{{ deployment_user }}"
     group: "{{ deployment_group }}"
     recurse: yes
-  become_user: "{{ deployment_user }}"
+  become: yes
 
 - name: Get last 3 commits
   shell: cd {{ app_directory }} && git log -3 --oneline

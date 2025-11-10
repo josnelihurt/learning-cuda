@@ -24,8 +24,8 @@ What CUDA/GPU concept does this teach?
 - [ ] Task 3
 
 ### Resources
-- [Resource 1](link)
-- [Resource 2](link)
+- Resource 1 (add reference link)
+- Resource 2 (add reference link)
 
 ## Acceptance Criteria
 

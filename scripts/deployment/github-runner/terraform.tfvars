@@ -9,6 +9,16 @@ runner_ssh_public_key       = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPa6IR4wZReEI
 runner_ssh_private_key_path = ".secrets/keys/github-runner-prox4_ed25519"
 runner_cores                = 8
 
+bazel_cache_instance = {
+  name         = "learning-cuda-prox4-bazel-cache"
+  vm_id        = 980
+  ipv4_cidr    = "192.168.10.80/24"
+  ipv4_gateway = "192.168.10.1"
+  cores        = 4
+  memory       = 8192
+  rootfs_size  = "256G"
+}
+
 runner_instances = [
   {
     name         = "learning-cuda-prox4-x86-1"

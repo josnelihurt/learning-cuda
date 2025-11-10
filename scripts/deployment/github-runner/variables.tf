@@ -105,6 +105,20 @@ variable "runner_image" {
   default     = "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-x64-2.321.0.tar.gz"
 }
 
+variable "bazel_cache_instance" {
+  description = "Configuration for the Bazel remote cache LXC container."
+  type = object({
+    name         = string
+    vm_id        = number
+    ipv4_cidr    = string
+    ipv4_gateway = optional(string)
+    cores        = number
+    memory       = number
+    rootfs_size  = string
+  })
+  default = null
+}
+
 variable "runner_instances" {
   description = "Runner instances to provision on Proxmox."
   type = list(object({

@@ -4,6 +4,10 @@ breaking:
     - FILE
 modules:
   - path: proto
+    excludes:
+      - proto/google/api
+deps:
+  - buf.build/googleapis/googleapis
 lint:
   use:
     - DEFAULT

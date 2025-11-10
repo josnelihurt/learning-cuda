@@ -4,6 +4,22 @@ Completed features extracted from git commit history, organized by date.
 
 ## November 2025
 
+### Runtime Artifact Realignment & Build Refresh (Nov 10, 2025)
+- **Proto**
+  - [x] Added `buf.build/googleapis/googleapis` dependency and excluded vendored `proto/google/api` sources
+- **Dev Tooling**
+  - [x] Standardized `.ignore` layout for Dockerfile stages and docker-compose mounts
+  - [x] Hardened `scripts/dev/start.sh` and `scripts/hooks/pre-push` with automated permission repair for `.ignore/lib/cuda_learning`
+  - [x] Extended `scripts/dev/clean.sh` to purge legacy `.ignore` paths
+- **Testing**
+  - [x] Elevated integration test script to auto-detect component versions, choose local vs remote base registries, and run containers with host UID/GID
+  - [x] Updated E2E Playwright script and report viewer volumes to the consolidated `.ignore` structure
+  - [x] Ensured Docker test images receive configurable registry, tag, and version build args
+- **Frontend**
+  - [x] Relocated Playwright report and artifact outputs to shared `.ignore/webserver/web` directory
+- **Versioning**
+  - [x] Bumped component versions: proto `2.1.2`, cpp accelerator `2.1.4`, webserver `1.0.8`, integration `1.24.3`, runtime `2.0.2`, builder images `2.0.3`, docker build bases `2.0.3/2.0.2`
+
 ### Remove Alpha Channel Support (Nov 4, 2025)
 - [x] Removed alpha channel (A) support from all image processing layers
 - [x] Changed from RGBA (4 channels) to RGB (3 channels) throughout codebase

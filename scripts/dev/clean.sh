@@ -27,6 +27,8 @@ echo "  Cleaning generated proto files..."
 rm -rf proto/gen/*
 
 echo "  Cleaning test results..."
+rm -rf .ignore/webserver/web/
+# Legacy cleanup for deprecated locations
 rm -rf webserver/web/.ignore/
 rm -rf webserver/web/test-results/
 rm -rf webserver/web/playwright-report/

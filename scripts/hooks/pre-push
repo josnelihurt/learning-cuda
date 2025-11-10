@@ -10,10 +10,47 @@ echo ""
 
 cd "$PROJECT_ROOT"
 
+ensure_writable() {
+  local relative_path="$1"
+  local absolute_path="${PROJECT_ROOT}/${relative_path}"
+  local uid gid owner group
+  uid="$(id -u)"
+  gid="$(id -g)"
+
+  if [ ! -d "$absolute_path" ]; then
+    if ! mkdir -p "$absolute_path" 2>/dev/null; then
+      if command -v docker >/dev/null 2>&1; then
+        docker run --rm -v "${PROJECT_ROOT}:/workspace" alpine:3.19 \
+          sh -c "mkdir -p \"/workspace/${relative_path}\" && chown -R ${uid}:${gid} \"/workspace/${relative_path}\" && chmod -R u+rwX,g+rwX \"/workspace/${relative_path}\""
+      else
+        echo "Unable to create ${absolute_path}. Run 'sudo mkdir -p ${absolute_path}' and ensure it is owned by ${uid}:${gid}." >&2
+        exit 1
+      fi
+    fi
+  fi
+
+  if owner="$(stat -c '%u' "$absolute_path" 2>/dev/null)"; then
+    group="$(stat -c '%g' "$absolute_path" 2>/dev/null)"
+  else
+    owner="$(stat -f '%u' "$absolute_path")"
+    group="$(stat -f '%g' "$absolute_path")"
+  fi
+  if [ "$owner" != "$uid" ] || [ "$group" != "$gid" ] || [ ! -w "$absolute_path" ]; then
+    if command -v docker >/dev/null 2>&1; then
+      docker run --rm -v "${absolute_path}:/target" alpine:3.19 \
+        sh -c "chown -R ${uid}:${gid} /target && chmod -R u+rwX,g+rwX /target"
+    else
+      echo "Unable to adjust permissions for ${absolute_path}. Run 'sudo chown -R ${uid}:${gid} ${absolute_path}'." >&2
+      exit 1
+    fi
+  fi
+}
+
+ensure_writable ".ignore/lib/cuda_learning"
+
 echo "Building CUDA shared library..."
 bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
 
-mkdir -p .ignore/lib/cuda_learning
 VERSION=$(cat cpp_accelerator/VERSION)
 TARGET_FILE=".ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so"
 

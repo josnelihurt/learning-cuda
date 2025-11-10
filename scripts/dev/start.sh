@@ -6,6 +6,42 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
+ensure_writable() {
+    local relative_path="$1"
+    local absolute_path="${PROJECT_ROOT}/${relative_path}"
+    local uid gid owner group
+    uid="$(id -u)"
+    gid="$(id -g)"
+
+    if [ ! -d "$absolute_path" ]; then
+        if ! mkdir -p "$absolute_path" 2>/dev/null; then
+            if command -v docker >/dev/null 2>&1; then
+                docker run --rm -v "${PROJECT_ROOT}:/workspace" alpine:3.19 \
+                    sh -c "mkdir -p \"/workspace/${relative_path}\" && chown -R ${uid}:${gid} \"/workspace/${relative_path}\" && chmod -R u+rwX,g+rwX \"/workspace/${relative_path}\""
+            else
+                echo "Unable to create ${absolute_path}. Run 'sudo mkdir -p ${absolute_path}' and ensure it is owned by ${uid}:${gid}."
+                exit 1
+            fi
+        fi
+    fi
+
+    if owner="$(stat -c '%u' "$absolute_path" 2>/dev/null)"; then
+        group="$(stat -c '%g' "$absolute_path" 2>/dev/null)"
+    else
+        owner="$(stat -f '%u' "$absolute_path")"
+        group="$(stat -f '%g' "$absolute_path")"
+    fi
+    if [ "$owner" != "$uid" ] || [ "$group" != "$gid" ] || [ ! -w "$absolute_path" ]; then
+        if command -v docker >/dev/null 2>&1; then
+            docker run --rm -v "${absolute_path}:/target" alpine:3.19 \
+                sh -c "chown -R ${uid}:${gid} /target && chmod -R u+rwX,g+rwX /target"
+        else
+            echo "Unable to adjust permissions for ${absolute_path}. Run 'sudo chown -R ${uid}:${gid} ${absolute_path}'."
+            exit 1
+        fi
+    fi
+}
+
 # Load development secrets
 if [ -f ".secrets/development.env" ]; then
     echo "Loading development secrets from .secrets/development.env"
@@ -112,7 +148,7 @@ echo "Stopping previous application services..."
     bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
     
     echo "Installing libraries..."
-    mkdir -p .ignore/lib/cuda_learning
+    ensure_writable ".ignore/lib/cuda_learning"
     COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
     DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     VERSION=$(cat cpp_accelerator/VERSION)

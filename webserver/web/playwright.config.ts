@@ -24,9 +24,9 @@ export default defineConfig({
   timeout: 60000,
   
   reporter: [
-    ['html', { outputFolder: '.ignore/playwright-report', open: 'never' }],
-    ['json', { outputFile: '.ignore/test-results/e2e-results.json' }],
-    ['junit', { outputFile: '.ignore/test-results/e2e-junit.xml' }],
+    ['html', { outputFolder: '../../.ignore/webserver/web/playwright-report', open: 'never' }],
+    ['json', { outputFile: '../../.ignore/webserver/web/test-results/e2e-results.json' }],
+    ['junit', { outputFile: '../../.ignore/webserver/web/test-results/e2e-junit.xml' }],
     ['list']
   ],
   

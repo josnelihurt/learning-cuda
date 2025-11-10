@@ -9,6 +9,45 @@ cd "$PROJECT_ROOT"
 export USER_ID=$(id -u)
 export GROUP_ID=$(id -g)
 
+# Helper to read version files without whitespace.
+read_version() {
+    local path="$1"
+    tr -d '[:space:]' < "$PROJECT_ROOT/$path"
+}
+
+ARCH="$(uname -m)"
+case "$ARCH" in
+    x86_64) ARCH="amd64" ;;
+    aarch64) ARCH="arm64" ;;
+esac
+
+DEFAULT_PROTO_VERSION="$(read_version proto/VERSION)"
+DEFAULT_CPP_VERSION="$(read_version cpp_accelerator/VERSION)"
+DEFAULT_GOLANG_VERSION="$(read_version webserver/VERSION)"
+DEFAULT_INTEGRATION_VERSION="$(read_version integration/VERSION)"
+
+LOCAL_REGISTRY="local/josnelihurt/learning-cuda"
+REMOTE_REGISTRY="ghcr.io/josnelihurt/learning-cuda"
+
+REMOTE_GOLANG_IMAGE="${REMOTE_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"
+LOCAL_GOLANG_IMAGE="${LOCAL_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"
+
+if docker image inspect "$REMOTE_GOLANG_IMAGE" >/dev/null 2>&1; then
+    DEFAULT_BASE_REGISTRY="$REMOTE_REGISTRY"
+elif docker image inspect "$LOCAL_GOLANG_IMAGE" >/dev/null 2>&1; then
+    DEFAULT_BASE_REGISTRY="$LOCAL_REGISTRY"
+else
+    DEFAULT_BASE_REGISTRY="$REMOTE_REGISTRY"
+fi
+DEFAULT_BASE_TAG="latest"
+
+export PROTO_VERSION="${PROTO_VERSION:-$DEFAULT_PROTO_VERSION}"
+export CPP_VERSION="${CPP_VERSION:-$DEFAULT_CPP_VERSION}"
+export GOLANG_VERSION="${GOLANG_VERSION:-$DEFAULT_GOLANG_VERSION}"
+export INTEGRATION_VERSION="${INTEGRATION_VERSION:-$DEFAULT_INTEGRATION_VERSION}"
+export BASE_REGISTRY="${BASE_REGISTRY:-$DEFAULT_BASE_REGISTRY}"
+export BASE_TAG="${BASE_TAG:-$DEFAULT_BASE_TAG}"
+
 TEST_TYPE="${1:-all}"
 
 if [[ "$TEST_TYPE" != "backend" && "$TEST_TYPE" != "e2e" && "$TEST_TYPE" != "all" ]]; then
@@ -24,10 +63,17 @@ echo "Running tests with Docker..."
 echo "Test type: $TEST_TYPE"
 echo "User: $USER_ID:$GROUP_ID"
 echo ""
+echo "Docker build context:"
+echo "  BASE_REGISTRY:     $BASE_REGISTRY"
+echo "  BASE_TAG:          $BASE_TAG"
+echo "  PROTO_VERSION:     $PROTO_VERSION"
+echo "  CPP_VERSION:       $CPP_VERSION"
+echo "  GOLANG_VERSION:    $GOLANG_VERSION"
+echo ""
 
 mkdir -p integration/tests/acceptance/.ignore/test-results
-mkdir -p webserver/web/.ignore/test-results
-mkdir -p webserver/web/.ignore/playwright-report
+mkdir -p .ignore/webserver/web/test-results
+mkdir -p .ignore/webserver/web/playwright-report
 
 echo "Note: Tests require local services running (Flipt + App)"
 echo "Make sure you've run: ./scripts/dev/start.sh"
@@ -61,6 +107,7 @@ if [[ "$TEST_TYPE" == "backend" || "$TEST_TYPE" == "all" ]]; then
     
     docker compose -f docker-compose.dev.yml --profile testing run \
       --rm \
+      --user "${USER_ID}:${GROUP_ID}" \
       integration-tests
     
     BACKEND_EXIT=$?
@@ -84,6 +131,7 @@ if [[ "$TEST_TYPE" == "e2e" || "$TEST_TYPE" == "all" ]]; then
     
     docker compose -f docker-compose.dev.yml --profile testing run \
       --rm \
+      --user "${USER_ID}:${GROUP_ID}" \
       e2e-tests
     
     E2E_EXIT=$?
@@ -136,7 +184,7 @@ fi
 if [[ "$TEST_TYPE" == "e2e" || "$TEST_TYPE" == "all" ]]; then
     echo ""
     echo "E2E Results:"
-    echo "  Location: webserver/web/.ignore/"
+    echo "  Location: .ignore/webserver/web/"
     echo "  Subdirs: test-results/, playwright-report/"
     echo ""
     echo "  View report:"

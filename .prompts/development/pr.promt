@@ -6,6 +6,7 @@ Goals:
 3. Ensure the remote branch is up to date by running `git push`. If the push is rejected, guide the user to resolve conflicts or create a new fix-up commit before retrying.
 4. Compose a professional pull request in clear, direct English that references the ticket and summarizes the changes, risks, and test coverage.
 5. Open the pull request targeting the correct base branch and confirm creation succeeded.
+6. Add to the PR the ticket that closes
 
 Workflow:
 1. Inspect the current branch name. Extract the ticket identifier when the branch matches patterns such as `feature/<id>-...` or `hotfix/<id>-...`. If extraction fails, stop and prompt the user to recreate the branch with the expected naming convention.

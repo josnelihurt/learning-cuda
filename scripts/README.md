@@ -52,4 +52,4 @@ flowchart LR
 - `docker/generate-certs.sh`: issues local TLS certs consumed by `scripts/dev/start.sh` and staging stacks.
 
 ## Runner Operations Reference
-For provisioning internals, troubleshooting workflows, and label conventions, refer to the dedicated CI documentation in [`.github/README.md`](../.github/README.md). The two documents complement each other: this file covers script entry points, while the CI doc explains how the workflows consume the resulting infrastructure.
+For provisioning internals, troubleshooting workflows, and label conventions, refer to the dedicated CI documentation in [`docs/ci-workflows.md`](../docs/ci-workflows.md). The two documents complement each other: this file covers script entry points, while the CI doc explains how the workflows consume the resulting infrastructure.

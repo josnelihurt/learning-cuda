@@ -43,6 +43,9 @@ FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH
 
 FROM bazel-external-deps AS cpp-built
 
+ARG BAZEL_REMOTE_CACHE=""
+ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
+
 WORKDIR /build
 
 COPY cpp_accelerator/ ./cpp_accelerator/
@@ -57,6 +60,14 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
 
 RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
+    CACHE_FLAGS="" && \
+    if [ -n "${BAZEL_REMOTE_CACHE}" ]; then \
+        echo "Using remote Bazel cache at ${BAZEL_REMOTE_CACHE}"; \
+        CACHE_FLAGS="${CACHE_FLAGS} --remote_cache=${BAZEL_REMOTE_CACHE} --experimental_remote_downloader=${BAZEL_REMOTE_CACHE}"; \
+        if [ "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}" = "true" ]; then \
+            CACHE_FLAGS="${CACHE_FLAGS} --remote_upload_local_results"; \
+        fi; \
+    fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
         bazel build \
@@ -65,7 +76,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
           --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache \
+          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
           //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
@@ -79,7 +90,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
           --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache \
+          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
           --linkopt="-Wl,--verbose" \
           --linkopt="-Wl,--stats" \
           //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \

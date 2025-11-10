@@ -59,6 +59,22 @@ locals {
       ipv4_gateway = try(instance.ipv4_gateway, null)
     }
   }
+
+  bazel_cache_instance = var.bazel_cache_instance
+  bazel_cache_details = local.bazel_cache_instance == null ? null : {
+    vm_id        = local.bazel_cache_instance.vm_id
+    ipv4_cidr    = local.bazel_cache_instance.ipv4_cidr
+    ipv4_address = element(split("/", local.bazel_cache_instance.ipv4_cidr), 0)
+    ipv4_gateway = try(local.bazel_cache_instance.ipv4_gateway, null)
+    cores        = local.bazel_cache_instance.cores
+    memory       = local.bazel_cache_instance.memory
+    rootfs_size  = local.bazel_cache_instance.rootfs_size
+  }
+  bazel_cache_connection = local.bazel_cache_instance == null ? null : {
+    host             = element(split("/", local.bazel_cache_instance.ipv4_cidr), 0)
+    user             = "root"
+    private_key_path = local.runner_private_key_path
+  }
 }
 
 provider "proxmox" {
@@ -70,7 +86,7 @@ provider "proxmox" {
 }
 
 resource "random_password" "runner_root" {
-  for_each        = local.runner_instances_map
+  for_each         = local.runner_instances_map
   length           = 24
   special          = true
   override_special = "!#%^*-_"
@@ -106,6 +122,48 @@ resource "proxmox_lxc" "runner" {
     bridge = var.pm_network_bridge
     ip     = each.value.ipv4_cidr
     gw     = try(each.value.ipv4_gateway, null)
+  }
+
+  ssh_public_keys = var.runner_ssh_public_key
+}
+
+resource "random_password" "bazel_cache_root" {
+  count            = local.bazel_cache_instance == null ? 0 : 1
+  length           = 24
+  special          = true
+  override_special = "!#%^*-_"
+}
+
+resource "proxmox_lxc" "bazel_cache" {
+  count        = local.bazel_cache_instance == null ? 0 : 1
+  target_node  = var.pm_target_node
+  vmid         = local.bazel_cache_instance.vm_id
+  hostname     = local.bazel_cache_instance.name
+  ostemplate   = var.pm_lxc_template
+  password     = random_password.bazel_cache_root[count.index].result
+  start        = true
+  onboot       = true
+  unprivileged = true
+  cores        = local.bazel_cache_instance.cores
+  memory       = local.bazel_cache_instance.memory
+  swap         = 0
+  ostype       = "ubuntu"
+  description  = "Terraform-managed Bazel remote cache"
+
+  features {
+    nesting = true
+  }
+
+  rootfs {
+    storage = var.pm_rootfs_storage
+    size    = local.bazel_cache_instance.rootfs_size
+  }
+
+  network {
+    name   = "eth0"
+    bridge = var.pm_network_bridge
+    ip     = local.bazel_cache_instance.ipv4_cidr
+    gw     = try(local.bazel_cache_instance.ipv4_gateway, null)
   }
 
   ssh_public_keys = var.runner_ssh_public_key

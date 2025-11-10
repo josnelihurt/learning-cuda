@@ -2,6 +2,17 @@ all:
   vars:
     runner_workdir: "/opt/actions-runner"
     runner_image_url: "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-x64-2.321.0.tar.gz"
+    bazel_remote_cache_dir: "/var/cache/bazel-remote"
+    bazel_remote_tmp_dir: "/var/cache/bazel-remote-tmp"
+    bazel_remote_bin_path: "/usr/local/bin/bazel-remote"
+    bazel_remote_service_user: "bazelremote"
+    bazel_remote_service_group: "bazelremote"
+    bazel_remote_version: "2.5.2"
+    bazel_remote_http_address: "0.0.0.0"
+    bazel_remote_http_port: 9090
+    bazel_remote_grpc_address: "0.0.0.0:9092"
+    bazel_remote_max_size_gib: 256
+    bazel_remote_arch: "linux-amd64"
   children:
     proxmox:
       vars:
@@ -22,3 +33,11 @@ all:
           ansible_python_interpreter: /usr/bin/python3
           ansible_ssh_private_key_file: "{{ runner_private_key_path }}"
           ansible_ssh_common_args: "{{ runner_ssh_common_args | default('-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null') }}"
+    bazel_cache:
+      hosts:
+        bazel_cache_host:
+          ansible_host: "{{ bazel_cache_host }}"
+          ansible_user: "{{ bazel_cache_user | default('root') }}"
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_ssh_private_key_file: "{{ bazel_cache_private_key_path | default(runner_private_key_path) }}"
+          ansible_ssh_common_args: "{{ bazel_cache_ssh_common_args | default('-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null') }}"

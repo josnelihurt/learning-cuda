@@ -237,16 +237,26 @@ run_cpp_built() {
   cpp_version="$(read_version "cpp_accelerator/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
+  local build_args=(
+    "--target" "artifacts"
+    "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
+    "--build-arg" "BASE_TAG=latest"
+    "--build-arg" "PROTO_VERSION=${proto_version}"
+  )
+
+  if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
+    build_args+=("--build-arg" "BAZEL_REMOTE_CACHE=${BAZEL_REMOTE_CACHE}")
+    if [[ -n "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS:-}" ]]; then
+      build_args+=("--build-arg" "BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS=${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}")
+    fi
+  fi
 
   print_stage_header "Building C++ intermediate (${cpp_version})"
   build_and_tag \
     "${version_tag}" \
     "${latest_tag}" \
     "cpp_accelerator/Dockerfile.build" \
-    "--target" "artifacts" \
-    "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
-    "--build-arg" "BASE_TAG=latest" \
-    "--build-arg" "PROTO_VERSION=${proto_version}"
+    "${build_args[@]}"
 }
 
 run_golang_built() {

@@ -1,16 +1,6 @@
 services:
   app:
-    image: cuda-learning-app:latest  
-    build: 
-      context: .
-      dockerfile: Dockerfile
-      args:
-        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
-        BASE_TAG: ${BASE_TAG:-latest}
-        TARGETARCH: ${TARGETARCH:-amd64}
-        PROTO_VERSION: ${PROTO_VERSION:-1.0.0}
-        CPP_VERSION: ${CPP_VERSION:-2.1.0}
-        GOLANG_VERSION: ${GOLANG_VERSION:-1.0.0}
+    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda:arm64-latest}
     container_name: cuda-image-processor
     restart: unless-stopped
     runtime: nvidia
@@ -258,6 +248,8 @@ services:
       - "traefik.http.services.flipt.loadbalancer.server.port=8080"
 
   test-reports:
+    profiles:
+      - reports
     build:
       context: .
       dockerfile: Dockerfile

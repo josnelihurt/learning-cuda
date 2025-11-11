@@ -851,7 +851,10 @@ jobs:
       - prepare
       - build_app
     runs-on: ["self-hosted", "Linux", "X64"]
-    if: github.event_name == 'push' && needs.prepare.outputs.app_build_amd64 == 'true'
+    if: (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' && github.head_ref == 'feature/572-add-proxmox-staging-lxc')
+      ) && needs.prepare.outputs.app_build_amd64 == 'true'
     env:
       STAGING_HOST: ${{ secrets.STAGING_SSH_HOST }}
       STAGING_USER: ${{ secrets.STAGING_SSH_USER }}

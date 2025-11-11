@@ -149,6 +149,39 @@
         - runner_state == 'present'
         - not (runner_service.stat.exists | default(false))
 
+    - name: Ensure runner systemd override directory exists
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ runner_service_name }}.service.d"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: runner_state == 'present'
+
+    - name: Configure runner restart policy override
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ runner_service_name }}.service.d/override.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          Restart=always
+          RestartSec=5
+          StartLimitIntervalSec=0
+      when: runner_state == 'present'
+
+    - name: Reload systemd after runner override
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: runner_state == 'present'
+
+    - name: Enable runner service at boot
+      ansible.builtin.systemd:
+        name: "{{ runner_service_name }}.service"
+        enabled: true
+      when: runner_state == 'present'
+
     - name: Ensure runner service is running
       ansible.builtin.command:
         cmd: "./svc.sh start"

@@ -255,6 +255,8 @@ services:
     image: cuda-learning-test-reports
     container_name: test-reports-staging
     restart: unless-stopped
+    profiles:
+      - reports
     
     
     command: npx http-server /app/reports -p 8080

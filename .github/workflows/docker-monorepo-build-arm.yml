@@ -838,7 +838,6 @@ jobs:
       JETSON_USER: ${{ secrets.JETSON_USER }}
       JETSON_APP_DIRECTORY: ${{ secrets.JETSON_APP_DIRECTORY }}
       JETSON_DEPLOYMENT_GROUP: ${{ secrets.JETSON_DEPLOYMENT_GROUP }}
-      APP_IMAGE: ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:${{ needs.prepare.outputs.app_tag }}-arm64
     steps:
       - name: Validate Jetson secrets
         env:
@@ -887,7 +886,9 @@ jobs:
 
           sudo_exec "chown -R \"${JETSON_USER}:${JETSON_DEPLOYMENT_GROUP}\" \"${TARGET}\""
 
-          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${APP_IMAGE}\" docker compose pull --ignore-buildable"
-          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${APP_IMAGE}\" docker compose up -d --remove-orphans"
+          app_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/app:${{ needs.prepare.outputs.app_tag }}-arm64"
+
+          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose pull --ignore-buildable"
+          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose up -d --remove-orphans"
 
           unset -v JETSON_SUDO_PASSWORD

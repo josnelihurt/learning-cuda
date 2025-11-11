@@ -860,11 +860,6 @@ jobs:
             printf 'Missing required Jetson secrets: %s\n' "${missing[*]}" >&2
             exit 1
           fi
-          current_ip=$(hostname -I | awk '{print $1}')
-          if [ -n "${JETSON_HOST}" ] && [ "${current_ip}" != "${JETSON_HOST}" ]; then
-            printf 'This job must run on %s but current host IP is %s\n' "${JETSON_HOST}" "${current_ip}" >&2
-            exit 1
-          fi
 
       - name: Checkout repository
         uses: actions/checkout@v4

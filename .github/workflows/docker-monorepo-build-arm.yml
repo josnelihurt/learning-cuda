@@ -842,7 +842,7 @@ jobs:
     env:
       JETSON_HOST: ${{ secrets.JETSON_HOST }}
       JETSON_USER: ${{ secrets.JETSON_USER }}
-      JETSON_APP_DIRECTORY: ${{ secrets.JETSON_APP_DIRECTORY }}
+      JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
       JETSON_DEPLOYMENT_GROUP: ${{ secrets.JETSON_DEPLOYMENT_GROUP }}
     steps:
       - name: Validate Jetson secrets

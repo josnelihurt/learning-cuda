@@ -826,3 +826,68 @@ jobs:
             docker push "$TAG_LATEST"
           fi
 
+  deploy_prod:
+    name: Deploy production (Jetson Nano)
+    needs:
+      - prepare
+      - build_app
+    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.prepare.outputs.app_build_arm64 == 'true'
+    env:
+      JETSON_HOST: ${{ secrets.JETSON_HOST }}
+      JETSON_USER: ${{ secrets.JETSON_USER }}
+      JETSON_APP_DIRECTORY: ${{ secrets.JETSON_APP_DIRECTORY }}
+      JETSON_DEPLOYMENT_GROUP: ${{ secrets.JETSON_DEPLOYMENT_GROUP }}
+      APP_IMAGE: ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}/app:${{ needs.prepare.outputs.app_tag }}-arm64
+    steps:
+      - name: Validate Jetson secrets
+        env:
+          JETSON_SUDO_PASSWORD: ${{ secrets.JETSON_SUDO_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for var in JETSON_HOST JETSON_USER JETSON_APP_DIRECTORY JETSON_DEPLOYMENT_GROUP JETSON_SUDO_PASSWORD; do
+            if [ -z "${!var:-}" ]; then
+              missing+=("$var")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Jetson secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          current_ip=$(hostname -I | awk '{print $1}')
+          if [ -n "${JETSON_HOST}" ] && [ "${current_ip}" != "${JETSON_HOST}" ]; then
+            printf 'This job must run on %s but current host IP is %s\n' "${JETSON_HOST}" "${current_ip}" >&2
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy application to Jetson Nano
+        env:
+          JETSON_SUDO_PASSWORD: ${{ secrets.JETSON_SUDO_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sudo_exec() {
+            local cmd=$1
+            printf '%s\n' "${JETSON_SUDO_PASSWORD}" | sudo -S -- bash -euo pipefail -c "${cmd}"
+          }
+
+          TARGET="${JETSON_APP_DIRECTORY}"
+          sudo_exec "mkdir -p \"${TARGET}/config\" \"${TARGET}/data\""
+
+          sudo_exec "install -m 0644 docker-compose.yml \"${TARGET}/docker-compose.yml\""
+          sudo_exec "install -m 0644 traefik-config.yml \"${TARGET}/traefik-config.yml\""
+          sudo_exec "install -m 0644 cloudflared-config.yml \"${TARGET}/cloudflared-config.yml\""
+
+          sudo_exec "rsync -a --delete \"${PWD}/config/\" \"${TARGET}/config/\""
+          sudo_exec "rsync -a --delete \"${PWD}/data/\" \"${TARGET}/data/\""
+
+          sudo_exec "chown -R \"${JETSON_USER}:${JETSON_DEPLOYMENT_GROUP}\" \"${TARGET}\""
+
+          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${APP_IMAGE}\" docker compose pull --ignore-buildable"
+          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${APP_IMAGE}\" docker compose up -d --remove-orphans"
+
+          unset -v JETSON_SUDO_PASSWORD

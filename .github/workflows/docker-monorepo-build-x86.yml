@@ -911,6 +911,5 @@ jobs:
           set -euo pipefail
           cd "${STAGING_WORKDIR}"
           APP_IMAGE="${APP_IMAGE}" docker compose pull --ignore-buildable
-          APP_IMAGE="${APP_IMAGE}" docker compose build test-reports
           APP_IMAGE="${APP_IMAGE}" docker compose up -d --remove-orphans
           EOF

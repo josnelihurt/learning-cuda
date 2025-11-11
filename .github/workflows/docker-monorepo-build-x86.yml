@@ -583,8 +583,22 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
+      - name: Detect Bazel remote cache
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        shell: bash
+        run: |
+          CACHE_HOST="192.168.10.80"
+          CACHE_STATUS_URL="http://${CACHE_HOST}:9090/status"
+          if curl -sf --connect-timeout 2 --max-time 4 "${CACHE_STATUS_URL}" >/dev/null; then
+            echo "BAZEL_REMOTE_CACHE=grpc://${CACHE_HOST}:9092" >> "$GITHUB_ENV"
+            echo "BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS=true" >> "$GITHUB_ENV"
+            echo "Detected bazel-remote cache at ${CACHE_HOST}"
+          else
+            echo "Bazel-remote cache not reachable; proceeding without remote cache."
+          fi
+
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        if: ${{ steps.gate.outputs.build == 'true' && needs.prepare.outputs.can_push == 'true' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -603,29 +617,25 @@ jobs:
           VERSION="${{ needs.prepare.outputs.cpp_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:cpp-built-latest-amd64"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            docker buildx build \
-              --platform linux/amd64 \
-              --target artifacts \
-              --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
-              --build-arg BASE_TAG=latest \
-              --build-arg TARGETARCH=amd64 \
-              --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
-              -f cpp_accelerator/Dockerfile.build \
-              -t "$TAG_VERSION" \
-              -t "$TAG_LATEST" \
-              --load \
-              .
-            DIGEST=$(docker image inspect "$TAG_VERSION" --format '{{.Id}}')
-          else
+          build_args=(
+            "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
+            "--build-arg" "BASE_TAG=latest"
+            "--build-arg" "TARGETARCH=amd64"
+            "--build-arg" "PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}"
+          )
+          CAN_PUSH="${{ needs.prepare.outputs.can_push }}"
+          if [ -n "${BAZEL_REMOTE_CACHE:-}" ]; then
+            build_args+=("--build-arg" "BAZEL_REMOTE_CACHE=${BAZEL_REMOTE_CACHE}")
+            if [ -n "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS:-}" ]; then
+              build_args+=("--build-arg" "BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS=${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}")
+            fi
+          fi
+          if [ "$CAN_PUSH" = "true" ]; then
             IIDFILE=$(mktemp)
             docker buildx build \
               --platform linux/amd64 \
               --target artifacts \
-              --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
-              --build-arg BASE_TAG=latest \
-              --build-arg TARGETARCH=amd64 \
-              --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+              "${build_args[@]}" \
               -f cpp_accelerator/Dockerfile.build \
               -t "$TAG_VERSION" \
               -t "$TAG_LATEST" \
@@ -633,6 +643,18 @@ jobs:
               --iidfile "$IIDFILE" \
               .
             DIGEST=$(cat "$IIDFILE")
+            docker buildx imagetools inspect "$DIGEST" >/dev/null 2>&1 || true
+          else
+            docker buildx build \
+              --platform linux/amd64 \
+              --target artifacts \
+              "${build_args[@]}" \
+              -f cpp_accelerator/Dockerfile.build \
+              -t "$TAG_VERSION" \
+              -t "$TAG_LATEST" \
+              --load \
+              .
+            DIGEST=$(docker image inspect "$TAG_VERSION" --format '{{.Id}}')
           fi
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 

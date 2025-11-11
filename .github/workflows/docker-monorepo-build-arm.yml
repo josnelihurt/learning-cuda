@@ -837,8 +837,7 @@ jobs:
       - prepare
       - build_app
     runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
-    if: |
-      needs.prepare.outputs.app_build_arm64 == 'true'
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.prepare.outputs.app_build_arm64 == 'true' }}
     env:
       JETSON_HOST: ${{ secrets.JETSON_HOST }}
       JETSON_USER: ${{ secrets.JETSON_USER }}

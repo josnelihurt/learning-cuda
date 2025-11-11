@@ -147,6 +147,7 @@ jobs:
           BAZEL_BASE_VERSION: ${{ steps.versions.outputs.bazel_base_version }}
           RUNTIME_BASE_VERSION: ${{ steps.versions.outputs.runtime_base_version }}
           INTEGRATION_BASE_VERSION: ${{ steps.versions.outputs.integration_base_version }}
+          FORCE_APP_DEPLOY: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/572-add-proxmox-staging-lxc' || github.event_name == 'workflow_dispatch' }}
         run: |
           python <<'PY'
           import json
@@ -208,6 +209,10 @@ jobs:
                   or version_tag_missing
                   or latest_missing
               )
+
+          if os.environ.get("FORCE_APP_DEPLOY", "").lower() == "true":
+              for arch in arches:
+                  app_matrix[arch] = True
 
           outputs = {
               "app_tag": app_tag,

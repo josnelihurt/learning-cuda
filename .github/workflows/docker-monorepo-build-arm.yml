@@ -835,7 +835,8 @@ jobs:
     if: (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
         (github.event_name == 'push' && github.ref == 'refs/heads/feature/572-add-proxmox-staging-lxc') ||
-        (github.event_name == 'pull_request' && github.head_ref == 'feature/572-add-proxmox-staging-lxc')
+        (github.event_name == 'pull_request' && github.head_ref == 'feature/572-add-proxmox-staging-lxc') ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/572-add-proxmox-staging-lxc')
       ) && needs.prepare.outputs.app_build_arm64 == 'true'
     env:
       JETSON_HOST: ${{ secrets.JETSON_HOST }}

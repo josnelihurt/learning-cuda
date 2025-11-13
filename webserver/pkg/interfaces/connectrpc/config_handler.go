@@ -10,6 +10,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -21,6 +22,7 @@ type ConfigHandler struct {
 	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
 	getSystemInfoUseCase   *application.GetSystemInfoUseCase
 	configManager          *config.Manager
+	cppConnector           *processor.CppConnector
 }
 
 func NewConfigHandler(
@@ -30,6 +32,7 @@ func NewConfigHandler(
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
 	getSystemInfoUC *application.GetSystemInfoUseCase,
 	configManager *config.Manager,
+	cppConnector *processor.CppConnector,
 ) *ConfigHandler {
 	return &ConfigHandler{
 		getStreamConfigUseCase: getStreamConfigUC,
@@ -38,6 +41,7 @@ func NewConfigHandler(
 		evaluateFFUseCase:      evaluateFFUC,
 		getSystemInfoUseCase:   getSystemInfoUC,
 		configManager:          configManager,
+		cppConnector:           cppConnector,
 	}
 }
 
@@ -303,6 +307,50 @@ func (h *ConfigHandler) GetSystemInfo(
 
 	log.Printf("GetSystemInfo: returning system info for environment: %s, go_version: %s",
 		systemInfo.Environment, systemInfo.Version.GoVersion)
+
+	return connect.NewResponse(response), nil
+}
+
+func (h *ConfigHandler) GetProcessorStatus(
+	ctx context.Context,
+	req *connect.Request[pb.GetProcessorStatusRequest],
+) (*connect.Response[pb.GetProcessorStatusResponse], error) {
+	span := trace.SpanFromContext(ctx)
+
+	if h.cppConnector == nil {
+		span.RecordError(fmt.Errorf("C++ connector not available"))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("processor not available"))
+	}
+
+	capabilities := h.cppConnector.GetCapabilities()
+	apiVersion := h.cppConnector.GetAPIVersion()
+	libraryVersion, err := h.cppConnector.GetLibraryVersion()
+	if err != nil {
+		libraryVersion = "unknown"
+	}
+
+	span.SetAttributes(
+		attribute.String("processor.api_version", apiVersion),
+		attribute.String("processor.library_version", libraryVersion),
+	)
+
+	if capabilities == nil {
+		span.RecordError(fmt.Errorf("capabilities not available"))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("processor capabilities not available"))
+	}
+
+	response := &pb.GetProcessorStatusResponse{
+		ApiVersion:     apiVersion,
+		Capabilities:   capabilities,
+		CurrentLibrary: libraryVersion,
+	}
+
+	span.SetAttributes(
+		attribute.Int("processor.filter_count", len(capabilities.Filters)),
+	)
+
+	log.Printf("GetProcessorStatus: returning capabilities with %d filters, api_version: %s, library_version: %s",
+		len(capabilities.Filters), apiVersion, libraryVersion)
 
 	return connect.NewResponse(response), nil
 }

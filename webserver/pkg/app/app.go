@@ -11,6 +11,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/pkg/interfaces/http"
@@ -36,6 +37,7 @@ type App struct {
 	registry              *loader.Registry
 	currentLoader         **loader.Loader
 	loaderMutex           *sync.RWMutex
+	cppConnector          *processor.CppConnector
 	interceptors          []connect.Interceptor
 }
 
@@ -143,6 +145,12 @@ func WithLoaderMutex(mu *sync.RWMutex) Option {
 	}
 }
 
+func WithCppConnector(connector *processor.CppConnector) Option {
+	return func(a *App) {
+		a.cppConnector = connector
+	}
+}
+
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
 	if !a.config.IsObservabilityEnabled(a.appContext) {
 		return handler
@@ -193,6 +201,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.evaluateFFUC,
 		a.getSystemInfoUC,
 		a.config,
+		a.cppConnector,
 		a.interceptors...,
 	)
 
@@ -218,6 +227,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		CurrentLoader:         a.currentLoader,
 		LoaderMutex:           a.loaderMutex,
 		ConfigManager:         a.config,
+		CppConnector:          a.cppConnector,
 		ListAvailableImagesUC: a.listAvailableImagesUC,
 		UploadImageUC:         a.uploadImageUC,
 		ListVideosUC:          a.listVideosUC,

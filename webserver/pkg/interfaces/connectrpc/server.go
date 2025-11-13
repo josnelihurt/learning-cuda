@@ -7,6 +7,7 @@ import (
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 )
 
 func RegisterRoutes(mux *http.ServeMux, useCase *application.ProcessImageUseCase) {
@@ -33,9 +34,16 @@ func RegisterConfigService(
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
 	getSystemInfoUC *application.GetSystemInfoUseCase,
 	configManager *config.Manager,
+	cppConnector interface{},
 	interceptors ...connect.Interceptor,
 ) {
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, configManager)
+	var connector *processor.CppConnector
+	if cppConnector != nil {
+		if c, ok := cppConnector.(*processor.CppConnector); ok {
+			connector = c
+		}
+	}
+	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, configManager, connector)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

@@ -107,9 +107,9 @@ message GetAvailableToolsResponse {
 
 // System information
 message SystemVersion {
-  string cpp_version = 1 [json_name = "cpp_version"];
-  string go_version = 3 [json_name = "go_version"];
-  string js_version = 5 [json_name = "js_version"];
+  string go_version = 1 [json_name = "go_version"];
+  string cpp_version = 3 [json_name = "cpp_version"];
+  string proto_version = 5 [json_name = "proto_version"];
   string branch = 7 [json_name = "branch"];
   string build_time = 9 [json_name = "build_time"];
   string commit_hash = 11 [json_name = "commit_hash"];
@@ -122,10 +122,7 @@ message GetSystemInfoRequest {
 message GetSystemInfoResponse {
   SystemVersion version = 1 [json_name = "version"];
   string environment = 3 [json_name = "environment"];
-  string current_library = 5 [json_name = "current_library"];
-  string api_version = 7 [json_name = "api_version"];
-  repeated string available_libraries = 9 [json_name = "available_libraries"];
-  TraceContext trace_context = 11 [json_name = "trace_context"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
 }
 
 service ConfigService {
@@ -147,20 +144,6 @@ service ConfigService {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = {
       get: "/api/v1/config/inputs"
-    };
-  }
-  
-  rpc GetProcessorStatus(GetProcessorStatusRequest) returns (GetProcessorStatusResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = {
-      get: "/api/v1/config/processor/status"
-    };
-  }
-  
-  rpc ReloadProcessor(ReloadProcessorRequest) returns (ReloadProcessorResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/config/processor/reload"
-      body: "*"
     };
   }
   

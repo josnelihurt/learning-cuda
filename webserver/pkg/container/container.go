@@ -2,7 +2,7 @@ package container
 
 import (
 	"context"
-
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,6 +17,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/version"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/video"
 	flipt "go.flipt.io/flipt-client"
 )
@@ -91,46 +92,50 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		featureFlagRepo = featureflags.NewFliptRepository(fliptClientProxy, fliptWriter)
 	}
 
-	registry := loader.NewRegistry(cfg.Processor.LibraryBasePath)
-	if discoverErr := registry.Discover(); discoverErr != nil {
-		log.Warn().
-			Err(discoverErr).
-			Str("library_path", cfg.Processor.LibraryBasePath).
-			Msg("Failed to discover processor libraries")
+	buildInfo := build.NewBuildInfo()
+
+	// Create repository implementations
+	configRepo := configrepo.NewConfigRepository(cfg)
+	buildInfoRepo := build.NewBuildInfoRepository(buildInfo)
+	versionRepo := version.NewVersionRepository()
+
+	// Read C++ version from VERSION file
+	cppVersion := versionRepo.GetCppVersion()
+	if cppVersion == version.UnknownValue {
+		return nil, fmt.Errorf("failed to read C++ version from VERSION file")
 	}
 
-	libInfo, err := registry.GetByVersion(cfg.Processor.DefaultLibrary)
+	// Discover and load the specific C++ library version
+	registry := loader.NewRegistry(cfg.Processor.LibraryBasePath)
+	if discoverErr := registry.Discover(); discoverErr != nil {
+		return nil, fmt.Errorf("failed to discover processor libraries: %w", discoverErr)
+	}
+
+	libInfo, err := registry.GetByVersion(cppVersion)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("C++ library version %s not found: %w", cppVersion, err)
 	}
 
 	log.Info().
 		Str("library_path", libInfo.Path).
-		Str("version", cfg.Processor.DefaultLibrary).
+		Str("version", cppVersion).
 		Msg("Loading processor library")
 
-	processorLoader, err := registry.LoadLibrary(cfg.Processor.DefaultLibrary)
+	processorLoader, err := registry.LoadLibrary(cppVersion)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load C++ library version %s: %w", cppVersion, err)
 	}
 
 	cppConnector, err := processor.New(libInfo.Path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create C++ connector: %w", err)
 	}
 
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 
-	buildInfo := build.NewBuildInfo()
-
-	// Create repository implementations
-	processorRepo := processor.NewProcessorRepository(registry)
-	configRepo := configrepo.NewConfigRepository(cfg)
-	buildInfoRepo := build.NewBuildInfoRepository(buildInfo)
-
-	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(processorRepo, configRepo, buildInfoRepo)
+	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
 
 	videoRepo := video.NewFileVideoRepository(context.Background(), "data/videos", "data/video_previews") //nolint:contextcheck
 	listInputsUseCase := application.NewListInputsUseCase(videoRepo)

@@ -192,9 +192,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.listInputsUC,
 		a.evaluateFFUC,
 		a.getSystemInfoUC,
-		a.registry,
-		a.currentLoader,
-		a.loaderMutex,
 		a.config,
 		a.interceptors...,
 	)

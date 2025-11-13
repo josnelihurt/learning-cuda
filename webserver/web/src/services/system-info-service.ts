@@ -48,23 +48,22 @@ class SystemInfoService {
 
           this.systemInfo = response;
 
-          span?.setAttribute('system.version.cpp', response.version?.cppVersion || '');
           span?.setAttribute('system.version.go', response.version?.goVersion || '');
-          span?.setAttribute('system.version.js', response.version?.jsVersion || '');
+          span?.setAttribute('system.version.cpp', response.version?.cppVersion || '');
+          span?.setAttribute('system.version.proto', response.version?.protoVersion || '');
           span?.setAttribute('system.version.branch', response.version?.branch || '');
+          span?.setAttribute('system.version.build_time', response.version?.buildTime || '');
           span?.setAttribute('system.version.commit_hash', response.version?.commitHash || '');
           span?.setAttribute('system.environment', response.environment);
-          span?.setAttribute('system.current_library', response.currentLibrary);
-          span?.setAttribute('system.api_version', response.apiVersion);
-          span?.setAttribute('system.available_libraries_count', response.availableLibraries.length);
 
           span?.addEvent('System information loaded successfully');
 
           logger.info('System information loaded', {
-            'system.version.js': response.version?.jsVersion || '',
+            'system.version.go': response.version?.goVersion || '',
+            'system.version.cpp': response.version?.cppVersion || '',
+            'system.version.proto': response.version?.protoVersion || '',
             'system.version.branch': response.version?.branch || '',
             'system.environment': response.environment,
-            'system.current_library': response.currentLibrary,
           });
         } catch (error) {
           span?.addEvent('Failed to load system info');

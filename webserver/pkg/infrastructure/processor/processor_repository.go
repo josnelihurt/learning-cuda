@@ -22,41 +22,6 @@ func NewProcessorRepository(registry *loader.Registry) interfaces.ProcessorRepos
 	}
 }
 
-func (r *RepositoryImpl) GetAvailableLibraries() []string {
-	if r.registry == nil {
-		return []string{}
-	}
-	return r.registry.ListVersions()
-}
-
-func (r *RepositoryImpl) GetCurrentLibrary() string {
-	if r.registry == nil {
-		return UnknownValue
-	}
-
-	// Try to get the latest library as current
-	if libInfo, err := r.registry.GetLatest(); err == nil {
-		return libInfo.Metadata.Version
-	}
-
-	return UnknownValue
-}
-
-func (r *RepositoryImpl) GetAPIVersion() string {
-	if r.registry == nil {
-		return UnknownValue
-	}
-
-	// Try to get API version from latest library
-	if libInfo, err := r.registry.GetLatest(); err == nil {
-		if libInfo.Metadata.APIVersion != "" {
-			return libInfo.Metadata.APIVersion
-		}
-	}
-
-	return UnknownValue
-}
-
 func (r *RepositoryImpl) GetLibraryVersion() string {
 	if r.registry == nil {
 		return UnknownValue

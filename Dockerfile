@@ -205,6 +205,11 @@ COPY config/config.yaml /app/config/config.yaml
 # Create production configuration
 COPY config/config.production.yaml /app/config/config.production.yaml
 
+# Copy VERSION files for version detection
+COPY webserver/VERSION /app/webserver/VERSION
+COPY cpp_accelerator/VERSION /app/cpp_accelerator/VERSION
+COPY proto/VERSION /app/proto/VERSION
+
 # Update shared library cache for dynamic loading
 RUN ldconfig
 

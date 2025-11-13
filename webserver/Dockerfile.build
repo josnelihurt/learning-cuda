@@ -23,6 +23,15 @@ WORKDIR /build/webserver
 ARG CGO_ENABLED=1
 ENV CGO_ENABLED=${CGO_ENABLED}
 
+# Build-time information for ldflags
+ARG BRANCH
+ARG COMMIT_HASH
+ARG BUILD_TIME
+
+ENV BRANCH=${BRANCH}
+ENV COMMIT_HASH=${COMMIT_HASH}
+ENV BUILD_TIME=${BUILD_TIME}
+
 RUN make build
 
 RUN mkdir -p /artifacts/bin && \

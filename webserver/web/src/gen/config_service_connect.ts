@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAvailableToolsRequest, GetAvailableToolsResponse, GetProcessorStatusRequest, GetProcessorStatusResponse, GetStreamConfigRequest, GetStreamConfigResponse, GetSystemInfoRequest, GetSystemInfoResponse, ListInputsRequest, ListInputsResponse, ReloadProcessorRequest, ReloadProcessorResponse, SyncFeatureFlagsRequest, SyncFeatureFlagsResponse } from "./config_service_pb.js";
+import { GetAvailableToolsRequest, GetAvailableToolsResponse, GetStreamConfigRequest, GetStreamConfigResponse, GetSystemInfoRequest, GetSystemInfoResponse, ListInputsRequest, ListInputsResponse, SyncFeatureFlagsRequest, SyncFeatureFlagsResponse } from "./config_service_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -40,25 +40,6 @@ export const ConfigService = {
       O: ListInputsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * @generated from rpc cuda_learning.ConfigService.GetProcessorStatus
-     */
-    getProcessorStatus: {
-      name: "GetProcessorStatus",
-      I: GetProcessorStatusRequest,
-      O: GetProcessorStatusResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * @generated from rpc cuda_learning.ConfigService.ReloadProcessor
-     */
-    reloadProcessor: {
-      name: "ReloadProcessor",
-      I: ReloadProcessorRequest,
-      O: ReloadProcessorResponse,
-      kind: MethodKind.Unary,
     },
     /**
      * @generated from rpc cuda_learning.ConfigService.GetAvailableTools

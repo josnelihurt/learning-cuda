@@ -4,15 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
-	"time"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -23,9 +20,6 @@ type ConfigHandler struct {
 	listInputsUseCase      *application.ListInputsUseCase
 	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
 	getSystemInfoUseCase   *application.GetSystemInfoUseCase
-	registry               *loader.Registry
-	currentLoader          **loader.Loader
-	loaderMutex            *sync.RWMutex
 	configManager          *config.Manager
 }
 
@@ -35,9 +29,6 @@ func NewConfigHandler(
 	listInputsUC *application.ListInputsUseCase,
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
 	getSystemInfoUC *application.GetSystemInfoUseCase,
-	registry *loader.Registry,
-	currentLoader **loader.Loader,
-	loaderMutex *sync.RWMutex,
 	configManager *config.Manager,
 ) *ConfigHandler {
 	return &ConfigHandler{
@@ -46,9 +37,6 @@ func NewConfigHandler(
 		listInputsUseCase:      listInputsUC,
 		evaluateFFUseCase:      evaluateFFUC,
 		getSystemInfoUseCase:   getSystemInfoUC,
-		registry:               registry,
-		currentLoader:          currentLoader,
-		loaderMutex:            loaderMutex,
 		configManager:          configManager,
 	}
 }
@@ -197,75 +185,6 @@ func (h *ConfigHandler) ListInputs(
 	}), nil
 }
 
-func (h *ConfigHandler) GetProcessorStatus(
-	ctx context.Context,
-	req *connect.Request[pb.GetProcessorStatusRequest],
-) (*connect.Response[pb.GetProcessorStatusResponse], error) {
-	span := trace.SpanFromContext(ctx)
-
-	h.loaderMutex.RLock()
-	currentLoader := *h.currentLoader
-	h.loaderMutex.RUnlock()
-
-	caps := currentLoader.CachedCapabilities()
-	availableLibs := h.registry.ListVersions()
-
-	span.SetAttributes(
-		attribute.String("processor.current_version", currentLoader.GetVersion()),
-		attribute.Int("processor.available_count", len(availableLibs)),
-	)
-
-	return connect.NewResponse(&pb.GetProcessorStatusResponse{
-		CurrentLibrary:     currentLoader.GetVersion(),
-		ApiVersion:         loader.CurrentAPIVersion,
-		Capabilities:       caps,
-		AvailableLibraries: availableLibs,
-	}), nil
-}
-
-func (h *ConfigHandler) ReloadProcessor(
-	ctx context.Context,
-	req *connect.Request[pb.ReloadProcessorRequest],
-) (*connect.Response[pb.ReloadProcessorResponse], error) {
-	span := trace.SpanFromContext(ctx)
-
-	version := req.Msg.Version
-	if version == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			fmt.Errorf("version is required"))
-	}
-
-	newLoader, err := h.registry.LoadLibrary(version)
-	if err != nil {
-		span.RecordError(err)
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-
-	h.loaderMutex.Lock()
-	oldLoader := *h.currentLoader
-	*h.currentLoader = newLoader
-	h.loaderMutex.Unlock()
-
-	go func() {
-		time.Sleep(5 * time.Second)
-		if oldLoader != nil {
-			oldLoader.Cleanup()
-		}
-	}()
-
-	span.SetAttributes(
-		attribute.String("processor.old_version", oldLoader.GetVersion()),
-		attribute.String("processor.new_version", version),
-	)
-
-	log.Printf("Processor library reloaded: %s -> %s", oldLoader.GetVersion(), version)
-
-	return connect.NewResponse(&pb.ReloadProcessorResponse{
-		Status:  "success",
-		Message: "Processor library reloaded to version " + version,
-	}), nil
-}
-
 func (h *ConfigHandler) GetAvailableTools(
 	ctx context.Context,
 	req *connect.Request[pb.GetAvailableToolsRequest],
@@ -361,34 +280,29 @@ func (h *ConfigHandler) GetSystemInfo(
 	// Map domain to proto
 	response := &pb.GetSystemInfoResponse{
 		Version: &pb.SystemVersion{
-			CppVersion: systemInfo.Version.CppVersion,
-			GoVersion:  systemInfo.Version.GoVersion,
-			JsVersion:  systemInfo.Version.JsVersion,
-			Branch:     systemInfo.Version.Branch,
-			BuildTime:  systemInfo.Version.BuildTime,
-			CommitHash: systemInfo.Version.CommitHash,
+			GoVersion:    systemInfo.Version.GoVersion,
+			CppVersion:   systemInfo.Version.CppVersion,
+			ProtoVersion: systemInfo.Version.ProtoVersion,
+			Branch:       systemInfo.Version.Branch,
+			BuildTime:    systemInfo.Version.BuildTime,
+			CommitHash:   systemInfo.Version.CommitHash,
 		},
-		Environment:        systemInfo.Environment,
-		CurrentLibrary:     systemInfo.CurrentLibrary,
-		ApiVersion:         systemInfo.APIVersion,
-		AvailableLibraries: systemInfo.AvailableLibraries,
+		Environment: systemInfo.Environment,
 	}
 
 	// Set span attributes
 	span.SetAttributes(
-		attribute.String("system.version.cpp", systemInfo.Version.CppVersion),
 		attribute.String("system.version.go", systemInfo.Version.GoVersion),
-		attribute.String("system.version.js", systemInfo.Version.JsVersion),
+		attribute.String("system.version.cpp", systemInfo.Version.CppVersion),
+		attribute.String("system.version.proto", systemInfo.Version.ProtoVersion),
 		attribute.String("system.version.branch", systemInfo.Version.Branch),
+		attribute.String("system.version.build_time", systemInfo.Version.BuildTime),
 		attribute.String("system.version.commit_hash", systemInfo.Version.CommitHash),
 		attribute.String("system.environment", systemInfo.Environment),
-		attribute.String("system.current_library", systemInfo.CurrentLibrary),
-		attribute.String("system.api_version", systemInfo.APIVersion),
-		attribute.Int("system.available_libraries_count", len(systemInfo.AvailableLibraries)),
 	)
 
-	log.Printf("GetSystemInfo: returning system info for environment: %s, version: %s",
-		systemInfo.Environment, systemInfo.Version.JsVersion)
+	log.Printf("GetSystemInfo: returning system info for environment: %s, go_version: %s",
+		systemInfo.Environment, systemInfo.Version.GoVersion)
 
 	return connect.NewResponse(response), nil
 }

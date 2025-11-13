@@ -48,7 +48,7 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 
 	configHandler := NewConfigHandler(
 		cfg.GetStreamConfigUC, cfg.SyncFlagsUC, cfg.ListInputsUC, cfg.EvaluateFFUC,
-		cfg.GetSystemInfoUC, cfg.Registry, cfg.CurrentLoader, cfg.LoaderMutex, cfg.ConfigManager,
+		cfg.GetSystemInfoUC, cfg.ConfigManager,
 	)
 	_, configConnectHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 

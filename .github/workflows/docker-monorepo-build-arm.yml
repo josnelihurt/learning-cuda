@@ -705,12 +705,19 @@ jobs:
           VERSION="${{ needs.prepare.outputs.golang_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:golang-built-latest-arm64"
+          # Extract branch name from ref (remove refs/heads/ or refs/tags/ prefix)
+          BRANCH_NAME="${{ github.ref_name }}"
+          COMMIT_SHA="${{ github.sha }}"
+          BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           docker build \
             --target artifacts \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=arm64 \
             --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+            --build-arg BRANCH="${BRANCH_NAME}" \
+            --build-arg COMMIT_HASH="${COMMIT_SHA:0:7}" \
+            --build-arg BUILD_TIME="${BUILD_TIMESTAMP}" \
             -f webserver/Dockerfile.build \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \

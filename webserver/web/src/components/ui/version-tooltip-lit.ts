@@ -1,16 +1,19 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { systemInfoService } from '../../services/system-info-service';
+import { GetSystemInfoResponse } from '../../gen/config_service_pb';
+
+interface VersionField {
+  label: string;
+  value: string;
+  path: string;
+}
 
 @customElement('version-tooltip-lit')
 export class VersionTooltipLit extends LitElement {
   @state() private isOpen = false;
-  @state() private cppVersion = 'Loading...';
-  @state() private goVersion = 'Loading...';
-  @state() private jsVersion = 'Loading...';
-  @state() private branch = 'Loading...';
-  @state() private buildTime = 'Loading...';
-  @state() private commitHash = 'Loading...';
+  @state() private versionFields: VersionField[] = [];
+  @state() private environment = 'Loading...';
   @state() private isLoading = true;
 
   static styles = css`
@@ -84,18 +87,23 @@ export class VersionTooltipLit extends LitElement {
     .version-label {
       font-weight: 600;
       color: #333;
-      min-width: 50px;
+      min-width: 120px;
     }
 
     .version-value {
       color: #666;
       font-family: monospace;
     }
+
+    .environment-section {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
   `;
 
   connectedCallback() {
     super.connectedCallback();
-    console.log('VersionTooltipLit connected');
     this.setupEventListeners();
     this.loadSystemInfo();
   }
@@ -112,37 +120,58 @@ export class VersionTooltipLit extends LitElement {
     });
   }
 
+  private extractVersionFields(systemInfo: GetSystemInfoResponse): VersionField[] {
+    const fields: VersionField[] = [];
+    
+    if (!systemInfo.version) {
+      return fields;
+    }
+
+    const version = systemInfo.version;
+    const fieldMap: Array<{ key: string; label: string; format?: (v: string) => string }> = [
+      { key: 'goVersion', label: 'Go Version' },
+      { key: 'cppVersion', label: 'C++ Version' },
+      { key: 'protoVersion', label: 'Proto Version' },
+      { key: 'branch', label: 'Branch' },
+      { key: 'buildTime', label: 'Build Time', format: (v) => new Date(v).toLocaleString() },
+      { key: 'commitHash', label: 'Commit Hash' },
+    ];
+
+    for (const { key, label, format } of fieldMap) {
+      const value = (version as any)[key] as string | undefined;
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        fields.push({
+          label,
+          value: format ? format(value) : value,
+          path: `version.${key}`,
+        });
+      }
+    }
+
+    return fields;
+  }
+
   private async loadSystemInfo() {
     try {
       const systemInfo = await systemInfoService.getSystemInfo();
       
-      this.cppVersion = systemInfo.version?.cppVersion || 'Unknown';
-      this.goVersion = systemInfo.version?.goVersion || 'Unknown';
-      this.jsVersion = systemInfo.version?.jsVersion || 'Unknown';
-      this.branch = systemInfo.version?.branch || 'Unknown';
-      this.buildTime = systemInfo.version?.buildTime || 'Unknown';
-      this.commitHash = systemInfo.version?.commitHash || 'Unknown';
+      this.versionFields = this.extractVersionFields(systemInfo);
+      this.environment = systemInfo.environment || 'Unknown';
       this.isLoading = false;
     } catch (error) {
       console.error('Failed to load system info:', error);
-      this.cppVersion = 'Error';
-      this.goVersion = 'Error';
-      this.jsVersion = 'Error';
-      this.branch = 'Error';
-      this.buildTime = 'Error';
-      this.commitHash = 'Error';
+      this.versionFields = [];
+      this.environment = 'Error';
       this.isLoading = false;
     }
   }
 
   private handleSlotClick() {
-    console.log('Slot clicked');
     this.isOpen = !this.isOpen;
   }
 
   private handleCloseClick(e: Event) {
     e.stopPropagation();
-    console.log('Close clicked');
     this.close();
   }
 
@@ -159,33 +188,22 @@ export class VersionTooltipLit extends LitElement {
           <button class="tooltip-close" @click=${this.handleCloseClick} title="Close">×</button>
         </div>
         <div class="version-info">
-          <div class="version-item">
-            <span class="version-label">C++:</span>
-            <span class="version-value">${this.cppVersion}</span>
-          </div>
-          <div class="version-item">
-            <span class="version-label">Go:</span>
-            <span class="version-value">${this.goVersion}</span>
-          </div>
-          <div class="version-item">
-            <span class="version-label">JS:</span>
-            <span class="version-value">${this.jsVersion}</span>
-          </div>
-          <div class="version-item">
-            <span class="version-label">Branch:</span>
-            <span class="version-value">${this.branch}</span>
-          </div>
-          <div class="version-item">
-            <span class="version-label">Build:</span>
-            <span class="version-value">${this.buildTime}</span>
-          </div>
-          <div class="version-item">
-            <span class="version-label">Commit:</span>
-            <span class="version-value">${this.commitHash}</span>
-          </div>
-          <div class="version-item">
-            <span class="version-label">Dockerfiles:</span>
-            <span class="version-value"></span>
+          ${this.isLoading
+            ? html`<div class="version-item">Loading...</div>`
+            : this.versionFields.map(
+                (field) => html`
+                  <div class="version-item">
+                    <span class="version-label">${field.label}:</span>
+                    <span class="version-value">${field.value}</span>
+                  </div>
+                `
+              )
+          }
+          <div class="environment-section">
+            <div class="version-item">
+              <span class="version-label">Environment:</span>
+              <span class="version-value">${this.environment}</span>
+            </div>
           </div>
         </div>
       </div>

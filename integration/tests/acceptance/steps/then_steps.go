@@ -289,9 +289,6 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the version should have ([^"]*)$`, tc.theVersionShouldHave)
 	ctx.Step(`^the response should include environment$`, tc.theResponseShouldIncludeEnvironment)
 	ctx.Step(`^the environment should be "([^"]*)" or "([^"]*)"$`, tc.theEnvironmentShouldBeOneOf)
-	ctx.Step(`^the response should include current_library$`, tc.theResponseShouldIncludeCurrentLibrary)
-	ctx.Step(`^the response should include api_version$`, tc.theResponseShouldIncludeApiVersion)
-	ctx.Step(`^the response should include available_libraries$`, tc.theResponseShouldIncludeAvailableLibraries)
 	ctx.Step(`^the ([^"]*) should not be empty$`, tc.theFieldShouldNotBeEmpty)
 }
 
@@ -313,18 +310,6 @@ func (tc *TestContext) theResponseShouldIncludeEnvironment() error {
 
 func (tc *TestContext) theEnvironmentShouldBeOneOf(env1, env2 string) error {
 	return tc.ThenTheEnvironmentShouldBe(env1)
-}
-
-func (tc *TestContext) theResponseShouldIncludeCurrentLibrary() error {
-	return tc.ThenTheResponseShouldIncludeCurrentLibrary()
-}
-
-func (tc *TestContext) theResponseShouldIncludeApiVersion() error {
-	return tc.ThenTheResponseShouldIncludeApiVersion()
-}
-
-func (tc *TestContext) theResponseShouldIncludeAvailableLibraries() error {
-	return tc.ThenTheResponseShouldIncludeAvailableLibraries()
 }
 
 func (tc *TestContext) theFieldShouldNotBeEmpty(field string) error {

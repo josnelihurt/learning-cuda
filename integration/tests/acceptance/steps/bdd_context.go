@@ -2213,9 +2213,9 @@ func (c *BDDContext) ThenTheVersionShouldHave(field string) error {
 		if version.GoVersion == "" {
 			return fmt.Errorf("go_version is empty")
 		}
-	case "js_version":
-		if version.JsVersion == "" {
-			return fmt.Errorf("js_version is empty")
+	case "proto_version":
+		if version.ProtoVersion == "" {
+			return fmt.Errorf("proto_version is empty")
 		}
 	case "branch":
 		if version.Branch == "" {
@@ -2259,34 +2259,6 @@ func (c *BDDContext) ThenTheEnvironmentShouldBe(expected string) error {
 	return nil
 }
 
-func (c *BDDContext) ThenTheResponseShouldIncludeCurrentLibrary() error {
-	if c.systemInfoResponse == nil {
-		return fmt.Errorf("no system info response received")
-	}
-	if c.systemInfoResponse.CurrentLibrary == "" {
-		return fmt.Errorf("current_library is empty")
-	}
-	return nil
-}
-
-func (c *BDDContext) ThenTheResponseShouldIncludeApiVersion() error {
-	if c.systemInfoResponse == nil {
-		return fmt.Errorf("no system info response received")
-	}
-	if c.systemInfoResponse.ApiVersion == "" {
-		return fmt.Errorf("api_version is empty")
-	}
-	return nil
-}
-
-func (c *BDDContext) ThenTheResponseShouldIncludeAvailableLibraries() error {
-	if c.systemInfoResponse == nil {
-		return fmt.Errorf("no system info response received")
-	}
-	// Available libraries can be empty, so we just check that the field exists
-	return nil
-}
-
 func (c *BDDContext) ThenTheFieldShouldNotBeEmpty(field string) error {
 	if c.systemInfoResponse == nil {
 		return fmt.Errorf("no system info response received")
@@ -2301,9 +2273,9 @@ func (c *BDDContext) ThenTheFieldShouldNotBeEmpty(field string) error {
 		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.GoVersion == "" {
 			return fmt.Errorf("go_version is empty")
 		}
-	case "js_version":
-		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.JsVersion == "" {
-			return fmt.Errorf("js_version is empty")
+	case "proto_version":
+		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.ProtoVersion == "" {
+			return fmt.Errorf("proto_version is empty")
 		}
 	case "branch":
 		if c.systemInfoResponse.Version == nil || c.systemInfoResponse.Version.Branch == "" {
@@ -2320,14 +2292,6 @@ func (c *BDDContext) ThenTheFieldShouldNotBeEmpty(field string) error {
 	case "environment":
 		if c.systemInfoResponse.Environment == "" {
 			return fmt.Errorf("environment is empty")
-		}
-	case "current_library":
-		if c.systemInfoResponse.CurrentLibrary == "" {
-			return fmt.Errorf("current_library is empty")
-		}
-	case "api_version":
-		if c.systemInfoResponse.ApiVersion == "" {
-			return fmt.Errorf("api_version is empty")
 		}
 	default:
 		return fmt.Errorf("unknown field: %s", field)

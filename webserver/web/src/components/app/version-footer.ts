@@ -1,17 +1,16 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { systemInfoService } from '../../services/system-info-service';
+import { GetSystemInfoResponse } from '../../gen/config_service_pb';
 
-declare const __APP_VERSION__: string;
-declare const __APP_BRANCH__: string;
-declare const __BUILD_TIME__: string;
+interface VersionField {
+  label: string;
+  value: string;
+}
 
 @customElement('version-footer')
 export class VersionFooter extends LitElement {
-  @state() private cppVersion = '...';
-  @state() private goVersion = '...';
-  @state() private jsVersion = __APP_VERSION__;
-  @state() private branch = __APP_BRANCH__;
-  @state() private buildTime = __BUILD_TIME__;
+  @state() private versionFields: VersionField[] = [];
 
   static styles = css`
     :host {
@@ -27,6 +26,7 @@ export class VersionFooter extends LitElement {
       display: flex;
       gap: 16px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .version {
@@ -48,44 +48,56 @@ export class VersionFooter extends LitElement {
     await this.loadVersions();
   }
 
+  private extractVersionFields(systemInfo: GetSystemInfoResponse): VersionField[] {
+    const fields: VersionField[] = [];
+    
+    if (!systemInfo.version) {
+      return fields;
+    }
+
+    const version = systemInfo.version;
+    const fieldMap: Array<{ key: string; label: string; format?: (v: string) => string }> = [
+      { key: 'goVersion', label: 'Go' },
+      { key: 'cppVersion', label: 'C++' },
+      { key: 'protoVersion', label: 'Proto' },
+      { key: 'branch', label: 'Branch' },
+      { key: 'buildTime', label: 'Build', format: (v) => new Date(v).toLocaleString() },
+      { key: 'commitHash', label: 'Commit' },
+    ];
+
+    for (const { key, label, format } of fieldMap) {
+      const value = (version as any)[key] as string | undefined;
+      if (value && typeof value === 'string' && value.trim() !== '') {
+        fields.push({
+          label,
+          value: format ? format(value) : value,
+        });
+      }
+    }
+
+    return fields;
+  }
+
   async loadVersions() {
     try {
-      const response = await fetch('/api/processor/capabilities');
-      const data = await response.json();
-      if (data.capabilities) {
-        this.cppVersion = data.capabilities.libraryVersion || '?';
-        this.goVersion = data.capabilities.apiVersion || '?';
-      }
+      const systemInfo = await systemInfoService.getSystemInfo();
+      this.versionFields = this.extractVersionFields(systemInfo);
     } catch (e) {
-      logger.warn('Failed to load backend versions', {
-        'error.message': e instanceof Error ? e.message : String(e),
-      });
+      console.warn('Failed to load backend versions', e);
     }
   }
 
   render() {
     return html`
       <div class="versions">
-        <div class="version">
-          <span class="label">C++:</span>
-          <span class="value">${this.cppVersion}</span>
-        </div>
-        <div class="version">
-          <span class="label">Go:</span>
-          <span class="value">${this.goVersion}</span>
-        </div>
-        <div class="version">
-          <span class="label">JS:</span>
-          <span class="value">${this.jsVersion}</span>
-        </div>
-        <div class="version">
-          <span class="label">Branch:</span>
-          <span class="value">${this.branch}</span>
-        </div>
-        <div class="version">
-          <span class="label">Build:</span>
-          <span class="value">${new Date(this.buildTime).toLocaleString()}</span>
-        </div>
+        ${this.versionFields.map(
+          (field) => html`
+            <div class="version">
+              <span class="label">${field.label}:</span>
+              <span class="value">${field.value}</span>
+            </div>
+          `
+        )}
       </div>
     `;
   }

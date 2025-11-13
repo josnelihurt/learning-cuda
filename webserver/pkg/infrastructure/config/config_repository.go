@@ -23,10 +23,3 @@ func (r *RepositoryImpl) GetEnvironment() string {
 	}
 	return r.configManager.Environment
 }
-
-func (r *RepositoryImpl) GetDefaultLibrary() string {
-	if r.configManager == nil {
-		return "unknown"
-	}
-	return r.configManager.Processor.DefaultLibrary
-}

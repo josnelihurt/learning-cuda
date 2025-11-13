@@ -784,19 +784,19 @@ export class GetAvailableToolsResponse extends Message<GetAvailableToolsResponse
  */
 export class SystemVersion extends Message<SystemVersion> {
   /**
-   * @generated from field: string cpp_version = 1 [json_name = "cpp_version"];
-   */
-  cppVersion = "";
-
-  /**
-   * @generated from field: string go_version = 3 [json_name = "go_version"];
+   * @generated from field: string go_version = 1 [json_name = "go_version"];
    */
   goVersion = "";
 
   /**
-   * @generated from field: string js_version = 5 [json_name = "js_version"];
+   * @generated from field: string cpp_version = 3 [json_name = "cpp_version"];
    */
-  jsVersion = "";
+  cppVersion = "";
+
+  /**
+   * @generated from field: string proto_version = 5 [json_name = "proto_version"];
+   */
+  protoVersion = "";
 
   /**
    * @generated from field: string branch = 7;
@@ -821,9 +821,9 @@ export class SystemVersion extends Message<SystemVersion> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "cuda_learning.SystemVersion";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "cpp_version", jsonName: "cpp_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "go_version", jsonName: "go_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "js_version", jsonName: "js_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "go_version", jsonName: "go_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "cpp_version", jsonName: "cpp_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "proto_version", jsonName: "proto_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "branch", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "build_time", jsonName: "build_time", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 11, name: "commit_hash", jsonName: "commit_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -898,22 +898,7 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
   environment = "";
 
   /**
-   * @generated from field: string current_library = 5 [json_name = "current_library"];
-   */
-  currentLibrary = "";
-
-  /**
-   * @generated from field: string api_version = 7 [json_name = "api_version"];
-   */
-  apiVersion = "";
-
-  /**
-   * @generated from field: repeated string available_libraries = 9 [json_name = "available_libraries"];
-   */
-  availableLibraries: string[] = [];
-
-  /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 11 [json_name = "trace_context"];
+   * @generated from field: cuda_learning.TraceContext trace_context = 5 [json_name = "trace_context"];
    */
   traceContext?: TraceContext;
 
@@ -927,10 +912,7 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "version", kind: "message", T: SystemVersion },
     { no: 3, name: "environment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "current_library", jsonName: "current_library", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 9, name: "available_libraries", jsonName: "available_libraries", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 11, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSystemInfoResponse {

@@ -705,12 +705,19 @@ jobs:
           VERSION="${{ needs.prepare.outputs.golang_version }}"
           TAG_VERSION="${IMAGE_BASE}/intermediate:golang-built-${VERSION}-arm64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:golang-built-latest-arm64"
+          # Extract branch name from ref (remove refs/heads/ or refs/tags/ prefix)
+          BRANCH_NAME="${{ github.ref_name }}"
+          COMMIT_SHA="${{ github.sha }}"
+          BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           docker build \
             --target artifacts \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=arm64 \
             --build-arg PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}" \
+            --build-arg BRANCH="${BRANCH_NAME}" \
+            --build-arg COMMIT_HASH="${COMMIT_SHA:0:7}" \
+            --build-arg BUILD_TIME="${BUILD_TIMESTAMP}" \
             -f webserver/Dockerfile.build \
             -t "$TAG_VERSION" \
             -t "$TAG_LATEST" \
@@ -771,7 +778,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
-        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        if: ${{ steps.gate.outputs.build == 'true' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -779,7 +786,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify intermediate artifacts
-        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' && needs.prepare.outputs.can_push == 'true' }}
         run: |
           REGISTRY="${{ env.REGISTRY }}"
           BASE_PREFIX="${{ env.BASE_IMAGE_PREFIX }}"
@@ -807,6 +814,57 @@ jobs:
           check_digest "proto-generated" "$PROTO_DIGEST"
           check_digest "cpp-built" "$CPP_DIGEST"
           check_digest "golang-built" "$GOLANG_DIGEST"
+
+      - name: Build intermediate images for PRs
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
+          CPP_VERSION="${{ needs.prepare.outputs.cpp_version }}"
+          GOLANG_VERSION="${{ needs.prepare.outputs.golang_version }}"
+          
+          echo "Building intermediate images locally for PR..."
+          
+          # Build proto intermediate
+          docker build \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=arm64 \
+            --build-arg PROTO_VERSION="${PROTO_VERSION}" \
+            -f proto/Dockerfile \
+            -t "${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-arm64" \
+            .
+          
+          # Build C++ intermediate
+          build_args=(
+            "--target" "artifacts"
+            "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
+            "--build-arg" "BASE_TAG=latest"
+            "--build-arg" "TARGETARCH=arm64"
+            "--build-arg" "PROTO_VERSION=${PROTO_VERSION}"
+          )
+          DOCKER_BUILDKIT=0 docker build \
+            "${build_args[@]}" \
+            -f cpp_accelerator/Dockerfile.build \
+            -t "${IMAGE_BASE}/intermediate:cpp-built-${CPP_VERSION}-arm64" \
+            .
+          
+          # Build golang intermediate
+          BRANCH_NAME="${{ github.ref_name }}"
+          COMMIT_SHA="${{ github.sha }}"
+          BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          docker build \
+            --target artifacts \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=arm64 \
+            --build-arg PROTO_VERSION="${PROTO_VERSION}" \
+            --build-arg BRANCH="${BRANCH_NAME}" \
+            --build-arg COMMIT_HASH="${COMMIT_SHA:0:7}" \
+            --build-arg BUILD_TIME="${BUILD_TIMESTAMP}" \
+            -f webserver/Dockerfile.build \
+            -t "${IMAGE_BASE}/intermediate:golang-built-${GOLANG_VERSION}-arm64" \
+            .
 
       - name: Build application image
         if: ${{ steps.gate.outputs.build == 'true' }}

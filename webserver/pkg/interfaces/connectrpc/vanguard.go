@@ -10,6 +10,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 )
 
@@ -26,6 +27,7 @@ type VanguardConfig struct {
 	CurrentLoader         **loader.Loader
 	LoaderMutex           *sync.RWMutex
 	ConfigManager         *config.Manager
+	CppConnector          *processor.CppConnector
 	ListAvailableImagesUC *application.ListAvailableImagesUseCase
 	UploadImageUC         *application.UploadImageUseCase
 	ListVideosUC          *application.ListVideosUseCase
@@ -48,7 +50,7 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 
 	configHandler := NewConfigHandler(
 		cfg.GetStreamConfigUC, cfg.SyncFlagsUC, cfg.ListInputsUC, cfg.EvaluateFFUC,
-		cfg.GetSystemInfoUC, cfg.ConfigManager,
+		cfg.GetSystemInfoUC, cfg.ConfigManager, cfg.CppConnector,
 	)
 	_, configConnectHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 

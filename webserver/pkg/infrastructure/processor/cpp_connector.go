@@ -196,6 +196,27 @@ func (c *CppConnector) ProcessImage(ctx context.Context, img *domain.Image, filt
 	return result, nil
 }
 
+func (c *CppConnector) GetCapabilities() *pb.LibraryCapabilities {
+	if c.loader != nil {
+		return c.loader.CachedCapabilities()
+	}
+	return nil
+}
+
+func (c *CppConnector) GetAPIVersion() string {
+	if c.loader != nil {
+		return c.loader.GetVersion()
+	}
+	return ""
+}
+
+func (c *CppConnector) GetLibraryVersion() (string, error) {
+	if c.loader != nil {
+		return c.loader.GetLibraryVersion()
+	}
+	return "", fmt.Errorf("loader not available")
+}
+
 func (c *CppConnector) Close() {
 	if c.loader != nil {
 		c.loader.Cleanup()

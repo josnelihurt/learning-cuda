@@ -233,16 +233,33 @@ export class AppRoot extends LitElement {
       this.toastManager.configure({ duration: 7000 });
     }
 
-    if (this.filterManager && this.processorCapabilitiesService?.isInitialized()) {
-      this.filterManager.filters = this.processorCapabilitiesService.getFilters();
-    }
-
-    if (this.toolsDropdown && this.toolsService?.isInitialized()) {
-      this.toolsDropdown.categories = this.toolsService.getCategories();
-    }
+    this.updateFiltersFromService();
+    this.updateToolsFromService();
 
     if (this.videoGrid && this.statsManager && this.toastManager) {
       this.videoGrid.setManagers(this.statsManager, this.toastManager);
+    }
+  }
+
+  private updateFiltersFromService(): void {
+    if (this.filterManager && this.processorCapabilitiesService?.isInitialized()) {
+      this.filterManager.filters = this.processorCapabilitiesService.getFilters();
+    } else if (this.processorCapabilitiesService && !this.processorCapabilitiesService.isInitialized()) {
+      this.processorCapabilitiesService.initialize().then(() => {
+        if (this.filterManager) {
+          this.filterManager.filters = this.processorCapabilitiesService!.getFilters();
+        }
+      }).catch((error) => {
+        this.logger?.error('Failed to initialize processor capabilities', {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+  }
+
+  private updateToolsFromService(): void {
+    if (this.toolsDropdown && this.toolsService?.isInitialized()) {
+      this.toolsDropdown.categories = this.toolsService.getCategories();
     }
   }
 

@@ -56,6 +56,7 @@ func main() {
 		app.WithProcessorRegistry(di.ProcessorRegistry),
 		app.WithProcessorLoader(&di.ProcessorLoader),
 		app.WithLoaderMutex(di.LoaderMutex),
+		app.WithCppConnector(di.CppConnector),
 	)
 
 	errChan := make(chan error, 1)

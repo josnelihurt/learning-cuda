@@ -56,14 +56,34 @@ test.describe('Version Info Tooltip', () => {
     
     const versionItems = versionInfo.locator('.version-item');
     const count = await versionItems.count();
-    expect(count).toBe(7);
+    expect(count).toBeGreaterThanOrEqual(6);
     
-    const labels = ['C++:', 'Go:', 'JS:', 'Branch:', 'Build:', 'Commit:', 'Dockerfiles:'];
-    for (let i = 0; i < labels.length; i++) {
+    // Verify expected labels exist (order-independent)
+    // Note: Some fields may be filtered out if empty (e.g., Proto Version)
+    const requiredLabels = ['Go Version', 'C++ Version', 'Branch', 'Build Time', 'Commit Hash'];
+    const optionalLabels = ['Proto Version', 'Environment'];
+    const foundLabels: string[] = [];
+    
+    for (let i = 0; i < count; i++) {
       const item = versionItems.nth(i);
       const label = item.locator('.version-label');
-      await expect(label).toContainText(labels[i]);
+      const labelText = await label.textContent();
+      if (labelText) {
+        foundLabels.push(labelText.trim().replace(':', ''));
+      }
     }
+    
+    // Check that all required labels are present
+    for (const expectedLabel of requiredLabels) {
+      const found = foundLabels.some(label => 
+        label.toLowerCase().includes(expectedLabel.toLowerCase()) || 
+        expectedLabel.toLowerCase().includes(label.toLowerCase())
+      );
+      expect(found, `Required label "${expectedLabel}" not found. Found labels: ${foundLabels.join(', ')}`).toBeTruthy();
+    }
+    
+    // Verify we have at least the required fields
+    expect(foundLabels.length).toBeGreaterThanOrEqual(requiredLabels.length);
   });
 
   test('Tooltip is visible when clicked', async ({ page }) => {
@@ -115,16 +135,19 @@ test.describe('Version Info Tooltip', () => {
     
     await page.waitForTimeout(1000);
     
-    const jsVersion = tooltip.locator('.version-item').nth(2).locator('.version-value');
-    await expect(jsVersion).not.toContainText('Loading...');
+    const goVersion = tooltip.locator('.version-item').nth(0).locator('.version-value');
+    await expect(goVersion).not.toContainText('Loading...');
     
-    const branchVersion = tooltip.locator('.version-item').nth(3).locator('.version-value');
+    const cppVersion = tooltip.locator('.version-item').nth(1).locator('.version-value');
+    await expect(cppVersion).not.toContainText('Loading...');
+    
+    const branchVersion = tooltip.locator('.version-item').filter({ hasText: 'Branch:' }).locator('.version-value');
     await expect(branchVersion).not.toContainText('Loading...');
     
-    const buildVersion = tooltip.locator('.version-item').nth(4).locator('.version-value');
+    const buildVersion = tooltip.locator('.version-item').filter({ hasText: 'Build Time:' }).locator('.version-value');
     await expect(buildVersion).not.toContainText('Loading...');
     
-    const commitHash = tooltip.locator('.version-item').nth(5).locator('.version-value');
+    const commitHash = tooltip.locator('.version-item').filter({ hasText: 'Commit Hash:' }).locator('.version-value');
     await expect(commitHash).not.toContainText('Loading...');
   });
 

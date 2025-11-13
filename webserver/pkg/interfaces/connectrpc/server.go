@@ -2,13 +2,11 @@ package connectrpc
 
 import (
 	"net/http"
-	"sync"
 
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 )
 
 func RegisterRoutes(mux *http.ServeMux, useCase *application.ProcessImageUseCase) {
@@ -34,13 +32,10 @@ func RegisterConfigService(
 	listInputsUC *application.ListInputsUseCase,
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
 	getSystemInfoUC *application.GetSystemInfoUseCase,
-	registry *loader.Registry,
-	currentLoader **loader.Loader,
-	loaderMutex *sync.RWMutex,
 	configManager *config.Manager,
 	interceptors ...connect.Interceptor,
 ) {
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, registry, currentLoader, loaderMutex, configManager)
+	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, configManager)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

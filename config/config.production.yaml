@@ -43,11 +43,6 @@ logging:
 
 processor:
   library_base_path: "/app/lib"
-  default_library: "2.1.6"
-  enable_hot_reload: false
-  fallback_enabled: false
-  fallback_chain:
-    - "2.1.6"
 
 static_images:
   directory: "/app/data/static_images"

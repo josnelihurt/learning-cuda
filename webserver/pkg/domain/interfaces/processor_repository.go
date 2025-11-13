@@ -1,17 +1,14 @@
 package interfaces
 
 // ProcessorRepository defines the interface for accessing processor information
+// Note: Currently unused after refactoring, kept for potential future use
 type ProcessorRepository interface {
-	GetAvailableLibraries() []string
-	GetCurrentLibrary() string
-	GetAPIVersion() string
 	GetLibraryVersion() string
 }
 
 // ConfigRepository defines the interface for accessing configuration
 type ConfigRepository interface {
 	GetEnvironment() string
-	GetDefaultLibrary() string
 }
 
 // BuildInfoRepository defines the interface for accessing build information

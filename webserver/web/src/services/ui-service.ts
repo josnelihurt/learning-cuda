@@ -4,7 +4,10 @@ import type { FilterPanel } from '../components/app/filter-panel';
 import type { ToastContainer } from '../components/app/toast-container';
 import type { WebSocketService } from './websocket-service';
 import { telemetryService } from './telemetry-service';
+import { logger } from './otel-logger';
 import type { IUIService } from '../domain/interfaces/IUIService';
+import type { ActiveFilterState } from '../components/app/filter-panel.types';
+import { FilterData } from '../domain/value-objects';
 
 declare const __APP_VERSION__: string;
 declare const __APP_BRANCH__: string;
@@ -154,10 +157,10 @@ export class UIService implements IUIService {
     if (this.currentState === 'streaming') return;
     if (!this.heroImage) return;
 
-    const filters = this.filterManager.getSelectedFilters();
-    const filterParam = filters.includes('grayscale') ? 'grayscale' : 'none';
-    const grayscaleType = this.filterManager.getGrayscaleType();
-    const blurParams = this.filterManager.getBlurParams();
+    const filtersState = this.normalizeFilters(this.filterManager.getActiveFilters());
+    const filterParam = filtersState[0]?.id || 'none';
+    const filterData = this.mapFiltersToValueObjects(filtersState);
+    const grayscaleType = this.extractGrayscaleAlgorithm(filtersState);
 
     this.heroImage.classList.add('loading');
 
@@ -196,17 +199,14 @@ export class UIService implements IUIService {
             imageData,
             canvas.width,
             canvas.height,
-            filters,
-            this.selectedAccelerator,
-            grayscaleType,
-            blurParams
+            filterData,
+            this.selectedAccelerator
           );
 
           span?.addEvent('Updating browser history');
           const newUrl = new URL(window.location.href);
           newUrl.searchParams.set('filter', filterParam);
           newUrl.searchParams.set('accelerator', this.selectedAccelerator);
-          newUrl.searchParams.set('grayscale_type', grayscaleType);
           window.history.pushState({}, '', newUrl);
         } catch (error) {
           logger.error('Error applying filter', {
@@ -222,5 +222,24 @@ export class UIService implements IUIService {
         }
       }
     );
+  }
+
+  private normalizeFilters(filters: ActiveFilterState[]): ActiveFilterState[] {
+    if (!filters || filters.length === 0) {
+      return [{ id: 'none', parameters: {} }];
+    }
+    return filters.map((filter) => ({
+      id: filter.id,
+      parameters: { ...filter.parameters },
+    }));
+  }
+
+  private mapFiltersToValueObjects(filters: ActiveFilterState[]): FilterData[] {
+    return filters.map((filter) => new FilterData(filter.id, { ...filter.parameters }));
+  }
+
+  private extractGrayscaleAlgorithm(filters: ActiveFilterState[]): string {
+    const grayscale = filters.find((filter) => filter.id === 'grayscale');
+    return (grayscale?.parameters.algorithm as string) || 'bt601';
   }
 }

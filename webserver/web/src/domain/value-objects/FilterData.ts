@@ -1,67 +1,58 @@
 import { FilterType } from '../../gen/common_pb';
 
-export type ValidFilterType = 'none' | 'grayscale' | 'blur';
+export type FilterTypeId = string;
 
 export class FilterData {
-  private readonly type: ValidFilterType;
+  private readonly type: FilterTypeId;
   private readonly parameters: Readonly<Record<string, any>>;
 
-  constructor(type: ValidFilterType, parameters: Record<string, any> = {}) {
-    this.validateType(type);
-    this.validateParameters(type, parameters);
-    
-    this.type = type;
-    this.parameters = Object.freeze({ ...parameters });
-  }
-
-  private validateType(type: ValidFilterType): void {
+  constructor(type: FilterTypeId, parameters: Record<string, any> = {}) {
     if (!type || type.trim() === '') {
       throw new Error('Filter type cannot be empty');
     }
-    
-    const validTypes: ValidFilterType[] = ['none', 'grayscale', 'blur'];
-    if (!validTypes.includes(type)) {
-      throw new Error(`Invalid filter type: ${type}. Valid types: ${validTypes.join(', ')}`);
-    }
+
+    const normalizedType = type.trim();
+    this.validateParameters(normalizedType, parameters);
+
+    this.type = normalizedType;
+    this.parameters = Object.freeze({ ...parameters });
   }
 
-  private validateParameters(type: ValidFilterType, params: Record<string, any>): void {
-    if (type === 'grayscale' && Object.keys(params).length > 0) {
-      // Permitir parámetros pero no validar por ahora (futura extensión)
-    }
-    
+  private validateParameters(type: FilterTypeId, params: Record<string, any>): void {
     if (type === 'blur') {
       if (params.kernel_size !== undefined) {
-        if (typeof params.kernel_size !== 'number' || params.kernel_size < 1 || params.kernel_size % 2 === 0) {
+        const kernel =
+          typeof params.kernel_size === 'string'
+            ? parseInt(params.kernel_size, 10)
+            : params.kernel_size;
+        if (typeof kernel !== 'number' || Number.isNaN(kernel) || kernel < 1 || kernel % 2 === 0) {
           throw new Error('kernel_size must be a positive odd number');
         }
       }
-      
+
       if (params.sigma !== undefined) {
-        if (typeof params.sigma !== 'number' || params.sigma < 0) {
+        const sigma =
+          typeof params.sigma === 'string' ? parseFloat(params.sigma) : params.sigma;
+        if (typeof sigma !== 'number' || Number.isNaN(sigma) || sigma < 0) {
           throw new Error('sigma must be a non-negative number');
         }
       }
-      
-      if (params.separable !== undefined && typeof params.separable !== 'boolean') {
+
+      if (
+        params.separable !== undefined &&
+        typeof params.separable !== 'boolean' &&
+        typeof params.separable !== 'string'
+      ) {
         throw new Error('separable must be a boolean');
-      }
-    }
-    
-    if (params.radius !== undefined) {
-      if (typeof params.radius !== 'number' || params.radius < 0 || params.radius > 100) {
-        throw new Error('Radius must be a number between 0 and 100');
-      }
-    }
-    
-    if (params.intensity !== undefined) {
-      if (typeof params.intensity !== 'number' || params.intensity < 0 || params.intensity > 1) {
-        throw new Error('Intensity must be a number between 0 and 1');
       }
     }
   }
 
-  getType(): ValidFilterType {
+  getId(): FilterTypeId {
+    return this.type;
+  }
+
+  getType(): FilterTypeId {
     return this.type;
   }
 
@@ -90,16 +81,22 @@ export class FilterData {
   }
 
   toProtocol(): FilterType {
-    switch (this.type) {
-      case 'none':
-        return FilterType.NONE;
-      case 'grayscale':
-        return FilterType.GRAYSCALE;
-      case 'blur':
-        return FilterType.BLUR;
-      default:
-        return FilterType.NONE;
+    if (this.type === 'none') {
+      return FilterType.NONE;
     }
+    if (this.type === 'grayscale') {
+      return FilterType.GRAYSCALE;
+    }
+    if (this.type === 'blur') {
+      return FilterType.BLUR;
+    }
+
+    const normalized = this.type.replace(/ /g, '_').toUpperCase();
+    if (normalized in FilterType) {
+      return FilterType[normalized as keyof typeof FilterType];
+    }
+
+    return FilterType.UNSPECIFIED;
   }
 
   equals(other: FilterData): boolean {

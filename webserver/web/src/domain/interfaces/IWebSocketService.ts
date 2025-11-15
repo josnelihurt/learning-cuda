@@ -4,12 +4,12 @@ import type { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } fro
 export interface IWebSocketService {
   connect(): void;
   disconnect(): void;
-  sendFrame(imageData: string, width: number, height: number, filters: string[], accelerator: string, grayscaleType: string, blurParams?: Record<string, any>): void;
-  sendFrameWithImageData(image: ImageData, filters: string[], accelerator: string, grayscaleType: string, blurParams?: Record<string, any>): void;
-  sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: string, grayscaleType: string): void;
+  sendFrame(imageData: string, width: number, height: number, filters: FilterData[], accelerator: string): void;
+  sendFrameWithImageData(image: ImageData, filters: FilterData[], accelerator: string): void;
+  sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: string): void;
   sendFrameWithProcessingConfig(image: ImageData, filters: FilterData[], accelerator: AcceleratorConfig, grayscale: GrayscaleAlgorithm): void;
-  sendSingleFrame(imageData: string, width: number, height: number, filters: string[], accelerator: string, grayscaleType: string, blurParams?: Record<string, any>): Promise<WebSocketFrameResponse>;
-  sendStartVideo(videoId: string, filters: string[], accelerator: string, grayscaleType: string, blurParams?: Record<string, any>): void;
+  sendSingleFrame(imageData: string, width: number, height: number, filters: FilterData[], accelerator: string): Promise<WebSocketFrameResponse>;
+  sendStartVideo(videoId: string, filters: FilterData[], accelerator: string): void;
   sendStopVideo(videoId?: string): void;
   onFrameResult(callback: (data: WebSocketFrameResponse) => void): void;
   isConnected(): boolean;

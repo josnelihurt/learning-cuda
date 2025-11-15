@@ -243,6 +243,67 @@ export class TestHelpers {
     expect(found).toBeTruthy();
   }
 
+  async getSourceFilters(sourceNumber: number): Promise<Array<{ id: string; parameters: Record<string, string> }> | null> {
+    return await this.page.evaluate((num) => {
+      const grid = document.querySelector('video-grid') as any;
+      if (!grid || typeof grid.getSources !== 'function') {
+        return null;
+      }
+      const source = grid.getSources().find((s: any) => s.number === num);
+      if (!source) {
+        return null;
+      }
+      if (!Array.isArray(source.filters)) {
+        return [];
+      }
+      return source.filters.map((filter: any) => ({
+        id: filter?.id,
+        parameters: { ...(filter?.parameters || {}) },
+      }));
+    }, sourceNumber);
+  }
+
+  async waitForSourceFilterParameter(
+    sourceNumber: number,
+    filterId: string,
+    paramId: string,
+    expectedValue: string,
+    timeout = 5000
+  ): Promise<void> {
+    await this.page.waitForFunction(
+      ({ sourceNumber, filterId, paramId, expectedValue }) => {
+        const grid = document.querySelector('video-grid') as any;
+        if (!grid || typeof grid.getSources !== 'function') {
+          return false;
+        }
+        const source = grid.getSources().find((s: any) => s.number === sourceNumber);
+        if (!source || !Array.isArray(source.filters)) {
+          return false;
+        }
+        const filter = source.filters.find((f: any) => f && f.id === filterId);
+        if (!filter || !filter.parameters) {
+          return false;
+        }
+        return filter.parameters[paramId] === expectedValue;
+      },
+      { sourceNumber, filterId, paramId, expectedValue },
+      { timeout }
+    );
+  }
+
+  async expectSourceFilterParameter(
+    sourceNumber: number,
+    filterId: string,
+    paramId: string,
+    expectedValue: string,
+    timeout = 5000
+  ): Promise<void> {
+    await this.waitForSourceFilterParameter(sourceNumber, filterId, paramId, expectedValue, timeout);
+    const filters = await this.getSourceFilters(sourceNumber);
+    const filter = filters?.find((f) => f.id === filterId);
+    expect(filter?.parameters?.[paramId]).toBe(expectedValue);
+  }
+
   async waitForImageLoad(sourceNumber: number, timeout = 5000): Promise<void> {
     await this.page.waitForFunction(
       (num) => {

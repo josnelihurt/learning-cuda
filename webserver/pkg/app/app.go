@@ -191,7 +191,7 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
-	rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase)
+	rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase, a.cppConnector)
 
 	connectrpc.RegisterConfigService(
 		mux,

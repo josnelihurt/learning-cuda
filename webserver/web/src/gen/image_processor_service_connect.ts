@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ProcessImageRequest, ProcessImageResponse } from "./image_processor_service_pb.js";
+import { ListFiltersRequest, ListFiltersResponse, ProcessImageRequest, ProcessImageResponse } from "./image_processor_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,15 @@ export const ImageProcessorService = {
       name: "ProcessImage",
       I: ProcessImageRequest,
       O: ProcessImageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.ImageProcessorService.ListFilters
+     */
+    listFilters: {
+      name: "ListFilters",
+      I: ListFiltersRequest,
+      O: ListFiltersResponse,
       kind: MethodKind.Unary,
     },
     /**

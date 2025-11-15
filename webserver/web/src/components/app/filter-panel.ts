@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { filterPanelStyles } from './filter-panel.styles';
-import { Filter, formatParameterLabel } from './filter-panel.types';
+import { Filter, formatParameterLabel, ActiveFilterState } from './filter-panel.types';
 
 @customElement('filter-panel')
 export class FilterPanel extends LitElement {
@@ -62,7 +62,7 @@ export class FilterPanel extends LitElement {
   }
 
   private renderParameter(filter: Filter, param: any) {
-    const currentValue = filter.parameterValues[param.id] || param.default_value || '';
+    const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';
 
     if (param.type === 'select') {
       return html`
@@ -70,17 +70,17 @@ export class FilterPanel extends LitElement {
           <label class="param-label">${param.name}</label>
           <div class="radio-group">
             ${param.options.map(
-              (option: string) => html`
+              (option: { value: string; label: string }) => html`
                 <label class="radio-option">
                   <input
                     type="radio"
                     name="${filter.id}-${param.id}"
-                    value="${option}"
-                    .checked=${currentValue === option}
-                    @change=${() => this.handleParameterChange(filter.id, param.id, option)}
-                    data-testid="filter-parameter-${filter.id}-${param.id}-${option}"
+                    value="${option.value}"
+                    .checked=${currentValue === option.value}
+                    @change=${() => this.handleParameterChange(filter.id, param.id, option.value)}
+                    data-testid="filter-parameter-${filter.id}-${param.id}-${option.value}"
                   />
-                  <span>${formatParameterLabel(param, option)}</span>
+                  <span>${formatParameterLabel(param, option.value)}</span>
                 </label>
               `
             )}
@@ -90,10 +90,10 @@ export class FilterPanel extends LitElement {
     }
 
     if (param.type === 'slider' || param.type === 'range') {
-      const min = param.min ? parseInt(param.min) : 3;
-      const max = param.max ? parseInt(param.max) : 15;
-      const step = param.step ? parseInt(param.step) : 2;
-      const value = currentValue ? parseInt(currentValue) : (param.default_value ? parseInt(param.default_value) : min);
+      const min = param.min !== undefined ? param.min : 3;
+      const max = param.max !== undefined ? param.max : 15;
+      const step = param.step !== undefined ? param.step : 2;
+      const value = currentValue ? parseFloat(currentValue) : (param.defaultValue ? parseFloat(param.defaultValue) : min);
 
       return html`
         <div class="param-control">
@@ -118,10 +118,10 @@ export class FilterPanel extends LitElement {
     }
 
     if (param.type === 'number') {
-      const min = param.min !== undefined ? parseFloat(param.min) : undefined;
-      const max = param.max !== undefined ? parseFloat(param.max) : undefined;
-      const step = param.step !== undefined ? parseFloat(param.step) : undefined;
-      const value = currentValue || param.default_value || '';
+      const min = param.min;
+      const max = param.max;
+      const step = param.step;
+      const value = currentValue || param.defaultValue || '';
 
       return html`
         <div class="param-control">
@@ -147,7 +147,10 @@ export class FilterPanel extends LitElement {
     }
 
     if (param.type === 'checkbox') {
-      const checked = currentValue === 'true' || currentValue === true || (param.default_value === 'true' && !currentValue);
+      const checked =
+        currentValue === 'true' ||
+        currentValue === true ||
+        (param.defaultValue === 'true' && !currentValue);
 
       return html`
         <div class="param-control">
@@ -253,82 +256,33 @@ export class FilterPanel extends LitElement {
   }
 
   private dispatchFilterChange() {
-    const grayscaleFilter = this.filters.find((f) => f.id === 'grayscale');
-    const grayscaleType = grayscaleFilter?.parameterValues['algorithm'] || 'bt601';
-
-    const blurParams = this.getBlurParams();
-
     this.dispatchEvent(
       new CustomEvent('filter-change', {
         bubbles: true,
         composed: true,
         detail: {
-          filters: this.getSelectedFilters(),
-          grayscaleType: grayscaleType,
-          blurParams: blurParams,
+          filters: this.getActiveFilters(),
         },
       })
     );
   }
 
-  getSelectedFilters(): string[] {
-    const selected = this.filters.filter((f) => f.enabled).map((f) => f.id);
-    return selected.length > 0 ? selected : ['none'];
+  getActiveFilters(): ActiveFilterState[] {
+    const active = this.filters.filter((f) => f.enabled);
+    if (active.length === 0) {
+      return [{ id: 'none', parameters: {} }];
+    }
+    return active.map((filter) => ({
+      id: filter.id,
+      parameters: { ...filter.parameterValues },
+    }));
   }
 
-  getGrayscaleType(): string {
-    const grayscaleFilter = this.filters.find((f) => f.id === 'grayscale');
-    return grayscaleFilter?.parameterValues['algorithm'] || 'bt601';
-  }
-
-  getBlurParams(): Record<string, any> | undefined {
-    const blurFilter = this.filters.find((f) => f.id === 'blur');
-    if (!blurFilter || !blurFilter.enabled) {
-      return undefined;
-    }
-
-    const params = blurFilter.parameterValues;
-    const result: Record<string, any> = {};
-
-    if (params.kernel_size !== undefined) {
-      result.kernel_size = parseInt(params.kernel_size);
-    }
-    if (params.sigma !== undefined) {
-      result.sigma = parseFloat(params.sigma);
-    }
-    if (params.border_mode !== undefined) {
-      result.border_mode = params.border_mode;
-    }
-    if (params.separable !== undefined) {
-      result.separable = params.separable === 'true';
-    }
-
-    return Object.keys(result).length > 0 ? result : undefined;
-  }
-
-  setFilters(filters: string[], grayscaleType: string, blurParams?: Record<string, any>) {
+  setFilters(filters: ActiveFilterState[]) {
     this.filters = this.filters.map((f) => {
-      const enabled = filters.includes(f.id);
-      const parameterValues = { ...f.parameterValues };
-
-      if (f.id === 'grayscale' && grayscaleType) {
-        parameterValues['algorithm'] = grayscaleType;
-      }
-
-      if (f.id === 'blur' && blurParams) {
-        if (blurParams.kernel_size !== undefined) {
-          parameterValues['kernel_size'] = blurParams.kernel_size.toString();
-        }
-        if (blurParams.sigma !== undefined) {
-          parameterValues['sigma'] = blurParams.sigma.toString();
-        }
-        if (blurParams.border_mode !== undefined) {
-          parameterValues['border_mode'] = blurParams.border_mode;
-        }
-        if (blurParams.separable !== undefined) {
-          parameterValues['separable'] = blurParams.separable.toString();
-        }
-      }
+      const nextState = filters.find((state) => state.id === f.id);
+      const enabled = Boolean(nextState);
+      const parameterValues = nextState ? { ...f.parameterValues, ...nextState.parameters } : { ...f.parameterValues };
 
       return {
         ...f,

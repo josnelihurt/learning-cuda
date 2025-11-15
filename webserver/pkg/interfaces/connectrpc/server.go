@@ -10,8 +10,12 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 )
 
-func RegisterRoutes(mux *http.ServeMux, useCase *application.ProcessImageUseCase) {
-	handler := NewImageProcessorHandler(useCase)
+func RegisterRoutes(
+	mux *http.ServeMux,
+	useCase *application.ProcessImageUseCase,
+	capabilities filterCapabilitiesProvider,
+) {
+	handler := NewImageProcessorHandler(useCase, capabilities)
 	path, rpcHandler := genconnect.NewImageProcessorServiceHandler(handler)
 	mux.Handle(path, rpcHandler)
 }

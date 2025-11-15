@@ -46,6 +46,10 @@ describe('AppRoot', () => {
       initialize: vi.fn(),
       isInitialized: vi.fn().mockReturnValue(true),
       getFilters: vi.fn().mockReturnValue([]),
+      getFilterDefinitions: vi.fn().mockReturnValue([]),
+      getGenericFilters: vi.fn().mockReturnValue([]),
+      addFiltersUpdatedListener: vi.fn(),
+      removeFiltersUpdatedListener: vi.fn(),
     } as any;
 
     mockToolsService = {
@@ -168,6 +172,22 @@ describe('AppRoot', () => {
       expect(mockVideoGrid.setManagers).toHaveBeenCalledWith(mockStats, mockToast);
 
       vi.restoreAllMocks();
+    });
+
+    it('should register filter update listener when service is set', async () => {
+      await element.updateComplete;
+
+      expect(mockProcessorCapabilitiesService.addFiltersUpdatedListener).toHaveBeenCalledTimes(1);
+      const handler = mockProcessorCapabilitiesService.addFiltersUpdatedListener.mock.calls[0][0];
+      expect(typeof handler).toBe('function');
+    });
+
+    it('should remove filter update listener on disconnect', async () => {
+      await element.updateComplete;
+
+      element.disconnectedCallback();
+
+      expect(mockProcessorCapabilitiesService.removeFiltersUpdatedListener).toHaveBeenCalledTimes(1);
     });
   });
 

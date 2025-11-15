@@ -182,26 +182,18 @@ export class WebSocketService implements IWebSocketService {
     base64Data: string,
     width: number,
     height: number,
-    filters: string[],
-    accelerator: string,
-    grayscaleType: string,
-    blurParams?: Record<string, any>
+    filters: FilterData[],
+    accelerator: string
   ): void {
     const image = new ImageData(base64Data, width, height);
-    this.sendFrameWithImageData(image, filters, accelerator, grayscaleType, blurParams);
+    this.sendFrameWithImageData(image, filters, accelerator);
   }
 
-  sendFrameWithImageData(image: ImageData, filters: string[], accelerator: string, grayscaleType: string, blurParams?: Record<string, any>): void {
-    const filterObjects = filters.map(f => {
-      if (f === 'blur' && blurParams) {
-        return new FilterData('blur', blurParams);
-      }
-      return new FilterData(f as any);
-    });
-    this.sendFrameWithValueObjects(image, filterObjects, accelerator, grayscaleType);
+  sendFrameWithImageData(image: ImageData, filters: FilterData[], accelerator: string): void {
+    this.sendFrameWithValueObjects(image, filters, accelerator);
   }
 
-  sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: string, grayscaleType: string): void {
+  sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: string): void {
     if (!this.ws || this.ws.readyState !== 1) return; // WebSocket.OPEN
 
     this.cameraManager.setProcessing(true);
@@ -210,26 +202,8 @@ export class WebSocketService implements IWebSocketService {
 
     const protoAccelerator = accelerator === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
 
-    let protoGrayscaleType: GrayscaleType;
-    switch (grayscaleType) {
-      case 'bt601':
-        protoGrayscaleType = GrayscaleType.BT601;
-        break;
-      case 'bt709':
-        protoGrayscaleType = GrayscaleType.BT709;
-        break;
-      case 'average':
-        protoGrayscaleType = GrayscaleType.AVERAGE;
-        break;
-      case 'lightness':
-        protoGrayscaleType = GrayscaleType.LIGHTNESS;
-        break;
-      case 'luminosity':
-        protoGrayscaleType = GrayscaleType.LUMINOSITY;
-        break;
-      default:
-        protoGrayscaleType = GrayscaleType.BT601;
-    }
+    const grayscaleAlgorithm = this.getGrayscaleAlgorithm(filters);
+    const protoGrayscaleType = this.mapGrayscaleToProtocol(grayscaleAlgorithm);
 
     const imageDataB64 = image.getBase64().replace(/^data:image\/(png|jpeg);base64,/, '');
     const imageBytes = Uint8Array.from(atob(imageDataB64), (c) => c.charCodeAt(0));
@@ -338,19 +312,16 @@ export class WebSocketService implements IWebSocketService {
     base64Data: string,
     width: number,
     height: number,
-    filters: string[],
-    accelerator: string,
-    grayscaleType: string,
-    blurParams?: Record<string, any>
+    filters: FilterData[],
+    accelerator: string
   ): Promise<WebSocketFrameResponse> {
     return telemetryService.withSpanAsync(
       'WebSocket.sendSingleFrame',
       {
         'image.width': width,
         'image.height': height,
-        filters: filters.join(','),
+        filters: filters.map((f) => f.getId()).join(','),
         accelerator: accelerator,
-        grayscale_type: grayscaleType,
       },
       async (span) => {
         return new Promise((resolve, reject) => {
@@ -377,7 +348,7 @@ export class WebSocketService implements IWebSocketService {
           };
 
           span?.addEvent('Sending frame via WebSocket');
-          this.sendFrame(base64Data, width, height, filters, accelerator, grayscaleType, blurParams);
+          this.sendFrame(base64Data, width, height, filters, accelerator);
         });
       }
     );
@@ -402,10 +373,8 @@ export class WebSocketService implements IWebSocketService {
 
   sendStartVideo(
     videoId: string,
-    filters: string[],
-    accelerator: string,
-    grayscaleType: string,
-    blurParams?: Record<string, any>
+    filters: FilterData[],
+    accelerator: string
   ): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       logger.error('WebSocket not connected');
@@ -415,56 +384,18 @@ export class WebSocketService implements IWebSocketService {
     const span = telemetryService.createSpan('sendStartVideo');
 
     try {
-      const filterTypes = filters.map((f) => {
-        if (f === 'none') return FilterType.NONE;
-        if (f === 'grayscale') return FilterType.GRAYSCALE;
-        if (f === 'blur') return FilterType.BLUR;
-        return FilterType.NONE;
-      });
-
+      const filterTypes = filters.map((f) => f.toProtocol());
       const acceleratorType = accelerator === 'gpu' ? AcceleratorType.CUDA : AcceleratorType.CPU;
-      const grayscaleTypeEnum =
-        grayscaleType === 'bt709' ? GrayscaleType.BT709 : GrayscaleType.BT601;
+      const grayscaleTypeEnum = this.mapGrayscaleToProtocol(this.getGrayscaleAlgorithm(filters));
 
-      let protoBlurParams: GaussianBlurParameters | undefined = undefined;
-      if (filters.includes('blur')) {
-        if (blurParams) {
-          const kernelSize = blurParams.kernel_size !== undefined ? blurParams.kernel_size : 5;
-          const sigma = blurParams.sigma !== undefined ? blurParams.sigma : 1.0;
-          const separable = blurParams.separable !== undefined ? blurParams.separable : true;
-          
-          let borderMode = BorderMode.REFLECT;
-          if (blurParams.border_mode !== undefined) {
-            const borderModeStr = String(blurParams.border_mode).toUpperCase();
-            switch (borderModeStr) {
-              case 'CLAMP':
-                borderMode = BorderMode.CLAMP;
-                break;
-              case 'REFLECT':
-                borderMode = BorderMode.REFLECT;
-                break;
-              case 'WRAP':
-                borderMode = BorderMode.WRAP;
-                break;
-              default:
-                borderMode = BorderMode.REFLECT;
-            }
-          }
-
-          protoBlurParams = new GaussianBlurParameters({
-            kernelSize,
-            sigma,
-            borderMode,
-            separable,
-          });
-        } else {
-          protoBlurParams = new GaussianBlurParameters({
-            kernelSize: 5,
-            sigma: 1.0,
-            borderMode: BorderMode.REFLECT,
-            separable: true,
-          });
-        }
+      let protoBlurParams = extractBlurParams(filters);
+      if (!protoBlurParams && filters.some((f) => f.isBlur())) {
+        protoBlurParams = new GaussianBlurParameters({
+          kernelSize: 5,
+          sigma: 1.0,
+          borderMode: BorderMode.REFLECT,
+          separable: true,
+        });
       }
 
       const startVideoRequest = new StartVideoPlaybackRequest({
@@ -535,6 +466,31 @@ export class WebSocketService implements IWebSocketService {
       if (span) {
         span.end();
       }
+    }
+  }
+
+  private getGrayscaleAlgorithm(filters: FilterData[]): string {
+    const grayscaleFilter = filters.find((filter) => filter.isGrayscale());
+    if (!grayscaleFilter) {
+      return 'bt601';
+    }
+    const params = grayscaleFilter.getParameters();
+    return (params.algorithm as string) || 'bt601';
+  }
+
+  private mapGrayscaleToProtocol(algorithm: string): GrayscaleType {
+    switch ((algorithm || '').toLowerCase()) {
+      case 'bt709':
+        return GrayscaleType.BT709;
+      case 'average':
+        return GrayscaleType.AVERAGE;
+      case 'lightness':
+        return GrayscaleType.LIGHTNESS;
+      case 'luminosity':
+        return GrayscaleType.LUMINOSITY;
+      case 'bt601':
+      default:
+        return GrayscaleType.BT601;
     }
   }
 }

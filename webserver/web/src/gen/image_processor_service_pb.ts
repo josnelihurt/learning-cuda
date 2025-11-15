@@ -8,6 +8,307 @@ import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { AcceleratorType, FilterType, GaussianBlurParameters, GrayscaleType, LibraryCapabilities, TraceContext } from "./common_pb.js";
 
 /**
+ * @generated from enum cuda_learning.GenericFilterParameterType
+ */
+export enum GenericFilterParameterType {
+  /**
+   * @generated from enum value: GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: GENERIC_FILTER_PARAMETER_TYPE_SELECT = 1;
+   */
+  SELECT = 1,
+
+  /**
+   * @generated from enum value: GENERIC_FILTER_PARAMETER_TYPE_RANGE = 2;
+   */
+  RANGE = 2,
+
+  /**
+   * @generated from enum value: GENERIC_FILTER_PARAMETER_TYPE_NUMBER = 3;
+   */
+  NUMBER = 3,
+
+  /**
+   * @generated from enum value: GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX = 4;
+   */
+  CHECKBOX = 4,
+
+  /**
+   * @generated from enum value: GENERIC_FILTER_PARAMETER_TYPE_TEXT = 5;
+   */
+  TEXT = 5,
+}
+// Retrieve enum metadata with: proto3.getEnumType(GenericFilterParameterType)
+proto3.util.setEnumType(GenericFilterParameterType, "cuda_learning.GenericFilterParameterType", [
+  { no: 0, name: "GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED" },
+  { no: 1, name: "GENERIC_FILTER_PARAMETER_TYPE_SELECT" },
+  { no: 2, name: "GENERIC_FILTER_PARAMETER_TYPE_RANGE" },
+  { no: 3, name: "GENERIC_FILTER_PARAMETER_TYPE_NUMBER" },
+  { no: 4, name: "GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX" },
+  { no: 5, name: "GENERIC_FILTER_PARAMETER_TYPE_TEXT" },
+]);
+
+/**
+ * @generated from message cuda_learning.GenericFilterParameterOption
+ */
+export class GenericFilterParameterOption extends Message<GenericFilterParameterOption> {
+  /**
+   * @generated from field: string value = 1;
+   */
+  value = "";
+
+  /**
+   * @generated from field: string label = 3;
+   */
+  label = "";
+
+  constructor(data?: PartialMessage<GenericFilterParameterOption>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GenericFilterParameterOption";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GenericFilterParameterOption {
+    return new GenericFilterParameterOption().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GenericFilterParameterOption {
+    return new GenericFilterParameterOption().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GenericFilterParameterOption {
+    return new GenericFilterParameterOption().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GenericFilterParameterOption | PlainMessage<GenericFilterParameterOption> | undefined, b: GenericFilterParameterOption | PlainMessage<GenericFilterParameterOption> | undefined): boolean {
+    return proto3.util.equals(GenericFilterParameterOption, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GenericFilterParameter
+ */
+export class GenericFilterParameter extends Message<GenericFilterParameter> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * @generated from field: cuda_learning.GenericFilterParameterType type = 5;
+   */
+  type = GenericFilterParameterType.UNSPECIFIED;
+
+  /**
+   * @generated from field: repeated cuda_learning.GenericFilterParameterOption options = 7;
+   */
+  options: GenericFilterParameterOption[] = [];
+
+  /**
+   * @generated from field: string default_value = 9 [json_name = "default_value"];
+   */
+  defaultValue = "";
+
+  /**
+   * @generated from field: map<string, string> metadata = 11;
+   */
+  metadata: { [key: string]: string } = {};
+
+  constructor(data?: PartialMessage<GenericFilterParameter>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GenericFilterParameter";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "type", kind: "enum", T: proto3.getEnumType(GenericFilterParameterType) },
+    { no: 7, name: "options", kind: "message", T: GenericFilterParameterOption, repeated: true },
+    { no: 9, name: "default_value", jsonName: "default_value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "metadata", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GenericFilterParameter {
+    return new GenericFilterParameter().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GenericFilterParameter {
+    return new GenericFilterParameter().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GenericFilterParameter {
+    return new GenericFilterParameter().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GenericFilterParameter | PlainMessage<GenericFilterParameter> | undefined, b: GenericFilterParameter | PlainMessage<GenericFilterParameter> | undefined): boolean {
+    return proto3.util.equals(GenericFilterParameter, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GenericFilterDefinition
+ */
+export class GenericFilterDefinition extends Message<GenericFilterDefinition> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * @generated from field: repeated cuda_learning.GenericFilterParameter parameters = 5;
+   */
+  parameters: GenericFilterParameter[] = [];
+
+  /**
+   * @generated from field: repeated cuda_learning.AcceleratorType supported_accelerators = 7 [json_name = "supported_accelerators"];
+   */
+  supportedAccelerators: AcceleratorType[] = [];
+
+  constructor(data?: PartialMessage<GenericFilterDefinition>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GenericFilterDefinition";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "parameters", kind: "message", T: GenericFilterParameter, repeated: true },
+    { no: 7, name: "supported_accelerators", jsonName: "supported_accelerators", kind: "enum", T: proto3.getEnumType(AcceleratorType), repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GenericFilterDefinition {
+    return new GenericFilterDefinition().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GenericFilterDefinition {
+    return new GenericFilterDefinition().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GenericFilterDefinition {
+    return new GenericFilterDefinition().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GenericFilterDefinition | PlainMessage<GenericFilterDefinition> | undefined, b: GenericFilterDefinition | PlainMessage<GenericFilterDefinition> | undefined): boolean {
+    return proto3.util.equals(GenericFilterDefinition, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListFiltersRequest
+ */
+export class ListFiltersRequest extends Message<ListFiltersRequest> {
+  /**
+   * @generated from field: string api_version = 1 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ListFiltersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListFiltersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFiltersRequest {
+    return new ListFiltersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFiltersRequest {
+    return new ListFiltersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFiltersRequest {
+    return new ListFiltersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFiltersRequest | PlainMessage<ListFiltersRequest> | undefined, b: ListFiltersRequest | PlainMessage<ListFiltersRequest> | undefined): boolean {
+    return proto3.util.equals(ListFiltersRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListFiltersResponse
+ */
+export class ListFiltersResponse extends Message<ListFiltersResponse> {
+  /**
+   * @generated from field: repeated cuda_learning.GenericFilterDefinition filters = 1;
+   */
+  filters: GenericFilterDefinition[] = [];
+
+  /**
+   * @generated from field: string api_version = 3 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 5 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ListFiltersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListFiltersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "filters", kind: "message", T: GenericFilterDefinition, repeated: true },
+    { no: 3, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFiltersResponse {
+    return new ListFiltersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFiltersResponse {
+    return new ListFiltersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFiltersResponse {
+    return new ListFiltersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFiltersResponse | PlainMessage<ListFiltersResponse> | undefined, b: ListFiltersResponse | PlainMessage<ListFiltersResponse> | undefined): boolean {
+    return proto3.util.equals(ListFiltersResponse, a, b);
+  }
+}
+
+/**
  * Request: Go passes raw image buffer
  *
  * @generated from message cuda_learning.ProcessImageRequest

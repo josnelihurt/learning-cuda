@@ -7,6 +7,47 @@ import "google/api/annotations.proto";
 
 option go_package = "github.com/jrb/cuda-learning/proto/gen";
 
+enum GenericFilterParameterType {
+  GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED = 0;
+  GENERIC_FILTER_PARAMETER_TYPE_SELECT = 1;
+  GENERIC_FILTER_PARAMETER_TYPE_RANGE = 2;
+  GENERIC_FILTER_PARAMETER_TYPE_NUMBER = 3;
+  GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX = 4;
+  GENERIC_FILTER_PARAMETER_TYPE_TEXT = 5;
+}
+
+message GenericFilterParameterOption {
+  string value = 1 [json_name = "value"];
+  string label = 3 [json_name = "label"];
+}
+
+message GenericFilterParameter {
+  string id = 1 [json_name = "id"];
+  string name = 3 [json_name = "name"];
+  GenericFilterParameterType type = 5 [json_name = "type"];
+  repeated GenericFilterParameterOption options = 7 [json_name = "options"];
+  string default_value = 9 [json_name = "default_value"];
+  map<string, string> metadata = 11 [json_name = "metadata"];
+}
+
+message GenericFilterDefinition {
+  string id = 1 [json_name = "id"];
+  string name = 3 [json_name = "name"];
+  repeated GenericFilterParameter parameters = 5 [json_name = "parameters"];
+  repeated AcceleratorType supported_accelerators = 7 [json_name = "supported_accelerators"];
+}
+
+message ListFiltersRequest {
+  string api_version = 1 [json_name = "api_version"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message ListFiltersResponse {
+  repeated GenericFilterDefinition filters = 1 [json_name = "filters"];
+  string api_version = 3 [json_name = "api_version"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
 // Request: Go passes raw image buffer
 message ProcessImageRequest {
   bytes image_data = 1 [json_name = "image_data"];
@@ -110,6 +151,12 @@ service ImageProcessorService {
     option (google.api.http) = {
       post: "/api/v1/process/image"
       body: "*"
+    };
+  }
+  
+  rpc ListFilters(ListFiltersRequest) returns (ListFiltersResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/filters"
     };
   }
   

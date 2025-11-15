@@ -748,6 +748,14 @@ test.describe('Video Playback', () => {
         
         const finalValidation = await page.evaluate(() => {
             const grid = document.querySelector('video-grid') as any;
+            if (!grid || typeof grid.getSources !== 'function') {
+                return {
+                    totalSources: 0,
+                    videoSources: 0,
+                    staticSources: 0,
+                    sourcesWithFilter: 0
+                };
+            }
             const sources = grid.getSources();
             
             let videoCount = 0;
@@ -757,7 +765,12 @@ test.describe('Video Playback', () => {
             sources.forEach((s: any) => {
                 if (s.type === 'video') videoCount++;
                 if (s.type === 'static') staticCount++;
-                if (s.filters && s.filters.includes('grayscale')) withFilterCount++;
+                if (Array.isArray(s.filters)) {
+                    const hasGrayscale = s.filters.some((f: any) => f && f.id === 'grayscale');
+                    if (hasGrayscale) {
+                        withFilterCount++;
+                    }
+                }
             });
             
             return {

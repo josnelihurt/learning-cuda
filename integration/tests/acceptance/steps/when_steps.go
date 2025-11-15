@@ -28,6 +28,10 @@ func (tc *TestContext) iCallGetProcessorStatus() error {
 	return tc.WhenICallGetProcessorStatus()
 }
 
+func (tc *TestContext) iCallListFilters() error {
+	return tc.WhenICallListFilters()
+}
+
 func (tc *TestContext) iCallGetAvailableTools() error {
 	return tc.WhenICallGetAvailableTools()
 }
@@ -107,6 +111,7 @@ func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I wait for flags to be synchronized$`, tc.iWaitForFlagsToBeSynchronized)
 	ctx.Step(`^I call the health endpoint$`, tc.iCallTheHealthEndpoint)
 	ctx.Step(`^I call GetProcessorStatus$`, tc.iCallGetProcessorStatus)
+	ctx.Step(`^I call ListFilters$`, tc.iCallListFilters)
 	ctx.Step(`^I call GetAvailableTools$`, tc.iCallGetAvailableTools)
 	ctx.Step(`^I find the tool "([^"]*)"$`, tc.iFindTheTool)
 	ctx.Step(`^I find any tool with an icon$`, tc.iFindAnyToolWithAnIcon)

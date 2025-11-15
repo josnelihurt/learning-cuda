@@ -2,8 +2,8 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { InputSource } from '../../gen/config_service_pb';
 import { WebSocketService } from '../../services/websocket-service';
-import { telemetryService } from '../../services/telemetry-service';
-import { processorCapabilitiesService } from '../../services/processor-capabilities-service';
+import type { ActiveFilterState } from '../app/filter-panel.types';
+import { FilterData } from '../../domain/value-objects';
 import type { StatsPanel } from '../app/stats-panel';
 import type { CameraPreview } from './camera-preview';
 import type { ToastContainer } from '../app/toast-container';
@@ -19,10 +19,8 @@ interface GridSource {
   currentImageSrc: string;
   ws: WebSocketService | null;
   cameraPreview: CameraPreview | null;
-  filters: string[];
-  grayscaleType: string;
+  filters: ActiveFilterState[];
   resolution: string;
-  blurParams?: Record<string, any>;
   videoId?: string;
 }
 
@@ -163,9 +161,9 @@ export class VideoGrid extends LitElement {
               // Use current filters from the source
               const sourceIndex = this.sources.findIndex((s) => s.id === uniqueId);
               const source = sourceIndex !== -1 ? this.sources[sourceIndex] : null;
-              const filters = source?.filters || ['none'];
-              const grayscaleType = source?.grayscaleType || 'bt601';
-              ws!.sendFrame(dataUri, width, height, filters, 'gpu', grayscaleType);
+              const filters = source?.filters || [{ id: 'none', parameters: {} }];
+              const filterObjects = this.mapFiltersToValueObjects(filters);
+              ws!.sendFrame(dataUri, width, height, filterObjects, 'gpu');
             });
           }
         }
@@ -205,7 +203,8 @@ export class VideoGrid extends LitElement {
           logger.debug('WebSocket is connected, starting video', {
             'video.id': inputSource.id,
           });
-          ws!.sendStartVideo(inputSource.id, ['none'], 'gpu', 'bt601');
+          const defaultFilters = this.mapFiltersToValueObjects([{ id: 'none', parameters: {} }]);
+          ws!.sendStartVideo(inputSource.id, defaultFilters, 'gpu');
         } else {
           logger.debug('WebSocket not ready, retrying in 100ms...');
           setTimeout(tryStartVideo, 100);
@@ -257,8 +256,7 @@ export class VideoGrid extends LitElement {
       currentImageSrc: sourceImagePath,
       ws,
       cameraPreview,
-      filters: [],
-      grayscaleType: 'bt601',
+      filters: [{ id: 'none', parameters: {} }],
       resolution: 'original',
       videoId: inputSource.type === 'video' ? inputSource.id : undefined,
     };
@@ -347,9 +345,7 @@ export class VideoGrid extends LitElement {
           sourceNumber: source.number,
           sourceType: source.type,
           filters: source.filters,
-          grayscaleType: source.grayscaleType,
           resolution: source.resolution,
-          blurParams: source.blurParams,
         },
       })
     );
@@ -368,11 +364,9 @@ export class VideoGrid extends LitElement {
   }
 
   async applyFilterToSelected(
-    filters: string[],
+    filters: ActiveFilterState[],
     accelerator: string,
-    grayscaleType: string,
-    resolution: string = 'original',
-    blurParams?: Record<string, any>
+    resolution: string = 'original'
   ): Promise<void> {
     const selectedSource = this.getSelectedSource();
     if (!selectedSource) {
@@ -380,16 +374,14 @@ export class VideoGrid extends LitElement {
       return;
     }
 
-    selectedSource.filters = filters;
-    selectedSource.grayscaleType = grayscaleType;
+    const normalizedFilters = this.normalizeFilterState(filters);
+    selectedSource.filters = normalizedFilters;
     selectedSource.resolution = resolution;
-    selectedSource.blurParams = blurParams;
-
-    logger.debug(`Applying filter to source ${selectedSource.number} ${grayscaleType}`, {
+ 
+    logger.debug(`Applying filters to source ${selectedSource.number}`, {
       'source.number': selectedSource.number,
       'source.type': selectedSource.type,
-      filters: filters.join(','),
-      grayscale_type: grayscaleType,
+      filters: normalizedFilters.map((f) => f.id).join(','),
       resolution: resolution,
     });
 
@@ -405,18 +397,18 @@ export class VideoGrid extends LitElement {
         const videoId = selectedSource.videoId || selectedSource.name;
         logger.debug('Restarting video with new filters', {
           'video.id': videoId,
-          filters: filters.join(','),
+          filters: normalizedFilters.map((f) => f.id).join(','),
           accelerator: accelerator,
-          grayscale_type: grayscaleType,
         });
         selectedSource.ws.sendStopVideo(videoId);
 
         setTimeout(() => {
           if (selectedSource.ws && selectedSource.ws.isConnected()) {
             logger.debug('Starting video with filters', {
-              filters: filters.join(','),
+              filters: normalizedFilters.map((f) => f.id).join(','),
             });
-            selectedSource.ws.sendStartVideo(videoId, filters, accelerator, grayscaleType, blurParams);
+            const filterData = this.mapFiltersToValueObjects(normalizedFilters);
+            selectedSource.ws.sendStartVideo(videoId, filterData, accelerator);
           }
         }, 200);
       } catch (error) {
@@ -480,14 +472,13 @@ export class VideoGrid extends LitElement {
         'image.target_height': targetHeight,
       });
 
+      const filterData = this.mapFiltersToValueObjects(normalizedFilters);
       const response = await selectedSource.ws.sendSingleFrame(
         imageData,
         targetWidth,
         targetHeight,
-        filters,
-        accelerator,
-        grayscaleType,
-        blurParams
+        filterData,
+        accelerator
       );
 
       if (response.success && response.response) {
@@ -513,6 +504,21 @@ export class VideoGrid extends LitElement {
       });
       this.toastManager?.error('Filter Error', 'Failed to apply filter');
     }
+  }
+
+  private normalizeFilterState(filters: ActiveFilterState[]): ActiveFilterState[] {
+    if (!filters || filters.length === 0) {
+      return [{ id: 'none', parameters: {} }];
+    }
+
+    return filters.map((filter) => ({
+      id: filter.id,
+      parameters: { ...filter.parameters },
+    }));
+  }
+
+  private mapFiltersToValueObjects(filters: ActiveFilterState[]): FilterData[] {
+    return filters.map((filter) => new FilterData(filter.id, { ...filter.parameters }));
   }
 }
 

@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import type { PropertyValues } from 'lit';
 import type {
   IConfigService,
   ITelemetryService,
@@ -17,6 +18,7 @@ import type { ImageSelectorModal } from '../image/image-selector-modal';
 import type { AppTour } from './app-tour';
 import type { ToastContainer } from './toast-container';
 import type { StatsPanel } from './stats-panel';
+import type { ActiveFilterState } from './filter-panel.types';
 
 const TOUR_DISMISS_KEY = 'cuda-app-tour-dismissed';
 
@@ -44,6 +46,11 @@ export class AppRoot extends LitElement {
   private toolsDropdown: ToolsDropdown | null = null;
   private imageSelectorModal: ImageSelectorModal | null = null;
   private tour: AppTour | null = null;
+  private filtersUpdatedHandler = () => {
+    if (this.filterManager && this.processorCapabilitiesService) {
+      this.filterManager.filters = this.processorCapabilitiesService.getFilters();
+    }
+  };
 
   static styles = css`
     :host {
@@ -217,6 +224,20 @@ export class AppRoot extends LitElement {
     }
   }
 
+  protected updated(changedProperties: PropertyValues<AppRoot>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('processorCapabilitiesService')) {
+      const previousService = changedProperties.get('processorCapabilitiesService') as IProcessorCapabilitiesService | undefined;
+      previousService?.removeFiltersUpdatedListener(this.filtersUpdatedHandler);
+      this.processorCapabilitiesService?.addFiltersUpdatedListener(this.filtersUpdatedHandler);
+    }
+  }
+
+  disconnectedCallback(): void {
+    this.processorCapabilitiesService?.removeFiltersUpdatedListener(this.filtersUpdatedHandler);
+    super.disconnectedCallback();
+  }
+
   private async setupComponents(): Promise<void> {
     this.toastManager = document.querySelector('toast-container');
     this.statsManager = document.querySelector('stats-panel');
@@ -265,20 +286,20 @@ export class AppRoot extends LitElement {
 
   private setupEventListeners(): void {
     if (this.filterManager) {
-      this.filterManager.addEventListener('filter-change', ((e: CustomEvent) => {
-        if (this.videoGrid) {
-          const filters = this.filterManager!.getSelectedFilters();
-          const grayscaleType = this.filterManager!.getGrayscaleType();
-          const blurParams = e.detail?.blurParams;
-          this.videoGrid.applyFilterToSelected(
-            filters,
-            this.selectedAccelerator,
-            grayscaleType,
-            this.selectedResolution,
-            blurParams
-          );
-        }
-      }) as EventListener);
+      this.filterManager.addEventListener(
+        'filter-change',
+        ((e: CustomEvent) => {
+          if (this.videoGrid) {
+            const filters: ActiveFilterState[] =
+              e.detail?.filters ?? this.filterManager!.getActiveFilters();
+            this.videoGrid.applyFilterToSelected(
+              filters,
+              this.selectedAccelerator,
+              this.selectedResolution
+            );
+          }
+        }) as EventListener
+      );
     }
 
     if (this.videoGrid) {
@@ -286,10 +307,7 @@ export class AppRoot extends LitElement {
         this.updateSelectedSourceIndicator(e.detail.sourceNumber, e.detail.sourceId);
 
         if (this.filterManager && e.detail.filters !== undefined) {
-          const filters = e.detail.filters.length > 0 ? e.detail.filters : [];
-          const grayscaleType = e.detail.grayscaleType || 'bt601';
-          const blurParams = e.detail.blurParams;
-          this.filterManager.setFilters(filters, grayscaleType, blurParams);
+          this.filterManager.setFilters(e.detail.filters);
         }
 
         if (e.detail.resolution) {
@@ -358,16 +376,8 @@ export class AppRoot extends LitElement {
     this.selectedAccelerator = type;
 
     if (this.videoGrid && this.filterManager) {
-      const filters = this.filterManager.getSelectedFilters();
-      const grayscaleType = this.filterManager.getGrayscaleType();
-      const blurParams = this.filterManager.getBlurParams();
-      this.videoGrid.applyFilterToSelected(
-        filters,
-        type,
-        grayscaleType,
-        this.selectedResolution,
-        blurParams
-      );
+      const filters = this.filterManager.getActiveFilters();
+      this.videoGrid.applyFilterToSelected(filters, type, this.selectedResolution);
     }
   }
 
@@ -397,16 +407,8 @@ export class AppRoot extends LitElement {
     this.selectedResolution = select.value;
 
     if (this.videoGrid && this.filterManager) {
-      const filters = this.filterManager.getSelectedFilters();
-      const grayscaleType = this.filterManager.getGrayscaleType();
-      const blurParams = this.filterManager.getBlurParams();
-      this.videoGrid.applyFilterToSelected(
-        filters,
-        this.selectedAccelerator,
-        grayscaleType,
-        this.selectedResolution,
-        blurParams
-      );
+      const filters = this.filterManager.getActiveFilters();
+      this.videoGrid.applyFilterToSelected(filters, this.selectedAccelerator, this.selectedResolution);
     }
   }
 

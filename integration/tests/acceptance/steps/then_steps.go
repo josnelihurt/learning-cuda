@@ -44,6 +44,22 @@ func (tc *TestContext) theCapabilitiesShouldHaveAtLeastNFilters(count int) error
 	return tc.ThenTheCapabilitiesShouldHaveAtLeastNFilters(count)
 }
 
+func (tc *TestContext) theFilterListShouldHaveAtLeastNFilters(count int) error {
+	return tc.ThenTheFilterListShouldHaveAtLeastNFilters(count)
+}
+
+func (tc *TestContext) theFilterListShouldInclude(filterID string) error {
+	return tc.ThenTheFilterListShouldInclude(filterID)
+}
+
+func (tc *TestContext) theGenericFilterShouldHaveParameter(filterID, paramID string) error {
+	return tc.ThenTheGenericFilterShouldHaveParameter(filterID, paramID)
+}
+
+func (tc *TestContext) theGenericParameterShouldBeOfType(filterID, paramID, paramType string) error {
+	return tc.ThenTheGenericParameterShouldBeOfType(filterID, paramID, paramType)
+}
+
 func (tc *TestContext) theFilterShouldBeDefined(filterID string) error {
 	return tc.ThenTheFilterShouldBeDefined(filterID)
 }
@@ -240,10 +256,16 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should include capabilities$`, tc.theResponseShouldIncludeCapabilities)
 	ctx.Step(`^the capabilities should have API version "([^"]*)"$`, tc.theCapabilitiesShouldHaveAPIVersion)
 	ctx.Step(`^the capabilities should have at least (\d+) filter$`, tc.theCapabilitiesShouldHaveAtLeastNFilters)
+	ctx.Step(`^the filter list should have at least (\d+) filter$`, tc.theFilterListShouldHaveAtLeastNFilters)
+	ctx.Step(`^the filter list should include "([^"]*)"$`, tc.theFilterListShouldInclude)
 	ctx.Step(`^the filter "([^"]*)" should be defined$`, tc.theFilterShouldBeDefined)
 	ctx.Step(`^the filter "([^"]*)" should have parameter "([^"]*)"$`, tc.theFilterShouldHaveParameter)
 	ctx.Step(`^the parameter "([^"]*)" should be of type "([^"]*)"$`, tc.theParameterShouldBeOfType)
 	ctx.Step(`^the parameter "([^"]*)" should have at least (\d+) options$`, tc.theParameterShouldHaveAtLeastNOptions)
+	ctx.Step(`^the generic filter "([^"]*)" should have parameter "([^"]*)"$`, tc.theGenericFilterShouldHaveParameter)
+	ctx.Step(`^the generic parameter "([^"]*)" in filter "([^"]*)" should be of type "([^"]*)"$`, func(paramID, filterID, paramType string) error {
+		return tc.theGenericParameterShouldBeOfType(filterID, paramID, paramType)
+	})
 	ctx.Step(`^the filter "([^"]*)" should support accelerator "([^"]*)"$`, tc.theFilterShouldSupportAccelerator)
 	ctx.Step(`^the response should contain tool categories$`, tc.theResponseShouldContainToolCategories)
 	ctx.Step(`^the categories should include "([^"]*)"$`, tc.theCategoriesShouldInclude)

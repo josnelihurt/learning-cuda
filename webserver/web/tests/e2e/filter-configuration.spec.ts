@@ -25,8 +25,7 @@ test.describe('Independent Filter Configuration', () => {
     
     await page.waitForTimeout(1000);
     
-    helpers.expectConsoleLogContains('Applying filter to source 1');
-    helpers.expectConsoleLogContains('bt601');
+    await helpers.expectSourceFilterParameter(1, 'grayscale', 'algorithm', 'bt601');
   });
 
   test('Test 3.2: Configure Source 2 (Different Settings)', async ({ page }) => {
@@ -40,8 +39,7 @@ test.describe('Independent Filter Configuration', () => {
     
     await page.waitForTimeout(1000);
     
-    helpers.expectConsoleLogContains('Applying filter to source 2');
-    helpers.expectConsoleLogContains('bt709');
+    await helpers.expectSourceFilterParameter(2, 'grayscale', 'algorithm', 'bt709');
   });
 
   test('Test 3.3: Configure Source 3 (Different Algorithm)', async ({ page }) => {
@@ -51,8 +49,7 @@ test.describe('Independent Filter Configuration', () => {
     
     await page.waitForTimeout(1000);
     
-    helpers.expectConsoleLogContains('Applying filter to source 3');
-    helpers.expectConsoleLogContains('average');
+    await helpers.expectSourceFilterParameter(3, 'grayscale', 'algorithm', 'average');
   });
 
   test('Test 3.4: Configure Source 4 (Different Algorithm)', async ({ page }) => {
@@ -62,8 +59,7 @@ test.describe('Independent Filter Configuration', () => {
     
     await page.waitForTimeout(1000);
     
-    helpers.expectConsoleLogContains('Applying filter to source 4');
-    helpers.expectConsoleLogContains('lightness');
+    await helpers.expectSourceFilterParameter(4, 'grayscale', 'algorithm', 'lightness');
   });
 
   test('Test 3.5: Verify Independent State', async ({ page }) => {

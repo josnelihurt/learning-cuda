@@ -64,6 +64,7 @@ type BDDContext struct {
 	receivedConsoleLogging bool
 	otlpLogsReceived       bool
 	systemInfoResponse     *pb.GetSystemInfoResponse
+	listFiltersResponse    *pb.ListFiltersResponse
 }
 
 func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
@@ -1121,6 +1122,24 @@ func (c *BDDContext) WhenICallGetProcessorStatus() error {
 	return nil
 }
 
+func (c *BDDContext) WhenICallListFilters() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := c.connectClient.ListFilters(ctx, connect.NewRequest(&pb.ListFiltersRequest{}))
+	if err != nil {
+		c.lastError = err
+		c.lastResponse = &http.Response{StatusCode: http.StatusInternalServerError}
+		return fmt.Errorf("failed to call ListFilters: %w", err)
+	}
+
+	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
+	c.lastError = nil
+	c.listFiltersResponse = resp.Msg
+
+	return nil
+}
+
 func (c *BDDContext) ThenTheResponseShouldIncludeCapabilities() error {
 	if c.processorCapabilities == nil {
 		return fmt.Errorf("no capabilities in response")
@@ -1136,6 +1155,89 @@ func (c *BDDContext) ThenTheCapabilitiesShouldHaveAPIVersion(version string) err
 		return fmt.Errorf("expected API version %s, got %s", version, c.processorCapabilities.ApiVersion)
 	}
 	return nil
+}
+
+func (c *BDDContext) ThenTheFilterListShouldHaveAtLeastNFilters(count int) error {
+	if c.listFiltersResponse == nil {
+		return fmt.Errorf("no filter list response available")
+	}
+	if len(c.listFiltersResponse.Filters) < count {
+		return fmt.Errorf("expected at least %d filters, got %d", count, len(c.listFiltersResponse.Filters))
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheFilterListShouldInclude(filterID string) error {
+	if _, err := c.findGenericFilter(filterID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *BDDContext) ThenTheGenericFilterShouldHaveParameter(filterID, paramID string) error {
+	filter, err := c.findGenericFilter(filterID)
+	if err != nil {
+		return err
+	}
+
+	for _, param := range filter.Parameters {
+		if param.Id == paramID {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("parameter '%s' not found in generic filter '%s'", paramID, filterID)
+}
+
+func (c *BDDContext) ThenTheGenericParameterShouldBeOfType(filterID, paramID, expectedType string) error {
+	filter, err := c.findGenericFilter(filterID)
+	if err != nil {
+		return err
+	}
+
+	enumType := mapGenericParameterType(expectedType)
+
+	for _, param := range filter.Parameters {
+		if param.Id == paramID {
+			if param.Type != enumType {
+				return fmt.Errorf("expected generic parameter '%s' to be of type '%s', got '%s'", paramID, enumType.String(), param.Type.String())
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("parameter '%s' not found in generic filter '%s'", paramID, filterID)
+}
+
+func (c *BDDContext) findGenericFilter(filterID string) (*pb.GenericFilterDefinition, error) {
+	if c.listFiltersResponse == nil {
+		return nil, fmt.Errorf("no filter list response available")
+	}
+
+	for _, filter := range c.listFiltersResponse.Filters {
+		if filter.Id == filterID {
+			return filter, nil
+		}
+	}
+
+	return nil, fmt.Errorf("generic filter '%s' not found", filterID)
+}
+
+func mapGenericParameterType(expected string) pb.GenericFilterParameterType {
+	switch strings.ToLower(expected) {
+	case "select":
+		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_SELECT
+	case "range", "slider":
+		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_RANGE
+	case "number":
+		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_NUMBER
+	case "checkbox":
+		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX
+	case "text", "string":
+		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_TEXT
+	default:
+		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED
+	}
 }
 
 func (c *BDDContext) ThenTheCapabilitiesShouldHaveAtLeastNFilters(count int) error {

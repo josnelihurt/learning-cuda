@@ -28,3 +28,10 @@ Feature: Processor Capabilities
     Then the filter "grayscale" should support accelerator "CUDA"
     And the filter "grayscale" should support accelerator "CPU"
 
+  Scenario: List filters via ImageProcessorService
+    When I call ListFilters
+    Then the filter list should have at least 2 filter
+    And the filter list should include "grayscale"
+    And the generic filter "grayscale" should have parameter "algorithm"
+    And the generic parameter "algorithm" in filter "grayscale" should be of type "select"
+

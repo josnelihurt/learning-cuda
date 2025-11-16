@@ -922,6 +922,14 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
+      - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build gRPC server image
         if: ${{ steps.gate.outputs.build == 'true' }}
         run: |

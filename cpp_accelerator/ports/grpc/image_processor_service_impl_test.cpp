@@ -6,7 +6,6 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include <grpcpp/create_channel.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>

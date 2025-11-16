@@ -4,7 +4,6 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include <grpcpp/grpcpp.h>
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop

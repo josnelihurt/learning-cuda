@@ -1,6 +1,7 @@
 load("@rules_buf//buf:defs.bzl", "buf_lint_test")
 load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 
 # Proto definitions
 proto_library(
@@ -43,6 +44,16 @@ cc_proto_library(
     name = "image_processor_service_cc_proto",
     visibility = ["//visibility:public"],
     deps = [":image_processor_service_proto"],
+)
+
+cc_grpc_library(
+    name = "image_processor_service_grpc",
+    srcs = [":image_processor_service_proto"],
+    grpc_only = True,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":image_processor_service_cc_proto",
+    ],
 )
 
 cc_proto_library(

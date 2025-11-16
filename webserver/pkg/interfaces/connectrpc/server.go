@@ -13,9 +13,11 @@ import (
 func RegisterRoutes(
 	mux *http.ServeMux,
 	useCase *application.ProcessImageUseCase,
-	capabilities filterCapabilitiesProvider,
+	capabilities application.ProcessorCapabilitiesUseCase,
+	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
+	useGRPCForProcessor bool,
 ) {
-	handler := NewImageProcessorHandler(useCase, capabilities)
+	handler := NewImageProcessorHandler(useCase, capabilities, evaluateFFUse, useGRPCForProcessor)
 	path, rpcHandler := genconnect.NewImageProcessorServiceHandler(handler)
 	mux.Handle(path, rpcHandler)
 }
@@ -38,16 +40,10 @@ func RegisterConfigService(
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
 	getSystemInfoUC *application.GetSystemInfoUseCase,
 	configManager *config.Manager,
-	cppConnector interface{},
+	cppConnector *processor.CppConnector,
 	interceptors ...connect.Interceptor,
 ) {
-	var connector *processor.CppConnector
-	if cppConnector != nil {
-		if c, ok := cppConnector.(*processor.CppConnector); ok {
-			connector = c
-		}
-	}
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, configManager, connector)
+	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, configManager, cppConnector)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

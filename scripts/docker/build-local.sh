@@ -52,7 +52,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app)
+ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app grpc-server)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -301,6 +301,39 @@ run_app_image() {
     "--build-arg" "GOLANG_VERSION=${golang_version}"
 }
 
+run_grpc_server_image() {
+  local proto_version
+  local cpp_version
+  proto_version="$(read_version "proto/VERSION")"
+  cpp_version="$(read_version "cpp_accelerator/VERSION")"
+
+  local app_tag="grpc-${cpp_version}-proto${proto_version}"
+  local version_tag="${IMAGE_BASE}/grpc-server:${app_tag}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/grpc-server:latest-${ARCH}"
+
+  print_stage_header "Building gRPC server image (${app_tag})"
+
+  bazel build \
+    //cpp_accelerator/ports/grpc:image_processor_grpc_server \
+    //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+
+  rm -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" \
+        "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
+  cp "${REPO_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server" \
+     "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server"
+  cp "${REPO_ROOT}/bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so" \
+     "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
+
+  docker build \
+    --build-arg "TARGETARCH=${TARGETARCH}" \
+    -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/Dockerfile" \
+    -t "${version_tag}" \
+    -t "${latest_tag}" \
+    "${REPO_ROOT}/cpp_accelerator/docker/grpc"
+
+  docker image inspect "${version_tag}" >/dev/null 2>&1
+}
+
 for stage in "${REQUESTED_STAGES[@]}"; do
   case "${stage}" in
     proto-tools)
@@ -329,6 +362,9 @@ for stage in "${REQUESTED_STAGES[@]}"; do
       ;;
     app)
       run_app_image
+      ;;
+    grpc-server)
+      run_grpc_server_image
       ;;
     *)
       echo "Stage '${stage}' is not implemented" >&2

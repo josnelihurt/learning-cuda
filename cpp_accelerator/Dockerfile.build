@@ -10,11 +10,13 @@ FROM bazel-base AS bazel-deps-fetch
 WORKDIR /build
 
 COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
-COPY .bazelrc ./
+COPY .bazelrc .bazeliskrc ./
+COPY bazel/ ./bazel/
 COPY proto/BUILD ./proto/BUILD
 COPY proto/google/api/BUILD.bazel ./proto/google/api/BUILD.bazel
 COPY third_party/ ./third_party/
 
+ENV USE_BAZEL_VERSION=8.4.2
 RUN bazel fetch //...
 
 FROM bazel-deps-fetch AS bazel-external-deps
@@ -31,7 +33,7 @@ RUN bazel build \
     --show_timestamps \
     --announce_rc \
     @spdlog//:spdlog \
-    @protobuf//:protobuf \
+    @com_google_protobuf//:protobuf \
     //proto:common_cc_proto \
     //proto:image_processor_service_cc_proto \
     //proto:config_service_cc_proto \

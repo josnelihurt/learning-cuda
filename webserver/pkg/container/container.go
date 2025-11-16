@@ -9,6 +9,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build"
 	configrepo "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
@@ -27,6 +28,7 @@ type Container struct {
 	HTTPClient *httpinfra.ClientProxy
 
 	FeatureFlagRepo domain.FeatureFlagRepository
+	FliptAPI        *featureflags.FliptHTTPAPI
 	VideoRepository domain.VideoRepository
 
 	ProcessImageUseCase        *application.ProcessImageUseCase
@@ -42,10 +44,11 @@ type Container struct {
 	ListVideosUseCase          *application.ListVideosUseCase
 	UploadVideoUseCase         *application.UploadVideoUseCase
 
-	CppConnector      *processor.CppConnector
-	ProcessorRegistry *loader.Registry
-	ProcessorLoader   *loader.Loader
-	LoaderMutex       *sync.RWMutex
+	CppConnector        *processor.CppConnector
+	ProcessorRegistry   *loader.Registry
+	ProcessorLoader     *loader.Loader
+	LoaderMutex         *sync.RWMutex
+	GRPCProcessorClient *processor.GRPCClient
 
 	fliptClientProxy featureflags.FliptClientInterface
 }
@@ -69,27 +72,32 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	var fliptClientProxy featureflags.FliptClientInterface
 	var featureFlagRepo domain.FeatureFlagRepository
+	var fliptAPI *featureflags.FliptHTTPAPI
 
-	fliptClient, err := flipt.NewClient(
-		ctx,
-		flipt.WithURL(cfg.Flipt.URL),
-		flipt.WithNamespace(cfg.Flipt.Namespace),
-	)
-	if err != nil {
-		log.Warn().
-			Err(err).
-			Str("flipt_url", cfg.Flipt.URL).
-			Msg("Failed to initialize Flipt client. Feature flags will be disabled")
-		fliptClientProxy = nil
-		featureFlagRepo = nil
-	} else {
-		fliptClientProxy = featureflags.NewFliptClient(fliptClient)
-		fliptWriter := featureflags.NewFliptWriter(
-			cfg.Flipt.URL,
-			cfg.Flipt.Namespace,
-			httpClient,
+	if cfg.Flipt.Enabled {
+		fliptClient, err := flipt.NewClient(
+			ctx,
+			flipt.WithURL(cfg.Flipt.URL),
+			flipt.WithNamespace(cfg.Flipt.Namespace),
 		)
-		featureFlagRepo = featureflags.NewFliptRepository(fliptClientProxy, fliptWriter)
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Str("flipt_url", cfg.Flipt.URL).
+				Msg("Failed to initialize Flipt client. Feature flags will be disabled")
+			fliptClientProxy = nil
+			featureFlagRepo = nil
+			fliptAPI = nil
+		} else {
+			fliptClientProxy = featureflags.NewFliptClient(fliptClient)
+			fliptWriter := featureflags.NewFliptWriter(
+				cfg.Flipt.URL,
+				cfg.Flipt.Namespace,
+				httpClient,
+			)
+			featureFlagRepo = featureflags.NewFliptRepository(fliptClientProxy, fliptWriter)
+			fliptAPI = featureflags.NewFliptHTTPAPI(cfg.Flipt.URL, cfg.Flipt.Namespace, httpClient)
+		}
 	}
 
 	buildInfo := build.NewBuildInfo()
@@ -131,11 +139,38 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		return nil, fmt.Errorf("failed to create C++ connector: %w", err)
 	}
 
+	var grpcClient *processor.GRPCClient
+	if cfg.Processor.UseGRPCForProcessor {
+		client, clientErr := processor.NewGRPCClient(processor.GRPCClientConfig{
+			Address:      cfg.Processor.GRPCServerAddress,
+			DialTimeout:  5 * time.Second,
+			MaxRecvBytes: 64 * 1024 * 1024,
+			MaxSendBytes: 64 * 1024 * 1024,
+		})
+		if clientErr != nil {
+			log.Warn().
+				Err(clientErr).
+				Str("grpc_address", cfg.Processor.GRPCServerAddress).
+				Msg("Failed to initialize gRPC processor client, falling back to C++ connector")
+		} else {
+			grpcClient = client
+		}
+	}
+
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 
 	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
+
+	cppCapsRepo := processor.NewCPPCapabilitiesRepository(cppConnector)
+
+	var grpcCapsRepo interfaces.ProcessorCapabilitiesRepository
+	if grpcClient != nil {
+		grpcCapsRepo = processor.NewGRPCRepository(grpcClient)
+	}
+
+	_ = application.NewProcessorCapabilitiesUseCase(cppCapsRepo, grpcCapsRepo)
 
 	videoRepo := video.NewFileVideoRepository(context.Background(), "data/videos", "data/video_previews") //nolint:contextcheck
 	listInputsUseCase := application.NewListInputsUseCase(videoRepo)
@@ -153,6 +188,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		Config:                     cfg,
 		HTTPClient:                 httpClient,
 		FeatureFlagRepo:            featureFlagRepo,
+		FliptAPI:                   fliptAPI,
 		VideoRepository:            videoRepo,
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
 		SyncFeatureFlagsUseCase:    syncFFUseCase,
@@ -167,6 +203,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		ProcessorRegistry:          registry,
 		ProcessorLoader:            processorLoader,
 		LoaderMutex:                &sync.RWMutex{},
+		GRPCProcessorClient:        grpcClient,
 		fliptClientProxy:           fliptClientProxy,
 	}, nil
 }
@@ -176,6 +213,12 @@ func (c *Container) Close(ctx context.Context) error {
 
 	if c.CppConnector != nil {
 		c.CppConnector.Close()
+	}
+
+	if c.GRPCProcessorClient != nil {
+		if err := c.GRPCProcessorClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Error closing gRPC processor client")
+		}
 	}
 
 	if c.fliptClientProxy != nil {

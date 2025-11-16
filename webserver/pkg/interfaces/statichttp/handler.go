@@ -28,6 +28,9 @@ func NewStaticHandler(
 	useCase *application.ProcessImageUseCase,
 	videoRepo domain.VideoRepository,
 	fliptURL string,
+	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
+	grpcProcessor domain.ImageProcessor,
+	defaultUseGRPC bool,
 ) *StaticHandler {
 	var tmpl *template.Template
 	if !serverConfig.HotReloadEnabled {
@@ -49,7 +52,7 @@ func NewStaticHandler(
 		webRootPath:      serverConfig.WebRootPath,
 		hotReloadEnabled: serverConfig.HotReloadEnabled,
 		tmpl:             tmpl,
-		wsHandler:        websocket.NewHandler(useCase, streamConfig, videoRepo),
+		wsHandler:        websocket.NewHandler(useCase, streamConfig, videoRepo, evaluateFFUC, grpcProcessor, defaultUseGRPC),
 		assetHandler:     assetHandler,
 		fliptURL:         fliptURL,
 	}

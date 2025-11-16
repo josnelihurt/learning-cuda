@@ -133,6 +133,13 @@ func (h *ConfigHandler) SyncFeatureFlags(
 			Enabled:      true,
 			DefaultValue: true,
 		},
+		{
+			Key:          "processor_use_grpc_backend",
+			Name:         "Use gRPC backend for image processor",
+			Type:         domain.BooleanFlagType,
+			Enabled:      true,
+			DefaultValue: false,
+		},
 	}
 
 	err := h.syncFlagsUseCase.Execute(ctx, flags)

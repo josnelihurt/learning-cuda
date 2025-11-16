@@ -3,10 +3,28 @@ module(
     version = "1.0.0",
 )
 
-# CUDA rules from bazel-contrib (v0.2.5)
-bazel_dep(name = "rules_cuda", version = "0.2.1")
+# Core Bazel modules
+bazel_dep(name = "platforms", version = "0.0.11")
+bazel_dep(name = "bazel_features", version = "1.38.0")
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
 
-# Override to use the latest release (v0.2.5)
+# Build/toolchain rules
+bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "rules_proto", version = "7.0.2")
+bazel_dep(name = "rules_buf", version = "0.3.0")
+bazel_dep(name = "rules_cuda", version = "0.2.5")
+bazel_dep(name = "rules_oci", version = "2.0.0")
+bazel_dep(name = "rules_pkg", version = "1.0.1")
+bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "rules_java", version = "8.14.0")
+
+# Third-party libraries
+bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
+
+# Tooling helpers
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+
+# Module overrides for repositories not yet mirrored in BCR or requiring patches
 archive_override(
     module_name = "rules_cuda",
     integrity = "sha256-/o09jtUrm0M/iQIbA+PEKKguEO2QxygIzEmI0fS50bM=",
@@ -14,23 +32,51 @@ archive_override(
     urls = ["https://github.com/bazel-contrib/rules_cuda/releases/download/v0.2.5/rules_cuda-v0.2.5.tar.gz"],
 )
 
-# Google Test for unit testing
-bazel_dep(name = "googletest", version = "1.15.2")
+archive_override(
+    module_name = "protobuf",
+    integrity = "sha256-EKDVjzmhqQnpXgDougtbHcZNApl/dBFRlTorNln254w=",
+    patch_strip = 1,
+    patches = ["//bazel/patches:protobuf_strip_proguard.patch"],
+    strip_prefix = "protobuf-29.0",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/refs/tags/v29.0.tar.gz"],
+)
 
-# C++ rules
-bazel_dep(name = "rules_cc", version = "0.0.10")
+archive_override(
+    module_name = "rules_proto",
+    integrity = "sha256-DlxkolmabibGoD1hYiQtIx7MDeIZU0w4y0QCFx3vIeg=",
+    strip_prefix = "rules_proto-7.0.2",
+    urls = ["https://github.com/bazelbuild/rules_proto/archive/refs/tags/7.0.2.tar.gz"],
+)
 
-# Protocol Buffers for CGO integration
-bazel_dep(name = "protobuf", version = "29.0")
-bazel_dep(name = "rules_proto", version = "7.0.2")
-bazel_dep(name = "rules_buf", version = "0.3.0")
+archive_override(
+    module_name = "rules_buf",
+    integrity = "sha256-icbW5lI4Au5/EhA0Cmn6tO4LR1VJU6HsvjWTGf0/k9w=",
+    strip_prefix = "rules_buf-0.3.0",
+    urls = ["https://github.com/bufbuild/rules_buf/archive/refs/tags/v0.3.0.tar.gz"],
+)
 
-# OCI (Docker) rules for containerization
-bazel_dep(name = "rules_oci", version = "2.0.0")
-bazel_dep(name = "rules_pkg", version = "1.0.1")
+archive_override(
+    module_name = "bazel_features",
+    integrity = "sha256-BycdD2sSYzd3tpAgxMsetnsZOcDPhLs5RNyFzCUMDAE=",
+    strip_prefix = "bazel_features-1.38.0",
+    urls = ["https://github.com/bazel-contrib/bazel_features/archive/refs/tags/v1.38.0.tar.gz"],
+)
 
-# Import http_archive for external dependencies
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "com_google_absl",
+    integrity = "sha256-M4QgRIsUDw39Gh6jw85xs7wXIHHyT02aV9WbRQN9pEA=",
+    strip_prefix = "abseil-cpp-20240116.0",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20240116.0.tar.gz"],
+)
+
+http_archive(
+    name = "googletest",
+    integrity = "sha256-e0K01u1IgQxTYsJloX+uvpDcI3PIheUhZDnTeSfwKSY=",
+    strip_prefix = "googletest-1.15.2",
+    urls = ["https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz"],
+)
 
 http_archive(
     name = "lyra",
@@ -43,12 +89,11 @@ cc_library(
     copts = ["-w"],
 )
 """,
-    sha256 = "a93f247ed89eba11ca36eb24c4f8ba7be636bf24e74aaaa8e1066e0954bec7e3",
+    integrity = "sha256-qT8kftieuhHKNuskxPi6e+Y2vyTnSqqo4QZuCVS+x+M=",
     strip_prefix = "Lyra-1.6.1",
     urls = ["https://github.com/bfgroup/Lyra/archive/refs/tags/1.6.1.tar.gz"],
 )
 
-# spdlog logging library
 http_archive(
     name = "spdlog",
     build_file_content = """
@@ -62,16 +107,277 @@ cc_library(
     copts = ["-w"],
 )
 """,
-    sha256 = "4dccf2d10f410c1e2feaff89966bfc49a1abb29ef6f08246335b110e001e09a9",
+    integrity = "sha256-Tczy0Q9BDB4v6v+Jlmv8SaGrsp728IJGM1sRDgAeCak=",
     strip_prefix = "spdlog-1.12.0",
     urls = ["https://github.com/gabime/spdlog/archive/refs/tags/v1.12.0.tar.gz"],
 )
 
-bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+http_archive(
+    name = "github_nlohmann_json",
+    build_file_content = """
+cc_library(
+    name = "json",
+    hdrs = glob(["include/**/*.hpp"]),
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+)
+""",
+    integrity = "sha256-1p+d62p14lgEZcbExREbicTcL6lOOoX80v/NmhQ9knM=",
+    strip_prefix = "json-3.11.2",
+    urls = ["https://github.com/nlohmann/json/archive/refs/tags/v3.11.2.tar.gz"],
+)
+
+http_archive(
+    name = "curl",
+    build_file_content = """
+cc_library(
+    name = "curl",
+    visibility = ["//visibility:public"],
+    linkopts = ["-lcurl"],
+)
+""",
+    integrity = "sha256-2a7+uHmYRyzXlBjt1PtNxowYWa/by8LgJACyIK3GTsE=",
+    strip_prefix = "curl-curl-8_0_1",
+    urls = ["https://github.com/curl/curl/archive/refs/tags/curl-8_0_1.tar.gz"],
+)
+
+http_archive(
+    name = "io_opentelemetry_cpp",
+    integrity = "sha256-sUkQnVmDz4KQ1hRlSoeImaaLDIkCtkyTTQb0fNUP/i4=",
+    strip_prefix = "opentelemetry-cpp-1.18.0",
+    urls = ["https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.18.0.tar.gz"],
+)
+
+# gRPC core and pinned third-party repos
+http_archive(
+    name = "com_github_grpc_grpc",
+    integrity = "sha256-yfmubk1vQEZO6ZWL5AaAh4ge1qo34w0OZNQO17453QE=",
+    patch_cmds = [
+        "cat <<'EOF' > WORKSPACE\nworkspace(name = \"com_github_grpc_grpc\")\n# Dependencies are provided by the parent workspace (Bzlmod).\nEOF",
+        "cat <<'EOF' > MODULE.bazel\nmodule(\n    name = \"com_github_grpc_grpc\",\n    repo_mapping = {\n        \"bazel_gazelle\": \"bazel_gazelle\",\n        \"bazel_toolchains\": \"bazel_toolchains\",\n        \"boringssl\": \"boringssl\",\n        \"build_bazel_apple_support\": \"build_bazel_apple_support\",\n        \"build_bazel_rules_apple\": \"build_bazel_rules_apple\",\n        \"build_bazel_rules_swift\": \"build_bazel_rules_swift\",\n        \"com_envoyproxy_protoc_gen_validate\": \"com_envoyproxy_protoc_gen_validate\",\n        \"com_github_cares_cares\": \"com_github_cares_cares\",\n        \"com_github_cncf_xds\": \"com_github_cncf_xds\",\n        \"com_github_google_benchmark\": \"com_github_google_benchmark\",\n        \"com_google_absl\": \"com_google_absl\",\n        \"com_google_fuzztest\": \"com_google_fuzztest\",\n        \"com_google_googleapis\": \"com_google_googleapis\",\n        \"com_google_googleapis_imports\": \"com_google_googleapis\",\n        \"com_google_googletest\": \"com_google_googletest\",\n        \"com_google_protobuf\": \"com_google_protobuf\",\n        \"com_googlesource_code_re2\": \"com_googlesource_code_re2\",\n        \"envoy_api\": \"envoy_api\",\n        \"io_bazel_rules_go\": \"io_bazel_rules_go\",\n        \"io_bazel_rules_go_name_hack\": \"io_bazel_rules_go\",\n        \"io_opencensus_cpp\": \"io_opencensus_cpp\",\n        \"madler_zlib\": \"zlib\",\n        \"opencensus_proto\": \"opencensus_proto\",\n        \"protobuf\": \"com_google_protobuf\",\n        \"zlib\": \"zlib\",\n    },\n)\nEOF",
+        "mkdir -p external",
+        "cat <<'EOF' > external/BUILD\npackage(default_visibility = [\"//visibility:public\"])\n\nalias(name = \"libssl\", actual = \"@boringssl//:ssl\")\nalias(name = \"libcrypto\", actual = \"@boringssl//:crypto\")\nalias(name = \"madler_zlib\", actual = \"@zlib//:zlib\")\n\nalias(name = \"protobuf\", actual = \"@com_google_protobuf//:protobuf\")\nalias(name = \"protobuf_clib\", actual = \"@com_google_protobuf//:protoc_lib\")\nalias(name = \"protobuf_headers\", actual = \"@com_google_protobuf//:protobuf_headers\")\nalias(name = \"protocol_compiler\", actual = \"@com_google_protobuf//:protoc\")\n\nalias(name = \"upb_amalgamation_lib\", actual = \"@com_google_protobuf//upb:amalgamation\")\nalias(name = \"upb_base_lib\", actual = \"@com_google_protobuf//upb/base\")\nalias(name = \"upb_message_lib\", actual = \"@com_google_protobuf//upb:message\")\nalias(name = \"upb_mem_lib\", actual = \"@com_google_protobuf//upb/mem\")\nalias(name = \"upb_reflection\", actual = \"@com_google_protobuf//upb:reflection\")\nalias(name = \"upb_lib_descriptor\", actual = \"@com_google_protobuf//upb:descriptor_upb_proto\")\nalias(name = \"upb_lib_descriptor_reflection\", actual = \"@com_google_protobuf//upb:descriptor_upb_proto_reflection\")\nalias(name = \"upb_textformat_lib\", actual = \"@com_google_protobuf//upb/text\")\nalias(name = \"upb_json_lib\", actual = \"@com_google_protobuf//upb/json\")\nalias(\n    name = \"upb_generated_code_support__only_for_generated_code_do_not_use__i_give_permission_to_break_me\",\n    actual = \"@com_google_protobuf//upb:generated_code_support__only_for_generated_code_do_not_use__i_give_permission_to_break_me\",\n)\n\nalias(name = \"cares\", actual = \"@com_github_cares_cares//:ares\")\nalias(name = \"gtest\", actual = \"@com_google_googletest//:gtest\")\nalias(name = \"fuzztest\", actual = \"@com_google_fuzztest//fuzztest\")\nalias(name = \"fuzztest_main\", actual = \"@com_google_fuzztest//fuzztest:fuzztest_gtest_main\")\nalias(name = \"benchmark\", actual = \"@com_github_google_benchmark//:benchmark\")\nalias(name = \"re2\", actual = \"@com_googlesource_code_re2//:re2\")\n\nalias(name = \"grpc_cpp_plugin\", actual = \"@com_github_grpc_grrc//src/compiler:grpc_cpp_plugin\")\nalias(name = \"grpc++_codegen_proto\", actual = \"@com_github_grpc_grrc//:grpc++_codegen_proto\")\n\nalias(name = \"googleapis_trace_grpc_service\", actual = \"@com_google_googleapis//google/devtools/cloudtrace/v2:cloudtrace_cc_grpc\")\nalias(name = \"googleapis_monitoring_grpc_service\", actual = \"@com_google_googleapis//google/monitoring/v3:monitoring_cc_grpc\")\nalias(name = \"googleapis_logging_grpc_service\", actual = \"@com_google_googleapis//google/logging/v2:logging_cc_grpc\")\nalias(name = \"googleapis_logging_cc_proto\", actual = \"@com_google_googleapis//google/logging/v2:logging_cc_proto\")\n\nalias(name = \"opencensus-context\", actual = \"@io_opencensus_cpp//opencensus/context:context\")\nalias(name = \"opencensus-trace\", actual = \"@io_opencensus_cpp//opencensus/trace:trace\")\nalias(name = \"opencensus-trace-context_util\", actual = \"@io_opencensus_cpp//opencensus/trace:context_util\")\nalias(name = \"opencensus-trace-propagation\", actual = \"@io_opencensus_cpp//opencensus/trace:grpc_trace_bin\")\nalias(name = \"opencensus-trace-span_context\", actual = \"@io_opencensus_cpp//opencensus/trace:span_context\")\nalias(name = \"opencensus-stats\", actual = \"@io_opencensus_cpp//opencensus/stats:stats\")\nalias(name = \"opencensus-stats-test\", actual = \"@io_opencensus_cpp//opencensus/stats:test_utils\")\nalias(name = \"opencensus-with-tag_map\", actual = \"@io_opencensus_cpp//opencensus/tags:with_tag_map\")\nalias(name = \"opencensus-tags\", actual = \"@io_opencensus_cpp//opencensus/tags:tags\")\nalias(name = \"opencensus-tags-context_util\", actual = \"@io_opencensus_cpp//opencensus/tags:context_util\")\nalias(name = \"opencensus-trace-stackdriver_exporter\", actual = \"@io_opencensus_cpp//opencensus/exporters/trace/stackdriver:stackdriver_exporter\")\nalias(name = \"opencensus-stats-stackdriver_exporter\", actual = \"@io_opencensus_cpp//opencensus/exporters/stats/stackdriver:stackdriver_exporter\")\nEOF",
+    ],
+    strip_prefix = "grpc-1.62.1",
+    urls = ["https://github.com/grpc/grpc/archive/refs/tags/v1.62.1.tar.gz"],
+)
+
+http_archive(
+    name = "boringssl",
+    integrity = "sha256-BX9mKw6FkxqElFsuibogH9RLBYPagnyUj+RDWTaQ+4M=",
+    strip_prefix = "boringssl-ae72a4514c7afd150596b0a80947f3ca9b8363b5",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/google/boringssl/archive/ae72a4514c7afd150596b0a80947f3ca9b8363b5.tar.gz",
+        "https://github.com/google/boringssl/archive/ae72a4514c7afd150596b0a80947f3ca9b8363b5.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "zlib",
+    build_file = "//bazel/third_party:zlib.BUILD",
+    integrity = "sha256-GDN82zJWIAPDnZ9zIrmhZq1Kv7K5CVZkKOEfltI4VYY=",
+    strip_prefix = "zlib-09155eaa2f9270dc4ed1fa13e2b4b2613e6e4851",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/madler/zlib/archive/09155eaa2f9270dc4ed1fa13e2b4b2613e6e4851.tar.gz",
+        "https://github.com/madler/zlib/archive/09155eaa2f9270dc4ed1fa13e2b4b2613e6e4851.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_github_cares_cares",
+    build_file = "//bazel/third_party:cares.BUILD",
+    integrity = "sha256-vyblsl4lmRGRSoWuhHttcjSIrbWvT4veudCHGjGEduM=",
+    strip_prefix = "c-ares-6360e96b5cf8e5980c887ce58ef727e53d77243a",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/c-ares/c-ares/archive/6360e96b5cf8e5980c887ce58ef727e53d77243a.tar.gz",
+        "https://github.com/c-ares/c-ares/archive/6360e96b5cf8e5980c887ce58ef727e53d77243a.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_googlesource_code_re2",
+    integrity = "sha256-GujM/bEGanMbum7giBuq1e/SzWYazZVptonyWG4aUOk=",
+    strip_prefix = "re2-2022-04-01",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/google/re2/archive/2022-04-01.tar.gz",
+        "https://github.com/google/re2/archive/2022-04-01.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_github_google_benchmark",
+    integrity = "sha256-jnuVXwS8aYTk8UB00NGRR092psjoSeBKnc7Um8l18tQ=",
+    strip_prefix = "benchmark-344117638c8ff7e239044fd0fa7085839fc03021",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/google/benchmark/archive/344117638c8ff7e239044fd0fa7085839fc03021.tar.gz",
+        "https://github.com/google/benchmark/archive/344117638c8ff7e239044fd0fa7085839fc03021.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_google_googletest",
+    integrity = "sha256-Mb94vZG5bdXiT6s7sdfz90U8y6zuya+4bW5IFqFasQk=",
+    strip_prefix = "googletest-2dd1c131950043a8ad5ab0d2dda0e0970596586a",
+    urls = [
+        "https://github.com/google/googletest/archive/2dd1c131950043a8ad5ab0d2dda0e0970596586a.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_google_fuzztest",
+    integrity = "sha256-zfjYzTzcdygKfFmzEO3yNOSJqWtucnyyceffvrm8yo0=",
+    strip_prefix = "fuzztest-4ecaeb5084a061a862af8f86789ee184cd3d3f18",
+    urls = [
+        "https://github.com/google/fuzztest/archive/4ecaeb5084a061a862af8f86789ee184cd3d3f18.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "envoy_api",
+    sha256 = "ddd3beedda1178a79e0d988f76f362002aced09749452515853f106e22bd2249",
+    strip_prefix = "data-plane-api-78f198cf96ecdc7120ef640406770aa01af775c4",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/envoyproxy/data-plane-api/archive/78f198cf96ecdc7120ef640406770aa01af775c4.tar.gz",
+        "https://github.com/envoyproxy/data-plane-api/archive/78f198cf96ecdc7120ef640406770aa01af775c4.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "io_bazel_rules_go",
+    integrity = "sha256-ad5ccEoF/zeGL34PVTTU9HlBivwhgGyIfbVEoxbzy2s=",
+    patch_cmds = [
+        "cat <<'EOF' > def.bzl\nload(\"//go:def.bzl\", _go_register_toolchains = \"go_register_toolchains\", _go_rules_dependencies = \"go_rules_dependencies\")\n\ndef go_rules_dependencies():\n    _go_rules_dependencies()\n\ndef go_register_toolchains(*args, **kwargs):\n    _go_register_toolchains(*args, **kwargs)\nEOF",
+    ],
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "build_bazel_rules_apple",
+    integrity = "sha256-NMQb+1nNrqKawt9aL6eeWt1gnHG7MDsuuxCYX5P6IOc=",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/bazelbuild/rules_apple/releases/download/3.1.1/rules_apple.3.1.1.tar.gz",
+        "https://github.com/bazelbuild/rules_apple/releases/download/3.1.1/rules_apple.3.1.1.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "build_bazel_apple_support",
+    integrity = "sha256-z01j85x7qQWfcOmVv1/hAZJn0/dzecIChWGl12Re9nw=",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/bazelbuild/apple_support/releases/download/1.11.1/apple_support.1.11.1.tar.gz",
+        "https://github.com/bazelbuild/apple_support/releases/download/1.11.1/apple_support.1.11.1.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "build_bazel_rules_swift",
+    integrity = "sha256-KKZv9dl1APAwT06JRdk2/gWE4NW3pvgyWCmAB6kxkLo=",
+    urls = [
+        "https://github.com/bazelbuild/rules_swift/releases/download/1.13.0/rules_swift.1.13.0.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "bazel_gazelle",
+    integrity = "sha256-3mmgnccEF1gKq/IKKGGbs+9g0DhHDHz4RC+vz2J8Ics=",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "bazel_toolchains",
+    integrity = "sha256-F57AL4Cehqv1Y1bYiYyL10Bp8b18VgRAUMLNPXnQ4CQ=",
+    strip_prefix = "bazel-toolchains-4.1.0",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/releases/download/4.1.0/bazel-toolchains-4.1.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-toolchains/releases/download/4.1.0/bazel-toolchains-4.1.0.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_google_googleapis",
+    build_file = "//bazel/third_party:googleapis.BUILD",
+    integrity = "sha256-W7awJTzPZLU9bHJJYlp+P2w7xkAqvVLTd4v6SCWHA6A=",
+    strip_prefix = "googleapis-2f9af297c84c55c8b871ba4495e01ade42476c92",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/googleapis/googleapis/archive/2f9af297c84c55c8b871ba4495e01ade42476c92.tar.gz",
+        "https://github.com/googleapis/googleapis/archive/2f9af297c84c55c8b871ba4495e01ade42476c92.tar.gz",
+    ],
+)
+
+googleapis_imports_repo = use_repo_rule("//bazel:repo_defs.bzl", "googleapis_imports_repo")
+
+go_name_hack = use_repo_rule("@io_bazel_rules_go//go/private:repositories.bzl", "go_name_hack")
+
+googleapis_imports_repo(name = "com_google_googleapis_imports")
+
+go_name_hack(
+    name = "io_bazel_rules_go_name_hack",
+    is_rules_go = False,
+)
+
+http_archive(
+    name = "io_opencensus_cpp",
+    integrity = "sha256-RrO1gSwVCiG6z4YML3b8QriXc+137pVMMq3rhZOqKo4=",
+    strip_prefix = "opencensus-cpp-5501a1a255805e0be83a41348bb5f2630d5ed6b3",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/census-instrumentation/opencensus-cpp/archive/5501a1a255805e0be83a41348bb5f2630d5ed6b3.tar.gz",
+        "https://github.com/census-instrumentation/opencensus-cpp/archive/5501a1a255805e0be83a41348bb5f2630d5ed6b3.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "opencensus_proto",
+    integrity = "sha256-t+E/C0JZ6AwwcLWDwvOeUxUwhaaRhxixxxDK9wN1crA=",
+    strip_prefix = "opencensus-proto-0.3.0/src",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/census-instrumentation/opencensus-proto/archive/v0.3.0.tar.gz",
+        "https://github.com/census-instrumentation/opencensus-proto/archive/v0.3.0.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_envoyproxy_protoc_gen_validate",
+    integrity = "sha256-HkkLmABWZNFJs3mpUppqoFkyuKEbdrTNhvPSLXY0b0c=",
+    patch_args = ["-p1"],
+    patches = ["//bazel/third_party:protoc-gen-validate.patch"],
+    strip_prefix = "protoc-gen-validate-4694024279bdac52b77e22dc87808bd0fd732b69",
+    urls = [
+        "https://github.com/envoyproxy/protoc-gen-validate/archive/4694024279bdac52b77e22dc87808bd0fd732b69.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "com_github_cncf_xds",
+    integrity = "sha256-3DBeIMn6gIIjIicbUKov+pF79P05c7zsUr/CjcMsWSc=",
+    strip_prefix = "xds-3a472e524827f72d1ad621c4983dd5af54c46776",
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/cncf/xds/archive/3a472e524827f72d1ad621c4983dd5af54c46776.tar.gz",
+        "https://github.com/cncf/xds/archive/3a472e524827f72d1ad621c4983dd5af54c46776.tar.gz",
+    ],
+)
+
+# Hedgehog compile commands extractor (dev only)
 git_override(
     module_name = "hedron_compile_commands",
     commit = "4f28899228fb3ad0126897876f147ca15026151e",
     remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+)
+
+# CUDA toolchain configuration via module extension
+cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+cuda.local_toolchain(name = "local_cuda")
+use_repo(cuda, "local_cuda")
+
+register_toolchains(
+    "@local_cuda//toolchain:nvcc-local-toolchain",
+    "@local_cuda//toolchain/clang:clang-local-toolchain",
+    "@local_cuda//toolchain/disabled:disabled-local-toolchain",
 )
 
 # OCI base images for Docker

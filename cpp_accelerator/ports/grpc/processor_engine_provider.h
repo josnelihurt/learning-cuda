@@ -4,7 +4,6 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#pragma GCC diagnostic ignored "-Wmissing-requires"
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 

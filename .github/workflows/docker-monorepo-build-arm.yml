@@ -63,7 +63,7 @@ permissions:
 jobs:
   prepare:
     name: Prepare versions
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
       proto_version: ${{ steps.versions.outputs.proto_version }}
       cpp_version: ${{ steps.versions.outputs.cpp_version }}
@@ -272,7 +272,7 @@ jobs:
   build_proto_tools:
     name: BASE Build proto tools (arm64)
     needs: prepare
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -312,7 +312,7 @@ jobs:
   build_go_builder:
     name: BASE Build go builder base (arm64)
     needs: prepare
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -352,7 +352,7 @@ jobs:
   build_bazel_base:
     name: BASE Build bazel base (arm64)
     needs: prepare
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -397,7 +397,7 @@ jobs:
   build_runtime_base:
     name: BASE Build runtime base (arm64)
     needs: prepare
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -442,7 +442,7 @@ jobs:
   build_integration_base:
     name: BASE Build integration tests base (arm64)
     needs: prepare
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -489,7 +489,7 @@ jobs:
     needs:
       - prepare
       - build_proto_tools
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
       digest: ${{ steps.record_digest.outputs.digest }}
     steps:
@@ -581,7 +581,7 @@ jobs:
       - prepare
       - build_proto
       - build_bazel_base
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
       digest: ${{ steps.record_digest.outputs.digest }}
     steps:
@@ -683,7 +683,7 @@ jobs:
       - prepare
       - build_proto
       - build_go_builder
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
       digest: ${{ steps.record_digest.outputs.digest }}
     steps:
@@ -773,7 +773,7 @@ jobs:
       - build_runtime_base
       - build_integration_base
       - build_grpc_server
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -906,7 +906,7 @@ jobs:
     needs:
       - prepare
       - build_cpp
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     steps:
       - name: Determine build requirement
         id: gate
@@ -953,7 +953,7 @@ jobs:
       - prepare
       - build_app
       - build_grpc_server
-    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.prepare.outputs.app_build_arm64 == 'true' }}
     env:
       JETSON_HOST: ${{ secrets.JETSON_HOST }}

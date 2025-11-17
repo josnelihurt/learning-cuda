@@ -312,7 +312,7 @@ jobs:
           VERSION="${{ needs.prepare.outputs.proto_tools_version }}"
           TAG_VERSION="${IMAGE_BASE}/base:proto-tools-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/base:proto-tools-latest-amd64"
-          docker build -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
+          docker build --no-cache -f proto/docker-build-base/Dockerfile -t "$TAG_VERSION" -t "$TAG_LATEST" .
           if [ "${{ needs.prepare.outputs.can_push }}" = "true" ]; then
             docker push "$TAG_VERSION"
             docker push "$TAG_LATEST"

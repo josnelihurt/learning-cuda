@@ -85,8 +85,6 @@ jobs:
       app_tag: ${{ steps.determine.outputs.app_tag }}
       grpc_server_build_amd64: ${{ steps.determine.outputs.grpc_server_build_amd64 }}
       grpc_server_tag: ${{ steps.determine.outputs.grpc_server_tag }}
-      grpc_server_build_amd64: ${{ steps.determine.outputs.grpc_server_build_amd64 }}
-      grpc_server_tag: ${{ steps.determine.outputs.grpc_server_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

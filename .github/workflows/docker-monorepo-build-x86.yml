@@ -647,7 +647,10 @@ jobs:
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
           PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
           PROTO_IMAGE="${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-amd64"
-          docker save "$PROTO_IMAGE" | docker buildx build --load --platform linux/amd64 -t "$PROTO_IMAGE" - || docker load < <(docker save "$PROTO_IMAGE")
+          TMPFILE=$(mktemp)
+          docker save "$PROTO_IMAGE" -o "$TMPFILE"
+          docker load -i "$TMPFILE"
+          rm -f "$TMPFILE"
 
       - name: Build cpp intermediate image
         if: ${{ steps.gate.outputs.build == 'true' }}

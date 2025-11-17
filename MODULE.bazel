@@ -243,6 +243,19 @@ http_archive(
 )
 
 http_archive(
+    name = "io_bazel_rules_go_name_hack",
+    build_file_content = "exports_files([\"def.bzl\"])",
+    integrity = "sha256-ad5ccEoF/zeGL34PVTTU9HlBivwhgGyIfbVEoxbzy2s=",
+    patch_cmds = [
+        "cat <<'EOF' > def.bzl\ndef go_rules_dependencies():\n    pass\ndef go_register_toolchains(*args, **kwargs):\n    pass\nEOF",
+    ],
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
+    ],
+)
+
+http_archive(
     name = "io_bazel_rules_go",
     integrity = "sha256-ad5ccEoF/zeGL34PVTTU9HlBivwhgGyIfbVEoxbzy2s=",
     patch_cmds = [
@@ -313,19 +326,6 @@ http_archive(
 googleapis_imports_repo = use_repo_rule("//bazel:repo_defs.bzl", "googleapis_imports_repo")
 
 googleapis_imports_repo(name = "com_google_googleapis_imports")
-
-http_archive(
-    name = "io_bazel_rules_go_name_hack",
-    build_file_content = "exports_files([\"def.bzl\"])",
-    integrity = "sha256-ad5ccEoF/zeGL34PVTTU9HlBivwhgGyIfbVEoxbzy2s=",
-    patch_cmds = [
-        "cat <<'EOF' > def.bzl\ndef go_rules_dependencies():\n    pass\ndef go_register_toolchains(*args, **kwargs):\n    pass\nEOF",
-    ],
-    urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
-    ],
-)
 
 http_archive(
     name = "io_opencensus_cpp",

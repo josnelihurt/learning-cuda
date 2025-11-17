@@ -678,13 +678,26 @@ jobs:
             "--build-arg" "PROTO_VERSION=${{ needs.prepare.outputs.proto_version }}"
           )
           CAN_PUSH="${{ needs.prepare.outputs.can_push }}"
+          IS_PR="${{ github.event_name == 'pull_request' }}"
           if [ -n "${BAZEL_REMOTE_CACHE:-}" ]; then
             build_args+=("--build-arg" "BAZEL_REMOTE_CACHE=${BAZEL_REMOTE_CACHE}")
             if [ -n "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS:-}" ]; then
               build_args+=("--build-arg" "BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS=${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}")
             fi
           fi
-          if [ "$CAN_PUSH" = "true" ]; then
+          if [ "$IS_PR" = "true" ]; then
+            build_args+=("--build-arg" "BASE_REGISTRY=localhost")
+            docker buildx build \
+              --platform linux/amd64 \
+              --target artifacts \
+              "${build_args[@]}" \
+              -f cpp_accelerator/Dockerfile.build \
+              -t "$TAG_VERSION" \
+              -t "$TAG_LATEST" \
+              --load \
+              .
+            DIGEST=$(docker image inspect "$TAG_VERSION" --format '{{.Id}}')
+          elif [ "$CAN_PUSH" = "true" ]; then
             IIDFILE=$(mktemp)
             docker buildx build \
               --platform linux/amd64 \
@@ -699,12 +712,10 @@ jobs:
             DIGEST=$(cat "$IIDFILE")
             docker buildx imagetools inspect "$DIGEST" >/dev/null 2>&1 || true
           else
-            PROTO_IMAGE="${IMAGE_BASE}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-amd64"
             docker buildx build \
               --platform linux/amd64 \
               --target artifacts \
               "${build_args[@]}" \
-              --build-arg BASE_REGISTRY="localhost" \
               -f cpp_accelerator/Dockerfile.build \
               -t "$TAG_VERSION" \
               -t "$TAG_LATEST" \

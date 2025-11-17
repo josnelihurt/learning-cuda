@@ -594,6 +594,20 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
+      - name: Build proto intermediate for PRs
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
+          docker build \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${PROTO_VERSION}" \
+            -f proto/Dockerfile \
+            -t "${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-amd64" \
+            .
+
       - name: Detect Bazel remote cache
         if: ${{ steps.gate.outputs.build == 'true' }}
         shell: bash
@@ -714,6 +728,20 @@ jobs:
       - name: Checkout repository
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
+
+      - name: Build proto intermediate for PRs
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
+          docker build \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${PROTO_VERSION}" \
+            -f proto/Dockerfile \
+            -t "${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-amd64" \
+            .
 
       - name: Log in to GitHub Container Registry
         if: ${{ steps.gate.outputs.build == 'true' && github.event_name != 'pull_request' }}

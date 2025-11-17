@@ -594,12 +594,18 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
+        uses: docker/setup-buildx-action@v3
+
       - name: Build proto intermediate for PRs
         if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
         run: |
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
           PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
-          docker build \
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
@@ -729,12 +735,18 @@ jobs:
         if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
+        uses: docker/setup-buildx-action@v3
+
       - name: Build proto intermediate for PRs
         if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
         run: |
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
           PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
-          docker build \
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \

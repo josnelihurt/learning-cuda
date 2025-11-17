@@ -1,0 +1,122 @@
+---
+- name: Sync files to Jetson Nano
+  hosts: jetson
+  vars:
+    deployment_files: "{{ lookup('file', playbook_dir + '/../deployment_files.txt') if lookup('file', playbook_dir + '/../deployment_files.txt', errors='ignore') | length > 0 else playbook_dir + '/../..' }}"
+  tasks:
+    - name: Get project root
+      set_fact:
+        project_root: "{{ playbook_dir | dirname | dirname | dirname | dirname }}"
+
+    - name: Validate repository exists locally
+      stat:
+        path: "{{ project_root }}/.git"
+      register: git_repo
+      delegate_to: localhost
+      failed_when: not git_repo.stat.exists
+
+    - name: Pull latest changes from repository
+      shell: cd {{ app_directory }} && git pull
+      become_user: "{{ deployment_user }}"
+
+    - name: Check git status for changes (all modified files including staged and unstaged)
+      shell: cd {{ project_root }} && git status --porcelain
+      register: git_status
+      changed_when: false
+      delegate_to: localhost
+
+    - name: Get list of modified files
+      set_fact:
+        modified_files: "{{ git_status.stdout_lines }}"
+
+    - name: Display all detected changes
+      debug:
+        msg: "Detected changes: {{ item }}"
+      loop: "{{ modified_files }}"
+      when: modified_files | length > 0
+
+    - name: Sync .secrets directory with rsync
+      synchronize:
+        src: "{{ project_root }}/.secrets/"
+        dest: "{{ app_directory }}/.secrets/"
+        delete: no
+        rsync_opts:
+          - "--exclude=*.example"
+          - "--exclude=.gitignore"
+          - "--exclude=README.md"
+        mode: push
+
+    - name: List .secrets files on remote
+      shell: ls -1 {{ app_directory }}/.secrets/
+      register: secrets_list
+      changed_when: false
+
+    - name: Display .secrets content
+      debug:
+        msg: "{{ secrets_list.stdout_lines }}"
+
+    - name: Filter tracked files that were modified (including new files)
+      set_fact:
+        tracked_files: "{{ modified_files | select('match', '^(M|\\sM|D|\\sD|A|\\sA|\\?\\?).*') | map('regex_replace', '^..\\s+', '') | list }}"
+
+    - name: Display filtered files to sync
+      debug:
+        msg: "Files to sync: {{ item }}"
+      loop: "{{ tracked_files }}"
+      when: tracked_files | length > 0
+
+    - name: Check which files exist locally
+      stat:
+        path: "{{ project_root }}/{{ item }}"
+      loop: "{{ tracked_files }}"
+      delegate_to: localhost
+      register: file_stats
+      failed_when: false
+
+    - name: Filter only existing files
+      set_fact:
+        existing_files: "{{ file_stats.results | selectattr('stat.exists', 'equalto', true) | map(attribute='item') | list }}"
+
+    - name: Sync existing modified files with rsync
+      synchronize:
+        src: "{{ project_root }}/{{ item }}"
+        dest: "{{ app_directory }}/{{ item }}"
+        mode: push
+      loop: "{{ existing_files }}"
+      when: existing_files | length > 0
+      register: copy_result
+
+    - name: Get list of successfully synced files
+      set_fact:
+        synced_files: "{{ copy_result.results | default([]) | selectattr('failed', 'equalto', false) | selectattr('changed', 'equalto', true) | map(attribute='item') | list }}"
+      when: copy_result is defined and copy_result.results is defined
+
+    - name: Display successfully synced files
+      debug:
+        msg: "Successfully synced: {{ item }}"
+      loop: "{{ synced_files }}"
+      when: synced_files | length > 0
+
+    - name: Get local git status (staged and modified)
+      shell: cd {{ project_root }} && git status --short
+      register: local_status
+      delegate_to: localhost
+      changed_when: false
+
+    - name: Display local git status
+      debug:
+        msg: "{{ local_status.stdout_lines }}"
+
+    - name: Check remote repository status
+      shell: cd {{ app_directory }} && git status --short
+      register: remote_status
+      become_user: "{{ deployment_user }}"
+      changed_when: false
+
+    - name: Display remote repository status
+      debug:
+        msg: "{{ remote_status.stdout_lines }}"
+
+    - name: Display summary
+      debug:
+        msg: "Synced {{ synced_files | length if synced_files is defined and synced_files | length > 0 else 0 }} modified files. Local: {{ local_status.stdout_lines | length }} changes, Remote: {{ remote_status.stdout_lines | length }} changes"

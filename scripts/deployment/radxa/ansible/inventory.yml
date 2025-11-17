@@ -1,0 +1,19 @@
+all:
+  children:
+    radxa:
+      hosts:
+        radxa:
+          ansible_host: "{{ lookup('env', 'RADXA_HOST') }}"
+          ansible_user: "{{ lookup('env', 'RADXA_USER') }}"
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+          ansible_become_pass: "{{ lookup('env', 'RADXA_SUDO_PASSWORD') }}"
+      vars:
+        # Radxa specific configuration
+        deployment_user: "{{ lookup('env', 'RADXA_USER') }}"
+        deployment_group: "{{ lookup('env', 'RADXA_DEPLOYMENT_GROUP') }}"
+        app_directory: "{{ lookup('env', 'RADXA_APP_DIRECTORY') }}"
+        repo_url: https://github.com/josnelihurt/learning-cuda.git
+        repo_branch: main
+        docker_compose_file: docker-compose.yml
+        production_profile: production

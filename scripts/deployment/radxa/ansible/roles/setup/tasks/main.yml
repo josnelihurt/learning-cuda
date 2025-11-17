@@ -1,0 +1,48 @@
+---
+- name: Check Docker installation
+  command: docker --version
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Check Docker Compose installation
+  command: docker compose version
+  register: compose_check
+  failed_when: false
+  changed_when: false
+
+- name: Check NVIDIA installation
+  command: nvidia-smi
+  register: nvidia_check
+  failed_when: false
+  changed_when: false
+
+- name: Check CUDA installation
+  stat:
+    path: /usr/local/cuda
+  register: cuda_check
+
+- name: Install required packages
+  apt:
+    name:
+      - git
+      - make
+      - curl
+      - wget
+      - ca-certificates
+      - openssl
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Create application directory
+  file:
+    path: "{{ app_directory }}"
+    state: directory
+    owner: "{{ deployment_user }}"
+    group: "{{ deployment_group }}"
+    mode: '0755'
+
+- name: Display summary
+  debug:
+    msg: "Setup complete: Docker={{ docker_check.stdout_lines[0] if docker_check.rc == 0 else 'N/A' }}, CUDA={{ 'OK' if cuda_check.stat.exists else 'N/A' }}"

@@ -313,9 +313,15 @@ run_grpc_server_image() {
 
   print_stage_header "Building gRPC server image (${app_tag})"
 
-  bazel build \
-    //cpp_accelerator/ports/grpc:image_processor_grpc_server \
-    //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+  local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
+  
+  docker run --rm \
+    -v "${REPO_ROOT}:/workspace" \
+    -w /workspace \
+    "${bazel_base_image}" \
+    bazel build \
+      //cpp_accelerator/ports/grpc:image_processor_grpc_server \
+      //cpp_accelerator/ports/shared_lib:libcuda_processor.so
 
   rm -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" \
         "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"

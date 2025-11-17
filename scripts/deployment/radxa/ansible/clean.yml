@@ -1,0 +1,97 @@
+---
+- name: Clean Jetson Nano deployment
+  hosts: jetson
+  become: yes
+  tasks:
+    - name: Check if application directory exists
+      stat:
+        path: "{{ app_directory }}"
+      register: app_dir_exists
+
+    - name: Stop all containers if directory exists
+      shell: cd {{ app_directory }} && docker compose down
+      become_user: "{{ deployment_user }}"
+      when: app_dir_exists.stat.exists
+      ignore_errors: yes
+
+    - name: Check if project images exist
+      shell: docker images | grep cuda-learning
+      become_user: "{{ deployment_user }}"
+      register: images_check
+      failed_when: false
+      changed_when: false
+
+    - name: Remove project images if they exist
+      shell: docker images | grep cuda-learning | awk '{print $3}' | xargs -r docker rmi -f
+      become_user: "{{ deployment_user }}"
+      when: images_check.rc == 0
+      ignore_errors: yes
+
+    - name: Remove application directory if it exists
+      file:
+        path: "{{ app_directory }}"
+        state: absent
+      when: app_dir_exists.stat.exists
+
+  post_tasks:
+    - name: Check if directory exists
+      stat:
+        path: "{{ app_directory }}"
+      register: app_dir_status
+
+    - name: Display directory status
+      debug:
+        msg: "Directory {{ app_directory }} does not exist (cleanup successful)"
+      when: not app_dir_status.stat.exists
+
+    - name: Display directory listing if exists
+      shell: ls -la {{ app_directory }}
+      register: dir_listing
+      when: app_dir_status.stat.exists
+      ignore_errors: yes
+
+    - name: List running containers
+      shell: docker ps -a
+      register: containers
+
+    - name: Display containers
+      debug:
+        msg:
+          - "{{ containers.stdout_lines }}"
+
+    - name: Check project images
+      shell: docker images | grep cuda-learning || echo "No cuda-learning images found"
+      register: project_images
+
+    - name: Display project images
+      debug:
+        msg:
+          - "{{ project_images.stdout }}"
+
+    - name: Get Docker version
+      shell: docker version
+      register: docker_version
+
+    - name: Display Docker version
+      debug:
+        msg:
+          - "{{ docker_version.stdout_lines }}"
+
+    - name: Check GPU status
+      shell: nvidia-smi
+      ignore_errors: yes
+      register: gpu_status
+
+    - name: Display GPU status
+      debug:
+        msg:
+          - "{{ gpu_status.stderr_lines if gpu_status.rc != 0 else gpu_status.stdout_lines }}"
+
+    - name: List NVIDIA CUDA images
+      shell: docker images nvidia/cuda || echo "No NVIDIA CUDA images found"
+      register: cuda_images
+
+    - name: Display CUDA images
+      debug:
+        msg:
+          - "{{ cuda_images.stdout_lines }}"

@@ -651,9 +651,10 @@ jobs:
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
           PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
           PROTO_IMAGE="${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-amd64"
+          PROTO_TAR="/tmp/proto-${PROTO_VERSION}-amd64.tar"
           docker buildx build \
             --platform linux/amd64 \
-            --load \
+            --output type=docker,dest="$PROTO_TAR" \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
@@ -661,7 +662,9 @@ jobs:
             -f proto/Dockerfile \
             -t "$PROTO_IMAGE" \
             .
-          docker tag "$PROTO_IMAGE" "localhost/$PROTO_IMAGE"
+          docker load -i "$PROTO_TAR"
+          rm -f "$PROTO_TAR"
+          echo "PROTO_IMAGE=$PROTO_IMAGE" >> "$GITHUB_ENV"
 
       - name: Build cpp intermediate image
         if: ${{ steps.gate.outputs.build == 'true' }}
@@ -672,6 +675,7 @@ jobs:
           TAG_VERSION="${IMAGE_BASE}/intermediate:cpp-built-${VERSION}-amd64"
           TAG_LATEST="${IMAGE_BASE}/intermediate:cpp-built-latest-amd64"
           build_args=(
+            "--target" "artifacts"
             "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
             "--build-arg" "BASE_TAG=latest"
             "--build-arg" "TARGETARCH=amd64"
@@ -686,15 +690,11 @@ jobs:
             fi
           fi
           if [ "$IS_PR" = "true" ]; then
-            build_args+=("--build-arg" "BASE_REGISTRY=localhost")
-            docker buildx build \
-              --platform linux/amd64 \
-              --target artifacts \
+            DOCKER_BUILDKIT=0 docker build \
               "${build_args[@]}" \
               -f cpp_accelerator/Dockerfile.build \
               -t "$TAG_VERSION" \
               -t "$TAG_LATEST" \
-              --load \
               .
             DIGEST=$(docker image inspect "$TAG_VERSION" --format '{{.Id}}')
           elif [ "$CAN_PUSH" = "true" ]; then

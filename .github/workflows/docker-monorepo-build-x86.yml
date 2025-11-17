@@ -645,16 +645,13 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build proto intermediate for PRs in buildx
+      - name: Build proto intermediate for PRs
         if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
         run: |
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
           PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
           PROTO_IMAGE="${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-amd64"
-          PROTO_TAR="/tmp/proto-${PROTO_VERSION}-amd64.tar"
-          docker buildx build \
-            --platform linux/amd64 \
-            --output type=docker,dest="$PROTO_TAR" \
+          DOCKER_BUILDKIT=0 docker build \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
@@ -662,8 +659,6 @@ jobs:
             -f proto/Dockerfile \
             -t "$PROTO_IMAGE" \
             .
-          docker load -i "$PROTO_TAR"
-          rm -f "$PROTO_TAR"
           echo "PROTO_IMAGE=$PROTO_IMAGE" >> "$GITHUB_ENV"
 
       - name: Build cpp intermediate image

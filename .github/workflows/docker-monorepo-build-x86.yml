@@ -645,6 +645,24 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Build proto intermediate for PRs in buildx
+        if: ${{ steps.gate.outputs.build == 'true' && github.event_name == 'pull_request' }}
+        run: |
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
+          PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
+          PROTO_IMAGE="${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-amd64"
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
+            --build-arg BASE_TAG=latest \
+            --build-arg TARGETARCH=amd64 \
+            --build-arg PROTO_VERSION="${PROTO_VERSION}" \
+            -f proto/Dockerfile \
+            -t "$PROTO_IMAGE" \
+            .
+          docker tag "$PROTO_IMAGE" "localhost/$PROTO_IMAGE"
+
       - name: Build cpp intermediate image
         if: ${{ steps.gate.outputs.build == 'true' }}
         id: build_image
@@ -681,10 +699,12 @@ jobs:
             DIGEST=$(cat "$IIDFILE")
             docker buildx imagetools inspect "$DIGEST" >/dev/null 2>&1 || true
           else
+            PROTO_IMAGE="${IMAGE_BASE}/intermediate:proto-generated-${{ needs.prepare.outputs.proto_version }}-amd64"
             docker buildx build \
               --platform linux/amd64 \
               --target artifacts \
               "${build_args[@]}" \
+              --build-arg BASE_REGISTRY="localhost" \
               -f cpp_accelerator/Dockerfile.build \
               -t "$TAG_VERSION" \
               -t "$TAG_LATEST" \

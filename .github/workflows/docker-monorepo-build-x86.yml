@@ -651,7 +651,7 @@ jobs:
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.BASE_IMAGE_PREFIX }}"
           PROTO_VERSION="${{ needs.prepare.outputs.proto_version }}"
           PROTO_IMAGE="${IMAGE_BASE}/intermediate:proto-generated-${PROTO_VERSION}-amd64"
-          DOCKER_BUILDKIT=0 docker build \
+          DOCKER_BUILDKIT=1 docker build \
             --build-arg BASE_REGISTRY="${IMAGE_BASE}" \
             --build-arg BASE_TAG=latest \
             --build-arg TARGETARCH=amd64 \
@@ -685,7 +685,7 @@ jobs:
             fi
           fi
           if [ "$IS_PR" = "true" ]; then
-            DOCKER_BUILDKIT=0 docker build \
+            DOCKER_BUILDKIT=1 docker build \
               "${build_args[@]}" \
               -f cpp_accelerator/Dockerfile.build \
               -t "$TAG_VERSION" \

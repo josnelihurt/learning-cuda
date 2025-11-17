@@ -312,14 +312,7 @@ http_archive(
 
 googleapis_imports_repo = use_repo_rule("//bazel:repo_defs.bzl", "googleapis_imports_repo")
 
-go_name_hack = use_repo_rule("@io_bazel_rules_go//go/private:repositories.bzl", "go_name_hack")
-
 googleapis_imports_repo(name = "com_google_googleapis_imports")
-
-go_name_hack(
-    name = "io_bazel_rules_go_name_hack",
-    is_rules_go = False,
-)
 
 http_archive(
     name = "io_opencensus_cpp",

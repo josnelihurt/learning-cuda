@@ -388,6 +388,7 @@ run_grpc_server_image() {
   docker build \
     --build-arg "TARGETARCH=${TARGETARCH}" \
     "${build_args[@]}" \
+    --target grpc-artifacts \
     -f "cpp_accelerator/docker/grpc/Dockerfile.build" \
     -t "${version_tag}-artifacts" \
     "${REPO_ROOT}"

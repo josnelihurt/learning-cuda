@@ -122,6 +122,18 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -z "${BAZEL_REMOTE_CACHE:-}" ]]; then
+  CACHE_HOST="192.168.10.80"
+  CACHE_STATUS_URL="http://${CACHE_HOST}:9090/status"
+  if curl -sf --connect-timeout 2 --max-time 4 "${CACHE_STATUS_URL}" >/dev/null 2>&1; then
+    export BAZEL_REMOTE_CACHE="grpc://${CACHE_HOST}:9092"
+    export BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="true"
+    echo "Detected bazel-remote cache at ${CACHE_HOST}"
+  else
+    echo "Bazel-remote cache not reachable; proceeding without remote cache."
+  fi
+fi
+
 HOST_ARCH="${ARCH_DEFAULT}"
 if [[ "${ARCH}" != "${HOST_ARCH}" ]]; then
   echo "Warning: building for ${ARCH} on host ${HOST_ARCH} without buildx may fail." >&2
@@ -315,13 +327,28 @@ run_grpc_server_image() {
 
   local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
   
+  local bazel_args=(
+    "bazel"
+    "build"
+  )
+  
+  if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
+    bazel_args+=("--remote_cache=${BAZEL_REMOTE_CACHE}")
+    if [[ -n "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS:-}" ]]; then
+      bazel_args+=("--remote_upload_local_results")
+    fi
+  fi
+  
+  bazel_args+=(
+    "//cpp_accelerator/ports/grpc:image_processor_grpc_server"
+    "//cpp_accelerator/ports/shared_lib:libcuda_processor.so"
+  )
+  
   docker run --rm \
     -v "${REPO_ROOT}:/workspace" \
     -w /workspace \
     "${bazel_base_image}" \
-    bazel build \
-      //cpp_accelerator/ports/grpc:image_processor_grpc_server \
-      //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+    "${bazel_args[@]}"
 
   rm -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" \
         "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"

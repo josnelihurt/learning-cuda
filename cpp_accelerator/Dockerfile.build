@@ -5,29 +5,19 @@ ARG PROTO_VERSION=2.0.0
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
 
-FROM bazel-base AS bazel-deps-fetch
+FROM bazel-base AS bazel-deps
 
 WORKDIR /build
 
 COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
 COPY .bazelrc .bazeliskrc ./
 COPY bazel/ ./bazel/
-COPY proto/BUILD ./proto/BUILD
-COPY proto/google/api/BUILD.bazel ./proto/google/api/BUILD.bazel
+COPY proto/ ./proto/
 COPY third_party/ ./third_party/
+COPY buf.yaml buf.lock buf.gen.yaml ./
 
 ENV USE_BAZEL_VERSION=8.4.2
 RUN bazel fetch //...
-
-FROM bazel-deps-fetch AS bazel-external-deps
-
-WORKDIR /build
-
-COPY proto/*.proto ./proto/
-COPY proto/BUILD ./proto/BUILD
-COPY proto/google/ ./proto/google/
-COPY third_party/ ./third_party/
-COPY buf.yaml buf.lock buf.gen.yaml ./
 
 RUN bazel build \
     --show_timestamps \
@@ -43,7 +33,7 @@ RUN bazel build \
 
 FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
 
-FROM bazel-external-deps AS cpp-built
+FROM bazel-deps AS cpp-built
 
 ARG BAZEL_REMOTE_CACHE=""
 ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"

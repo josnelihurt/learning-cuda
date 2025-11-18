@@ -153,6 +153,13 @@ services:
     container_name: grafana
     restart: unless-stopped
     
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 256M
     
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
@@ -161,6 +168,11 @@ services:
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
       - GF_SERVER_ROOT_URL=https://grafana-cuda-demo.josnelihurt.me
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_UNIFIED_ALERTING_ENABLED=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_PLUGINS_ENABLE_ALPHA=false
+      - GF_PLUGINS_APP_ENABLE_ALPHA=false
     
     volumes:
       - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro

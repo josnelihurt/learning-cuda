@@ -73,3 +73,70 @@ jobs:
             echo "Pushing ${img}..."
             docker push "${img}"
           done
+
+  deploy_prod:
+    name: Deploy production (Radxa)
+    needs:
+      - build_and_push
+    runs-on: ["self-hosted", "Linux", "ARM64"]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    env:
+      REGISTRY: ${{ env.REGISTRY }}
+      BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+      RADXA_HOST: ${{ secrets.RADXA_HOST }}
+      RADXA_USER: ${{ secrets.RADXA_USER }}
+      RADXA_APP_DIRECTORY: ${{ vars.RADXA_APP_DIRECTORY }}
+      RADXA_DEPLOYMENT_GROUP: ${{ secrets.RADXA_DEPLOYMENT_GROUP }}
+    steps:
+      - name: Validate Radxa secrets
+        env:
+          RADXA_SUDO_PASSWORD: ${{ secrets.RADXA_SUDO_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for var in RADXA_HOST RADXA_USER RADXA_APP_DIRECTORY RADXA_DEPLOYMENT_GROUP RADXA_SUDO_PASSWORD; do
+            if [ -z "${!var:-}" ]; then
+              missing+=("$var")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Radxa secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy application to Radxa
+        env:
+          RADXA_SUDO_PASSWORD: ${{ secrets.RADXA_SUDO_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sudo_exec() {
+            local cmd=$1
+            printf '%s\n' "${RADXA_SUDO_PASSWORD}" | sudo -S -- bash -euo pipefail -c "${cmd}"
+          }
+
+          TARGET="${RADXA_APP_DIRECTORY}"
+          sudo_exec "mkdir -p \"${TARGET}/config\" \"${TARGET}/data\""
+
+          sudo_exec "install -m 0644 docker-compose.yml \"${TARGET}/docker-compose.yml\""
+          sudo_exec "install -m 0644 traefik-config.yml \"${TARGET}/traefik-config.yml\""
+          sudo_exec "install -m 0644 cloudflared-config.yml \"${TARGET}/cloudflared-config.yml\""
+
+          sudo_exec "rsync -a --delete \"${PWD}/config/\" \"${TARGET}/config/\""
+          sudo_exec "rsync -a --delete \"${PWD}/data/\" \"${TARGET}/data/\""
+
+          sudo_exec "chown -R \"${RADXA_USER}:${RADXA_DEPLOYMENT_GROUP}\" \"${TARGET}\""
+
+          proto_version=$(tr -d '\n' < proto/VERSION)
+          cpp_version=$(tr -d '\n' < cpp_accelerator/VERSION)
+          golang_version=$(tr -d '\n' < webserver/VERSION)
+          app_tag="${golang_version}-proto${proto_version}-cpp${cpp_version}-go${golang_version}"
+          app_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/app:${app_tag}-arm64"
+
+          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose pull --ignore-buildable"
+          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose up -d --remove-orphans"
+
+          unset -v RADXA_SUDO_PASSWORD

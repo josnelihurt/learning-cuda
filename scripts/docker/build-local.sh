@@ -165,8 +165,14 @@ build_and_tag() {
   echo "Tag (latest):    ${latest_tag}"
   echo ""
 
+  local docker_build_args=()
+  
+  if [[ "${REGISTRY}" != "local" ]]; then
+    docker_build_args+=("--pull")
+  fi
+  
   docker build \
-    --pull=never \
+    "${docker_build_args[@]}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
     "${build_args[@]}" \
     -f "${dockerfile}" \

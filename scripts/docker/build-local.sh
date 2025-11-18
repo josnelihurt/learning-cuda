@@ -166,6 +166,7 @@ build_and_tag() {
   echo ""
 
   docker build \
+    --pull=never \
     --build-arg "TARGETARCH=${TARGETARCH}" \
     "${build_args[@]}" \
     -f "${dockerfile}" \
@@ -249,6 +250,20 @@ run_cpp_built() {
   cpp_version="$(read_version "cpp_accelerator/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
+  
+  local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
+  local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-latest-${ARCH}"
+  
+  if ! docker image inspect "${bazel_base_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${bazel_base_image} not found. Build bazel-base first." >&2
+    exit 1
+  fi
+  
+  if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${proto_generated_image} not found. Build proto intermediate first." >&2
+    exit 1
+  fi
+  
   local build_args=(
     "--target" "artifacts"
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"

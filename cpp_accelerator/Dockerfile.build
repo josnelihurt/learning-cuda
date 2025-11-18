@@ -2,36 +2,30 @@ ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
 ARG PROTO_VERSION=2.0.0
+ARG CUDA_VERSION=12.5.1
+ARG UBUNTU_VERSION=24.04
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
 
-FROM bazel-base AS bazel-deps-fetch
+FROM bazel-base AS bazel-deps
 
 WORKDIR /build
 
 COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
-COPY .bazelrc ./
-COPY proto/BUILD ./proto/BUILD
-COPY proto/google/api/BUILD.bazel ./proto/google/api/BUILD.bazel
-COPY third_party/ ./third_party/
-
-RUN bazel fetch //...
-
-FROM bazel-deps-fetch AS bazel-external-deps
-
-WORKDIR /build
-
-COPY proto/*.proto ./proto/
-COPY proto/BUILD ./proto/BUILD
-COPY proto/google/ ./proto/google/
+COPY .bazelrc .bazeliskrc ./
+COPY bazel/ ./bazel/
+COPY proto/ ./proto/
 COPY third_party/ ./third_party/
 COPY buf.yaml buf.lock buf.gen.yaml ./
+
+ENV USE_BAZEL_VERSION=8.4.2
+RUN bazel fetch //...
 
 RUN bazel build \
     --show_timestamps \
     --announce_rc \
     @spdlog//:spdlog \
-    @protobuf//:protobuf \
+    @com_google_protobuf//:protobuf \
     //proto:common_cc_proto \
     //proto:image_processor_service_cc_proto \
     //proto:config_service_cc_proto \
@@ -41,7 +35,7 @@ RUN bazel build \
 
 FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
 
-FROM bazel-external-deps AS cpp-built
+FROM bazel-deps AS cpp-built
 
 ARG BAZEL_REMOTE_CACHE=""
 ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
@@ -104,4 +98,103 @@ RUN VERSION=$(cat cpp_accelerator/VERSION) && \
 FROM scratch AS artifacts
 
 COPY --from=cpp-built /artifacts/ /artifacts/
+
+FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS grpc-built
+
+ARG BAZEL_REMOTE_CACHE=""
+ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
+
+WORKDIR /build
+
+COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
+COPY .bazelrc .bazeliskrc ./
+COPY bazel/ ./bazel/
+COPY proto/ ./proto/
+COPY third_party/ ./third_party/
+COPY cpp_accelerator/ ./cpp_accelerator/
+
+COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
+
+ENV USE_BAZEL_VERSION=8.4.2
+RUN bazel fetch //cpp_accelerator/ports/grpc:image_processor_grpc_server || true
+
+RUN echo "Detected TARGETARCH: $TARGETARCH" && \
+    NPROC=$(nproc) && \
+    MEM_GB=$(free -g | awk '/^Mem:/{print $2}') && \
+    echo "Available CPUs: $NPROC, RAM: ${MEM_GB}GB" && \
+    CACHE_FLAGS="" && \
+    if [ -n "${BAZEL_REMOTE_CACHE}" ]; then \
+        echo "Using remote Bazel cache at ${BAZEL_REMOTE_CACHE}"; \
+        CACHE_FLAGS="${CACHE_FLAGS} --remote_cache=${BAZEL_REMOTE_CACHE} --experimental_remote_downloader=${BAZEL_REMOTE_CACHE}"; \
+        if [ "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}" = "true" ]; then \
+            CACHE_FLAGS="${CACHE_FLAGS} --remote_upload_local_results"; \
+        fi; \
+    fi && \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
+        bazel build \
+          --show_timestamps \
+          --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
+          //cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+        echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    else \
+        echo "Building AMD64 with verbose output" && \
+        bazel build \
+          --show_timestamps \
+          --announce_rc \
+          --verbose_failures \
+          --subcommands \
+          --jobs=$NPROC \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
+          //cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+        echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    fi
+
+RUN VERSION=$(cat cpp_accelerator/VERSION) && \
+    mkdir -p /artifacts/bin && \
+    cp -L bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server /artifacts/bin/image_processor_grpc_server
+
+FROM grpc-built AS grpc-artifacts
+
+COPY --from=cpp-built /artifacts/lib/ /artifacts/lib/
+
+RUN VERSION=$(cat cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
+    if [ -f "/artifacts/lib/libcuda_processor_v${VERSION}.so" ]; then \
+      cp /artifacts/lib/libcuda_processor_v${VERSION}.so /artifacts/lib/libcuda_processor.so; \
+    elif [ -f "/artifacts/lib/libcuda_processor.so" ]; then \
+      echo "libcuda_processor.so already exists"; \
+    else \
+      echo "Error: libcuda_processor library not found. Available files:"; \
+      ls -la /artifacts/lib/ || true; \
+      exit 1; \
+    fi
+
+FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS grpc-server
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/cuda/grpc
+
+COPY --from=grpc-artifacts /artifacts/bin/image_processor_grpc_server ./bin/image_processor_grpc_server
+COPY --from=grpc-artifacts /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
+
+ENV LD_LIBRARY_PATH=/opt/cuda/grpc/lib:${LD_LIBRARY_PATH}
+
+EXPOSE 60061
+
+ENTRYPOINT ["./bin/image_processor_grpc_server"]
 

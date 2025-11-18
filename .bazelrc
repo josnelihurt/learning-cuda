@@ -2,16 +2,18 @@
 # Note: --enable_workspace is no longer needed in Bazel 7.0+
 # WORKSPACE support is automatic when WORKSPACE.bazel exists
 build --repo_env=HERMETIC_CUDA_VERSION="12.4.0"
-build --@rules_cuda//cuda:enable=True
-build --@rules_cuda//cuda:compiler=nvcc
-build --@rules_cuda//cuda:copts=-allow-unsupported-compiler
+build --repo_env=RULES_PYTHON_ENABLE_PYSTAR="1"
 
 # Build settings
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
+build --cxxopt=-Wno-missing-requires
+build --host_cxxopt=-Wno-missing-requires
+build --enable_platform_specific_config
 
-# Color output
+# Color output / Bzlmod
 common --color=yes
+common --enable_bzlmod
 
 # Keep going on errors
 build --keep_going

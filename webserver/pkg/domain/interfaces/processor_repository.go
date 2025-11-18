@@ -1,5 +1,11 @@
 package interfaces
 
+import (
+	"context"
+
+	gen "github.com/jrb/cuda-learning/proto/gen"
+)
+
 // ProcessorRepository defines the interface for accessing processor information
 // Note: Currently unused after refactoring, kept for potential future use
 type ProcessorRepository interface {
@@ -17,4 +23,8 @@ type BuildInfoRepository interface {
 	GetBranch() string
 	GetBuildTime() string
 	GetCommitHash() string
+}
+
+type ProcessorCapabilitiesRepository interface {
+	GetCapabilities(ctx context.Context) (*gen.LibraryCapabilities, error)
 }

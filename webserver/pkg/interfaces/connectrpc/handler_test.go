@@ -14,10 +14,17 @@ import (
 
 type mockCapabilitiesProvider struct {
 	capabilities *pb.LibraryCapabilities
+	origin       application.ProcessorBackendOrigin
 }
 
-func (m *mockCapabilitiesProvider) GetCapabilities() *pb.LibraryCapabilities {
-	return m.capabilities
+func (m *mockCapabilitiesProvider) Execute(_ context.Context, _ bool) (*pb.LibraryCapabilities, application.ProcessorBackendOrigin, error) {
+	if m.capabilities == nil {
+		return nil, "", errors.New("capabilities not available")
+	}
+	if m.origin == "" {
+		m.origin = application.ProcessorBackendOriginCGO
+	}
+	return m.capabilities, m.origin, nil
 }
 
 func makeLibraryCapabilities() *pb.LibraryCapabilities {
@@ -77,12 +84,12 @@ func makeBlurFilterDefinition() *pb.FilterDefinition {
 func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	tests := []struct {
 		name         string
-		provider     filterCapabilitiesProvider
+		provider     application.ProcessorCapabilitiesUseCase
 		assertResult func(t *testing.T, resp *connect.Response[pb.ListFiltersResponse], err error)
 	}{
 		{
 			name:     "Success_ReturnsGenericFilters",
-			provider: &mockCapabilitiesProvider{capabilities: makeLibraryCapabilities()},
+			provider: &mockCapabilitiesProvider{capabilities: makeLibraryCapabilities(), origin: application.ProcessorBackendOriginCGO},
 			assertResult: func(t *testing.T, resp *connect.Response[pb.ListFiltersResponse], err error) {
 				// Assert
 				require.NoError(t, err)
@@ -103,6 +110,8 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 				require.Len(t, blur.Parameters, 2)
 				assert.Equal(t, pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_RANGE, blur.Parameters[0].Type)
 				assert.Equal(t, pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_NUMBER, blur.Parameters[1].Type)
+
+				assert.Equal(t, "cgo", resp.Header().Get("X-Processor-Backend"))
 			},
 		},
 		{
@@ -123,7 +132,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			sut := NewImageProcessorHandler((*application.ProcessImageUseCase)(nil), tt.provider)
+			sut := NewImageProcessorHandler((*application.ProcessImageUseCase)(nil), tt.provider, nil, false)
 			req := connect.NewRequest(&pb.ListFiltersRequest{})
 
 			// Act

@@ -1,0 +1,103 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 8c8c8dd8b1..4f4f1d8301 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@
+-load("@rules_python//python:pip.bzl", "pip_parse")
+-
+-pip_parse(
+-    name = "grpc_python_dependencies",
+-    requirements_lock = "@com_github_grpc_grpc//:requirements.bazel.txt",
+-)
+-
+-load("@grpc_python_dependencies//:requirements.bzl", "install_deps")
+-
+-install_deps()
+-
+-load("@com_google_protobuf//bazel:system_python.bzl", "system_python")
+-
+-system_python(
+-    name = "system_python",
+-    minimum_python_version = "3.7",
+-)
+-
+-load("@system_python//:pip.bzl", system_pip_parse = "pip_parse")
+-
+-system_pip_parse(
+-    name = "pip_deps",
+-    requirements = "@com_google_protobuf//python:requirements.txt",
+-    requirements_overrides = {
+-        "3.11": "@com_google_protobuf//python:requirements_311.txt",
+-    },
+-)
++# Python bindings are disabled in this embedding; skip pip/system_python setup.
+diff --git a/bazel/grpc_extra_deps.bzl b/bazel/grpc_extra_deps.bzl
+index 1d79f0a0a6..dd4183e8a8 100644
+--- a/bazel/grpc_extra_deps.bzl
++++ b/bazel/grpc_extra_deps.bzl
+@@
+-load("@rules_python//python:repositories.bzl", "py_repositories")
++# Python build dependencies are removed in this embedding.
+ 
+ def grpc_extra_deps(ignore_version_differences = False):
+@@
+-    # Initialize Google APIs with only C++ and Python targets
++    # Initialize Google APIs with only C++ targets
+     switched_rules_by_language(
+         name = "com_google_googleapis_imports",
+         cc = True,
+         grpc = True,
+-        python = True,
++        python = False,
+     )
+@@
+-    py_repositories()
+-
+diff --git a/third_party/py/BUILD.tpl b/third_party/py/BUILD.tpl
+index 6bff6e0530..9c8e7059ee 100644
+--- a/third_party/py/BUILD.tpl
++++ b/third_party/py/BUILD.tpl
+@@
+-# Adapted with modifications from tensorflow/third_party/py/
+-
+-package(default_visibility=["//visibility:public"])
+-
+-config_setting(
+-    name="windows",
+-    values={"cpu": "x64_windows"},
+-    visibility=["//visibility:public"],
+-)
+-
+-config_setting(
+-    name="python3",
+-    flag_values = {"@rules_python//python:python_version": "PY3"}
+-)
+-
+-cc_library(
+-    name = "python_lib",
+-    deps = select({
+-        ":python3": ["//_python3:_python3_lib"],
+-        "//conditions:default": ["not-existing.lib"],
+-    })
+-)
+-
+-cc_library(
+-    name = "python_headers",
+-    deps = select({
+-        ":python3": ["//_python3:_python3_headers"],
+-        "//conditions:default": ["not-existing.headers"],
+-    })
+-)
++# Stubbed out in CUDA-only distributions; python bindings are not built.
++package(default_visibility = ["//visibility:public"])
++
++cc_library(
++    name = "python_lib",
++    srcs = [],
++)
++
++cc_library(
++    name = "python_headers",
++    srcs = [],
++)
+

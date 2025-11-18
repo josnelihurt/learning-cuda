@@ -31,22 +31,99 @@ REMOTE_REGISTRY="ghcr.io/josnelihurt/learning-cuda"
 
 REMOTE_GOLANG_IMAGE="${REMOTE_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"
 LOCAL_GOLANG_IMAGE="${LOCAL_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"
+REMOTE_GOLANG_LATEST="${REMOTE_REGISTRY}/intermediate:golang-built-latest-${ARCH}"
+LOCAL_GOLANG_LATEST="${LOCAL_REGISTRY}/intermediate:golang-built-latest-${ARCH}"
+LOCAL_GOLANG_ALT="local/intermediate:golang-built-latest-${ARCH}"
 
 if docker image inspect "$REMOTE_GOLANG_IMAGE" >/dev/null 2>&1; then
     DEFAULT_BASE_REGISTRY="$REMOTE_REGISTRY"
+    DEFAULT_BASE_TAG="latest"
 elif docker image inspect "$LOCAL_GOLANG_IMAGE" >/dev/null 2>&1; then
     DEFAULT_BASE_REGISTRY="$LOCAL_REGISTRY"
+    DEFAULT_BASE_TAG="latest"
+elif docker image inspect "$REMOTE_GOLANG_LATEST" >/dev/null 2>&1; then
+    DEFAULT_BASE_REGISTRY="$REMOTE_REGISTRY"
+    DEFAULT_BASE_TAG="latest"
+elif docker image inspect "$LOCAL_GOLANG_LATEST" >/dev/null 2>&1; then
+    DEFAULT_BASE_REGISTRY="$LOCAL_REGISTRY"
+    DEFAULT_BASE_TAG="latest"
+elif docker image inspect "$LOCAL_GOLANG_ALT" >/dev/null 2>&1; then
+    DEFAULT_BASE_REGISTRY="localhost"
+    DEFAULT_BASE_TAG="latest"
 else
     DEFAULT_BASE_REGISTRY="$REMOTE_REGISTRY"
+    DEFAULT_BASE_TAG="latest"
 fi
-DEFAULT_BASE_TAG="latest"
 
-export PROTO_VERSION="${PROTO_VERSION:-$DEFAULT_PROTO_VERSION}"
-export CPP_VERSION="${CPP_VERSION:-$DEFAULT_CPP_VERSION}"
-export GOLANG_VERSION="${GOLANG_VERSION:-$DEFAULT_GOLANG_VERSION}"
-export INTEGRATION_VERSION="${INTEGRATION_VERSION:-$DEFAULT_INTEGRATION_VERSION}"
 export BASE_REGISTRY="${BASE_REGISTRY:-$DEFAULT_BASE_REGISTRY}"
 export BASE_TAG="${BASE_TAG:-$DEFAULT_BASE_TAG}"
+
+# Check if versioned images exist, otherwise use "latest"
+check_image_exists() {
+    local image="$1"
+    docker image inspect "$image" >/dev/null 2>&1
+}
+
+# Try different image name formats for local images
+check_image_exists_any() {
+    local base_name="$1"
+    local version="$2"
+    local arch="$3"
+    
+    # Try with full registry path
+    check_image_exists "${BASE_REGISTRY}/intermediate:${base_name}-${version}-${arch}" && return 0
+    # Try with local/ prefix
+    check_image_exists "local/intermediate:${base_name}-${version}-${arch}" && return 0
+    # Try with localhost/ prefix
+    check_image_exists "localhost/intermediate:${base_name}-${version}-${arch}" && return 0
+    return 1
+}
+
+PROTO_IMAGE="${BASE_REGISTRY}/intermediate:proto-generated-${DEFAULT_PROTO_VERSION}-${ARCH}"
+CPP_IMAGE="${BASE_REGISTRY}/intermediate:cpp-built-${DEFAULT_CPP_VERSION}-${ARCH}"
+GOLANG_IMAGE="${BASE_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"
+
+if check_image_exists "$PROTO_IMAGE"; then
+    export PROTO_VERSION="$DEFAULT_PROTO_VERSION"
+elif check_image_exists_any "proto-generated" "latest" "$ARCH"; then
+    echo "WARNING: Image $PROTO_IMAGE not found, using 'latest' tag"
+    export PROTO_VERSION="latest"
+    # Update BASE_REGISTRY if needed
+    if check_image_exists "local/intermediate:proto-generated-latest-${ARCH}"; then
+        export BASE_REGISTRY="localhost"
+    fi
+else
+    echo "ERROR: No proto-generated image found (tried versioned and latest)"
+    exit 1
+fi
+
+if check_image_exists "$CPP_IMAGE"; then
+    export CPP_VERSION="$DEFAULT_CPP_VERSION"
+elif check_image_exists_any "cpp-built" "latest" "$ARCH"; then
+    echo "WARNING: Image $CPP_IMAGE not found, using 'latest' tag"
+    export CPP_VERSION="latest"
+    if check_image_exists "local/intermediate:cpp-built-latest-${ARCH}"; then
+        export BASE_REGISTRY="localhost"
+    fi
+else
+    echo "ERROR: No cpp-built image found (tried versioned and latest)"
+    exit 1
+fi
+
+if check_image_exists "$GOLANG_IMAGE"; then
+    export GOLANG_VERSION="$DEFAULT_GOLANG_VERSION"
+elif check_image_exists_any "golang-built" "latest" "$ARCH"; then
+    echo "WARNING: Image $GOLANG_IMAGE not found, using 'latest' tag"
+    export GOLANG_VERSION="latest"
+    if check_image_exists "local/intermediate:golang-built-latest-${ARCH}"; then
+        export BASE_REGISTRY="localhost"
+    fi
+else
+    echo "ERROR: No golang-built image found (tried versioned and latest)"
+    exit 1
+fi
+
+export INTEGRATION_VERSION="${INTEGRATION_VERSION:-$DEFAULT_INTEGRATION_VERSION}"
 
 TEST_TYPE="${1:-all}"
 

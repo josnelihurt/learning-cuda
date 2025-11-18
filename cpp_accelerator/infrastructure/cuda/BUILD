@@ -22,7 +22,7 @@ cuda_library(
 
 # C++ wrappers that handle spdlog and telemetry
 cc_library(
-    name = "cuda_wrappers",
+    name = "blur_processor",
     srcs = [
         "blur_processor_wrapper.cpp",
     ],
@@ -40,13 +40,22 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "cuda_wrappers",
+    hdrs = ["blur_processor.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":blur_processor",
+    ],
+)
+
 # Combined library for backward compatibility
 cc_library(
     name = "cuda_processors",
     visibility = ["//visibility:public"],
     deps = [
         ":cuda_kernels",
-        ":cuda_wrappers",
+        ":blur_processor",
     ],
 )
 
@@ -57,7 +66,7 @@ cc_test(
         "//data:static_images/lena.png",
     ],
     deps = [
-        ":cuda_wrappers",
+        ":blur_processor",
         "//cpp_accelerator/domain/interfaces",
         "//cpp_accelerator/domain/interfaces/filters:filters",
         "//cpp_accelerator/infrastructure/image:image_adapters",

@@ -6,6 +6,25 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
+wait_for_grpc() {
+    echo "Waiting for gRPC dev server on localhost:60061..."
+    local timeout=30
+
+    while [ "$timeout" -gt 0 ]; do
+        if bash -c ">/dev/tcp/localhost/60061" 2>/dev/null; then
+            echo "gRPC dev server is reachable on localhost:60061"
+            return 0
+        fi
+
+        sleep 1
+        timeout=$((timeout - 1))
+    done
+
+    echo "Error: gRPC dev server is not reachable on localhost:60061"
+    echo "       Make sure the 'grpc-server-dev' service is healthy (docker-compose.dev.yml)"
+    exit 1
+}
+
 ensure_writable() {
     local relative_path="$1"
     local absolute_path="${PROJECT_ROOT}/${relative_path}"
@@ -92,7 +111,14 @@ fi
 echo "Checking services (Jaeger + OTel Collector + Flipt)..."
 if ! docker ps --format '{{.Names}}' | grep -q 'jaeger'; then
     echo "Starting services..."
-    docker compose -f docker-compose.dev.yml up -d
+    docker compose -f docker-compose.dev.yml up -d \
+        jaeger \
+        otel-collector \
+        flipt \
+        loki \
+        promtail \
+        grafana \
+        mcp-grafana
     
     echo "Waiting for Jaeger to be healthy..."
     timeout=30
@@ -164,12 +190,29 @@ echo "Stopping previous application services..."
   "build_date": "${DATE}",
   "build_commit": "${COMMIT}",
   "description": "CUDA-accelerated image processing with CPU fallback"
-}
+    }
 EOF
     
+    echo "Building gRPC processor server..."
+    bazel build //cpp_accelerator/ports/grpc:image_processor_grpc_server
+
     echo "Building backend with Go..."
     cd webserver && make build && cd ..
 }
+
+GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server"
+
+if [ ! -x "$GRPC_SERVER_BIN" ]; then
+    echo "Error: gRPC server binary not found at ${GRPC_SERVER_BIN}"
+    echo "       Run './scripts/dev/start.sh --build' to build it."
+    exit 1
+fi
+
+echo "Starting local gRPC server..."
+"$GRPC_SERVER_BIN" --listen_addr=0.0.0.0:60061 > /tmp/grpc-server.log 2>&1 &
+GRPC_PID=$!
+
+wait_for_grpc
 
 cd webserver/web
 [ ! -d "node_modules" ] && npm install
@@ -177,8 +220,16 @@ cd "$PROJECT_ROOT"
 
 cleanup_on_error() {
     echo "Error detected, stopping services..."
-    kill $VITE_PID $GO_PID 2>/dev/null
-    wait $VITE_PID $GO_PID 2>/dev/null
+    if [ -n "${GO_PID:-}" ]; then
+        kill "$GO_PID" 2>/dev/null || true
+    fi
+    if [ -n "${VITE_PID:-}" ]; then
+        kill "$VITE_PID" 2>/dev/null || true
+    fi
+    if [ -n "${GRPC_PID:-}" ]; then
+        kill "$GRPC_PID" 2>/dev/null || true
+    fi
+    wait ${GO_PID:-} ${VITE_PID:-} ${GRPC_PID:-} 2>/dev/null || true
 }
 
 trap cleanup_on_error INT TERM

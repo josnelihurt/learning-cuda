@@ -9,9 +9,10 @@ import (
 	flipt "go.flipt.io/flipt-client"
 )
 
-// FliptWriterInterface defines the interface for FliptWriter to enable mocking
+// FliptWriterInterface defines the subset of FliptWriter methods used by the repository.
 type FliptWriterInterface interface {
 	SyncFlags(ctx context.Context, flags map[string]interface{}) error
+	GetFlag(ctx context.Context, flagKey string) (*Flag, error)
 }
 
 type FliptRepository struct {
@@ -78,6 +79,20 @@ func (r *FliptRepository) EvaluateBoolean(
 	ctx context.Context,
 	flagKey, entityID string,
 ) (*domain.FeatureFlagEvaluation, error) {
+	// Prefer HTTP flag state so that toggling via Flipt's API is reflected immediately.
+	if r.writer != nil {
+		if flag, err := r.writer.GetFlag(ctx, flagKey); err == nil && flag != nil {
+			return &domain.FeatureFlagEvaluation{
+				FlagKey:      flagKey,
+				EntityID:     entityID,
+				Result:       flag.Enabled,
+				Success:      true,
+				UsedFallback: false,
+			}, nil
+		}
+	}
+
+	// Fallback to gRPC-based evaluation when HTTP lookup fails.
 	return r.evaluateFlag(
 		ctx,
 		flagKey,

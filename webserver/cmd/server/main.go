@@ -11,7 +11,10 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/app"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/container"
+	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
 )
 
@@ -38,11 +41,27 @@ func main() {
 	}
 
 	processImageUseCase := application.NewProcessImageUseCase(di.CppConnector)
+	processorCapsUseCase := application.NewProcessorCapabilitiesUseCase(
+		processor.NewCPPCapabilitiesRepository(di.CppConnector),
+		func() interfaces.ProcessorCapabilitiesRepository {
+			if di.GRPCProcessorClient == nil {
+				return nil
+			}
+			return processor.NewGRPCRepository(di.GRPCProcessorClient)
+		}(),
+	)
+
+	var grpcProcessor domain.ImageProcessor
+	if di.GRPCProcessorClient != nil {
+		grpcProcessor = processor.NewGRPCProcessor(di.GRPCProcessorClient)
+	}
 
 	server := app.New(
 		ctx,
 		app.WithConfig(di.Config),
 		app.WithUseCase(processImageUseCase),
+		app.WithGRPCProcessor(grpcProcessor),
+		app.WithProcessorCapabilitiesUseCase(processorCapsUseCase),
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
 		app.WithGetSystemInfoUseCase(di.GetSystemInfoUseCase),
 		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),

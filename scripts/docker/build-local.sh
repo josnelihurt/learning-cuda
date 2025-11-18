@@ -52,7 +52,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app)
+ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app grpc-server)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -122,6 +122,18 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -z "${BAZEL_REMOTE_CACHE:-}" ]]; then
+  CACHE_HOST="192.168.10.80"
+  CACHE_STATUS_URL="http://${CACHE_HOST}:9090/status"
+  if curl -sf --connect-timeout 2 --max-time 4 "${CACHE_STATUS_URL}" >/dev/null 2>&1; then
+    export BAZEL_REMOTE_CACHE="grpc://${CACHE_HOST}:9092"
+    export BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="true"
+    echo "Detected bazel-remote cache at ${CACHE_HOST}"
+  else
+    echo "Bazel-remote cache not reachable; proceeding without remote cache."
+  fi
+fi
+
 HOST_ARCH="${ARCH_DEFAULT}"
 if [[ "${ARCH}" != "${HOST_ARCH}" ]]; then
   echo "Warning: building for ${ARCH} on host ${HOST_ARCH} without buildx may fail." >&2
@@ -153,7 +165,19 @@ build_and_tag() {
   echo "Tag (latest):    ${latest_tag}"
   echo ""
 
+  local docker_build_args=()
+  
+  if [[ "${REGISTRY}" != "local" ]]; then
+    docker_build_args+=("--pull")
+  fi
+  
+  if [[ "${1:-}" == "--no-cache" ]]; then
+    shift
+    docker_build_args+=("--no-cache")
+  fi
+  
   docker build \
+    "${docker_build_args[@]}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
     "${build_args[@]}" \
     -f "${dockerfile}" \
@@ -237,6 +261,20 @@ run_cpp_built() {
   cpp_version="$(read_version "cpp_accelerator/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
+  
+  local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
+  local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-latest-${ARCH}"
+  
+  if ! docker image inspect "${bazel_base_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${bazel_base_image} not found. Build bazel-base first." >&2
+    exit 1
+  fi
+  
+  if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${proto_generated_image} not found. Build proto intermediate first." >&2
+    exit 1
+  fi
+  
   local build_args=(
     "--target" "artifacts"
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
@@ -252,11 +290,23 @@ run_cpp_built() {
   fi
 
   print_stage_header "Building C++ intermediate (${cpp_version})"
-  build_and_tag \
-    "${version_tag}" \
-    "${latest_tag}" \
-    "cpp_accelerator/Dockerfile.build" \
-    "${build_args[@]}"
+  
+  local docker_build_args=()
+  if [[ "${REGISTRY}" != "local" ]]; then
+    docker_build_args+=("--pull")
+  fi
+  docker_build_args+=("--no-cache")
+  
+  docker build \
+    "${docker_build_args[@]}" \
+    --build-arg "TARGETARCH=${TARGETARCH}" \
+    "${build_args[@]}" \
+    -f "cpp_accelerator/Dockerfile.build" \
+    -t "${version_tag}" \
+    -t "${latest_tag}" \
+    "${REPO_ROOT}"
+  
+  docker image inspect "${version_tag}" >/dev/null 2>&1
 }
 
 run_golang_built() {
@@ -301,6 +351,53 @@ run_app_image() {
     "--build-arg" "GOLANG_VERSION=${golang_version}"
 }
 
+run_grpc_server_image() {
+  local proto_version
+  local cpp_version
+  proto_version="$(read_version "proto/VERSION")"
+  cpp_version="$(read_version "cpp_accelerator/VERSION")"
+
+  local app_tag="grpc-${cpp_version}-proto${proto_version}"
+  local version_tag="${IMAGE_BASE}/grpc-server:${app_tag}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/grpc-server:latest-${ARCH}"
+
+  print_stage_header "Building gRPC server image (${app_tag})"
+
+  local cpp_built_image="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
+  local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-${proto_version}-${ARCH}"
+  
+  if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${proto_generated_image} not found. Build proto intermediate first." >&2
+    exit 1
+  fi
+  
+  if ! docker image inspect "${cpp_built_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${cpp_built_image} not found. Build cpp intermediate first." >&2
+    exit 1
+  fi
+
+  local build_args=(
+    "--target" "grpc-server"
+    "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
+    "--build-arg" "BASE_TAG=latest"
+    "--build-arg" "PROTO_VERSION=${proto_version}"
+  )
+
+  if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
+    build_args+=("--build-arg" "BAZEL_REMOTE_CACHE=${BAZEL_REMOTE_CACHE}")
+    if [[ -n "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS:-}" ]]; then
+      build_args+=("--build-arg" "BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS=${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}")
+    fi
+  fi
+
+  build_and_tag \
+    "${version_tag}" \
+    "${latest_tag}" \
+    "cpp_accelerator/Dockerfile.build" \
+    "${build_args[@]}" \
+    "--build-arg" "TARGETARCH=${TARGETARCH}"
+}
+
 for stage in "${REQUESTED_STAGES[@]}"; do
   case "${stage}" in
     proto-tools)
@@ -329,6 +426,9 @@ for stage in "${REQUESTED_STAGES[@]}"; do
       ;;
     app)
       run_app_image
+      ;;
+    grpc-server)
+      run_grpc_server_image
       ;;
     *)
       echo "Stage '${stage}' is not implemented" >&2

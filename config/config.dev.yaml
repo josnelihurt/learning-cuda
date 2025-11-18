@@ -42,13 +42,15 @@ observability:
   trace_sampling_rate: 1.0
 
 logging:
-  level: "info"
+  level: "debug"
   format: "json"
   output: "stdout"
   include_caller: true
 
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
+  grpc_server_address: "localhost:60061"
+  use_grpc_for_processor: true
 
 static_images:
   directory: "data/static_images"

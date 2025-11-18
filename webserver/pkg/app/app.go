@@ -24,6 +24,9 @@ type App struct {
 	config                *config.Manager
 	appContext            context.Context
 	useCase               *application.ProcessImageUseCase
+	grpcProcessor         domain.ImageProcessor
+	grpcProcessorClient   *processor.GRPCClient
+	processorCapsUC       application.ProcessorCapabilitiesUseCase
 	getStreamConfigUC     *application.GetStreamConfigUseCase
 	getSystemInfoUC       *application.GetSystemInfoUseCase
 	syncFlagsUC           *application.SyncFeatureFlagsUseCase
@@ -64,6 +67,18 @@ func WithConfig(cfg *config.Manager) Option {
 func WithUseCase(useCase *application.ProcessImageUseCase) Option {
 	return func(a *App) {
 		a.useCase = useCase
+	}
+}
+
+func WithGRPCProcessor(proc domain.ImageProcessor) Option {
+	return func(a *App) {
+		a.grpcProcessor = proc
+	}
+}
+
+func WithProcessorCapabilitiesUseCase(uc application.ProcessorCapabilitiesUseCase) Option {
+	return func(a *App) {
+		a.processorCapsUC = uc
 	}
 }
 
@@ -191,7 +206,12 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
-	rpcHandler := connectrpc.NewImageProcessorHandler(a.useCase, a.cppConnector)
+	rpcHandler := connectrpc.NewImageProcessorHandler(
+		a.useCase,
+		a.processorCapsUC,
+		a.evaluateFFUC,
+		a.config.Processor.UseGRPCForProcessor,
+	)
 
 	connectrpc.RegisterConfigService(
 		mux,
@@ -235,7 +255,16 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		Interceptors:          a.interceptors,
 	})
 
-	staticHandler := statichttp.NewStaticHandler(&a.config.Server, a.config.Stream, a.useCase, a.videoRepository, a.config.Flipt.URL)
+	staticHandler := statichttp.NewStaticHandler(
+		&a.config.Server,
+		a.config.Stream,
+		a.useCase,
+		a.videoRepository,
+		a.config.Flipt.URL,
+		a.evaluateFFUC,
+		a.grpcProcessor,
+		a.config.Processor.UseGRPCForProcessor,
+	)
 	serveIndex := staticHandler.GetServeIndex()
 
 	// Register catch-all handler AFTER Connect-RPC handlers to ensure specific routes are matched first
@@ -276,7 +305,16 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 }
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
-	staticHandler := statichttp.NewStaticHandler(&a.config.Server, a.config.Stream, a.useCase, a.videoRepository, a.config.Flipt.URL)
+	staticHandler := statichttp.NewStaticHandler(
+		&a.config.Server,
+		a.config.Stream,
+		a.useCase,
+		a.videoRepository,
+		a.config.Flipt.URL,
+		a.evaluateFFUC,
+		a.grpcProcessor,
+		a.config.Processor.UseGRPCForProcessor,
+	)
 	staticHandler.RegisterRoutes(mux)
 }
 

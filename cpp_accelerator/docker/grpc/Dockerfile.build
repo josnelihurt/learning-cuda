@@ -71,7 +71,18 @@ RUN VERSION=$(cat cpp_accelerator/VERSION) && \
 
 FROM grpc-built AS grpc-artifacts
 
-COPY --from=cpp-built-ref /artifacts/lib/libcuda_processor.so /artifacts/lib/libcuda_processor.so
+COPY --from=cpp-built-ref /artifacts/lib/ /artifacts/lib/
+
+RUN VERSION=$(cat cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
+    if [ -f "/artifacts/lib/libcuda_processor_v${VERSION}.so" ]; then \
+      cp /artifacts/lib/libcuda_processor_v${VERSION}.so /artifacts/lib/libcuda_processor.so; \
+    elif [ -f "/artifacts/lib/libcuda_processor.so" ]; then \
+      echo "libcuda_processor.so already exists"; \
+    else \
+      echo "Error: libcuda_processor library not found. Available files:"; \
+      ls -la /artifacts/lib/ || true; \
+      exit 1; \
+    fi
 
 FROM scratch AS artifacts
 

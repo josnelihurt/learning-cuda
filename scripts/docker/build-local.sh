@@ -396,12 +396,29 @@ run_grpc_server_image() {
   rm -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" \
         "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
   
-  docker create --name grpc-artifacts-temp "${version_tag}-artifacts" >/dev/null
-  docker cp grpc-artifacts-temp:/artifacts/bin/image_processor_grpc_server \
-     "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server"
-  docker cp grpc-artifacts-temp:/artifacts/lib/libcuda_processor.so \
-     "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
+  docker create --name grpc-artifacts-temp "${version_tag}-artifacts" sh >/dev/null
+  if ! docker cp grpc-artifacts-temp:/artifacts/bin/image_processor_grpc_server \
+     "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" 2>&1; then
+    echo "Error: Failed to copy image_processor_grpc_server"
+    docker exec grpc-artifacts-temp ls -la /artifacts/bin/ 2>&1 || true
+    docker rm grpc-artifacts-temp >/dev/null
+    return 1
+  fi
+  if ! docker cp grpc-artifacts-temp:/artifacts/lib/libcuda_processor.so \
+     "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so" 2>&1; then
+    echo "Error: Failed to copy libcuda_processor.so"
+    docker exec grpc-artifacts-temp ls -la /artifacts/lib/ 2>&1 || true
+    docker rm grpc-artifacts-temp >/dev/null
+    return 1
+  fi
   docker rm grpc-artifacts-temp >/dev/null
+  
+  if [ ! -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" ] || \
+     [ ! -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so" ]; then
+    echo "Error: Copied files do not exist"
+    ls -la "${REPO_ROOT}/cpp_accelerator/docker/grpc/" | grep -E "image_processor|libcuda" || true
+    return 1
+  fi
 
   build_and_tag \
     "${version_tag}" \

@@ -364,6 +364,12 @@ run_grpc_server_image() {
   print_stage_header "Building gRPC server image (${app_tag})"
 
   local cpp_built_image="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
+  local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-${proto_version}-${ARCH}"
+  
+  if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${proto_generated_image} not found. Build proto intermediate first." >&2
+    exit 1
+  fi
   
   if ! docker image inspect "${cpp_built_image}" >/dev/null 2>&1; then
     echo "Error: Base image ${cpp_built_image} not found. Build cpp intermediate first." >&2
@@ -371,11 +377,10 @@ run_grpc_server_image() {
   fi
 
   local build_args=(
-    "--target" "artifacts"
+    "--target" "grpc-server"
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
-    "--build-arg" "CPP_VERSION=${cpp_version}"
   )
 
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
@@ -385,48 +390,12 @@ run_grpc_server_image() {
     fi
   fi
 
-  docker build \
-    --build-arg "TARGETARCH=${TARGETARCH}" \
-    "${build_args[@]}" \
-    --target grpc-artifacts \
-    -f "cpp_accelerator/docker/grpc/Dockerfile.build" \
-    -t "${version_tag}-artifacts" \
-    "${REPO_ROOT}"
-
-  rm -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" \
-        "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
-  
-  docker create --name grpc-artifacts-temp "${version_tag}-artifacts" sh >/dev/null
-  if ! docker cp grpc-artifacts-temp:/artifacts/bin/image_processor_grpc_server \
-     "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" 2>&1; then
-    echo "Error: Failed to copy image_processor_grpc_server"
-    docker exec grpc-artifacts-temp ls -la /artifacts/bin/ 2>&1 || true
-    docker rm grpc-artifacts-temp >/dev/null
-    return 1
-  fi
-  if ! docker cp grpc-artifacts-temp:/artifacts/lib/libcuda_processor.so \
-     "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so" 2>&1; then
-    echo "Error: Failed to copy libcuda_processor.so"
-    docker exec grpc-artifacts-temp ls -la /artifacts/lib/ 2>&1 || true
-    docker rm grpc-artifacts-temp >/dev/null
-    return 1
-  fi
-  docker rm grpc-artifacts-temp >/dev/null
-  
-  if [ ! -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" ] || \
-     [ ! -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so" ]; then
-    echo "Error: Copied files do not exist"
-    ls -la "${REPO_ROOT}/cpp_accelerator/docker/grpc/" | grep -E "image_processor|libcuda" || true
-    return 1
-  fi
-
   build_and_tag \
     "${version_tag}" \
     "${latest_tag}" \
-    "cpp_accelerator/docker/grpc/Dockerfile" \
+    "cpp_accelerator/Dockerfile.build" \
+    "${build_args[@]}" \
     "--build-arg" "TARGETARCH=${TARGETARCH}"
-
-  docker rmi "${version_tag}-artifacts" >/dev/null 2>&1 || true
 }
 
 for stage in "${REQUESTED_STAGES[@]}"; do

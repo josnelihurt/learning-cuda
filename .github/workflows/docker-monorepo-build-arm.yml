@@ -81,16 +81,15 @@ jobs:
       - build_and_push
     runs-on: ["self-hosted", "Linux", "ARM64"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    env:
-      REGISTRY: ${{ env.REGISTRY }}
-      BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-      RADXA_HOST: ${{ secrets.RADXA_HOST }}
-      RADXA_USER: ${{ secrets.RADXA_USER }}
-      RADXA_APP_DIRECTORY: ${{ vars.RADXA_APP_DIRECTORY }}
-      RADXA_DEPLOYMENT_GROUP: ${{ secrets.RADXA_DEPLOYMENT_GROUP }}
     steps:
       - name: Validate Radxa secrets
         env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          RADXA_HOST: ${{ secrets.RADXA_HOST }}
+          RADXA_USER: ${{ secrets.RADXA_USER }}
+          RADXA_APP_DIRECTORY: ${{ vars.RADXA_APP_DIRECTORY }}
+          RADXA_DEPLOYMENT_GROUP: ${{ secrets.RADXA_DEPLOYMENT_GROUP }}
           RADXA_SUDO_PASSWORD: ${{ secrets.RADXA_SUDO_PASSWORD }}
           RADXA_SSH_PRIVATE_KEY: ${{ secrets.RADXA_SSH_PRIVATE_KEY }}
         run: |
@@ -111,6 +110,7 @@ jobs:
 
       - name: Setup SSH
         env:
+          RADXA_HOST: ${{ secrets.RADXA_HOST }}
           SSH_PRIVATE_KEY: ${{ secrets.RADXA_SSH_PRIVATE_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.RADXA_SSH_KNOWN_HOSTS }}
         run: |
@@ -127,6 +127,12 @@ jobs:
 
       - name: Deploy application to Radxa
         env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          RADXA_HOST: ${{ secrets.RADXA_HOST }}
+          RADXA_USER: ${{ secrets.RADXA_USER }}
+          RADXA_APP_DIRECTORY: ${{ vars.RADXA_APP_DIRECTORY }}
+          RADXA_DEPLOYMENT_GROUP: ${{ secrets.RADXA_DEPLOYMENT_GROUP }}
           RADXA_SUDO_PASSWORD: ${{ secrets.RADXA_SUDO_PASSWORD }}
         run: |
           set -euo pipefail

@@ -1,0 +1,6 @@
+exports_files([
+    "grpc_strip_python.patch",
+    "protobuf_strip_proguard.patch",
+])
+
+

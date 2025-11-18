@@ -1,0 +1,7 @@
+exports_files([
+    "zlib.BUILD",
+    "cares.BUILD",
+    "googleapis.BUILD",
+    "protoc-gen-validate.patch",
+])
+

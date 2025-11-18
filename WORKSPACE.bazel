@@ -1,50 +1,58 @@
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+workspace(name = "cuda_learning")
 
-# Abseil (required by OpenTelemetry)
-http_archive(
-    name = "com_google_absl",
-    sha256 = "3ea49a7d97421b88a8c48a0de16c16048e17725c7ec0f1d3ea2683a2a75adc21",
-    strip_prefix = "abseil-cpp-20230125.0",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20230125.0.tar.gz"],
-)
-
-# nlohmann_json (required by OpenTelemetry)
-http_archive(
-    name = "github_nlohmann_json",
-    build_file_content = """
-cc_library(
-    name = "json",
-    hdrs = glob(["include/**/*.hpp"]),
-    strip_include_prefix = "include",
-    visibility = ["//visibility:public"],
-)
-""",
-    sha256 = "d69f9deb6a75e2580465c6c4c5111b89c4dc2fa94e3a85fcd2ffcd9a143d9273",
-    strip_prefix = "json-3.11.2",
-    urls = ["https://github.com/nlohmann/json/archive/refs/tags/v3.11.2.tar.gz"],
+bind(name = "upb_amalgamation_lib", actual = "@com_google_protobuf//upb:amalgamation")
+bind(name = "upb_base_lib", actual = "@com_google_protobuf//upb/base")
+bind(name = "upb_message_lib", actual = "@com_google_protobuf//upb:message")
+bind(name = "upb_mem_lib", actual = "@com_google_protobuf//upb/mem")
+bind(name = "upb_reflection", actual = "@com_google_protobuf//upb:reflection")
+bind(name = "upb_lib_descriptor", actual = "@com_google_protobuf//upb:descriptor_upb_proto")
+bind(name = "upb_lib_descriptor_reflection", actual = "@com_google_protobuf//upb:descriptor_upb_proto_reflection")
+bind(name = "upb_textformat_lib", actual = "@com_google_protobuf//upb/text")
+bind(name = "upb_json_lib", actual = "@com_google_protobuf//upb/json")
+bind(
+    name = "upb_generated_code_support__only_for_generated_code_do_not_use__i_give_permission_to_break_me",
+    actual = "@com_google_protobuf//upb:generated_code_support__only_for_generated_code_do_not_use__i_give_permission_to_break_me",
 )
 
-# curl (for OpenTelemetry HTTP exporter)
-http_archive(
-    name = "curl",
-    build_file_content = """
-cc_library(
-    name = "curl",
-    srcs = [],
-    hdrs = [],
-    visibility = ["//visibility:public"],
-    linkopts = ["-lcurl"],
-)
-""",
-    sha256 = "1",
-    urls = ["https://github.com/curl/curl/archive/refs/tags/curl-8_0_1.tar.gz"],
-)
+bind(name = "libssl", actual = "@boringssl//:ssl")
+bind(name = "libcrypto", actual = "@boringssl//:crypto")
+bind(name = "madler_zlib", actual = "@zlib//:zlib")
 
-# OpenTelemetry C++ (using HTTP exporter instead of gRPC to avoid complex dependencies)
-http_archive(
-    name = "io_opentelemetry_cpp",
-    sha256 = "b149109d5983cf8290d614654a878899a68b0c8902b64c934d06f47cd50ffe2e",
-    strip_prefix = "opentelemetry-cpp-1.18.0",
-    urls = ["https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.18.0.tar.gz"],
-)
+bind(name = "protobuf", actual = "@com_google_protobuf//:protobuf")
+bind(name = "protobuf_clib", actual = "@com_google_protobuf//:protoc_lib")
+bind(name = "protobuf_headers", actual = "@com_google_protobuf//:protobuf_headers")
+bind(name = "protocol_compiler", actual = "@com_google_protobuf//:protoc")
 
+bind(name = "cares", actual = "@com_github_cares_cares//:ares")
+bind(name = "gtest", actual = "@com_google_googletest//:gtest")
+bind(name = "fuzztest", actual = "@com_google_fuzztest//fuzztest")
+bind(name = "fuzztest_main", actual = "@com_google_fuzztest//fuzztest:fuzztest_gtest_main")
+bind(name = "benchmark", actual = "@com_github_google_benchmark//:benchmark")
+bind(name = "re2", actual = "@com_googlesource_code_re2//:re2")
+
+bind(name = "grpc_cpp_plugin", actual = "@com_github_grpc_grpc//src/compiler:grpc_cpp_plugin")
+bind(name = "grpc++_codegen_proto", actual = "@com_github_grpc_grpc//:grpc++_codegen_proto")
+
+bind(name = "googleapis_trace_grpc_service", actual = "@com_google_googleapis//google/devtools/cloudtrace/v2:cloudtrace_cc_grpc")
+bind(name = "googleapis_monitoring_grpc_service", actual = "@com_google_googleapis//google/monitoring/v3:monitoring_cc_grpc")
+bind(name = "googleapis_logging_grpc_service", actual = "@com_google_googleapis//google/logging/v2:logging_cc_grpc")
+bind(name = "googleapis_logging_cc_proto", actual = "@com_google_googleapis//google/logging/v2:logging_cc_proto")
+
+bind(name = "opencensus-context", actual = "@io_opencensus_cpp//opencensus/context:context")
+bind(name = "opencensus-trace", actual = "@io_opencensus_cpp//opencensus/trace:trace")
+bind(name = "opencensus-trace-context_util", actual = "@io_opencensus_cpp//opencensus/trace:context_util")
+bind(name = "opencensus-trace-propagation", actual = "@io_opencensus_cpp//opencensus/trace:grpc_trace_bin")
+bind(name = "opencensus-trace-span_context", actual = "@io_opencensus_cpp//opencensus/trace:span_context")
+bind(name = "opencensus-stats", actual = "@io_opencensus_cpp//opencensus/stats:stats")
+bind(name = "opencensus-stats-test", actual = "@io_opencensus_cpp//opencensus/stats:test_utils")
+bind(name = "opencensus-with-tag-map", actual = "@io_opencensus_cpp//opencensus/tags:with_tag_map")
+bind(name = "opencensus-tags", actual = "@io_opencensus_cpp//opencensus/tags:tags")
+bind(name = "opencensus-tags-context_util", actual = "@io_opencensus_cpp//opencensus/tags:context_util")
+bind(
+    name = "opencensus-trace-stackdriver_exporter",
+    actual = "@io_opencensus_cpp//opencensus/exporters/trace/stackdriver:stackdriver_exporter",
+)
+bind(
+    name = "opencensus-stats-stackdriver_exporter",
+    actual = "@io_opencensus_cpp//opencensus/exporters/stats/stackdriver:stackdriver_exporter",
+)

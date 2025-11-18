@@ -2,7 +2,6 @@ package connectrpc
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -14,24 +13,26 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type filterCapabilitiesProvider interface {
-	GetCapabilities() *pb.LibraryCapabilities
-}
-
 type ImageProcessorHandler struct {
-	useCase      *application.ProcessImageUseCase
-	adapter      *adapters.ProtobufAdapter
-	capabilities filterCapabilitiesProvider
+	useCase        *application.ProcessImageUseCase
+	adapter        *adapters.ProtobufAdapter
+	capabilities   application.ProcessorCapabilitiesUseCase
+	evaluateFFUse  *application.EvaluateFeatureFlagUseCase
+	defaultUseGRPC bool
 }
 
 func NewImageProcessorHandler(
 	useCase *application.ProcessImageUseCase,
-	capabilitiesProvider filterCapabilitiesProvider,
+	capabilitiesUC application.ProcessorCapabilitiesUseCase,
+	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
+	defaultUseGRPC bool,
 ) *ImageProcessorHandler {
 	return &ImageProcessorHandler{
-		useCase:      useCase,
-		adapter:      adapters.NewProtobufAdapter(),
-		capabilities: capabilitiesProvider,
+		useCase:        useCase,
+		adapter:        adapters.NewProtobufAdapter(),
+		capabilities:   capabilitiesUC,
+		evaluateFFUse:  evaluateFFUse,
+		defaultUseGRPC: defaultUseGRPC,
 	}
 }
 
@@ -63,15 +64,21 @@ func (h *ImageProcessorHandler) ListFilters(
 ) (*connect.Response[pb.ListFiltersResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	if h.capabilities == nil {
-		err := fmt.Errorf("processor capabilities not available")
-		span.RecordError(err)
-		return nil, connect.NewError(connect.CodeUnavailable, err)
+	useGRPC := h.defaultUseGRPC
+	if h.evaluateFFUse != nil {
+		value, err := h.evaluateFFUse.EvaluateBoolean(
+			ctx,
+			"processor_use_grpc_backend",
+			"webserver",
+			h.defaultUseGRPC,
+		)
+		if err == nil {
+			useGRPC = value
+		}
 	}
 
-	caps := h.capabilities.GetCapabilities()
-	if caps == nil {
-		err := fmt.Errorf("capabilities not available")
+	caps, origin, err := h.capabilities.Execute(ctx, useGRPC)
+	if err != nil {
 		span.RecordError(err)
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
@@ -94,7 +101,10 @@ func (h *ImageProcessorHandler) ListFilters(
 		TraceContext: req.Msg.GetTraceContext(),
 	}
 
-	return connect.NewResponse(response), nil
+	res := connect.NewResponse(response)
+	res.Header().Set("X-Processor-Backend", string(origin))
+
+	return res, nil
 }
 
 func (h *ImageProcessorHandler) StreamProcessVideo(

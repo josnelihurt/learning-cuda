@@ -14,7 +14,7 @@ proto_library(
     strip_import_prefix = "/proto",
     deps = [
         ":http_proto",
-        "@protobuf//:descriptor_proto",
+        "@com_google_protobuf//:descriptor_proto",
     ],
 )
 

@@ -44,7 +44,7 @@ func TestHandler_safeWriteMessage(t *testing.T) {
 
 func TestHandler_cleanupConnMutex(t *testing.T) {
 	// Arrange
-	sut := NewHandler(nil, makeValidStreamConfig(), nil)
+	sut := NewHandler(nil, makeValidStreamConfig(), nil, nil, nil, false)
 	conn := &websocket.Conn{} // This would need proper initialization in real tests
 
 	// Act

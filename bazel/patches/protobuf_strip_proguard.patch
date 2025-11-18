@@ -1,0 +1,26 @@
+--- a/bazel/private/java_lite_proto_library.bzl	2025-11-15 12:40:10.892426306 -0800
++++ b/bazel/private/java_lite_proto_library.bzl	2025-11-15 12:40:22.209247848 -0800
+@@ -8,12 +8,13 @@
+ 
+ load("@rules_java//java/common:java_common.bzl", "java_common")
+ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
+-load("@rules_java//java/common:proguard_spec_info.bzl", "ProguardSpecInfo")
+ load("//bazel/common:proto_common.bzl", "proto_common")
+ load("//bazel/common:proto_info.bzl", "ProtoInfo")
+ load("//bazel/private:java_proto_support.bzl", "JavaProtoAspectInfo", "java_compile_for_protos", "java_info_merge_for_protos")
+ load("//bazel/private:toolchain_helpers.bzl", "toolchains")
+ 
++ProguardSpecInfo = provider(fields = ["specs"])
++
+ _PROTO_TOOLCHAIN_ATTR = "_aspect_proto_toolchain_for_javalite"
+ 
+ _JAVA_LITE_PROTO_TOOLCHAIN = Label("//bazel/private:javalite_toolchain_type")
+@@ -106,7 +107,7 @@
+ 
+     runtime = proto_toolchain_info.runtime
+ 
+-    if runtime:
++    if runtime and ProguardSpecInfo in runtime:
+         proguard_provider_specs = runtime[ProguardSpecInfo]
+     else:
+         proguard_provider_specs = ProguardSpecInfo(specs = depset())

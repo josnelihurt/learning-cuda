@@ -18,6 +18,7 @@ RUN apk add --update --no-cache \
 COPY --from=proto-gen-builder /go/bin/buf /usr/local/bin/buf
 COPY --from=proto-gen-builder /go/bin/protoc-gen-go /usr/local/bin/protoc-gen-go
 COPY --from=proto-gen-builder /go/bin/protoc-gen-connect-go /usr/local/bin/protoc-gen-connect-go
+COPY --from=proto-gen-builder /go/bin/protoc-gen-go-grpc /usr/local/bin/protoc-gen-go-grpc
 
 WORKDIR /workspace
 ENV XDG_CACHE_HOME=/workspace/.cache

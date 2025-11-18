@@ -3,6 +3,7 @@ package featureflags
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
@@ -19,6 +20,10 @@ type mockFliptWriter struct {
 
 func (m *mockFliptWriter) SyncFlags(ctx context.Context, flags map[string]interface{}) error {
 	return m.returnError
+}
+
+func (m *mockFliptWriter) GetFlag(ctx context.Context, flagKey string) (*Flag, error) {
+	return nil, fmt.Errorf("not implemented in mock: %s", flagKey)
 }
 
 // Mocks

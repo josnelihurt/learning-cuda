@@ -247,6 +247,22 @@ services:
       - "traefik.http.routers.flipt.priority=200"
       - "traefik.http.services.flipt.loadbalancer.server.port=8080"
 
+  grpc-server:
+    image: ${GRPC_SERVER_IMAGE:-ghcr.io/josnelihurt/learning-cuda/grpc-server:latest-amd64}
+    container_name: cuda-grpc-server-staging
+    restart: unless-stopped
+    runtime: nvidia
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+    ports:
+      - "60061:60061"
+
+    networks:
+      - traefik
+
   test-reports:
     build:
       context: .

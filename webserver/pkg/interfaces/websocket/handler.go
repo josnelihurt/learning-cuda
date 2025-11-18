@@ -37,6 +37,9 @@ var upgrader = websocket.Upgrader{
 
 type Handler struct {
 	useCase             *application.ProcessImageUseCase
+	evaluateFFUse       *application.EvaluateFeatureFlagUseCase
+	grpcProcessor       domain.ImageProcessor
+	defaultUseGRPC      bool
 	imageCodec          *imageinfra.Codec
 	adapter             *adapters.ProtobufAdapter
 	streamConfig        config.StreamConfig
@@ -47,9 +50,19 @@ type Handler struct {
 	connMutexesLock     sync.Mutex
 }
 
-func NewHandler(useCase *application.ProcessImageUseCase, streamCfg config.StreamConfig, videoRepo domain.VideoRepository) *Handler {
+func NewHandler(
+	useCase *application.ProcessImageUseCase,
+	streamCfg config.StreamConfig,
+	videoRepo domain.VideoRepository,
+	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
+	grpcProcessor domain.ImageProcessor,
+	defaultUseGRPC bool,
+) *Handler {
 	return &Handler{
 		useCase:             useCase,
+		evaluateFFUse:       evaluateFFUse,
+		grpcProcessor:       grpcProcessor,
+		defaultUseGRPC:      defaultUseGRPC,
 		imageCodec:          imageinfra.NewImageCodec(),
 		adapter:             adapters.NewProtobufAdapter(),
 		streamConfig:        streamCfg,
@@ -284,7 +297,17 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 		attribute.String("accelerator", req.Accelerator.String()),
 	)
 
-	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
+	useGRPC := h.shouldUseGRPC(ctx)
+
+	var processedImg *domain.Image
+
+	switch {
+	case useGRPC && h.grpcProcessor != nil:
+		processedImg, err = h.grpcProcessor.ProcessImage(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
+	default:
+		processedImg, err = h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
+	}
+
 	if err != nil {
 		result.Error = "processing failed: " + err.Error()
 		return result
@@ -330,6 +353,26 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 	}
 
 	return result
+}
+
+func (h *Handler) shouldUseGRPC(ctx context.Context) bool {
+	useGRPC := h.defaultUseGRPC
+
+	if h.evaluateFFUse == nil {
+		return useGRPC
+	}
+
+	value, err := h.evaluateFFUse.EvaluateBoolean(
+		ctx,
+		"processor_use_grpc_backend",
+		"webserver",
+		h.defaultUseGRPC,
+	)
+	if err == nil {
+		useGRPC = value
+	}
+
+	return useGRPC
 }
 
 // TODO: Refactor this to use a more efficient video player

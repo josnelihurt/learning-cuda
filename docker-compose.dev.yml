@@ -156,6 +156,18 @@ services:
       retries: 3
       start_period: 10s
 
+  grpc-server-dev:
+    image: ${GRPC_SERVER_IMAGE:-local/josnelihurt/learning-cuda/grpc-server:latest-amd64}
+    container_name: cuda-grpc-server-dev
+    restart: unless-stopped
+    runtime: nvidia
+
+    ports:
+      - "60061:60061"
+
+    networks:
+      - dev-network
+
   grafana:
     image: grafana/grafana:10.2.3
     container_name: grafana

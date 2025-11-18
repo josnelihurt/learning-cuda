@@ -132,7 +132,7 @@ jobs:
 
           ssh_exec() {
             local cmd=$1
-            ssh -o StrictHostKeyChecking=no "${RADXA_USER}@${RADXA_HOST}" "echo '${RADXA_SUDO_PASSWORD}' | sudo -S -- bash -euo pipefail -c '${cmd}'"
+            ssh -o StrictHostKeyChecking=no "${RADXA_USER}@${RADXA_HOST}" "echo \"${RADXA_SUDO_PASSWORD}\" | sudo -S -- bash -euo pipefail -c \"${cmd}\""
           }
 
           rsync_exec() {

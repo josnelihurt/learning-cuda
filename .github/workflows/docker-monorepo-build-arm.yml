@@ -91,10 +91,11 @@ jobs:
       - name: Validate Radxa secrets
         env:
           RADXA_SUDO_PASSWORD: ${{ secrets.RADXA_SUDO_PASSWORD }}
+          RADXA_SSH_PRIVATE_KEY: ${{ secrets.RADXA_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           missing=()
-          for var in RADXA_HOST RADXA_USER RADXA_APP_DIRECTORY RADXA_DEPLOYMENT_GROUP RADXA_SUDO_PASSWORD; do
+          for var in RADXA_HOST RADXA_USER RADXA_APP_DIRECTORY RADXA_DEPLOYMENT_GROUP RADXA_SUDO_PASSWORD RADXA_SSH_PRIVATE_KEY; do
             if [ -z "${!var:-}" ]; then
               missing+=("$var")
             fi
@@ -107,28 +108,58 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.RADXA_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.RADXA_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          if [ -n "${SSH_KNOWN_HOSTS:-}" ]; then
+            echo "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+            chmod 644 ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "${RADXA_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+
       - name: Deploy application to Radxa
         env:
           RADXA_SUDO_PASSWORD: ${{ secrets.RADXA_SUDO_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sudo_exec() {
+          ssh_exec() {
             local cmd=$1
-            printf '%s\n' "${RADXA_SUDO_PASSWORD}" | sudo -S -- bash -euo pipefail -c "${cmd}"
+            ssh -o StrictHostKeyChecking=no "${RADXA_USER}@${RADXA_HOST}" "echo '${RADXA_SUDO_PASSWORD}' | sudo -S -- bash -euo pipefail -c '${cmd}'"
+          }
+
+          rsync_exec() {
+            local src=$1
+            local dst=$2
+            rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" "${src}" "${RADXA_USER}@${RADXA_HOST}:${dst}"
           }
 
           TARGET="${RADXA_APP_DIRECTORY}"
-          sudo_exec "mkdir -p \"${TARGET}/config\" \"${TARGET}/data\""
+          TMP_DIR="/tmp/deploy-$$"
+          ssh_exec "mkdir -p \"${TARGET}/config\" \"${TARGET}/data\" \"${TMP_DIR}\""
 
-          sudo_exec "install -m 0644 docker-compose.yml \"${TARGET}/docker-compose.yml\""
-          sudo_exec "install -m 0644 traefik-config.yml \"${TARGET}/traefik-config.yml\""
-          sudo_exec "install -m 0644 cloudflared-config.yml \"${TARGET}/cloudflared-config.yml\""
+          rsync_exec "${PWD}/docker-compose.yml" "${TMP_DIR}/docker-compose.yml"
+          rsync_exec "${PWD}/traefik-config.yml" "${TMP_DIR}/traefik-config.yml"
+          rsync_exec "${PWD}/cloudflared-config.yml" "${TMP_DIR}/cloudflared-config.yml"
+          ssh_exec "install -m 0644 \"${TMP_DIR}/docker-compose.yml\" \"${TARGET}/docker-compose.yml\" && \
+                    install -m 0644 \"${TMP_DIR}/traefik-config.yml\" \"${TARGET}/traefik-config.yml\" && \
+                    install -m 0644 \"${TMP_DIR}/cloudflared-config.yml\" \"${TARGET}/cloudflared-config.yml\" && \
+                    rm -rf \"${TMP_DIR}\""
 
-          sudo_exec "rsync -a --delete \"${PWD}/config/\" \"${TARGET}/config/\""
-          sudo_exec "rsync -a --delete \"${PWD}/data/\" \"${TARGET}/data/\""
+          rsync_exec "${PWD}/config/" "${TMP_DIR}/config/"
+          rsync_exec "${PWD}/data/" "${TMP_DIR}/data/"
+          ssh_exec "rsync -a --delete \"${TMP_DIR}/config/\" \"${TARGET}/config/\" && \
+                    rsync -a --delete \"${TMP_DIR}/data/\" \"${TARGET}/data/\" && \
+                    rm -rf \"${TMP_DIR}\""
 
-          sudo_exec "chown -R \"${RADXA_USER}:${RADXA_DEPLOYMENT_GROUP}\" \"${TARGET}\""
+          ssh_exec "chown -R \"${RADXA_USER}:${RADXA_DEPLOYMENT_GROUP}\" \"${TARGET}\""
 
           proto_version=$(tr -d '\n' < proto/VERSION)
           cpp_version=$(tr -d '\n' < cpp_accelerator/VERSION)
@@ -136,7 +167,7 @@ jobs:
           app_tag="${golang_version}-proto${proto_version}-cpp${cpp_version}-go${golang_version}"
           app_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/app:${app_tag}-arm64"
 
-          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose pull --ignore-buildable"
-          sudo_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose up -d --remove-orphans"
+          ssh_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose pull --ignore-buildable"
+          ssh_exec "cd \"${TARGET}\" && APP_IMAGE=\"${app_image}\" docker compose up -d --remove-orphans"
 
           unset -v RADXA_SUDO_PASSWORD

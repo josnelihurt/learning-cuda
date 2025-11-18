@@ -4,6 +4,9 @@ ARG TARGETARCH=amd64
 ARG PROTO_VERSION=2.0.0
 ARG CPP_VERSION=2.1.8
 
+FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
+FROM ${BASE_REGISTRY}/intermediate:cpp-built-${CPP_VERSION}-${TARGETARCH} AS cpp-built-ref
+
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS grpc-built
 
 ARG BAZEL_REMOTE_CACHE=""
@@ -18,7 +21,7 @@ COPY proto/ ./proto/
 COPY third_party/ ./third_party/
 COPY cpp_accelerator/ ./cpp_accelerator/
 
-COPY --from=${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} /workspace/proto/gen/ ./proto/gen/
+COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
 ENV USE_BAZEL_VERSION=8.4.2
 RUN bazel fetch //cpp_accelerator/ports/grpc:image_processor_grpc_server || true
@@ -66,9 +69,11 @@ RUN VERSION=$(cat cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/bin /artifacts/lib && \
     cp -L bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server /artifacts/bin/image_processor_grpc_server
 
-COPY --from=${BASE_REGISTRY}/intermediate:cpp-built-${CPP_VERSION}-${TARGETARCH} /artifacts/lib/libcuda_processor.so /artifacts/lib/libcuda_processor.so
+FROM grpc-built AS grpc-artifacts
+
+COPY --from=cpp-built-ref /artifacts/lib/libcuda_processor.so /artifacts/lib/libcuda_processor.so
 
 FROM scratch AS artifacts
 
-COPY --from=grpc-built /artifacts/ /artifacts/
+COPY --from=grpc-artifacts /artifacts/ /artifacts/
 

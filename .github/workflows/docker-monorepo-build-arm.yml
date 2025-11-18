@@ -79,7 +79,7 @@ jobs:
     needs:
       - build_and_push
     runs-on: ["self-hosted", "Linux", "ARM64"]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
       REGISTRY: ${{ env.REGISTRY }}
       BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}

@@ -363,46 +363,52 @@ run_grpc_server_image() {
 
   print_stage_header "Building gRPC server image (${app_tag})"
 
-  local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
+  local cpp_built_image="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
   
-  local bazel_args=(
-    "bazel"
-    "build"
+  if ! docker image inspect "${cpp_built_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${cpp_built_image} not found. Build cpp intermediate first." >&2
+    exit 1
+  fi
+
+  local build_args=(
+    "--target" "artifacts"
+    "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
+    "--build-arg" "BASE_TAG=latest"
+    "--build-arg" "PROTO_VERSION=${proto_version}"
+    "--build-arg" "CPP_VERSION=${cpp_version}"
   )
-  
+
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
-    bazel_args+=("--remote_cache=${BAZEL_REMOTE_CACHE}")
+    build_args+=("--build-arg" "BAZEL_REMOTE_CACHE=${BAZEL_REMOTE_CACHE}")
     if [[ -n "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS:-}" ]]; then
-      bazel_args+=("--remote_upload_local_results")
+      build_args+=("--build-arg" "BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS=${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}")
     fi
   fi
-  
-  bazel_args+=(
-    "//cpp_accelerator/ports/grpc:image_processor_grpc_server"
-    "//cpp_accelerator/ports/shared_lib:libcuda_processor.so"
-  )
-  
-  docker run --rm \
-    -v "${REPO_ROOT}:/workspace" \
-    -w /workspace \
-    "${bazel_base_image}" \
-    "${bazel_args[@]}"
-
-  rm -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" \
-        "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
-  cp "${REPO_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server" \
-     "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server"
-  cp "${REPO_ROOT}/bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so" \
-     "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
 
   docker build \
     --build-arg "TARGETARCH=${TARGETARCH}" \
-    -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/Dockerfile" \
-    -t "${version_tag}" \
-    -t "${latest_tag}" \
-    "${REPO_ROOT}/cpp_accelerator/docker/grpc"
+    "${build_args[@]}" \
+    -f "cpp_accelerator/docker/grpc/Dockerfile.build" \
+    -t "${version_tag}-artifacts" \
+    "${REPO_ROOT}"
 
-  docker image inspect "${version_tag}" >/dev/null 2>&1
+  rm -f "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server" \
+        "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
+  
+  docker create --name grpc-artifacts-temp "${version_tag}-artifacts" >/dev/null
+  docker cp grpc-artifacts-temp:/artifacts/bin/image_processor_grpc_server \
+     "${REPO_ROOT}/cpp_accelerator/docker/grpc/image_processor_grpc_server"
+  docker cp grpc-artifacts-temp:/artifacts/lib/libcuda_processor.so \
+     "${REPO_ROOT}/cpp_accelerator/docker/grpc/libcuda_processor.so"
+  docker rm grpc-artifacts-temp >/dev/null
+
+  build_and_tag \
+    "${version_tag}" \
+    "${latest_tag}" \
+    "cpp_accelerator/docker/grpc/Dockerfile" \
+    "--build-arg" "TARGETARCH=${TARGETARCH}"
+
+  docker rmi "${version_tag}-artifacts" >/dev/null 2>&1 || true
 }
 
 for stage in "${REQUESTED_STAGES[@]}"; do

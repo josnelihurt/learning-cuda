@@ -1,0 +1,74 @@
+ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
+ARG BASE_TAG=latest
+ARG TARGETARCH=amd64
+ARG PROTO_VERSION=2.0.0
+ARG CPP_VERSION=2.1.8
+
+FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS grpc-built
+
+ARG BAZEL_REMOTE_CACHE=""
+ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
+
+WORKDIR /build
+
+COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
+COPY .bazelrc .bazeliskrc ./
+COPY bazel/ ./bazel/
+COPY proto/ ./proto/
+COPY third_party/ ./third_party/
+COPY cpp_accelerator/ ./cpp_accelerator/
+
+COPY --from=${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} /workspace/proto/gen/ ./proto/gen/
+
+ENV USE_BAZEL_VERSION=8.4.2
+RUN bazel fetch //cpp_accelerator/ports/grpc:image_processor_grpc_server || true
+
+RUN echo "Detected TARGETARCH: $TARGETARCH" && \
+    NPROC=$(nproc) && \
+    MEM_GB=$(free -g | awk '/^Mem:/{print $2}') && \
+    echo "Available CPUs: $NPROC, RAM: ${MEM_GB}GB" && \
+    CACHE_FLAGS="" && \
+    if [ -n "${BAZEL_REMOTE_CACHE}" ]; then \
+        echo "Using remote Bazel cache at ${BAZEL_REMOTE_CACHE}"; \
+        CACHE_FLAGS="${CACHE_FLAGS} --remote_cache=${BAZEL_REMOTE_CACHE} --experimental_remote_downloader=${BAZEL_REMOTE_CACHE}"; \
+        if [ "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}" = "true" ]; then \
+            CACHE_FLAGS="${CACHE_FLAGS} --remote_upload_local_results"; \
+        fi; \
+    fi && \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
+        bazel build \
+          --show_timestamps \
+          --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
+          //cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+        echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    else \
+        echo "Building AMD64 with verbose output" && \
+        bazel build \
+          --show_timestamps \
+          --announce_rc \
+          --verbose_failures \
+          --subcommands \
+          --jobs=$NPROC \
+          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
+          --local_cpu_resources=$(($NPROC - 1)) \
+          --experimental_repository_cache_hardlinks \
+          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
+          //cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+        echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
+    fi
+
+RUN VERSION=$(cat cpp_accelerator/VERSION) && \
+    mkdir -p /artifacts/bin /artifacts/lib && \
+    cp -L bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server /artifacts/bin/image_processor_grpc_server
+
+COPY --from=${BASE_REGISTRY}/intermediate:cpp-built-${CPP_VERSION}-${TARGETARCH} /artifacts/lib/libcuda_processor.so /artifacts/lib/libcuda_processor.so
+
+FROM scratch AS artifacts
+
+COPY --from=grpc-built /artifacts/ /artifacts/
+

@@ -36,7 +36,6 @@ jobs:
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
         run: |
-          docker builder prune -f || true
           chmod +x scripts/docker/build-local.sh
           ./scripts/docker/build-local.sh
 

@@ -171,6 +171,11 @@ build_and_tag() {
     docker_build_args+=("--pull")
   fi
   
+  if [[ "${1:-}" == "--no-cache" ]]; then
+    shift
+    docker_build_args+=("--no-cache")
+  fi
+  
   docker build \
     "${docker_build_args[@]}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
@@ -285,11 +290,23 @@ run_cpp_built() {
   fi
 
   print_stage_header "Building C++ intermediate (${cpp_version})"
-  build_and_tag \
-    "${version_tag}" \
-    "${latest_tag}" \
-    "cpp_accelerator/Dockerfile.build" \
-    "${build_args[@]}"
+  
+  local docker_build_args=()
+  if [[ "${REGISTRY}" != "local" ]]; then
+    docker_build_args+=("--pull")
+  fi
+  docker_build_args+=("--no-cache")
+  
+  docker build \
+    "${docker_build_args[@]}" \
+    --build-arg "TARGETARCH=${TARGETARCH}" \
+    "${build_args[@]}" \
+    -f "cpp_accelerator/Dockerfile.build" \
+    -t "${version_tag}" \
+    -t "${latest_tag}" \
+    "${REPO_ROOT}"
+  
+  docker image inspect "${version_tag}" >/dev/null 2>&1
 }
 
 run_golang_built() {

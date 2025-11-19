@@ -2,6 +2,8 @@ import { LitElement, html } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { filterPanelStyles } from './filter-panel.styles';
 import { Filter, formatParameterLabel, ActiveFilterState } from './filter-panel.types';
+import { logger } from '../../services/otel-logger';
+import type { ToastContainer } from './toast-container';
 
 @customElement('filter-panel')
 export class FilterPanel extends LitElement {
@@ -10,6 +12,62 @@ export class FilterPanel extends LitElement {
   private draggedIndex: number | null = null;
 
   static styles = filterPanelStyles;
+
+  private getToastManager(): ToastContainer | null {
+    const toastElement = document.querySelector('toast-container') as ToastContainer;
+    return toastElement || null;
+  }
+
+  firstUpdated() {
+    this.setupNumberInputListeners();
+  }
+
+  updated() {
+    this.setupNumberInputListeners();
+  }
+
+  private setupNumberInputListeners() {
+    const numberInputs = this.shadowRoot?.querySelectorAll('input[type="number"]');
+    numberInputs?.forEach((input) => {
+      const inputElement = input as HTMLInputElement;
+      const min = inputElement.min ? parseFloat(inputElement.min) : -Infinity;
+      const max = inputElement.max ? parseFloat(inputElement.max) : Infinity;
+      const step = inputElement.step ? parseFloat(inputElement.step) : 1;
+      const hasMin = min !== -Infinity;
+      const hasMax = max !== Infinity;
+
+      const handleClick = (e: Event) => {
+        const mouseEvent = e as MouseEvent;
+        const target = mouseEvent.target as HTMLElement;
+        if (target === inputElement) {
+          const rect = inputElement.getBoundingClientRect();
+          const clickX = mouseEvent.clientX - rect.left;
+          const inputWidth = rect.width;
+
+          if (clickX > inputWidth - 40) {
+            const currentValue = parseFloat(inputElement.value) || 0;
+            const buttonType = clickX > inputWidth - 20 ? 'up' : 'down';
+            const newValue = buttonType === 'up' ? currentValue + step : currentValue - step;
+
+            if (buttonType === 'up' && hasMax && newValue > max) {
+              mouseEvent.preventDefault();
+              mouseEvent.stopPropagation();
+              return false;
+            }
+            if (buttonType === 'down' && hasMin && newValue < min) {
+              mouseEvent.preventDefault();
+              mouseEvent.stopPropagation();
+              return false;
+            }
+          }
+        }
+        return true;
+      };
+
+      inputElement.removeEventListener('mousedown', handleClick);
+      inputElement.addEventListener('mousedown', handleClick, true);
+    });
+  }
 
   render() {
     return html`
@@ -27,8 +85,6 @@ export class FilterPanel extends LitElement {
     return html`
       <div
         class="filter-card"
-        draggable="true"
-        @dragstart=${(e: DragEvent) => this.handleDragStart(e, index)}
         @dragend=${() => this.handleDragEnd()}
         @dragover=${(e: DragEvent) => this.handleDragOver(e)}
         @drop=${(e: DragEvent) => this.handleDrop(e, index)}
@@ -38,15 +94,35 @@ export class FilterPanel extends LitElement {
         data-filter-id="${filter.id}"
       >
         <div class="filter-header" @click=${() => this.toggleCard(index)}>
-          <span class="drag-handle">⋮⋮</span>
-          <input
-            type="checkbox"
-            .checked=${filter.enabled}
-            @change=${(e: Event) => this.handleCheckboxChange(index, e)}
+          <div 
+            class="drag-handle-container"
+            draggable="true"
+            @dragstart=${(e: DragEvent) => this.handleDragStart(e, index)}
             @click=${(e: Event) => e.stopPropagation()}
-            data-testid="filter-checkbox-${filter.id}"
-          />
-          <label @click=${(e: Event) => e.stopPropagation()}> ${filter.name} </label>
+          >
+            <span class="drag-handle">⋮⋮</span>
+          </div>
+          <div 
+            class="checkbox-container" 
+            draggable="false"
+            @click=${(e: Event) => {
+              e.stopPropagation();
+              const checkbox = (e.currentTarget as HTMLElement).querySelector('input[type="checkbox"]') as HTMLInputElement;
+              if (checkbox && e.target !== checkbox) {
+                checkbox.click();
+              }
+            }}
+          >
+            <input
+              type="checkbox"
+              .checked=${filter.enabled}
+              draggable="false"
+              @change=${(e: Event) => this.handleCheckboxChange(index, e)}
+              @click=${(e: Event) => e.stopPropagation()}
+              data-testid="filter-checkbox-${filter.id}"
+            />
+          </div>
+          <label> ${filter.name} </label>
           <span class="chevron ${filter.expanded ? 'expanded' : ''}">▶</span>
         </div>
 
@@ -77,6 +153,7 @@ export class FilterPanel extends LitElement {
                     name="${filter.id}-${param.id}"
                     value="${option.value}"
                     .checked=${currentValue === option.value}
+                    draggable="false"
                     @change=${() => this.handleParameterChange(filter.id, param.id, option.value)}
                     data-testid="filter-parameter-${filter.id}-${param.id}-${option.value}"
                   />
@@ -105,6 +182,7 @@ export class FilterPanel extends LitElement {
               max="${max}"
               step="${step}"
               .value="${value.toString()}"
+              draggable="false"
               @input=${(e: Event) => {
                 const newValue = (e.target as HTMLInputElement).value;
                 this.handleParameterChange(filter.id, param.id, newValue);
@@ -118,30 +196,113 @@ export class FilterPanel extends LitElement {
     }
 
     if (param.type === 'number') {
-      const min = param.min;
-      const max = param.max;
-      const step = param.step;
-      const value = currentValue || param.defaultValue || '';
+      const min = param.min !== undefined ? param.min : -Infinity;
+      const max = param.max !== undefined ? param.max : Infinity;
+      const step = param.step !== undefined ? param.step : 1;
+      const numericValue = currentValue ? parseFloat(currentValue) : (param.defaultValue ? parseFloat(param.defaultValue) : (min !== -Infinity ? min : 0));
+      const clampedValue = Math.max(min, Math.min(max, isNaN(numericValue) ? (min !== -Infinity ? min : 0) : numericValue));
+      const displayValue = currentValue || param.defaultValue || clampedValue.toString();
 
       return html`
         <div class="param-control">
           <label class="param-label">${param.name}</label>
-          <input
-            type="number"
-            min="${min !== undefined ? min : ''}"
-            max="${max !== undefined ? max : ''}"
-            step="${step !== undefined ? step : ''}"
-            .value="${value}"
-            @change=${(e: Event) => {
-              const newValue = (e.target as HTMLInputElement).value;
-              this.handleParameterChange(filter.id, param.id, newValue);
-            }}
-            @input=${(e: Event) => {
-              const newValue = (e.target as HTMLInputElement).value;
-              this.handleParameterChange(filter.id, param.id, newValue);
-            }}
-            data-testid="filter-parameter-${filter.id}-${param.id}"
-          />
+          <div class="number-input-container">
+            <input
+              type="number"
+              min="${min !== -Infinity ? min : ''}"
+              max="${max !== Infinity ? max : ''}"
+              step="${step}"
+              .value="${displayValue}"
+              draggable="false"
+              @change=${(e: Event) => {
+                this.handleNumberInputChange(filter.id, param.id, e, min, max, param.name);
+              }}
+              @input=${(e: Event) => {
+                const input = e.target as HTMLInputElement;
+                const inputValue = input.value.trim();
+                if (inputValue === '' || inputValue === '-') {
+                  return;
+                }
+                const numValue = parseFloat(inputValue);
+                if (isNaN(numValue)) {
+                  return;
+                }
+                
+                const hasMin = min !== -Infinity;
+                const hasMax = max !== Infinity;
+                let needsClamp = false;
+                let clampedValue = numValue;
+                
+                if (hasMin && numValue < min) {
+                  clampedValue = min;
+                  needsClamp = true;
+                } else if (hasMax && numValue > max) {
+                  clampedValue = max;
+                  needsClamp = true;
+                }
+                
+                if (needsClamp) {
+                  input.value = clampedValue.toString();
+                  this.handleParameterChange(filter.id, param.id, clampedValue.toString());
+                  const toastManager = this.getToastManager();
+                  if (toastManager) {
+                    const paramName = param.name || 'Value';
+                    if (hasMin && numValue < min) {
+                      toastManager.error('Invalid Value', `${paramName} must be at least ${min}. Value adjusted to ${min}.`);
+                    } else if (hasMax && numValue > max) {
+                      toastManager.error('Invalid Value', `${paramName} must be at most ${max}. Value adjusted to ${max}.`);
+                    }
+                  }
+                } else {
+                  this.handleParameterChange(filter.id, param.id, numValue.toString());
+                }
+              }}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                  const input = e.target as HTMLInputElement;
+                  const currentValue = parseFloat(input.value) || 0;
+                  const stepValue = step;
+                  const newValue = e.key === 'ArrowUp' ? currentValue + stepValue : currentValue - stepValue;
+                  const hasMin = min !== -Infinity;
+                  const hasMax = max !== Infinity;
+                  
+                  if (e.key === 'ArrowUp' && hasMax && newValue > max) {
+                    e.preventDefault();
+                    return;
+                  }
+                  if (e.key === 'ArrowDown' && hasMin && newValue < min) {
+                    e.preventDefault();
+                    return;
+                  }
+                }
+              }}
+              @wheel=${(e: WheelEvent) => {
+                const input = e.target as HTMLInputElement;
+                if (document.activeElement === input) {
+                  e.preventDefault();
+                  const currentValue = parseFloat(input.value) || 0;
+                  const stepValue = step;
+                  const hasMin = min !== -Infinity;
+                  const hasMax = max !== Infinity;
+                  const newValue = e.deltaY < 0 ? currentValue + stepValue : currentValue - stepValue;
+                  let clampedValue = newValue;
+                  
+                  if (hasMin) {
+                    clampedValue = Math.max(min, clampedValue);
+                  }
+                  if (hasMax) {
+                    clampedValue = Math.min(max, clampedValue);
+                  }
+                  
+                  if (clampedValue !== currentValue) {
+                    input.value = clampedValue.toString();
+                    this.handleParameterChange(filter.id, param.id, clampedValue.toString());
+                  }
+                }
+              }}
+              data-testid="filter-parameter-${filter.id}-${param.id}"
+            />
+          </div>
         </div>
       `;
     }
@@ -158,6 +319,7 @@ export class FilterPanel extends LitElement {
             <input
               type="checkbox"
               .checked=${checked}
+              draggable="false"
               @change=${(e: Event) => {
                 const checked = (e.target as HTMLInputElement).checked;
                 this.handleParameterChange(filter.id, param.id, checked.toString());
@@ -174,18 +336,94 @@ export class FilterPanel extends LitElement {
   }
 
   private toggleCard(index: number) {
-    this.filters = this.filters.map((f, i) => (i === index ? { ...f, expanded: !f.expanded } : f));
+    this.filters = this.filters.map((f, i) => {
+      if (i === index) {
+        if (!f.expanded) {
+          return {
+            ...f,
+            expanded: true,
+            enabled: !f.enabled ? true : f.enabled,
+          };
+        } else {
+          return { ...f, expanded: false };
+        }
+      }
+      return f;
+    });
+    this.dispatchFilterChange();
   }
 
   private handleCheckboxChange(index: number, e: Event) {
     const checked = (e.target as HTMLInputElement).checked;
     this.filters = this.filters.map((f, i) => {
       if (i === index) {
-        return { ...f, enabled: checked, expanded: checked };
+        return { 
+          ...f, 
+          enabled: checked,
+          expanded: checked ? f.expanded : false,
+        };
       }
       return f;
     });
     this.dispatchFilterChange();
+  }
+
+  private handleNumberInputChange(
+    filterId: string,
+    paramId: string,
+    e: Event,
+    min: number,
+    max: number,
+    paramName: string
+  ) {
+    const input = e.target as HTMLInputElement;
+    let inputValue = input.value.trim();
+
+    if (inputValue === '' || inputValue === '-') {
+      return;
+    }
+
+    const numValue = parseFloat(inputValue);
+    let finalValue = numValue;
+    let showError = false;
+    let errorMessage = '';
+
+    const hasMin = min !== -Infinity;
+    const hasMax = max !== Infinity;
+
+    if (isNaN(numValue)) {
+      const filter = this.filters.find((f) => f.id === filterId);
+      const currentValue = filter?.parameterValues[paramId] || '';
+      finalValue = currentValue ? parseFloat(currentValue) : (hasMin ? min : 0);
+      inputValue = finalValue.toString();
+      showError = true;
+      errorMessage = `Invalid number. Please enter a valid number.`;
+    } else {
+      if (hasMin && numValue < min) {
+        finalValue = min;
+        showError = true;
+        errorMessage = `${paramName} must be at least ${min}. Value adjusted to ${min}.`;
+      } else if (hasMax && numValue > max) {
+        finalValue = max;
+        showError = true;
+        errorMessage = `${paramName} must be at most ${max}. Value adjusted to ${max}.`;
+      }
+    }
+
+    if (finalValue !== numValue || input.value !== finalValue.toString()) {
+      input.value = finalValue.toString();
+    }
+
+    this.handleParameterChange(filterId, paramId, finalValue.toString());
+
+    if (showError) {
+      const toastManager = this.getToastManager();
+      if (toastManager) {
+        toastManager.error('Invalid Value', errorMessage);
+      }
+    }
+
+    this.requestUpdate();
   }
 
   private handleParameterChange(filterId: string, paramId: string, value: string) {
@@ -206,8 +444,12 @@ export class FilterPanel extends LitElement {
   }
 
   private handleDragStart(e: DragEvent, index: number) {
+    e.stopPropagation();
     this.draggedIndex = index;
-    (e.currentTarget as HTMLElement).classList.add('dragging');
+    const card = (e.currentTarget as HTMLElement).closest('.filter-card') as HTMLElement;
+    if (card) {
+      card.classList.add('dragging');
+    }
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
     }

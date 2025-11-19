@@ -2,7 +2,6 @@ package connectrpc
 
 import (
 	"context"
-	"strings"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
@@ -16,6 +15,7 @@ import (
 type ImageProcessorHandler struct {
 	useCase        *application.ProcessImageUseCase
 	adapter        *adapters.ProtobufAdapter
+	filterCodec    *adapters.FilterCodec
 	capabilities   application.ProcessorCapabilitiesUseCase
 	evaluateFFUse  *application.EvaluateFeatureFlagUseCase
 	defaultUseGRPC bool
@@ -30,6 +30,7 @@ func NewImageProcessorHandler(
 	return &ImageProcessorHandler{
 		useCase:        useCase,
 		adapter:        adapters.NewProtobufAdapter(),
+		filterCodec:    adapters.NewFilterCodec(),
 		capabilities:   capabilitiesUC,
 		evaluateFFUse:  evaluateFFUse,
 		defaultUseGRPC: defaultUseGRPC,
@@ -88,7 +89,7 @@ func (h *ImageProcessorHandler) ListFilters(
 		if def == nil {
 			continue
 		}
-		genericFilters = append(genericFilters, toGenericFilterDefinition(def))
+		genericFilters = append(genericFilters, h.filterCodec.ToGenericFilterDefinition(def))
 	}
 
 	span.SetAttributes(
@@ -120,103 +121,3 @@ func (h *ImageProcessorHandler) StreamProcessVideo(
 }
 
 var _ genconnect.ImageProcessorServiceHandler = (*ImageProcessorHandler)(nil)
-
-func toGenericFilterDefinition(def *pb.FilterDefinition) *pb.GenericFilterDefinition {
-	if def == nil {
-		return nil
-	}
-
-	parameters := make([]*pb.GenericFilterParameter, 0, len(def.Parameters))
-	for _, param := range def.Parameters {
-		parameters = append(parameters, toGenericFilterParameter(def.Id, param))
-	}
-
-	return &pb.GenericFilterDefinition{
-		Id:                    def.Id,
-		Name:                  def.Name,
-		Parameters:            parameters,
-		SupportedAccelerators: def.SupportedAccelerators,
-	}
-}
-
-func toGenericFilterParameter(filterID string, param *pb.FilterParameter) *pb.GenericFilterParameter {
-	if param == nil {
-		return nil
-	}
-
-	options := make([]*pb.GenericFilterParameterOption, 0, len(param.Options))
-	for _, option := range param.Options {
-		options = append(options, &pb.GenericFilterParameterOption{
-			Value: option,
-			Label: formatParameterLabel(option),
-		})
-	}
-
-	return &pb.GenericFilterParameter{
-		Id:           param.Id,
-		Name:         param.Name,
-		Type:         mapParameterType(param.Type),
-		Options:      options,
-		DefaultValue: param.DefaultValue,
-		Metadata:     buildParameterMetadata(filterID, param),
-	}
-}
-
-func mapParameterType(paramType string) pb.GenericFilterParameterType {
-	switch strings.ToLower(paramType) {
-	case "select":
-		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_SELECT
-	case "range", "slider":
-		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_RANGE
-	case "number":
-		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_NUMBER
-	case "checkbox":
-		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX
-	case "text", "string", "input":
-		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_TEXT
-	default:
-		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED
-	}
-}
-
-func buildParameterMetadata(filterID string, param *pb.FilterParameter) map[string]string {
-	metadata := make(map[string]string)
-
-	// Temporary heuristics for known parameters until metadata is provided by the accelerator.
-	switch {
-	case filterID == "blur" && param.Id == "kernel_size":
-		metadata["min"] = "3"
-		metadata["max"] = "15"
-		metadata["step"] = "2"
-	case filterID == "blur" && param.Id == "sigma":
-		metadata["min"] = "0"
-		metadata["max"] = "5"
-		metadata["step"] = "0.1"
-	case filterID == "blur" && param.Id == "border_mode":
-		metadata["display"] = "select"
-	case filterID == "blur" && param.Id == "separable":
-		metadata["display"] = "checkbox"
-	}
-
-	if len(metadata) == 0 {
-		return nil
-	}
-	return metadata
-}
-
-func formatParameterLabel(value string) string {
-	switch strings.ToLower(value) {
-	case "bt601":
-		return "ITU-R BT.601 (SDTV)"
-	case "bt709":
-		return "ITU-R BT.709 (HDTV)"
-	case "average":
-		return "Average"
-	case "lightness":
-		return "Lightness"
-	case "luminosity":
-		return "Luminosity"
-	default:
-		return value
-	}
-}

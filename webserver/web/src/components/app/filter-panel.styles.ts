@@ -72,14 +72,37 @@ export const filterPanelStyles = css`
     cursor: not-allowed;
   }
 
+  .drag-handle-container {
+    padding: 4px;
+    cursor: move;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    user-select: none;
+  }
+
   .drag-handle {
     color: #999;
     font-size: 12px;
     cursor: move;
+    pointer-events: none;
   }
 
   .drag-handle.disabled {
     cursor: not-allowed;
+  }
+
+  .filter-card.disabled .drag-handle-container {
+    cursor: not-allowed;
+  }
+
+  .checkbox-container {
+    padding: 8px;
+    margin: -8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   input[type='checkbox'] {
@@ -172,6 +195,12 @@ export const filterPanelStyles = css`
     margin-bottom: 16px;
   }
 
+  .number-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .slider-container {
     display: flex;
     align-items: center;
@@ -216,17 +245,30 @@ export const filterPanelStyles = css`
 
   input[type='number'] {
     width: 100%;
-    padding: 8px 12px;
+    padding: 8px 16px;
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     font-size: 13px;
     color: #333;
     outline: none;
     transition: border-color 0.2s;
+    box-sizing: border-box;
   }
 
   input[type='number']:focus {
     border-color: #ffa400;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 20px;
+    cursor: pointer;
+  }
+
+  input[type='number']:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .checkbox-option {

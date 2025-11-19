@@ -69,7 +69,7 @@ jobs:
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
         run: |
           IMAGE_PREFIX="${REGISTRY}/${BASE_IMAGE_PREFIX}"
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${IMAGE_PREFIX}/" | while read -r img; do
+          docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${IMAGE_PREFIX}/" | grep -v ":<none>$" | grep -v ":none$" | while read -r img; do
             echo "Pushing ${img}..."
             docker push "${img}"
           done

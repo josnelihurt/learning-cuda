@@ -157,7 +157,8 @@ build_and_tag() {
   local tag="$1"
   local latest_tag="$2"
   local dockerfile="$3"
-  shift 3
+  local should_push="${4:-false}"
+  shift 4
   local build_args=("$@")
 
   print_stage_header "docker build -f ${dockerfile}"
@@ -171,10 +172,15 @@ build_and_tag() {
     docker_build_args+=("--pull")
   fi
   
-  if [[ "${1:-}" == "--no-cache" ]]; then
-    shift
-    docker_build_args+=("--no-cache")
-  fi
+  local filtered_build_args=()
+  for arg in "${build_args[@]}"; do
+    if [[ "${arg}" == "--no-cache" ]]; then
+      docker_build_args+=("--no-cache")
+    else
+      filtered_build_args+=("${arg}")
+    fi
+  done
+  build_args=("${filtered_build_args[@]}")
   
   docker build \
     "${docker_build_args[@]}" \
@@ -186,6 +192,13 @@ build_and_tag() {
     "${REPO_ROOT}"
 
   docker image inspect "${tag}" >/dev/null 2>&1
+
+  if [[ "${should_push}" == "true" && "${REGISTRY}" != "local" ]]; then
+    echo "Pushing ${tag}..."
+    docker push "${tag}" || true
+    echo "Pushing ${latest_tag}..."
+    docker push "${latest_tag}" || true
+  fi
 }
 
 run_proto_tools() {
@@ -195,7 +208,7 @@ run_proto_tools() {
   local latest_tag="${IMAGE_BASE}/base:proto-tools-latest-${ARCH}"
 
   print_stage_header "Building proto tools base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "proto/docker-build-base/Dockerfile"
+  build_and_tag "${version_tag}" "${latest_tag}" "proto/docker-build-base/Dockerfile" "true"
 }
 
 run_go_builder() {
@@ -205,7 +218,7 @@ run_go_builder() {
   local latest_tag="${IMAGE_BASE}/base:go-builder-latest-${ARCH}"
 
   print_stage_header "Building go builder base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "webserver/builder/Dockerfile"
+  build_and_tag "${version_tag}" "${latest_tag}" "webserver/builder/Dockerfile" "true"
 }
 
 run_bazel_base() {
@@ -215,7 +228,7 @@ run_bazel_base() {
   local latest_tag="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
 
   print_stage_header "Building bazel base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "cpp_accelerator/docker-build-base/Dockerfile"
+  build_and_tag "${version_tag}" "${latest_tag}" "cpp_accelerator/docker-build-base/Dockerfile" "true"
 }
 
 run_runtime_base() {
@@ -225,7 +238,7 @@ run_runtime_base() {
   local latest_tag="${IMAGE_BASE}/base:runtime-base-latest-${ARCH}"
 
   print_stage_header "Building runtime base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "runtime/Dockerfile"
+  build_and_tag "${version_tag}" "${latest_tag}" "runtime/Dockerfile" "true"
 }
 
 run_integration_base() {
@@ -235,7 +248,7 @@ run_integration_base() {
   local latest_tag="${IMAGE_BASE}/base:integration-tests-base-latest-${ARCH}"
 
   print_stage_header "Building integration base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "integration/Dockerfile"
+  build_and_tag "${version_tag}" "${latest_tag}" "integration/Dockerfile" "true"
 }
 
 run_proto_generated() {
@@ -249,6 +262,7 @@ run_proto_generated() {
     "${version_tag}" \
     "${latest_tag}" \
     "proto/Dockerfile" \
+    "true" \
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
     "--build-arg" "BASE_TAG=latest" \
     "--build-arg" "PROTO_VERSION=${version}"
@@ -307,6 +321,13 @@ run_cpp_built() {
     "${REPO_ROOT}"
   
   docker image inspect "${version_tag}" >/dev/null 2>&1
+
+  if [[ "${REGISTRY}" != "local" ]]; then
+    echo "Pushing ${version_tag}..."
+    docker push "${version_tag}" || true
+    echo "Pushing ${latest_tag}..."
+    docker push "${latest_tag}" || true
+  fi
 }
 
 run_golang_built() {
@@ -322,6 +343,7 @@ run_golang_built() {
     "${version_tag}" \
     "${latest_tag}" \
     "webserver/Dockerfile.build" \
+    "true" \
     "--target" "artifacts" \
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
     "--build-arg" "BASE_TAG=latest" \
@@ -344,6 +366,7 @@ run_app_image() {
     "${version_tag}" \
     "${latest_tag}" \
     "Dockerfile" \
+    "false" \
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
     "--build-arg" "BASE_TAG=latest" \
     "--build-arg" "PROTO_VERSION=${proto_version}" \
@@ -394,6 +417,7 @@ run_grpc_server_image() {
     "${version_tag}" \
     "${latest_tag}" \
     "cpp_accelerator/Dockerfile.build" \
+    "false" \
     "${build_args[@]}" \
     "--build-arg" "TARGETARCH=${TARGETARCH}"
 }

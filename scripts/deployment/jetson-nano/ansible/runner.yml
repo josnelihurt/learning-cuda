@@ -139,6 +139,24 @@
         - runner_state == 'present'
         - not runner_config.stat.exists
 
+    - name: Ensure credentials files have correct permissions
+      ansible.builtin.file:
+        path: "{{ runner_root }}/{{ item }}"
+        state: file
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
+        mode: "0600"
+      loop:
+        - .credentials
+        - .credentials_rsaparams
+        - .runner
+        - .env
+        - .path
+      when:
+        - runner_state == 'present'
+        - runner_config.stat.exists | default(false)
+      ignore_errors: true
+
     - name: Install runner service
       ansible.builtin.command:
         cmd: "./svc.sh install"
@@ -181,6 +199,24 @@
         name: "{{ runner_service_name }}.service"
         enabled: true
       when: runner_state == 'present'
+
+    - name: Ensure credentials files have correct permissions after service install
+      ansible.builtin.file:
+        path: "{{ runner_root }}/{{ item }}"
+        state: file
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
+        mode: "0600"
+      loop:
+        - .credentials
+        - .credentials_rsaparams
+        - .runner
+        - .env
+        - .path
+      when:
+        - runner_state == 'present'
+        - runner_config.stat.exists | default(false)
+      ignore_errors: true
 
     - name: Ensure runner service is running
       ansible.builtin.command:

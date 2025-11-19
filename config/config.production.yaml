@@ -43,7 +43,7 @@ logging:
 
 processor:
   library_base_path: "/app/lib"
-  grpc_server_address: "grpc-server:60061"
+  grpc_server_address: "cuda-grpc-server:60061"
   use_grpc_for_processor: false
 
 static_images:

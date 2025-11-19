@@ -26,7 +26,7 @@ jobs:
   build:
     name: Build all images (PRs only)
     if: github.event_name == 'pull_request'
-    runs-on: ["self-hosted", "Linux", "ARM64"]
+    runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,7 +43,7 @@ jobs:
   build_and_push:
     name: Build and push all images
     if: github.event_name == 'push'
-    runs-on: ["self-hosted", "Linux", "ARM64"]
+    runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
     name: Deploy production (Jetson Nano)
     needs:
       - build_and_push
-    runs-on: ["self-hosted", "Linux", "ARM64"]
+    runs-on: ["self-hosted", "Linux", "ARM64", "jetson-nano"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
       - name: Validate Jetson secrets

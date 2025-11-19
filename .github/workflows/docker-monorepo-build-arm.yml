@@ -81,15 +81,14 @@ jobs:
       - build_and_push
     runs-on: ["self-hosted", "Linux", "ARM64"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    env:
-      REGISTRY: ${{ env.REGISTRY }}
-      BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-      JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
-      JETSON_USER: ${{ secrets.JETSON_USER }}
-      JETSON_DEPLOYMENT_GROUP: ${{ secrets.JETSON_DEPLOYMENT_GROUP }}
     steps:
       - name: Validate Jetson secrets
         env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
+          JETSON_USER: ${{ secrets.JETSON_USER }}
+          JETSON_DEPLOYMENT_GROUP: ${{ secrets.JETSON_DEPLOYMENT_GROUP }}
           JETSON_SUDO_PASSWORD: ${{ secrets.JETSON_SUDO_PASSWORD }}
         run: |
           set -euo pipefail
@@ -109,6 +108,11 @@ jobs:
 
       - name: Deploy application to Jetson Nano
         env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
+          JETSON_USER: ${{ secrets.JETSON_USER }}
+          JETSON_DEPLOYMENT_GROUP: ${{ secrets.JETSON_DEPLOYMENT_GROUP }}
           JETSON_SUDO_PASSWORD: ${{ secrets.JETSON_SUDO_PASSWORD }}
         run: |
           set -euo pipefail

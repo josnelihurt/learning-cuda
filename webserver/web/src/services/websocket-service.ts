@@ -7,6 +7,8 @@ import {
   ProcessImageRequest,
   StartVideoPlaybackRequest,
   StopVideoPlaybackRequest,
+  GenericFilterSelection,
+  GenericFilterParameterSelection,
 } from '../gen/image_processor_service_pb';
 import { FilterType, AcceleratorType, GrayscaleType, TraceContext, GaussianBlurParameters, BorderMode } from '../gen/common_pb';
 import { streamConfigService } from './config-service';
@@ -15,6 +17,54 @@ import { logger } from './otel-logger';
 import { context, propagation } from '@opentelemetry/api';
 import type { IWebSocketService } from '../domain/interfaces/IWebSocketService';
 import { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../domain/value-objects';
+
+function toGenericFilterSelections(filters: FilterData[]): GenericFilterSelection[] {
+  return filters.map((filter) => {
+    const params = filter.getParameters();
+    const parameterSelections = Object.entries(params)
+      .map(([parameterId, value]) => {
+        const values = serializeParameterValues(value);
+        if (values.length === 0) {
+          return null;
+        }
+        return new GenericFilterParameterSelection({
+          parameterId,
+          values,
+        });
+      })
+      .filter((selection): selection is GenericFilterParameterSelection => selection !== null);
+
+    return new GenericFilterSelection({
+      filterId: filter.getId(),
+      parameters: parameterSelections,
+    });
+  });
+}
+
+function serializeParameterValues(value: unknown): string[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => serializeSingleValue(entry))
+      .filter((entry) => entry !== '');
+  }
+
+  const serialized = serializeSingleValue(value);
+  return serialized ? [serialized] : [];
+}
+
+function serializeSingleValue(value: unknown): string {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  return String(value);
+}
 
 type FrameResultCallback = (data: WebSocketFrameResponse) => void;
 
@@ -198,27 +248,19 @@ export class WebSocketService implements IWebSocketService {
 
     this.cameraManager.setProcessing(true);
 
-    const protoFilters = filters.map(f => f.toProtocol());
-
     const protoAccelerator = accelerator === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
-
-    const grayscaleAlgorithm = this.getGrayscaleAlgorithm(filters);
-    const protoGrayscaleType = this.mapGrayscaleToProtocol(grayscaleAlgorithm);
+    const genericFilters = toGenericFilterSelections(filters);
 
     const imageDataB64 = image.getBase64().replace(/^data:image\/(png|jpeg);base64,/, '');
     const imageBytes = Uint8Array.from(atob(imageDataB64), (c) => c.charCodeAt(0));
-
-    const blurParams = extractBlurParams(filters);
 
     const request = new ProcessImageRequest({
       imageData: imageBytes,
       width: image.getWidth(),
       height: image.getHeight(),
       channels: 3,
-      filters: protoFilters,
       accelerator: protoAccelerator,
-      grayscaleType: protoGrayscaleType,
-      blurParams: blurParams,
+      genericFilters,
     });
 
     const carrier: { [key: string]: string } = {};
@@ -256,24 +298,32 @@ export class WebSocketService implements IWebSocketService {
 
     this.cameraManager.setProcessing(true);
 
-    const protoFilters = filters.map(f => f.toProtocol());
     const protoAccelerator = accelerator.toProtocol();
-    const protoGrayscaleType = grayscale.toProtocol();
+    const genericFilters = toGenericFilterSelections(filters);
+    if (!genericFilters.some((selection) => selection.filterId === 'grayscale')) {
+      genericFilters.push(
+        new GenericFilterSelection({
+          filterId: 'grayscale',
+          parameters: [
+            new GenericFilterParameterSelection({
+              parameterId: 'algorithm',
+              values: [grayscale.toString()],
+            }),
+          ],
+        })
+      );
+    }
 
     const imageDataB64 = image.getBase64().replace(/^data:image\/(png|jpeg);base64,/, '');
     const imageBytes = Uint8Array.from(atob(imageDataB64), (c) => c.charCodeAt(0));
-
-    const blurParams = extractBlurParams(filters);
 
     const request = new ProcessImageRequest({
       imageData: imageBytes,
       width: image.getWidth(),
       height: image.getHeight(),
       channels: 3,
-      filters: protoFilters,
       accelerator: protoAccelerator,
-      grayscaleType: protoGrayscaleType,
-      blurParams: blurParams,
+      genericFilters,
     });
 
     const carrier: { [key: string]: string } = {};

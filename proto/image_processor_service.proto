@@ -37,6 +37,16 @@ message GenericFilterDefinition {
   repeated AcceleratorType supported_accelerators = 7 [json_name = "supported_accelerators"];
 }
 
+message GenericFilterParameterSelection {
+  string parameter_id = 1 [json_name = "parameter_id"];
+  repeated string values = 3 [json_name = "values"];
+}
+
+message GenericFilterSelection {
+  string filter_id = 1 [json_name = "filter_id"];
+  repeated GenericFilterParameterSelection parameters = 3 [json_name = "parameters"];
+}
+
 message ListFiltersRequest {
   string api_version = 1 [json_name = "api_version"];
   TraceContext trace_context = 3 [json_name = "trace_context"];
@@ -58,6 +68,7 @@ message ProcessImageRequest {
   AcceleratorType accelerator = 11 [json_name = "accelerator"];
   GrayscaleType grayscale_type = 13 [json_name = "grayscale_type"];
   GaussianBlurParameters blur_params = 25 [json_name = "blur_params"];
+  repeated GenericFilterSelection generic_filters = 27 [json_name = "generic_filters"];
   
   // OpenTelemetry trace context propagation (deprecated - use trace_context instead)
   string trace_id = 15 [json_name = "trace_id"];

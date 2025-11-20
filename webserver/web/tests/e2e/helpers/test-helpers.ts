@@ -120,7 +120,23 @@ export class TestHelpers {
 
   async selectFilterParameter(filterId: string, paramId: string, value: string): Promise<void> {
     const filterPanel = this.page.locator('filter-panel');
-    await filterPanel.locator(`[data-testid="filter-parameter-${filterId}-${paramId}-${value}"]`).click();
+    const filterCard = filterPanel.locator(`[data-filter-id="${filterId}"]`);
+    
+    await this.enableFilter(filterId);
+    
+    const filterBody = filterCard.locator('.filter-body');
+    const bodyClass = await filterBody.getAttribute('class');
+    const isExpanded = bodyClass?.includes('expanded') ?? false;
+    
+    if (!isExpanded) {
+      const filterHeader = filterCard.locator('.filter-header');
+      await filterHeader.click();
+      await this.page.waitForTimeout(300);
+    }
+    
+    const paramLocator = filterPanel.locator(`[data-testid="filter-parameter-${filterId}-${paramId}-${value}"]`);
+    await paramLocator.scrollIntoViewIfNeeded();
+    await paramLocator.click({ force: true });
     await this.page.waitForTimeout(500);
   }
 
@@ -169,8 +185,23 @@ export class TestHelpers {
   async setBlurParameter(filterId: string, paramId: string, value: string | number): Promise<void> {
     const filterPanel = this.page.locator('filter-panel');
     await filterPanel.waitFor({ state: 'visible', timeout: 2000 });
+    
+    const filterCard = filterPanel.locator(`[data-filter-id="${filterId}"]`);
+    await this.enableFilter(filterId);
+    
+    const filterBody = filterCard.locator('.filter-body');
+    const bodyClass = await filterBody.getAttribute('class');
+    const isExpanded = bodyClass?.includes('expanded') ?? false;
+    
+    if (!isExpanded) {
+      const filterHeader = filterCard.locator('.filter-header');
+      await filterHeader.click();
+      await this.page.waitForTimeout(300);
+    }
+    
     const paramControl = filterPanel.locator(`[data-testid="filter-parameter-${filterId}-${paramId}"]`);
     await paramControl.waitFor({ state: 'visible', timeout: 2000 });
+    await paramControl.scrollIntoViewIfNeeded();
     
     const tagName = await paramControl.evaluate(el => el.tagName.toLowerCase());
     
@@ -180,11 +211,12 @@ export class TestHelpers {
         await paramControl.fill(value.toString());
         await paramControl.dispatchEvent('input');
       } else if (inputType === 'checkbox') {
-        const isChecked = value === true || value === 'true';
+        const valueStr = String(value).toLowerCase();
+        const isChecked = valueStr === 'true' || valueStr === '1' || valueStr === 'on' || valueStr === 'yes';
         if (isChecked) {
-          await paramControl.check();
+          await paramControl.check({ force: true });
         } else {
-          await paramControl.uncheck();
+          await paramControl.uncheck({ force: true });
         }
       }
     } else if (tagName === 'select') {

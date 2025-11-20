@@ -1,5 +1,7 @@
 #include "cpp_accelerator/ports/grpc/image_processor_service_impl.h"
 
+#include <fstream>
+#include <string>
 #include <utility>
 
 #pragma GCC diagnostic push
@@ -173,6 +175,63 @@ void ImageProcessorServiceImpl::PopulateListFiltersResponse(
           static_cast<cuda_learning::AcceleratorType>(accelerator));
     }
   }
+}
+
+::grpc::Status ImageProcessorServiceImpl::GetVersionInfo(
+    ::grpc::ServerContext* /*context*/, const cuda_learning::GetVersionInfoRequest* request,
+    cuda_learning::GetVersionInfoResponse* response) {
+  if (request == nullptr || response == nullptr) {
+    return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid request or response");
+  }
+
+  response->set_code(0);
+  response->set_message("OK");
+  response->set_api_version(request->api_version());
+  CopyTraceContext(request->trace_context(), response->mutable_trace_context());
+
+  std::string server_version;
+  static const char* version_file_paths[] = {"cpp_accelerator/VERSION", "../cpp_accelerator/VERSION",
+                                              "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
+
+  bool found = false;
+  for (int i = 0; version_file_paths[i] != nullptr && !found; ++i) {
+    std::ifstream file(version_file_paths[i]);
+    if (file.is_open()) {
+      std::getline(file, server_version);
+      file.close();
+      if (!server_version.empty()) {
+        found = true;
+        spdlog::info("Server version loaded from file: {} = {}", version_file_paths[i], server_version);
+      }
+    }
+  }
+
+  if (!found) {
+    server_version = "unknown";
+    spdlog::warn("VERSION file not found, using 'unknown' as fallback");
+  }
+
+  response->set_server_version(server_version);
+
+  if (EnsureEngine()) {
+    cuda_learning::GetCapabilitiesResponse caps_response;
+    if (engine_->GetCapabilities(&caps_response)) {
+      const auto& caps = caps_response.capabilities();
+      response->set_library_version(caps.library_version());
+      response->set_build_date(caps.build_date());
+      response->set_build_commit(caps.build_commit());
+    } else {
+      response->set_library_version("unknown");
+      response->set_build_date("unknown");
+      response->set_build_commit("unknown");
+    }
+  } else {
+    response->set_library_version("unknown");
+    response->set_build_date("unknown");
+    response->set_build_commit("unknown");
+  }
+
+  return ::grpc::Status::OK;
 }
 
 }  // namespace jrb::ports::grpc_service

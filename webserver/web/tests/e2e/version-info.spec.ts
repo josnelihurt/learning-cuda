@@ -135,10 +135,10 @@ test.describe('Version Info Tooltip', () => {
     
     await page.waitForTimeout(1000);
     
-    const goVersion = tooltip.locator('.version-item').nth(0).locator('.version-value');
+    const goVersion = tooltip.locator('.version-item').filter({ hasText: 'Go Version:' }).locator('.version-value');
     await expect(goVersion).not.toContainText('Loading...');
     
-    const cppVersion = tooltip.locator('.version-item').nth(1).locator('.version-value');
+    const cppVersion = tooltip.locator('.version-item').filter({ hasText: 'C++ Version:' }).locator('.version-value');
     await expect(cppVersion).not.toContainText('Loading...');
     
     const branchVersion = tooltip.locator('.version-item').filter({ hasText: 'Branch:' }).locator('.version-value');
@@ -149,6 +149,31 @@ test.describe('Version Info Tooltip', () => {
     
     const commitHash = tooltip.locator('.version-item').filter({ hasText: 'Commit Hash:' }).locator('.version-value');
     await expect(commitHash).not.toContainText('Loading...');
+  });
+
+  test('Version info includes gRPC server version', async ({ page }) => {
+    const versionTooltip = page.locator('version-tooltip-lit');
+    const infoBtn = versionTooltip.locator('button.info-btn');
+    const tooltip = versionTooltip.locator('.tooltip');
+    
+    await infoBtn.click();
+    await expect(tooltip).toBeVisible();
+    
+    await page.waitForTimeout(2000);
+    
+    const grpcServerVersion = tooltip.locator('.version-item').filter({ hasText: 'gRPC Server Version:' });
+    await expect(grpcServerVersion).toBeVisible();
+    
+    const grpcServerVersionValue = grpcServerVersion.locator('.version-value');
+    await expect(grpcServerVersionValue).not.toContainText('Loading...');
+    await expect(grpcServerVersionValue).not.toContainText('Error loading');
+    
+    const cppLibraryVersion = tooltip.locator('.version-item').filter({ hasText: 'C++ Library Version:' });
+    await expect(cppLibraryVersion).toBeVisible();
+    
+    const cppLibraryVersionValue = cppLibraryVersion.locator('.version-value');
+    await expect(cppLibraryVersionValue).not.toContainText('Loading...');
+    await expect(cppLibraryVersionValue).not.toContainText('unknown');
   });
 
 });

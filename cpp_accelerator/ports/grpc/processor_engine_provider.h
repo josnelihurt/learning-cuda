@@ -17,6 +17,8 @@ class ProcessorEngineProvider {
                             cuda_learning::ProcessImageResponse* response) = 0;
 
   virtual bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response) = 0;
+
+  virtual bool GetVersionInfo(cuda_learning::GetVersionInfoResponse* response) = 0;
 };
 
 }  // namespace jrb::ports::grpc_service

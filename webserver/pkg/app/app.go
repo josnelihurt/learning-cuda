@@ -76,6 +76,12 @@ func WithGRPCProcessor(proc domain.ImageProcessor) Option {
 	}
 }
 
+func WithGRPCProcessorClient(client *processor.GRPCClient) Option {
+	return func(a *App) {
+		a.grpcProcessorClient = client
+	}
+}
+
 func WithProcessorCapabilitiesUseCase(uc application.ProcessorCapabilitiesUseCase) Option {
 	return func(a *App) {
 		a.processorCapsUC = uc
@@ -206,12 +212,23 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
-	rpcHandler := connectrpc.NewImageProcessorHandler(
-		a.useCase,
-		a.processorCapsUC,
-		a.evaluateFFUC,
-		a.config.Processor.UseGRPCForProcessor,
-	)
+	var rpcHandler *connectrpc.ImageProcessorHandler
+	if a.grpcProcessorClient != nil {
+		rpcHandler = connectrpc.NewImageProcessorHandlerWithGRPC(
+			a.useCase,
+			a.processorCapsUC,
+			a.evaluateFFUC,
+			a.config.Processor.UseGRPCForProcessor,
+			a.grpcProcessorClient,
+		)
+	} else {
+		rpcHandler = connectrpc.NewImageProcessorHandler(
+			a.useCase,
+			a.processorCapsUC,
+			a.evaluateFFUC,
+			a.config.Processor.UseGRPCForProcessor,
+		)
+	}
 
 	connectrpc.RegisterConfigService(
 		mux,

@@ -21,9 +21,6 @@ services:
     volumes:
       - ./data:/data:ro
       - ./config/config.production.yaml:/app/config/config.yaml:ro
-      - ./cpp_accelerator/VERSION:/app/cpp_accelerator/VERSION:ro
-      - ./webserver/VERSION:/app/webserver/VERSION:ro
-      - ./proto/VERSION:/app/proto/VERSION:ro
       - /tmp:/tmp
     
     networks:

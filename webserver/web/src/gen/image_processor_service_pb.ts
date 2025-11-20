@@ -1003,3 +1003,127 @@ export class GetCapabilitiesResponse extends Message<GetCapabilitiesResponse> {
   }
 }
 
+/**
+ * Version information query
+ *
+ * @generated from message cuda_learning.GetVersionInfoRequest
+ */
+export class GetVersionInfoRequest extends Message<GetVersionInfoRequest> {
+  /**
+   * @generated from field: string api_version = 1 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<GetVersionInfoRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetVersionInfoRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetVersionInfoRequest {
+    return new GetVersionInfoRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetVersionInfoRequest {
+    return new GetVersionInfoRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetVersionInfoRequest {
+    return new GetVersionInfoRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetVersionInfoRequest | PlainMessage<GetVersionInfoRequest> | undefined, b: GetVersionInfoRequest | PlainMessage<GetVersionInfoRequest> | undefined): boolean {
+    return proto3.util.equals(GetVersionInfoRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GetVersionInfoResponse
+ */
+export class GetVersionInfoResponse extends Message<GetVersionInfoResponse> {
+  /**
+   * @generated from field: int32 code = 1;
+   */
+  code = 0;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message = "";
+
+  /**
+   * @generated from field: string server_version = 5 [json_name = "server_version"];
+   */
+  serverVersion = "";
+
+  /**
+   * @generated from field: string library_version = 7 [json_name = "library_version"];
+   */
+  libraryVersion = "";
+
+  /**
+   * @generated from field: string build_date = 9 [json_name = "build_date"];
+   */
+  buildDate = "";
+
+  /**
+   * @generated from field: string build_commit = 11 [json_name = "build_commit"];
+   */
+  buildCommit = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 13 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  /**
+   * @generated from field: string api_version = 15 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  constructor(data?: PartialMessage<GetVersionInfoResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetVersionInfoResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "server_version", jsonName: "server_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "library_version", jsonName: "library_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "build_date", jsonName: "build_date", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "build_commit", jsonName: "build_commit", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 13, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 15, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetVersionInfoResponse {
+    return new GetVersionInfoResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetVersionInfoResponse {
+    return new GetVersionInfoResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetVersionInfoResponse {
+    return new GetVersionInfoResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetVersionInfoResponse | PlainMessage<GetVersionInfoResponse> | undefined, b: GetVersionInfoResponse | PlainMessage<GetVersionInfoResponse> | undefined): boolean {
+    return proto3.util.equals(GetVersionInfoResponse, a, b);
+  }
+}
+

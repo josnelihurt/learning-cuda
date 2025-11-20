@@ -146,6 +146,23 @@ message GetCapabilitiesResponse {
   LibraryCapabilities capabilities = 5 [json_name = "capabilities"];
 }
 
+// Version information query
+message GetVersionInfoRequest {
+  string api_version = 1 [json_name = "api_version"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message GetVersionInfoResponse {
+  int32 code = 1 [json_name = "code"];
+  string message = 3 [json_name = "message"];
+  string server_version = 5 [json_name = "server_version"];
+  string library_version = 7 [json_name = "library_version"];
+  string build_date = 9 [json_name = "build_date"];
+  string build_commit = 11 [json_name = "build_commit"];
+  TraceContext trace_context = 13 [json_name = "trace_context"];
+  string api_version = 15 [json_name = "api_version"];
+}
+
 service ImageProcessorService {
   rpc ProcessImage(ProcessImageRequest) returns (ProcessImageResponse) {
     option (google.api.http) = {
@@ -161,5 +178,7 @@ service ImageProcessorService {
   }
   
   rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
+  
+  rpc GetVersionInfo(GetVersionInfoRequest) returns (GetVersionInfoResponse);
 }
 

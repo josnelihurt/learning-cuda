@@ -31,6 +31,8 @@ class FakeEngineProvider : public ProcessorEngineProvider {
     auto* caps = capabilities_response_.mutable_capabilities();
     caps->set_api_version("1.0.0");
     caps->set_library_version("test");
+    caps->set_build_date("Jan 01 2025");
+    caps->set_build_commit("abc123");
 
     auto* filter = caps->add_filters();
     filter->set_id("grayscale");
@@ -69,6 +71,16 @@ class FakeEngineProvider : public ProcessorEngineProvider {
 
   bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response) override {
     response->CopyFrom(capabilities_response_);
+    return true;
+  }
+
+  bool GetVersionInfo(cuda_learning::GetVersionInfoResponse* response) override {
+    response->set_code(0);
+    response->set_message("OK");
+    response->set_server_version("2.1.8");
+    response->set_library_version("2.1.8");
+    response->set_build_date("Jan 01 2025");
+    response->set_build_commit("abc123");
     return true;
   }
 
@@ -188,6 +200,26 @@ TEST_F(ImageProcessorGrpcServiceTest, StreamProcessVideoHandlesMultipleFrames) {
   auto status = stream->Finish();
   EXPECT_TRUE(status.ok());
   EXPECT_EQ(responses, 3);
+}
+
+TEST_F(ImageProcessorGrpcServiceTest, GetVersionInfoReturnsVersionData) {
+  grpc::ClientContext context;
+  cuda_learning::GetVersionInfoRequest request;
+  cuda_learning::GetVersionInfoResponse response;
+  request.set_api_version("v1");
+  request.mutable_trace_context()->set_traceparent("trace-version");
+
+  auto status = stub_->GetVersionInfo(&context, request, &response);
+
+  ASSERT_TRUE(status.ok());
+  EXPECT_EQ(response.code(), 0);
+  EXPECT_EQ(response.message(), "OK");
+  EXPECT_EQ(response.api_version(), "v1");
+  EXPECT_FALSE(response.server_version().empty());
+  EXPECT_EQ(response.library_version(), "test");
+  EXPECT_EQ(response.build_date(), "Jan 01 2025");
+  EXPECT_EQ(response.build_commit(), "abc123");
+  EXPECT_EQ(response.trace_context().traceparent(), "trace-version");
 }
 
 }  // namespace

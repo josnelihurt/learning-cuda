@@ -2,6 +2,7 @@ package connectrpc
 
 import (
 	"context"
+	"fmt"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
@@ -19,6 +20,9 @@ type ImageProcessorHandler struct {
 	capabilities   application.ProcessorCapabilitiesUseCase
 	evaluateFFUse  *application.EvaluateFeatureFlagUseCase
 	defaultUseGRPC bool
+	grpcClient     interface {
+		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
+	}
 }
 
 func NewImageProcessorHandler(
@@ -34,6 +38,26 @@ func NewImageProcessorHandler(
 		capabilities:   capabilitiesUC,
 		evaluateFFUse:  evaluateFFUse,
 		defaultUseGRPC: defaultUseGRPC,
+	}
+}
+
+func NewImageProcessorHandlerWithGRPC(
+	useCase *application.ProcessImageUseCase,
+	capabilitiesUC application.ProcessorCapabilitiesUseCase,
+	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
+	defaultUseGRPC bool,
+	grpcClient interface {
+		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
+	},
+) *ImageProcessorHandler {
+	return &ImageProcessorHandler{
+		useCase:        useCase,
+		adapter:        adapters.NewProtobufAdapter(),
+		filterCodec:    adapters.NewFilterCodec(),
+		capabilities:   capabilitiesUC,
+		evaluateFFUse:  evaluateFFUse,
+		defaultUseGRPC: defaultUseGRPC,
+		grpcClient:     grpcClient,
 	}
 }
 
@@ -118,6 +142,30 @@ func (h *ImageProcessorHandler) StreamProcessVideo(
 	// Implementation: Use stream.Receive() loop, call useCase.Execute, stream.Send() responses
 	// Add tracing, handle context cancellation, manage backpressure
 	return connect.NewError(connect.CodeUnimplemented, nil)
+}
+
+func (h *ImageProcessorHandler) GetVersionInfo(
+	ctx context.Context,
+	req *connect.Request[pb.GetVersionInfoRequest],
+) (*connect.Response[pb.GetVersionInfoResponse], error) {
+	if h.grpcClient == nil {
+		return nil, connect.NewError(
+			connect.CodeUnavailable,
+			fmt.Errorf("gRPC client not available"),
+		)
+	}
+
+	grpcReq := &pb.GetVersionInfoRequest{
+		ApiVersion:   req.Msg.ApiVersion,
+		TraceContext: req.Msg.TraceContext,
+	}
+
+	resp, err := h.grpcClient.GetVersionInfo(ctx, grpcReq)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(resp), nil
 }
 
 var _ genconnect.ImageProcessorServiceHandler = (*ImageProcessorHandler)(nil)

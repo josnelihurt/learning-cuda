@@ -118,7 +118,7 @@ func setDefaults(v *viper.Viper) {
 
 		"processor.library_base_path":      ".ignore/lib/cuda_learning",
 		"processor.grpc_server_address":    "localhost:60061",
-		"processor.use_grpc_for_processor": false,
+		"processor.use_grpc_for_processor": true,
 
 		"static_images.directory": "/data/static_images",
 	}

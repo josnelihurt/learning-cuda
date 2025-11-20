@@ -140,8 +140,8 @@ if [ "$BUILD" = true ]; then
     echo "=========================================="
     echo ""
     
-    echo "Step 1: Building base and intermediate images..."
-    "$PROJECT_ROOT/scripts/docker/build.sh" --arch "$ARCH"
+    echo "Step 1: Building base and intermediate images (including gRPC server)..."
+    "$PROJECT_ROOT/scripts/docker/build-local.sh" --arch "$ARCH" --registry local --stage proto-tools --stage go-builder --stage bazel-base --stage runtime-base --stage integration-base --stage proto --stage cpp --stage golang --stage grpc-server
     
     echo ""
     echo "Step 2: Building final application image..."
@@ -150,7 +150,7 @@ if [ "$BUILD" = true ]; then
     CPP_VERSION=$(cat "$PROJECT_ROOT/cpp_accelerator/VERSION" | tr -d '[:space:]')
     GOLANG_VERSION=$(cat "$PROJECT_ROOT/webserver/VERSION" | tr -d '[:space:]')
     
-    export BASE_REGISTRY="localhost"
+    export BASE_REGISTRY="local/josnelihurt/learning-cuda"
     export BASE_TAG="latest"
     export TARGETARCH="$ARCH"
     export PROTO_VERSION
@@ -186,10 +186,16 @@ docker rm -f cuda-image-processor-staging 2>/dev/null || true
 
 if [ "$REGISTRY" = "local" ]; then
     export APP_IMAGE="cuda-learning-app:latest"
-    echo "Using local image: $APP_IMAGE"
+    export GRPC_SERVER_IMAGE="local/josnelihurt/learning-cuda/grpc-server:latest-${ARCH}"
+    echo "Using local images:"
+    echo "  App:        $APP_IMAGE"
+    echo "  gRPC Server: $GRPC_SERVER_IMAGE"
 else
     export APP_IMAGE="ghcr.io/josnelihurt/learning-cuda:amd64-latest"
-    echo "Using GHCR image: $APP_IMAGE"
+    export GRPC_SERVER_IMAGE="ghcr.io/josnelihurt/learning-cuda/grpc-server:latest-amd64"
+    echo "Using GHCR images:"
+    echo "  App:        $APP_IMAGE"
+    echo "  gRPC Server: $GRPC_SERVER_IMAGE"
 fi
 
 COMPOSE_CMD="docker compose -f docker-compose.staging.yml up"

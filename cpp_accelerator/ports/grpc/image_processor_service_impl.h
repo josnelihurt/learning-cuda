@@ -31,6 +31,10 @@ class ImageProcessorServiceImpl final : public cuda_learning::ImageProcessorServ
       ::grpc::ServerReaderWriter<cuda_learning::ProcessImageResponse,
                                  cuda_learning::ProcessImageRequest>* stream) override;
 
+  ::grpc::Status GetVersionInfo(::grpc::ServerContext* context,
+                                const cuda_learning::GetVersionInfoRequest* request,
+                                cuda_learning::GetVersionInfoResponse* response) override;
+
  private:
   bool EnsureEngine() const;
   void CopyTraceContext(const cuda_learning::TraceContext& source,

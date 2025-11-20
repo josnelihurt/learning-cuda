@@ -94,3 +94,16 @@ func (c *GRPCClient) ProcessImage(ctx context.Context, req *gen.ProcessImageRequ
 
 	return resp, nil
 }
+
+func (c *GRPCClient) GetVersionInfo(ctx context.Context, req *gen.GetVersionInfoRequest) (*gen.GetVersionInfoResponse, error) {
+	if c.client == nil {
+		return nil, fmt.Errorf("grpc client not initialized")
+	}
+
+	resp, err := c.client.GetVersionInfo(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("grpc GetVersionInfo call failed: %w", err)
+	}
+
+	return resp, nil
+}

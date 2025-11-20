@@ -21,6 +21,9 @@ services:
     volumes:
       - ./data:/data:ro
       - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - ./cpp_accelerator/VERSION:/app/cpp_accelerator/VERSION:ro
+      - ./webserver/VERSION:/app/webserver/VERSION:ro
+      - ./proto/VERSION:/app/proto/VERSION:ro
       - /tmp:/tmp
     
     networks:
@@ -53,7 +56,7 @@ services:
       start_period: 40s
 
   traefik:
-    image: traefik:v3.0
+    image: traefik:latest
     container_name: traefik
     restart: unless-stopped
     
@@ -62,6 +65,7 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
@@ -274,6 +278,19 @@ services:
 
     networks:
       - traefik
+
+    depends_on:
+      traefik:
+        condition: service_started
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grpc-server.rule=Host(`grpc.app-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.grpc-server.entrypoints=websecure"
+      - "traefik.http.routers.grpc-server.tls=true"
+      - "traefik.http.routers.grpc-server.priority=150"
+      - "traefik.http.services.grpc-server.loadbalancer.server.port=60061"
+      - "traefik.http.services.grpc-server.loadbalancer.server.scheme=h2c"
 
   test-reports:
     profiles:

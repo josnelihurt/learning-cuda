@@ -285,10 +285,11 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 		return result
 	}
 
-	filters := h.adapter.ToFilters(req.Filters)
+	procConfig := h.adapter.ExtractProcessingConfig(req)
+	filters := procConfig.Filters
+	grayscaleType := procConfig.Grayscale
+	blurParams := procConfig.Blur
 	accelerator := h.adapter.ToAccelerator(req.Accelerator)
-	grayscaleType := h.adapter.ToGrayscaleType(req.GrayscaleType)
-	blurParams := h.adapter.ToBlurParameters(req.BlurParams)
 
 	h.frameCounter++
 	span.SetAttributes(

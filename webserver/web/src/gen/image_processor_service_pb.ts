@@ -217,6 +217,92 @@ export class GenericFilterDefinition extends Message<GenericFilterDefinition> {
 }
 
 /**
+ * @generated from message cuda_learning.GenericFilterParameterSelection
+ */
+export class GenericFilterParameterSelection extends Message<GenericFilterParameterSelection> {
+  /**
+   * @generated from field: string parameter_id = 1 [json_name = "parameter_id"];
+   */
+  parameterId = "";
+
+  /**
+   * @generated from field: repeated string values = 3;
+   */
+  values: string[] = [];
+
+  constructor(data?: PartialMessage<GenericFilterParameterSelection>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GenericFilterParameterSelection";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "parameter_id", jsonName: "parameter_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "values", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GenericFilterParameterSelection {
+    return new GenericFilterParameterSelection().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GenericFilterParameterSelection {
+    return new GenericFilterParameterSelection().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GenericFilterParameterSelection {
+    return new GenericFilterParameterSelection().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GenericFilterParameterSelection | PlainMessage<GenericFilterParameterSelection> | undefined, b: GenericFilterParameterSelection | PlainMessage<GenericFilterParameterSelection> | undefined): boolean {
+    return proto3.util.equals(GenericFilterParameterSelection, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GenericFilterSelection
+ */
+export class GenericFilterSelection extends Message<GenericFilterSelection> {
+  /**
+   * @generated from field: string filter_id = 1 [json_name = "filter_id"];
+   */
+  filterId = "";
+
+  /**
+   * @generated from field: repeated cuda_learning.GenericFilterParameterSelection parameters = 3;
+   */
+  parameters: GenericFilterParameterSelection[] = [];
+
+  constructor(data?: PartialMessage<GenericFilterSelection>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GenericFilterSelection";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "filter_id", jsonName: "filter_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "parameters", kind: "message", T: GenericFilterParameterSelection, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GenericFilterSelection {
+    return new GenericFilterSelection().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GenericFilterSelection {
+    return new GenericFilterSelection().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GenericFilterSelection {
+    return new GenericFilterSelection().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GenericFilterSelection | PlainMessage<GenericFilterSelection> | undefined, b: GenericFilterSelection | PlainMessage<GenericFilterSelection> | undefined): boolean {
+    return proto3.util.equals(GenericFilterSelection, a, b);
+  }
+}
+
+/**
  * @generated from message cuda_learning.ListFiltersRequest
  */
 export class ListFiltersRequest extends Message<ListFiltersRequest> {
@@ -355,6 +441,11 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
   blurParams?: GaussianBlurParameters;
 
   /**
+   * @generated from field: repeated cuda_learning.GenericFilterSelection generic_filters = 27 [json_name = "generic_filters"];
+   */
+  genericFilters: GenericFilterSelection[] = [];
+
+  /**
    * OpenTelemetry trace context propagation (deprecated - use trace_context instead)
    *
    * @generated from field: string trace_id = 15 [json_name = "trace_id"];
@@ -397,6 +488,7 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
     { no: 11, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
     { no: 13, name: "grayscale_type", jsonName: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
     { no: 25, name: "blur_params", jsonName: "blur_params", kind: "message", T: GaussianBlurParameters },
+    { no: 27, name: "generic_filters", jsonName: "generic_filters", kind: "message", T: GenericFilterSelection, repeated: true },
     { no: 15, name: "trace_id", jsonName: "trace_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 17, name: "span_id", jsonName: "span_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "trace_flags", jsonName: "trace_flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },

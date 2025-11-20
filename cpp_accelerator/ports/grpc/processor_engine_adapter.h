@@ -17,6 +17,8 @@ class ProcessorEngineAdapter : public ProcessorEngineProvider {
 
   bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response) override;
 
+  bool GetVersionInfo(cuda_learning::GetVersionInfoResponse* response) override;
+
   std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> underlying() const { return engine_; }
 
  private:

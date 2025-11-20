@@ -192,6 +192,9 @@ WORKDIR /opt/cuda/grpc
 COPY --from=grpc-artifacts /artifacts/bin/image_processor_grpc_server ./bin/image_processor_grpc_server
 COPY --from=grpc-artifacts /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
 
+# Copy VERSION file for GetVersionInfo endpoint
+COPY cpp_accelerator/VERSION ./cpp_accelerator/VERSION
+
 ENV LD_LIBRARY_PATH=/opt/cuda/grpc/lib:${LD_LIBRARY_PATH}
 
 EXPOSE 60061

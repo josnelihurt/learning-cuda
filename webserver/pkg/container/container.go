@@ -154,6 +154,9 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 				Msg("Failed to initialize gRPC processor client, falling back to C++ connector")
 		} else {
 			grpcClient = client
+			log.Info().
+				Str("grpc_address", cfg.Processor.GRPCServerAddress).
+				Msg("gRPC client initialized successfully")
 		}
 	}
 

@@ -61,6 +61,7 @@ func main() {
 		app.WithConfig(di.Config),
 		app.WithUseCase(processImageUseCase),
 		app.WithGRPCProcessor(grpcProcessor),
+		app.WithGRPCProcessorClient(di.GRPCProcessorClient),
 		app.WithProcessorCapabilitiesUseCase(processorCapsUseCase),
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
 		app.WithGetSystemInfoUseCase(di.GetSystemInfoUseCase),

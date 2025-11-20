@@ -25,7 +25,7 @@ func (h *ProductionAssetHandler) ServeAsset(w http.ResponseWriter, r *http.Reque
 	if strings.HasSuffix(filePath, ".css") {
 		w.Header().Set("Content-Type", "text/css")
 	} else if strings.HasSuffix(filePath, ".js") {
-		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	}
 
 	http.ServeFile(w, r, fullPath)

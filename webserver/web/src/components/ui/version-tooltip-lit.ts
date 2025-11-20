@@ -1,7 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { systemInfoService } from '../../services/system-info-service';
+import { grpcVersionService } from '../../services/grpc-version-service';
 import { GetSystemInfoResponse } from '../../gen/config_service_pb';
+import { GetVersionInfoResponse } from '../../gen/image_processor_service_pb';
 
 interface VersionField {
   label: string;
@@ -15,6 +17,8 @@ export class VersionTooltipLit extends LitElement {
   @state() private versionFields: VersionField[] = [];
   @state() private environment = 'Loading...';
   @state() private isLoading = true;
+  @state() private grpcVersionInfo: GetVersionInfoResponse | null = null;
+  @state() private isLoadingGrpcVersion = false;
 
   static styles = css`
     :host {
@@ -166,8 +170,23 @@ export class VersionTooltipLit extends LitElement {
     }
   }
 
-  private handleSlotClick() {
+  private async handleSlotClick() {
     this.isOpen = !this.isOpen;
+    if (this.isOpen && !this.grpcVersionInfo && !this.isLoadingGrpcVersion) {
+      await this.loadGrpcVersionInfo();
+    }
+  }
+
+  private async loadGrpcVersionInfo() {
+    this.isLoadingGrpcVersion = true;
+    try {
+      this.grpcVersionInfo = await grpcVersionService.getVersionInfo();
+    } catch (error) {
+      console.error('Failed to load gRPC version info:', error);
+      this.grpcVersionInfo = null;
+    } finally {
+      this.isLoadingGrpcVersion = false;
+    }
   }
 
   private handleCloseClick(e: Event) {
@@ -199,6 +218,23 @@ export class VersionTooltipLit extends LitElement {
                 `
               )
           }
+          ${this.isOpen ? html`
+            ${this.isLoadingGrpcVersion
+              ? html`<div class="version-item"><span class="version-label">gRPC Server Version:</span><span class="version-value">Loading...</span></div>`
+              : this.grpcVersionInfo
+                ? html`
+                    <div class="version-item">
+                      <span class="version-label">gRPC Server Version:</span>
+                      <span class="version-value">${this.grpcVersionInfo.serverVersion || 'unknown'}</span>
+                    </div>
+                    <div class="version-item">
+                      <span class="version-label">C++ Library Version:</span>
+                      <span class="version-value">${this.grpcVersionInfo.libraryVersion || 'unknown'}</span>
+                    </div>
+                  `
+                : html`<div class="version-item"><span class="version-label">gRPC Server Version:</span><span class="version-value">Error loading</span></div>`
+            }
+          ` : ''}
           <div class="environment-section">
             <div class="version-item">
               <span class="version-label">Environment:</span>

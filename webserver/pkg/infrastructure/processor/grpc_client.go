@@ -22,7 +22,7 @@ type GRPCClientConfig struct {
 	MaxSendBytes int
 }
 
-func NewGRPCClient(cfg GRPCClientConfig) (*GRPCClient, error) {
+func NewGRPCClient(ctx context.Context, cfg GRPCClientConfig) (*GRPCClient, error) {
 	if cfg.Address == "" {
 		return nil, fmt.Errorf("grpc address is empty")
 	}
@@ -39,18 +39,13 @@ func NewGRPCClient(cfg GRPCClientConfig) (*GRPCClient, error) {
 		cfg.MaxSendBytes = 64 * 1024 * 1024
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)
-	defer cancel()
-
-	conn, err := grpc.DialContext(
-		ctx,
+	conn, err := grpc.NewClient(
 		cfg.Address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(cfg.MaxRecvBytes),
 			grpc.MaxCallSendMsgSize(cfg.MaxSendBytes),
 		),
-		grpc.WithBlock(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial grpc server: %w", err)

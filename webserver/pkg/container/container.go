@@ -121,7 +121,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	libInfo, err := registry.GetByVersion(cppVersion)
 	if err != nil {
-		return nil, fmt.Errorf("C++ library version %s not found: %w", cppVersion, err)
+		return nil, fmt.Errorf("c++ library version %s not found: %w", cppVersion, err)
 	}
 
 	log.Info().
@@ -141,7 +141,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	var grpcClient *processor.GRPCClient
 	if cfg.Processor.UseGRPCForProcessor {
-		client, clientErr := processor.NewGRPCClient(processor.GRPCClientConfig{
+		client, clientErr := processor.NewGRPCClient(ctx, processor.GRPCClientConfig{
 			Address:      cfg.Processor.GRPCServerAddress,
 			DialTimeout:  5 * time.Second,
 			MaxRecvBytes: 64 * 1024 * 1024,

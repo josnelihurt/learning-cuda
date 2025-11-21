@@ -325,7 +325,7 @@ func (h *ConfigHandler) GetProcessorStatus(
 	span := trace.SpanFromContext(ctx)
 
 	if h.cppConnector == nil {
-		span.RecordError(fmt.Errorf("C++ connector not available"))
+		span.RecordError(fmt.Errorf("c++ connector not available"))
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("processor not available"))
 	}
 

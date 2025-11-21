@@ -331,7 +331,7 @@ func (fw *FliptWriter) ListFlags(ctx context.Context) ([]Flag, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Reuse existing DeleteFlag helper to keep behaviour consistent
+	// Reuse existing DeleteFlag helper to keep behavior consistent
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {

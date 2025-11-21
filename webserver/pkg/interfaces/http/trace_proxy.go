@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 )
@@ -54,8 +55,8 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	collectorEndpoint := h.collectorEndpoint
-	if collectorEndpoint == "localhost:4317" {
-		collectorEndpoint = "localhost:4318"
+	if strings.HasSuffix(collectorEndpoint, ":4317") {
+		collectorEndpoint = strings.TrimSuffix(collectorEndpoint, ":4317") + ":4318"
 	}
 	collectorURL := fmt.Sprintf("http://%s/v1/traces", collectorEndpoint)
 	logger.Global().Info().

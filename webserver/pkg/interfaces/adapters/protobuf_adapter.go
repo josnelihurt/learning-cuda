@@ -266,12 +266,16 @@ func (a *ProtobufAdapter) blurFromGeneric(params []*pb.GenericFilterParameterSel
 
 		switch strings.ToLower(param.ParameterId) {
 		case "kernel_size":
-			if parsed, err := strconv.Atoi(value); err == nil {
+			if parsed, err := strconv.ParseInt(value, 10, 32); err == nil {
 				if parsed < 1 {
 					parsed = 1
 				}
 				if parsed%2 == 0 {
 					parsed++
+				}
+				const maxInt32 = 2147483647
+				if parsed > maxInt32 {
+					parsed = maxInt32
 				}
 				result.KernelSize = int32(parsed)
 			}

@@ -17,5 +17,6 @@ Workflow:
 
 Constraints:
 - Never proceed when the branch name does not encode a ticket identifier.
+- Never use --no-verify
 - Do not create multiple commits. Produce exactly one commit for the staged work.
 - Always keep the user informed about command outcomes and next steps.

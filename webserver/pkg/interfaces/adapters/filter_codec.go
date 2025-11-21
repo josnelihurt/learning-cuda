@@ -6,6 +6,13 @@ import (
 	pb "github.com/jrb/cuda-learning/proto/gen"
 )
 
+const (
+	paramTypeSelect   = "select"
+	paramTypeCheckbox = "checkbox"
+	paramTypeText     = "text"
+	filterIDBlur      = "blur"
+)
+
 // FilterCodec provides bidirectional conversion between FilterDefinition and GenericFilterDefinition
 type FilterCodec struct{}
 
@@ -117,15 +124,15 @@ func (c *FilterCodec) ToFilterParameter(genericParam *pb.GenericFilterParameter)
 // MapParameterTypeToGeneric converts a string parameter type to GenericFilterParameterType enum
 func (c *FilterCodec) MapParameterTypeToGeneric(paramType string) pb.GenericFilterParameterType {
 	switch strings.ToLower(paramType) {
-	case "select":
+	case paramTypeSelect:
 		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_SELECT
 	case "range", "slider":
 		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_RANGE
 	case "number":
 		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_NUMBER
-	case "checkbox":
+	case paramTypeCheckbox:
 		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX
-	case "text", "string", "input":
+	case paramTypeText, "string", "input":
 		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_TEXT
 	default:
 		return pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED
@@ -136,20 +143,20 @@ func (c *FilterCodec) MapParameterTypeToGeneric(paramType string) pb.GenericFilt
 func (c *FilterCodec) MapGenericParameterTypeToString(paramType pb.GenericFilterParameterType) string {
 	switch paramType {
 	case pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_SELECT:
-		return "select"
+		return paramTypeSelect
 	case pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_RANGE:
 		return "range"
 	case pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_NUMBER:
 		return "number"
 	case pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX:
-		return "checkbox"
+		return paramTypeCheckbox
 	case pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_TEXT:
-		return "text"
+		return paramTypeText
 	case pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED:
-		fallthrough
 	default:
-		return "text"
+		return paramTypeText
 	}
+	return paramTypeText
 }
 
 // BuildParameterMetadata builds metadata map for filter parameters
@@ -162,17 +169,17 @@ func (c *FilterCodec) BuildParameterMetadata(filterID string, param *pb.FilterPa
 
 	// Temporary heuristics for known parameters until metadata is provided by the accelerator.
 	switch {
-	case filterID == "blur" && param.Id == "kernel_size":
+	case filterID == filterIDBlur && param.Id == "kernel_size":
 		metadata["min"] = "3"
 		metadata["max"] = "15"
 		metadata["step"] = "2"
-	case filterID == "blur" && param.Id == "sigma":
+	case filterID == filterIDBlur && param.Id == "sigma":
 		metadata["min"] = "0"
 		metadata["max"] = "5"
 		metadata["step"] = "0.1"
-	case filterID == "blur" && param.Id == "border_mode":
+	case filterID == filterIDBlur && param.Id == "border_mode":
 		metadata["display"] = "select"
-	case filterID == "blur" && param.Id == "separable":
+	case filterID == filterIDBlur && param.Id == "separable":
 		metadata["display"] = "checkbox"
 	}
 

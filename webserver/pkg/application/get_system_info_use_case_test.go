@@ -62,6 +62,16 @@ func (m *MockVersionRepository) GetProtoVersion() string {
 	return args.String(0)
 }
 
+func assertSystemInfo(t *testing.T, result *domain.SystemInfo, goVersion, cppVersion, protoVersion, branch, buildTime, commitHash, environment string) {
+	assert.Equal(t, goVersion, result.Version.GoVersion)
+	assert.Equal(t, cppVersion, result.Version.CppVersion)
+	assert.Equal(t, protoVersion, result.Version.ProtoVersion)
+	assert.Equal(t, branch, result.Version.Branch)
+	assert.Equal(t, buildTime, result.Version.BuildTime)
+	assert.Equal(t, commitHash, result.Version.CommitHash)
+	assert.Equal(t, environment, result.Environment)
+}
+
 func TestNewGetSystemInfoUseCase(t *testing.T) {
 	// Arrange
 	mockConfig := &MockConfigRepository{}
@@ -98,17 +108,7 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 			assertResult: func(t *testing.T, result *domain.SystemInfo, err error) {
 				assert.NoError(t, err)
 				require.NotNil(t, result)
-
-				// Check version fields
-				assert.Equal(t, "1.0.8", result.Version.GoVersion)
-				assert.Equal(t, "2.1.6", result.Version.CppVersion)
-				assert.Equal(t, "1.0.0", result.Version.ProtoVersion)
-				assert.Equal(t, "main", result.Version.Branch)
-				assert.Equal(t, "2024-10-25T12:00:00Z", result.Version.BuildTime)
-				assert.Equal(t, "abc123", result.Version.CommitHash)
-
-				// Check environment
-				assert.Equal(t, "development", result.Environment)
+				assertSystemInfo(t, result, "1.0.8", "2.1.6", "1.0.0", "main", "2024-10-25T12:00:00Z", "abc123", "development")
 			},
 		},
 		{
@@ -125,11 +125,7 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 			assertResult: func(t *testing.T, result *domain.SystemInfo, err error) {
 				assert.NoError(t, err)
 				require.NotNil(t, result)
-
-				assert.Equal(t, "1.0.8", result.Version.GoVersion)
-				assert.Equal(t, "2.1.6", result.Version.CppVersion)
-				assert.Equal(t, "1.0.0", result.Version.ProtoVersion)
-				assert.Equal(t, "production", result.Environment)
+				assertSystemInfo(t, result, "1.0.8", "2.1.6", "1.0.0", "main", "2024-10-25T12:00:00Z", "abc123", "production")
 			},
 		},
 		{
@@ -146,14 +142,7 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 			assertResult: func(t *testing.T, result *domain.SystemInfo, err error) {
 				assert.NoError(t, err)
 				require.NotNil(t, result)
-
-				assert.Equal(t, "2.0.0", result.Version.GoVersion)
-				assert.Equal(t, "3.0.0", result.Version.CppVersion)
-				assert.Equal(t, "2.0.0", result.Version.ProtoVersion)
-				assert.Equal(t, "develop", result.Version.Branch)
-				assert.Equal(t, "2024-11-01T10:30:00Z", result.Version.BuildTime)
-				assert.Equal(t, "xyz789", result.Version.CommitHash)
-				assert.Equal(t, "staging", result.Environment)
+				assertSystemInfo(t, result, "2.0.0", "3.0.0", "2.0.0", "develop", "2024-11-01T10:30:00Z", "xyz789", "staging")
 			},
 		},
 	}

@@ -35,6 +35,91 @@ func (p *GRPCProcessor) domainToProtoBorderMode(mode domain.BorderMode) pb.Borde
 	}
 }
 
+func (p *GRPCProcessor) domainToProtoFilters(filters []domain.FilterType) ([]pb.FilterType, bool, error) {
+	if len(filters) == 0 || (len(filters) == 1 && filters[0] == domain.FilterNone) {
+		return nil, false, nil
+	}
+
+	protoFilters := make([]pb.FilterType, 0, len(filters))
+	hasBlur := false
+	for _, filter := range filters {
+		switch filter {
+		case domain.FilterNone:
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_NONE)
+		case domain.FilterGrayscale:
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_GRAYSCALE)
+		case domain.FilterBlur:
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_BLUR)
+			hasBlur = true
+		default:
+			return nil, false, fmt.Errorf("unsupported filter type: %s", filter)
+		}
+	}
+	return protoFilters, hasBlur, nil
+}
+
+func (p *GRPCProcessor) buildBlurParams(hasBlur bool, blurParams *domain.BlurParameters) *pb.GaussianBlurParameters {
+	if !hasBlur {
+		return nil
+	}
+	if blurParams != nil {
+		return &pb.GaussianBlurParameters{
+			KernelSize: blurParams.KernelSize,
+			Sigma:      blurParams.Sigma,
+			BorderMode: p.domainToProtoBorderMode(blurParams.BorderMode),
+			Separable:  blurParams.Separable,
+		}
+	}
+	return &pb.GaussianBlurParameters{
+		KernelSize: 5,
+		Sigma:      1.0,
+		BorderMode: pb.BorderMode_BORDER_MODE_REFLECT,
+		Separable:  true,
+	}
+}
+
+func (p *GRPCProcessor) domainToProtoAccelerator(accelerator domain.AcceleratorType) pb.AcceleratorType {
+	switch accelerator {
+	case domain.AcceleratorGPU:
+		return pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
+	case domain.AcceleratorCPU:
+		return pb.AcceleratorType_ACCELERATOR_TYPE_CPU
+	default:
+		return pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
+	}
+}
+
+func (p *GRPCProcessor) domainToProtoGrayscaleType(grayscaleType domain.GrayscaleType) pb.GrayscaleType {
+	switch grayscaleType {
+	case domain.GrayscaleBT601:
+		return pb.GrayscaleType_GRAYSCALE_TYPE_BT601
+	case domain.GrayscaleBT709:
+		return pb.GrayscaleType_GRAYSCALE_TYPE_BT709
+	case domain.GrayscaleAverage:
+		return pb.GrayscaleType_GRAYSCALE_TYPE_AVERAGE
+	case domain.GrayscaleLightness:
+		return pb.GrayscaleType_GRAYSCALE_TYPE_LIGHTNESS
+	case domain.GrayscaleLuminosity:
+		return pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY
+	default:
+		return pb.GrayscaleType_GRAYSCALE_TYPE_BT601
+	}
+}
+
+func extractTraceContext(ctx context.Context, span trace.Span) (traceID, spanID string, traceFlags uint32) {
+	spanContext := trace.SpanContextFromContext(ctx)
+	if spanContext.IsValid() {
+		traceID = spanContext.TraceID().String()
+		spanID = spanContext.SpanID().String()
+		traceFlags = uint32(spanContext.TraceFlags())
+		span.SetAttributes(
+			attribute.String("trace.id", traceID),
+			attribute.String("span.id", spanID),
+		)
+	}
+	return traceID, spanID, traceFlags
+}
+
 // ProcessImage mirrors the transformation logic of CppConnector.ProcessImage
 // but sends the request over gRPC instead of calling the dynamic library.
 func (p *GRPCProcessor) ProcessImage(
@@ -56,84 +141,18 @@ func (p *GRPCProcessor) ProcessImage(
 		attribute.String("grayscale_type", string(grayscaleType)),
 	)
 
-	if len(filters) == 0 || (len(filters) == 1 && filters[0] == domain.FilterNone) {
+	protoFilters, hasBlur, err := p.domainToProtoFilters(filters)
+	if err != nil {
+		return nil, err
+	}
+	if protoFilters == nil {
 		return img, nil
 	}
 
-	var protoFilters []pb.FilterType
-	var finalBlurParams *pb.GaussianBlurParameters
-
-	hasBlur := false
-	for _, filter := range filters {
-		switch filter {
-		case domain.FilterNone:
-			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_NONE)
-		case domain.FilterGrayscale:
-			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_GRAYSCALE)
-		case domain.FilterBlur:
-			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_BLUR)
-			hasBlur = true
-		default:
-			return nil, fmt.Errorf("unsupported filter type: %s", filter)
-		}
-	}
-
-	if hasBlur {
-		if blurParams != nil {
-			finalBlurParams = &pb.GaussianBlurParameters{
-				KernelSize: blurParams.KernelSize,
-				Sigma:      blurParams.Sigma,
-				BorderMode: p.domainToProtoBorderMode(blurParams.BorderMode),
-				Separable:  blurParams.Separable,
-			}
-		} else {
-			finalBlurParams = &pb.GaussianBlurParameters{
-				KernelSize: 5,
-				Sigma:      1.0,
-				BorderMode: pb.BorderMode_BORDER_MODE_REFLECT,
-				Separable:  true,
-			}
-		}
-	}
-
-	var protoAccelerator pb.AcceleratorType
-	switch accelerator {
-	case domain.AcceleratorGPU:
-		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
-	case domain.AcceleratorCPU:
-		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CPU
-	default:
-		protoAccelerator = pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
-	}
-
-	var protoGrayscaleType pb.GrayscaleType
-	switch grayscaleType {
-	case domain.GrayscaleBT601:
-		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT601
-	case domain.GrayscaleBT709:
-		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT709
-	case domain.GrayscaleAverage:
-		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_AVERAGE
-	case domain.GrayscaleLightness:
-		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_LIGHTNESS
-	case domain.GrayscaleLuminosity:
-		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY
-	default:
-		protoGrayscaleType = pb.GrayscaleType_GRAYSCALE_TYPE_BT601
-	}
-
-	spanContext := trace.SpanContextFromContext(ctx)
-	var traceID, spanID string
-	var traceFlags uint32
-	if spanContext.IsValid() {
-		traceID = spanContext.TraceID().String()
-		spanID = spanContext.SpanID().String()
-		traceFlags = uint32(spanContext.TraceFlags())
-		span.SetAttributes(
-			attribute.String("trace.id", traceID),
-			attribute.String("span.id", spanID),
-		)
-	}
+	finalBlurParams := p.buildBlurParams(hasBlur, blurParams)
+	protoAccelerator := p.domainToProtoAccelerator(accelerator)
+	protoGrayscaleType := p.domainToProtoGrayscaleType(grayscaleType)
+	traceID, spanID, traceFlags := extractTraceContext(ctx, span)
 
 	procReq := &pb.ProcessImageRequest{
 		ApiVersion:    loader.CurrentAPIVersion,

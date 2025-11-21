@@ -30,6 +30,7 @@ This isn't another tutorial project. It's my way of exploring CUDA, OpenCL, and 
 - [Known issues](#known-issues)
 - [Roadmap](#roadmap)
 - [Learning Journey](#learning-journey)
+- [Future Vision](#future-vision)
 
 ## What's this?
 
@@ -39,7 +40,7 @@ The system supports multiple input sources—webcam, static images, video files�
 
 **Why I built it this way**: Reading tutorials and doing lab exercises gets boring fast. I learn better by building something I'd actually want to use. So instead of following "CUDA 101" step-by-step, I built a real system with the same practices I use at work—clean architecture, proper testing, observability, the whole deal.
 
-**How it works**: Go web server loads C++ accelerator libraries dynamically (dlopen), so I can swap between CUDA, OpenCL, or CPU implementations without restarting. The plugin architecture makes it easy to add new filters or even different acceleration backends. Everything's wired up with proper dependency injection, so testing is actually doable.
+**How it works**: Go web server can communicate with C++ accelerator libraries via two paths: (1) CGO connector using `dlopen` for direct library loading, or (2) gRPC client for remote processing via a separate gRPC server. This dual-path architecture allows swapping between CUDA, OpenCL, or CPU implementations without restarting, and enables both local and distributed processing. The plugin architecture makes it easy to add new filters or different acceleration backends. Everything's wired up with proper dependency injection, so testing is actually doable.
 
 ## Architecture
 
@@ -65,7 +66,9 @@ graph TB
     
     subgraph "Processing Layer"
         Plugin[Plugin Loader]
-        CUDALib[C++/CUDA Library]
+        GRPCClient[gRPC Client]
+        GRPCServer[gRPC Server]
+        SharedLib[Shared Library<br/>C++/CUDA]
         CPU[CPU Fallback]
     end
     
@@ -83,10 +86,14 @@ graph TB
     API --> Services
     Services --> UseCases
     UseCases --> Plugin
-    Plugin --> CUDALib
+    UseCases --> GRPCClient
+    Plugin --> SharedLib
     Plugin --> CPU
-    CUDALib --> Services
+    GRPCClient --> GRPCServer
+    GRPCServer --> SharedLib
+    SharedLib --> Services
     CPU --> Services
+    GRPCServer --> Services
     Services --> Jaeger
     Services --> Loki
     Jaeger --> Grafana
@@ -118,15 +125,25 @@ graph TB
     
     subgraph "Infrastructure Layer"
         ProcessorRepo[Processor Repository]
+        GRPCProcessor[gRPC Processor]
+        CGOConnector[CGO Connector]
         BuildInfo[Build Info Repository]
         FliptRepo[Flipt Repository]
         Logger[Logger]
     end
     
-    subgraph "C++/CUDA Plugins"
+    subgraph "C++/CUDA Shared Library"
+        SharedLibrary[Shared Library<br/>libcuda_processor.so]
         PluginAPI[Plugin API]
+        CGOBridge[CGO Bridge]
         GrayscaleKernel[Grayscale Kernels]
+        BlurKernel[Blur Kernels]
         FilterDefs[Filter Definitions]
+    end
+    
+    subgraph "gRPC Services"
+        GRPCServerService[gRPC Server<br/>Hosts Shared Library]
+        GRPCClientService[gRPC Client]
     end
     
     subgraph "External Services"
@@ -145,17 +162,66 @@ graph TB
     GetSystemInfo --> SystemInfo
     
     Processor --> ProcessorRepo
+    Processor --> GRPCProcessor
+    Processor --> CGOConnector
     SystemInfo --> BuildInfo
     FeatureFlags --> FliptRepo
     
-    ProcessorRepo --> PluginAPI
+    ProcessorRepo --> SharedLibrary
+    GRPCProcessor --> GRPCClientService
+    CGOConnector --> CGOBridge
+    GRPCClientService --> GRPCServerService
+    GRPCServerService --> SharedLibrary
+    CGOBridge --> SharedLibrary
+    SharedLibrary --> PluginAPI
     PluginAPI --> GrayscaleKernel
+    PluginAPI --> BlurKernel
     PluginAPI --> FilterDefs
     
     FliptRepo --> Flipt
     Logger --> Jaeger
     Logger --> Grafana
 ```
+
+### Processing Architecture: CGO vs gRPC
+
+The system supports two processing backends for communicating with the C++/CUDA accelerator library:
+
+**1. CGO Connector (Direct Library Loading)**
+- Uses `dlopen` to dynamically load the C++ shared library at runtime
+- Direct function calls via CGO bridge (`cgo_api.cpp`)
+- Lower latency for local processing
+- Requires library to be available on the same machine
+- Implemented in: `webserver/pkg/infrastructure/processor/cpp_connector.go`
+- CGO bridge: `cpp_accelerator/ports/cgo/cgo_api.cpp`
+- Loader: `webserver/pkg/infrastructure/processor/loader/dlopen_linux.go`
+
+**2. gRPC Processor (Remote Service)**
+- Communicates with a separate gRPC server that hosts the C++ library
+- Enables remote GPU processing and microservices architecture
+- Better for distributed deployments
+- Supports version information queries
+- Implemented in: `webserver/pkg/infrastructure/processor/grpc_processor.go`
+- Client: `webserver/pkg/infrastructure/processor/grpc_client.go`
+- Uses `grpc.NewClient` (modern gRPC API) with context propagation
+
+**Configuration:**
+- Controlled by `processor.use_grpc_for_processor` flag in config
+- Falls back to CGO connector if gRPC client initialization fails
+- Both backends implement the same `Processor` domain interface for seamless switching
+
+**Connection Flow:**
+- **CGO Path**: Go → CGO Bridge → Shared Library (dlopen)
+- **gRPC Path**: Go → gRPC Client → gRPC Server → Shared Library
+
+**Shared Library:**
+Both CGO and gRPC server use the same shared library (`libcuda_processor.so`), which contains:
+- CUDA kernels for GPU processing
+- CPU fallback implementations
+- Filter definitions and metadata
+- Plugin API interface
+
+This architecture enables the current dual-path approach while laying the foundation for future microservices evolution.
 
 ## Setup
 
@@ -393,13 +459,70 @@ Evolving this into a full CUDA learning platform. See [GitHub Issues](https://gi
 
 ## Learning Journey
 
-Started as a weekend project to learn CUDA. Now it's a full learning platform covering GPU programming, video processing, neural networks, and production infrastructure. Code quality varies—some parts are clean, others are "it works" territory.
+Started as a weekend project to learn CUDA. What began as a simple question—"How fast can I get image filters running on GPU vs CPU?"—has evolved into a full learning platform covering GPU programming, video processing, neural networks, and production infrastructure. Code quality varies—some parts are clean, others are "it works" territory, but that's part of the learning process.
 
-**What I've learned so far**: CUDA kernels are fun once you get the hang of them. Memory management is tricky. Shared memory optimization makes a huge difference. And building a real system teaches you way more than following tutorials.
+**What I've learned so far**: CUDA kernels are fun once you get the hang of them. Memory management is tricky. Shared memory optimization makes a huge difference. And building a real system teaches you way more than following tutorials. The current architecture—with its dual-path CGO/gRPC approach and shared library design—provides a solid foundation for exploring microservices, multi-accelerator support, and distributed processing.
 
-**What's next**: The plugin architecture makes it easy to add new accelerators (OpenCL coming soon) and explore different areas—neural networks, advanced image processing, whatever sounds interesting. Each addition follows the same pattern: make it work, make it clean, make it testable.
+**Current State**: The platform now supports multiple processing backends (CGO direct loading and gRPC remote service), dynamic filter discovery, comprehensive observability, and production deployment. The shared library architecture allows both local and remote processing while maintaining the same filter implementations.
 
-**Philosophy**: Learn by building something you'd actually use. Every feature should teach you something new about either GPU programming or software engineering.
+**Philosophy**: Learn by building something you'd actually use. Every feature should teach you something new about either GPU programming or software engineering. The evolution from a weekend project to a full platform demonstrates how real-world requirements drive architectural decisions and learning.
+
+## Future Vision
+
+The current architecture provides a solid foundation, but the vision extends to a fully decoupled microservices architecture that breaks vendor lock-in and enables distributed processing across different hardware platforms.
+
+### Microservices Architecture
+
+**Goal**: Decouple the system into independent microservices that can scale independently and support multiple accelerator backends.
+
+**Current Challenge**: The system is currently coupled to NVIDIA containers due to CUDA framework requirements. This limits deployment flexibility and prevents easy expansion to other accelerators like OpenCL or ARM-based processors.
+
+**Planned Evolution**:
+- **WebRTC Integration**: Replace WebSocket with WebRTC for direct frame streaming to the CUDA microservice. This addresses latency concerns inherent in microservices architectures by enabling peer-to-peer communication with minimal overhead.
+- **WebSocket Deprecation**: Gradually migrate from WebSocket to WebRTC using feature flags. This allows A/B testing and metrics collection to validate performance improvements and ensure smooth transition.
+- **Feature Flags Strategy**: Use feature flags throughout the migration to:
+  - Enable gradual rollout of new architecture
+  - Collect metrics comparing WebSocket vs WebRTC performance
+  - Validate hypotheses about latency and throughput
+  - Allow quick rollback if issues arise
+
+### Multi-Accelerator Support
+
+**OpenCL Expansion**: Break the NVIDIA dependency by implementing OpenCL versions of all filters. This enables:
+- Support for AMD GPUs and other OpenCL-compatible hardware
+- Cross-platform deployment without vendor lock-in
+- Comparison of CUDA vs OpenCL performance on the same algorithms
+
+**Radxa 5b+ Integration**: Expand beyond x86/NVIDIA to ARM-based processing:
+- Use Radxa 5b+ (currently build server) as a processing node
+- Implement gRPC/WebRTC service on ARM architecture
+- Create filter implementations optimized for ARM processors
+- Enable heterogeneous processing across different hardware platforms
+
+**Container Architecture Evolution**: 
+- Current: NVIDIA-specific containers limit deployment options
+- Future: Multi-accelerator container architecture supporting:
+  - NVIDIA CUDA containers for GPU processing
+  - OpenCL containers for vendor-agnostic GPU processing
+  - ARM-optimized containers for Radxa and similar hardware
+  - Service discovery and load balancing across accelerator types
+
+### Technical Approach
+
+**Shared Library Foundation**: The current shared library architecture (`libcuda_processor.so`) is designed to be accelerator-agnostic. The same filter interface can be implemented with:
+- CUDA kernels (current)
+- OpenCL kernels (planned)
+- ARM-optimized implementations (planned)
+- CPU fallback (current)
+
+
+**Metrics & Validation**: Feature flags enable continuous metrics collection:
+- Latency comparison: WebSocket vs WebRTC
+- Throughput analysis: CGO vs gRPC vs WebRTC
+- Performance benchmarks: CUDA vs OpenCL vs ARM
+- Resource utilization across different architectures
+
+This vision transforms the platform from a CUDA learning project into a comprehensive multi-accelerator processing platform that explores the full spectrum of GPU and accelerator technologies available today.
 
 ### Generate docker 
 docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate

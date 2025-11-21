@@ -4,6 +4,152 @@ Completed features extracted from git commit history, organized by date.
 
 ## November 2025
 
+### Trace Proxy HTTP Port Fix (Nov 21, 2025)
+- [x] Fixed trace proxy handler to convert gRPC port (4317) to HTTP port (4318) for all collector endpoints
+- [x] Updated `TraceProxyHandler` to use `strings.HasSuffix()` for endpoint detection instead of hardcoded `localhost` check
+- [x] Resolved 502 Bad Gateway errors in production when using `otel-collector:4317` endpoint
+- [x] Fixed all pre-existing linter issues (dupl, goconst, gocyclo, gosec, contextcheck, misspell, staticcheck, stylecheck)
+- [x] Refactored `ProcessImage` to reduce cyclomatic complexity by extracting helper functions
+- [x] Updated deprecated `grpc.DialContext` to `grpc.NewClient`
+- [x] Added context parameter to `NewGRPCClient` for proper context propagation
+
+**Files Changed:**
+- `webserver/pkg/interfaces/http/trace_proxy.go` (main fix)
+- 9 additional files (linter fixes)
+
+### VERSION File Enforcement in Pre-commit Hooks (Nov 20, 2025)
+- [x] Added reusable `pre-commit-version-check.sh` script that validates VERSION file updates
+- [x] Integrated version validation into `pre-commit.sh` for proto, cpp_accelerator, and webserver modules
+- [x] Updated `install.sh` to use absolute symlinks for worktree compatibility
+- [x] Block commits when module files are modified without updating corresponding VERSION file
+- [x] Allow commits when VERSION is updated or when only VERSION file is changed
+- [x] Prevents version drift between code changes and version tracking
+
+**Benefits:**
+- Ensures version files stay synchronized with code changes
+- Prevents accidental commits without version updates
+- Maintains consistent versioning across all components
+
+### Generic Filter Selection Structure (Nov 20, 2025)
+- [x] Added `GenericFilterSelection` and `GenericFilterParameterSelection` protobuf messages
+- [x] Extended `ProcessImageRequest` with `generic_filters` field
+- [x] Implemented backend conversion from generic to concrete filter types
+- [x] Updated frontend to use generic filter structure instead of direct enum mapping
+- [x] Refactored adapter layer with `ProcessingConfig` struct for better maintainability
+- [x] Fixed E2E test helpers to handle filter panel interactions correctly
+- [x] Maintained backward compatibility with legacy filter fields
+- [x] Bumped versions: proto `2.2.1 -> 2.3.0`, cpp `2.2.1 -> 2.3.0`, golang `1.2.1 -> 1.3.0`
+
+**Benefits:**
+- More flexible filter configuration system
+- Better separation between UI representation and backend processing
+- Easier to add new filter types without breaking changes
+
+### Version File Management Improvements (Nov 20, 2025)
+- [x] Fixed Docker builds to stop overriding packaged version files
+- [x] Ensured version files are properly included in Docker images
+- [x] Bumped component versions to reflect changes
+
+### gRPC Server Version Information Display (Nov 19, 2025)
+- [x] Added `GetVersionInfo` endpoint to gRPC server
+- [x] Included VERSION file in gRPC server Docker image
+- [x] Initialized gRPC client when address is configured (not just for processor)
+- [x] Updated deployment scripts to build local gRPC server images
+- [x] Fixed configuration files to match Docker Compose service names
+- [x] Added Connect-RPC handler for `GetVersionInfo` endpoint
+- [x] Updated frontend to display gRPC server version in tooltip
+- [x] Bumped versions: Go app `1.0.12 -> 1.2.0`, C++ accelerator `2.1.8 -> 2.2.0`, Proto `2.1.7 -> 2.2.0`
+
+**Benefits:**
+- Centralized version information display
+- Better observability of gRPC server version
+- Consistent version tracking across all services
+
+### Filter Panel UX Improvements (Nov 19, 2025)
+- [x] Auto-enable filter when opening disabled card
+- [x] Expanded checkbox clickable area without visual changes
+- [x] Implemented proper min/max validation for number inputs
+- [x] Restricted drag to drag-handle-container only
+- [x] Added comprehensive test suite (22 tests)
+
+**Benefits:**
+- Improved user experience with intuitive interactions
+- Better input validation prevents invalid configurations
+- More precise drag interactions
+
+### Processor gRPC Host Configuration Fix (Nov 19, 2025)
+- [x] Fixed processor gRPC host configuration alignment
+- [x] Ensured consistent gRPC endpoint configuration across environments
+
+### gRPC Backend for GPU Image Processing (Nov 18, 2025)
+- [x] Added gRPC backend as alternative to CGO/direct library loading
+- [x] Implemented `GRPCClient` with connection management and timeout handling
+- [x] Created `GRPCProcessor` that mirrors `CppConnector` logic but uses gRPC
+- [x] Added support for `ProcessImage`, `ListFilters`, and `GetVersionInfo` RPCs
+- [x] Integrated gRPC client initialization in container with fallback to C++ connector
+- [x] Updated configuration to support `UseGRPCForProcessor` flag
+- [x] Refactored `ProcessImage` to reduce cyclomatic complexity
+- [x] Added OpenTelemetry tracing for gRPC operations
+- [x] Implemented trace context propagation from Go to gRPC server
+
+**Architecture:**
+- Go application can use either CGO (direct library) or gRPC (remote service) for processing
+- gRPC backend enables microservices architecture and remote GPU processing
+- Maintains same domain interface for seamless switching
+
+**Benefits:**
+- Enables remote GPU processing via gRPC
+- Better separation of concerns
+- Easier to scale processing independently
+- Supports distributed processing architectures
+
+### CI/CD Improvements (Nov 18, 2025)
+- [x] Refactored CI/CD back to use single file approach
+- [x] Improved build reliability and maintainability
+
+### Grafana Resource Optimization (Nov 17, 2025)
+- [x] Fixed Grafana consuming too many resources
+- [x] Optimized Grafana configuration for better performance
+
+### ARM GitHub Runner (Nov 16, 2025)
+- [x] Added new ARM GitHub runner for cross-platform builds
+- [x] Improved CI/CD support for ARM architectures
+
+### Dynamic Filters End-to-End Implementation (Nov 14, 2025)
+- [x] Implemented dynamic filters end-to-end functionality
+- [x] Completed filter system integration across all layers
+- [x] Ensured filters work seamlessly from frontend to backend
+
+### Version Bump and GetProcessorStatus RPC Fix (Nov 13-14, 2025)
+- [x] Bumped component versions
+- [x] Fixed `GetProcessorStatus` RPC for filter panel functionality
+- [x] Restored RPC endpoint after regression
+- [x] Fixed build intermediate images locally for PRs
+- [x] Implemented reading versions from VERSION files
+
+**Benefits:**
+- Consistent version management
+- Reliable filter panel functionality
+- Better PR build process
+
+### Staging LXC Provisioning (Nov 11, 2025)
+- [x] Added staging LXC provisioning for improved testing infrastructure
+- [x] Enhanced staging environment setup
+
+### CI/CD and Bazel Cache Integration (Nov 10, 2025)
+- [x] Integrated Bazel remote cache for faster builds
+- [x] Enabled Bazel cache for ARM C++ builds
+- [x] Enabled Bazel cache for C++ builds
+- [x] Fixed CI to push C++ artifacts for PR builds
+- [x] Bumped C++ accelerator version to 2.1.6
+- [x] Ensured Jetson runner auto-restarts
+- [x] Added Jetson Nano deployment support
+
+**Benefits:**
+- Significantly faster CI/CD builds with remote cache
+- Better artifact management for PRs
+- Improved reliability with auto-restart functionality
+
 ### Runtime Artifact Realignment & Build Refresh (Nov 10, 2025)
 - **Proto**
   - [x] Added `buf.build/googleapis/googleapis` dependency and excluded vendored `proto/google/api` sources

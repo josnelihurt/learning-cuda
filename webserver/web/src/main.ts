@@ -26,6 +26,7 @@ import type {
   IProcessorCapabilitiesService,
   IToolsService,
   IVideoService,
+  IWebRTCService,
 } from './application/di';
 import type { AppRoot } from './components/app/app-root';
 
@@ -38,6 +39,7 @@ const inputSourceService: IInputSourceService = container.getInputSourceService(
 const processorCapabilitiesService: IProcessorCapabilitiesService = container.getProcessorCapabilitiesService();
 const toolsService: IToolsService = container.getToolsService();
 const videoService: IVideoService = container.getVideoService();
+const webrtcService: IWebRTCService = container.getWebRTCService();
 
 const app = {
   appRoot: null as AppRoot | null,
@@ -72,11 +74,12 @@ const app = {
       processorCapabilitiesService.initialize(),
       toolsService.initialize(),
       videoService.initialize(),
+      webrtcService.initialize(),
     ]);
 
     dataServicesResults.forEach((result, index) => {
       if (result.status === 'rejected') {
-        const serviceNames = ['Input Source', 'Processor Capabilities', 'Tools', 'Video'];
+        const serviceNames = ['Input Source', 'Processor Capabilities', 'Tools', 'Video', 'WebRTC'];
         const serviceName = serviceNames[index];
         logger.error(`${serviceName} service failed to initialize`, {
           'error.message': result.reason instanceof Error ? result.reason.message : String(result.reason),
@@ -113,6 +116,7 @@ const app = {
       this.appRoot.processorCapabilitiesService = processorCapabilitiesService;
       this.appRoot.toolsService = toolsService;
       this.appRoot.videoService = videoService;
+      this.appRoot.webrtcService = webrtcService;
 
       try {
         await this.appRoot.initialize();

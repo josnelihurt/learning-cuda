@@ -14,6 +14,7 @@
 
 #include "cpp_accelerator/ports/grpc/image_processor_service_impl.h"
 #include "cpp_accelerator/ports/grpc/processor_engine_adapter.h"
+#include "cpp_accelerator/ports/grpc/webrtc_manager.h"
 #include "cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 ABSL_FLAG(std::string, listen_addr, "0.0.0.0:60061",
@@ -65,6 +66,13 @@ int main(int argc, char** argv) {
   }
 
   spdlog::info("ImageProcessorService gRPC server listening on {}", absl::GetFlag(FLAGS_listen_addr));
+
+  auto webrtc_manager = std::make_unique<jrb::ports::grpc_service::WebRTCManager>();
+  if (!webrtc_manager->Initialize()) {
+    spdlog::warn("Failed to initialize WebRTCManager, continuing without WebRTC support");
+  } else {
+    spdlog::info("WebRTCManager initialized successfully");
+  }
 
   std::signal(SIGINT, HandleSignal);
   std::signal(SIGTERM, HandleSignal);

@@ -8,6 +8,7 @@ import type { ITelemetryService } from '../../domain/interfaces/ITelemetryServic
 import type { ILogger } from '../../domain/interfaces/ILogger';
 import type { IToolsService } from '../../domain/interfaces/IToolsService';
 import type { IUIService } from '../../domain/interfaces/IUIService';
+import type { IWebRTCService } from '../../domain/interfaces/IWebRTCService';
 
 import { streamConfigService } from '../../services/config-service';
 import { videoService } from '../../services/video-service';
@@ -19,6 +20,7 @@ import { telemetryService } from '../../services/telemetry-service';
 import { logger } from '../../services/otel-logger';
 import { toolsService } from '../../services/tools-service';
 import { UIService } from '../../services/ui-service';
+import { webrtcService } from '../../services/webrtc-service';
 
 // TODO: Decouple singleton pattern - implement factory/builder pattern for service instantiation
 class DIContainer {
@@ -67,6 +69,10 @@ class DIContainer {
 
   getToolsService(): IToolsService {
     return toolsService;
+  }
+
+  getWebRTCService(): IWebRTCService {
+    return webrtcService;
   }
 
   createUIService(statsManager: any, cameraManager: any, filterManager: any, toastManager: any, wsService: IWebSocketService): IUIService {

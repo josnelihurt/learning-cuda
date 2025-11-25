@@ -2,9 +2,9 @@ import type { FilterDefinition } from '../../gen/common_pb';
 import type {
   GenericFilterDefinition,
   GenericFilterParameter,
-  GenericFilterParameterType,
   GenericFilterParameterOption,
 } from '../../gen/image_processor_service_pb';
+import { GenericFilterParameterType } from '../../gen/image_processor_service_pb';
 
 export type FilterParameterType = 'select' | 'range' | 'number' | 'checkbox' | 'text';
 

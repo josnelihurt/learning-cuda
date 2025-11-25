@@ -148,6 +148,57 @@ http_archive(
     urls = ["https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.18.0.tar.gz"],
 )
 
+# WebRTC dependencies
+# Note: Integrity hashes need to be calculated from actual archives
+# Run: sha256sum <archive_file> to get the correct hash
+http_archive(
+    name = "com_github_paullouisageneau_libdatachannel",
+    build_file = "//bazel/third_party:libdatachannel.BUILD",
+    strip_prefix = "libdatachannel-0.18.7",
+    urls = ["https://github.com/paullouisageneau/libdatachannel/archive/refs/tags/v0.18.7.tar.gz"],
+)
+
+http_archive(
+    name = "com_github_sctplab_usrsctp",
+    build_file_content = """
+cc_library(
+    name = "usrsctp",
+    srcs = glob([
+        "usrsctplib/usrsctplib/*.c",
+    ]),
+    hdrs = glob([
+        "usrsctplib/usrsctplib/*.h",
+    ]),
+    includes = ["usrsctplib/usrsctplib"],
+    visibility = ["//visibility:public"],
+    copts = ["-w"],
+)
+""",
+    strip_prefix = "usrsctp-0.9.5.0",
+    urls = ["https://github.com/sctplab/usrsctp/archive/refs/tags/0.9.5.0.tar.gz"],
+)
+
+http_archive(
+    name = "com_github_paullouisageneau_libjuice",
+    build_file_content = """
+cc_library(
+    name = "libjuice",
+    srcs = glob([
+        "src/*.c",
+    ]),
+    hdrs = glob([
+        "include/juice/*.h",
+    ]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+    copts = ["-w"],
+    deps = [],
+)
+""",
+    strip_prefix = "libjuice-1.3.3",
+    urls = ["https://github.com/paullouisageneau/libjuice/archive/refs/tags/v1.3.3.tar.gz"],
+)
+
 # gRPC core and pinned third-party repos
 http_archive(
     name = "com_github_grpc_grpc",

@@ -9,6 +9,7 @@ import type {
   IProcessorCapabilitiesService,
   IToolsService,
   IVideoService,
+  IWebRTCService,
 } from '../../application/di';
 import type { VideoGrid } from '../video/video-grid';
 import type { FilterPanel } from './filter-panel';
@@ -31,6 +32,7 @@ export class AppRoot extends LitElement {
   @property({ type: Object }) processorCapabilitiesService?: IProcessorCapabilitiesService;
   @property({ type: Object }) toolsService?: IToolsService;
   @property({ type: Object }) videoService?: IVideoService;
+  @property({ type: Object }) webrtcService?: IWebRTCService;
 
   @state() private selectedAccelerator = 'gpu';
   @state() private selectedResolution = 'original';

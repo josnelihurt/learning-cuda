@@ -1,7 +1,6 @@
 import type { IFrameTransportService } from '../../domain/interfaces/IFrameTransportService';
 import type { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../../domain/value-objects';
 import { WebSocketFrameResponse } from '../../gen/image_processor_service_pb';
-import { featureFlagsService } from '../external/feature-flags-service';
 import { logger } from '../observability/otel-logger';
 
 export class FrameTransportService implements IFrameTransportService {
@@ -20,23 +19,13 @@ export class FrameTransportService implements IFrameTransportService {
     }
 
     this.transportSelectionPromise = (async () => {
-      try {
-        const useGRPC = await featureFlagsService.isFeatureEnabled('processor_use_grpc_backend');
-        const selected = useGRPC ? this.grpcTransport : this.wsTransport;
-        this.currentTransport = selected;
-        logger.debug('Transport selected', {
-          transport: useGRPC ? 'gRPC' : 'WebSocket',
-        });
-        return selected;
-      } catch (error) {
-        logger.error('Failed to check feature flag, defaulting to WebSocket', {
-          'error.message': error instanceof Error ? error.message : String(error),
-        });
-        this.currentTransport = this.wsTransport;
-        return this.wsTransport;
-      } finally {
-        this.transportSelectionPromise = null;
-      }
+      const selected = this.grpcTransport;
+      this.currentTransport = selected;
+      logger.debug('Transport selected', {
+        transport: 'gRPC',
+      });
+      this.transportSelectionPromise = null;
+      return selected;
     })();
 
     return this.transportSelectionPromise;

@@ -70,20 +70,7 @@ func (h *ImageProcessorHandler) ListFilters(
 ) (*connect.Response[pb.ListFiltersResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	defaultUseGRPC := h.grpcClient != nil
-	useGRPC := defaultUseGRPC
-	if h.evaluateFFUse != nil {
-		value, err := h.evaluateFFUse.EvaluateBoolean(
-			ctx,
-			"processor_use_grpc_backend",
-			"webserver",
-			defaultUseGRPC,
-		)
-		if err == nil {
-			useGRPC = value
-		}
-	}
-
+	useGRPC := h.grpcClient != nil
 	caps, origin, err := h.capabilities.Execute(ctx, useGRPC)
 	if err != nil {
 		span.RecordError(err)

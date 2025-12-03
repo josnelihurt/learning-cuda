@@ -2400,3 +2400,25 @@ func (c *BDDContext) ThenTheFieldShouldNotBeEmpty(field string) error {
 	}
 	return nil
 }
+
+func (c *BDDContext) GetFliptAPI() *featureflags.FliptHTTPAPI {
+	return c.fliptAPI
+}
+
+func (c *BDDContext) SetObservabilityFlag(ctx context.Context, enabled bool) error {
+	flags := map[string]interface{}{
+		"observability_enabled": enabled,
+	}
+	return c.fliptAPI.SyncFlags(ctx, flags)
+}
+
+func (c *BDDContext) FlagExists(ctx context.Context, flagKey string) (bool, error) {
+	_, err := c.fliptAPI.GetFlag(ctx, flagKey)
+	if err != nil {
+		if err.Error() == "flag not found" {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}

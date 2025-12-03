@@ -309,7 +309,7 @@ Type-safe domain models:
 The `FrameTransportService` selects the appropriate transport based on feature flags:
 
 1. **WebSocket** (default): Traditional bidirectional communication
-2. **gRPC** (when `processor_use_grpc_backend` enabled): Bidirectional streaming via Connect-RPC
+2. **gRPC**: Bidirectional streaming via Connect-RPC (default and only method)
 3. **WebRTC** (future): Peer-to-peer low-latency streaming
 
 The selection is transparent to components—they use the unified `IFrameTransportService` interface.

@@ -1,6 +1,8 @@
 package steps
 
 import (
+	"fmt"
+
 	"github.com/cucumber/godog"
 )
 
@@ -130,6 +132,17 @@ func (tc *TestContext) theResponseShouldContainVideoNamed(id string) error {
 
 func (tc *TestContext) responseShouldContainVideoNamed(id string) error {
 	return tc.ThenResponseShouldContainVideo(id)
+}
+
+func (tc *TestContext) theResponseShouldContainAtLeastOneVideo() error {
+	videos, err := tc.GetVideosFromResponse()
+	if err != nil {
+		return err
+	}
+	if len(videos) == 0 {
+		return fmt.Errorf("no videos found in response")
+	}
+	return nil
 }
 
 func (tc *TestContext) eachVideoShouldHaveANonEmptyID() error {
@@ -280,6 +293,7 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain the uploaded image details$`, tc.theResponseShouldContainUploadedImageDetails)
 	ctx.Step(`^the response should contain video "([^"]*)"$`, tc.theResponseShouldContainVideoNamed)
 	ctx.Step(`^response should contain video "([^"]*)"$`, tc.responseShouldContainVideoNamed)
+	ctx.Step(`^the response should contain at least one video$`, tc.theResponseShouldContainAtLeastOneVideo)
 	ctx.Step(`^each video should have a non-empty id$`, tc.eachVideoShouldHaveANonEmptyID)
 	ctx.Step(`^each video should have a non-empty display name$`, tc.eachVideoShouldHaveANonEmptyDisplayName)
 	ctx.Step(`^each video should have a non-empty path$`, tc.eachVideoShouldHaveANonEmptyPath)
@@ -287,6 +301,7 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^at least one video should be marked as default$`, tc.atLeastOneVideoShouldBeMarkedDefault)
 	ctx.Step(`^the response should contain the uploaded video details$`, tc.theResponseShouldContainUploadedVideoDetails)
 	ctx.Step(`^the response should contain input source "([^"]*)" with type "([^"]*)"$`, tc.theResponseShouldContainInputSourceWithType)
+	ctx.Step(`^the response should contain at least one input source with type "([^"]*)"$`, tc.theResponseShouldContainAtLeastOneInputSourceWithType)
 	ctx.Step(`^the response should contain preview image path$`, tc.theResponseShouldContainPreviewImagePath)
 	ctx.Step(`^the preview file should exist on filesystem$`, tc.thePreviewFileShouldExistOnFilesystem)
 	ctx.Step(`^the preview should be a valid PNG image$`, tc.thePreviewShouldBeAValidPNGImage)

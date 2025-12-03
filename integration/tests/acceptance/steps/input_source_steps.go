@@ -9,6 +9,7 @@ import (
 func InitializeInputSourceSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I call ListInputs endpoint$`, tc.iCallListInputsEndpoint)
 	ctx.Step(`^the response should contain input source "([^"]*)" with type "([^"]*)"$`, tc.theResponseShouldContainInputSourceWithType)
+	ctx.Step(`^the response should contain at least one input source with type "([^"]*)"$`, tc.theResponseShouldContainAtLeastOneInputSourceWithType)
 	ctx.Step(`^each input source should have a non-empty id$`, tc.eachInputSourceShouldHaveNonEmptyID)
 	ctx.Step(`^each input source should have a non-empty display name$`, tc.eachInputSourceShouldHaveNonEmptyDisplayName)
 	ctx.Step(`^each input source should have a valid type$`, tc.eachInputSourceShouldHaveValidType)
@@ -21,6 +22,19 @@ func (tc *TestContext) iCallListInputsEndpoint() error {
 
 func (tc *TestContext) theResponseShouldContainInputSourceWithType(id, sourceType string) error {
 	return tc.ThenResponseShouldContainInputSource(id, sourceType)
+}
+
+func (tc *TestContext) theResponseShouldContainAtLeastOneInputSourceWithType(sourceType string) error {
+	sources, err := tc.GetInputSourcesFromResponse()
+	if err != nil {
+		return err
+	}
+	for _, src := range sources {
+		if src.Type == sourceType {
+			return nil
+		}
+	}
+	return fmt.Errorf("no input source with type %s found in response", sourceType)
 }
 
 func (tc *TestContext) eachInputSourceShouldHaveNonEmptyID() error {

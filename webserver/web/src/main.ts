@@ -127,6 +127,7 @@ const app = {
         });
         toastManager?.error('Initialization Error', 'Failed to initialize dashboard');
       }
+
     } else {
       logger.error('app-root element not found in DOM');
       toastManager?.error('Critical Error', 'Dashboard component not found');
@@ -143,5 +144,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('beforeunload', () => {
+  const activeSessions = webrtcService.getActiveSessions();
+  activeSessions.forEach((session) => {
+    webrtcService.stopHeartbeat(session.getId());
+    webrtcService.closeSession(session.getId()).catch(() => {
+      // Ignore errors during page unload
+    });
+  });
   logger.shutdown();
 });

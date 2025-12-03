@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"sync"
 
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
@@ -12,7 +11,6 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/pkg/interfaces/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/statichttp"
@@ -37,10 +35,6 @@ type App struct {
 	listVideosUC          *application.ListVideosUseCase
 	uploadVideoUC         *application.UploadVideoUseCase
 	videoRepository       domain.VideoRepository
-	registry              *loader.Registry
-	currentLoader         **loader.Loader
-	loaderMutex           *sync.RWMutex
-	cppConnector          *processor.CppConnector
 	interceptors          []connect.Interceptor
 }
 
@@ -148,30 +142,6 @@ func WithVideoRepository(repo domain.VideoRepository) Option {
 	}
 }
 
-func WithProcessorRegistry(registry *loader.Registry) Option {
-	return func(a *App) {
-		a.registry = registry
-	}
-}
-
-func WithProcessorLoader(currentLoader **loader.Loader) Option {
-	return func(a *App) {
-		a.currentLoader = currentLoader
-	}
-}
-
-func WithLoaderMutex(mu *sync.RWMutex) Option {
-	return func(a *App) {
-		a.loaderMutex = mu
-	}
-}
-
-func WithCppConnector(connector *processor.CppConnector) Option {
-	return func(a *App) {
-		a.cppConnector = connector
-	}
-}
-
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
 	if !a.config.IsObservabilityEnabled(a.appContext) {
 		return handler
@@ -212,23 +182,12 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
-	var rpcHandler *connectrpc.ImageProcessorHandler
-	if a.grpcProcessorClient != nil {
-		rpcHandler = connectrpc.NewImageProcessorHandlerWithGRPC(
-			a.useCase,
-			a.processorCapsUC,
-			a.evaluateFFUC,
-			a.config.Processor.UseGRPCForProcessor,
-			a.grpcProcessorClient,
-		)
-	} else {
-		rpcHandler = connectrpc.NewImageProcessorHandler(
-			a.useCase,
-			a.processorCapsUC,
-			a.evaluateFFUC,
-			a.config.Processor.UseGRPCForProcessor,
-		)
-	}
+	rpcHandler := connectrpc.NewImageProcessorHandlerWithGRPC(
+		a.useCase,
+		a.processorCapsUC,
+		a.evaluateFFUC,
+		a.grpcProcessorClient,
+	)
 
 	connectrpc.RegisterConfigService(
 		mux,
@@ -238,7 +197,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.evaluateFFUC,
 		a.getSystemInfoUC,
 		a.config,
-		a.cppConnector,
+		a.processorCapsUC,
 		a.interceptors...,
 	)
 
@@ -253,6 +212,12 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 
 	connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
 
+	connectrpc.RegisterWebRTCSignalingService(
+		mux,
+		a.grpcProcessorClient,
+		a.interceptors...,
+	)
+
 	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
 		ImageProcessorHandler: rpcHandler,
 		GetStreamConfigUC:     a.getStreamConfigUC,
@@ -260,11 +225,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		ListInputsUC:          a.listInputsUC,
 		EvaluateFFUC:          a.evaluateFFUC,
 		GetSystemInfoUC:       a.getSystemInfoUC,
-		Registry:              a.registry,
-		CurrentLoader:         a.currentLoader,
-		LoaderMutex:           a.loaderMutex,
 		ConfigManager:         a.config,
-		CppConnector:          a.cppConnector,
+		ProcessorCapsUC:       a.processorCapsUC,
 		ListAvailableImagesUC: a.listAvailableImagesUC,
 		UploadImageUC:         a.uploadImageUC,
 		ListVideosUC:          a.listVideosUC,
@@ -280,7 +242,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.config.Flipt.URL,
 		a.evaluateFFUC,
 		a.grpcProcessor,
-		a.config.Processor.UseGRPCForProcessor,
 	)
 	serveIndex := staticHandler.GetServeIndex()
 
@@ -330,7 +291,6 @@ func (a *App) setupStaticHandler(mux *http.ServeMux) {
 		a.config.Flipt.URL,
 		a.evaluateFFUC,
 		a.grpcProcessor,
-		a.config.Processor.UseGRPCForProcessor,
 	)
 	staticHandler.RegisterRoutes(mux)
 }

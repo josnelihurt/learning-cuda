@@ -144,7 +144,17 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
           this.genericFiltersLoaded = true;
 
           if (this.genericFilters.length > 0) {
-            this.filters = this.genericFilters.map(createFilterFromGenericDefinition);
+            // Use generic filters if we don't have filters from capabilities, otherwise merge
+            if (this.filters.length === 0) {
+              this.filters = this.genericFilters.map(createFilterFromGenericDefinition);
+            } else {
+              // Merge generic filters with existing filters, avoiding duplicates
+              const existingIds = new Set(this.filters.map(f => f.id));
+              const newFilters = this.genericFilters
+                .filter(gf => !existingIds.has(gf.id))
+                .map(createFilterFromGenericDefinition);
+              this.filters = [...this.filters, ...newFilters];
+            }
             this.notifyFilterListeners();
           }
 

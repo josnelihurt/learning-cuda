@@ -2,6 +2,8 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
+declare const __APP_VERSION__: string;
+
 type TourStep = {
   id: string;
   selector: string;
@@ -10,6 +12,7 @@ type TourStep = {
 };
 
 const DISMISS_KEY = 'cuda-app-tour-dismissed';
+const COMMIT_HASH_KEY = 'cuda-app-tour-commit-hash';
 
 @customElement('app-tour')
 export class AppTour extends LitElement {
@@ -208,6 +211,20 @@ export class AppTour extends LitElement {
       title: 'Version Details',
       description: 'Click the info icon to see build details for the frontend, backend, CPP library and more.',
     },
+    {
+      id: 'connection-status',
+      selector: 'stats-panel',
+      title: 'Connection Status',
+      description:
+        'Monitor connection status for WebSocket, gRPC, and WebRTC. Each card shows the connection state, last request, and time since last activity. Hover over the protocol name to see the full connection state.',
+    },
+    {
+      id: 'stats-panel-toggle',
+      selector: 'stats-panel',
+      title: 'Stats Panel Toggle',
+      description:
+        'Use the toggle button (▼) in the bottom-right corner to hide or show the stats panel. When collapsed, the panel gives you more workspace area.',
+    },
   ];
 
   private currentTarget: HTMLElement | null = null;
@@ -313,6 +330,7 @@ export class AppTour extends LitElement {
   private dismiss(): void {
     try {
       localStorage.setItem(DISMISS_KEY, 'true');
+      localStorage.setItem(COMMIT_HASH_KEY, __APP_VERSION__);
     } catch {
       // ignore storage errors
     }
@@ -320,7 +338,19 @@ export class AppTour extends LitElement {
 
   private isDismissed(): boolean {
     try {
-      return localStorage.getItem(DISMISS_KEY) === 'true';
+      const dismissed = localStorage.getItem(DISMISS_KEY) === 'true';
+      const savedCommitHash = localStorage.getItem(COMMIT_HASH_KEY);
+      const currentCommitHash = __APP_VERSION__;
+
+      if (!dismissed) {
+        return false;
+      }
+
+      if (!savedCommitHash || savedCommitHash !== currentCommitHash) {
+        return false;
+      }
+
+      return true;
     } catch {
       return false;
     }
@@ -354,7 +384,7 @@ export class AppTour extends LitElement {
         width: `${fallbackRect.width}px`,
         height: `${fallbackRect.height}px`,
       };
-      const { style, placement } = this.calculateTooltipPosition(fallbackRect);
+      const { style, placement } = this.calculateTooltipPosition(fallbackRect, step.id);
       this.tooltipStyle = style;
       this.tooltipPlacement = placement;
       return;
@@ -376,13 +406,14 @@ export class AppTour extends LitElement {
       height: `${rect.height + padding * 2}px`,
     };
 
-    const { style, placement } = this.calculateTooltipPosition(rect);
+    const { style, placement } = this.calculateTooltipPosition(rect, step.id);
     this.tooltipStyle = style;
     this.tooltipPlacement = placement;
   }
 
   private calculateTooltipPosition(
-    rect: DOMRect
+    rect: DOMRect,
+    stepId?: string
   ): { style: Record<string, string>; placement: 'right' | 'left' | 'top' | 'bottom' } {
     const margin = 20;
     const tooltipWidth = 320;
@@ -393,6 +424,39 @@ export class AppTour extends LitElement {
     const centerX = rect.left + rect.width / 2;
 
     const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+    if (stepId === 'stats-panel-toggle') {
+      const toggleButtonWidth = 20;
+      const toggleButtonHeight = 20;
+      const toggleRight = viewportWidth - 12;
+      const toggleBottom = viewportHeight;
+      const toggleLeft = toggleRight - toggleButtonWidth;
+      const toggleTop = toggleBottom - toggleButtonHeight;
+      
+      const left = clamp(toggleLeft - tooltipWidth / 2 + toggleButtonWidth / 2, margin, viewportWidth - tooltipWidth - margin);
+      const top = clamp(toggleTop - tooltipHeight - margin, margin, viewportHeight - tooltipHeight - margin);
+      return {
+        style: {
+          top: `${top}px`,
+          left: `${left}px`,
+        },
+        placement: 'top',
+      };
+    }
+
+    const isBottomElement = rect.top > viewportHeight / 2;
+
+    if (isBottomElement) {
+      const left = clamp(centerX - tooltipWidth / 2, margin, viewportWidth - tooltipWidth - margin);
+      const top = clamp(rect.top - tooltipHeight - margin, margin, viewportHeight - tooltipHeight - margin);
+      return {
+        style: {
+          top: `${top}px`,
+          left: `${left}px`,
+        },
+        placement: 'top',
+      };
+    }
 
     if (rect.right + margin + tooltipWidth <= viewportWidth) {
       const top = clamp(centerY - tooltipHeight / 2, margin, viewportHeight - tooltipHeight - margin);

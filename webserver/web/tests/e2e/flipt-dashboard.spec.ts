@@ -3,7 +3,7 @@ import { getBaseUrl, getFliptDashboardUrlPattern } from './utils/test-helpers';
 
 test.describe('Flipt Dashboard Integration', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto(getBaseUrl(), { waitUntil: 'networkidle' });
+        await page.goto(getBaseUrl(), { waitUntil: 'domcontentloaded' });
     });
 
     test('opens Flipt dashboard when clicking Flipt Feature Flags', async ({ context, page }) => {

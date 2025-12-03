@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { filterPanelStyles } from './filter-panel.styles';
 import { Filter, formatParameterLabel, ActiveFilterState } from './filter-panel.types';
-import { logger } from '../../services/otel-logger';
+import { logger } from '../../infrastructure/observability/otel-logger';
 import type { ToastContainer } from './toast-container';
 
 @customElement('filter-panel')
@@ -22,7 +22,14 @@ export class FilterPanel extends LitElement {
     this.setupNumberInputListeners();
   }
 
-  updated() {
+  updated(changedProperties: Map<PropertyKey, unknown>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('filters')) {
+      logger.debug('FilterPanel filters updated', {
+        'filters.count': this.filters.length,
+        'filters': this.filters.map((f) => f.name).join(','),
+      });
+    }
     this.setupNumberInputListeners();
   }
 
@@ -75,7 +82,9 @@ export class FilterPanel extends LitElement {
         <label class="control-label"> Filters <span class="hint">(drag to reorder)</span> </label>
 
         <div class="filters-list">
-          ${this.filters.map((filter, index) => this.renderFilterCard(filter, index))}
+          ${this.filters.length === 0
+            ? html`<div class="no-filters">No filters available</div>`
+            : this.filters.map((filter, index) => this.renderFilterCard(filter, index))}
         </div>
       </div>
     `;
@@ -141,11 +150,25 @@ export class FilterPanel extends LitElement {
     const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';
 
     if (param.type === 'select') {
+      const options = param.options || [];
+      if (options.length === 0) {
+        logger.warn('Filter parameter has no options', {
+          'filter.id': filter.id,
+          'param.id': param.id,
+          'param.name': param.name,
+        });
+        return html`
+          <div class="param-control">
+            <label class="param-label">${param.name}</label>
+            <div class="no-options">No options available</div>
+          </div>
+        `;
+      }
       return html`
         <div class="param-control">
           <label class="param-label">${param.name}</label>
           <div class="radio-group">
-            ${param.options.map(
+            ${options.map(
               (option: { value: string; label: string }) => html`
                 <label class="radio-option">
                   <input

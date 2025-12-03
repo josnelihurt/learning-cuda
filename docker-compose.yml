@@ -3,20 +3,6 @@ services:
     image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda:arm64-latest}
     container_name: cuda-image-processor
     restart: unless-stopped
-    runtime: nvidia
-    
-    
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu, compute, utility]
-    
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
     
     volumes:
       - ./data:/data:ro

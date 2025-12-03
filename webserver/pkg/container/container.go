@@ -3,13 +3,11 @@ package container
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	"github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build"
 	configrepo "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
@@ -17,7 +15,6 @@ import (
 	httpinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/version"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/video"
 	flipt "go.flipt.io/flipt-client"
@@ -44,10 +41,6 @@ type Container struct {
 	ListVideosUseCase          *application.ListVideosUseCase
 	UploadVideoUseCase         *application.UploadVideoUseCase
 
-	CppConnector        *processor.CppConnector
-	ProcessorRegistry   *loader.Registry
-	ProcessorLoader     *loader.Loader
-	LoaderMutex         *sync.RWMutex
 	GRPCProcessorClient *processor.GRPCClient
 
 	fliptClientProxy featureflags.FliptClientInterface
@@ -107,73 +100,28 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	buildInfoRepo := build.NewBuildInfoRepository(buildInfo)
 	versionRepo := version.NewVersionRepository()
 
-	// Read C++ version from VERSION file
-	cppVersion := versionRepo.GetCppVersion()
-	if cppVersion == version.UnknownValue {
-		return nil, fmt.Errorf("failed to read C++ version from VERSION file")
+	if cfg.Processor.GRPCServerAddress == "" {
+		return nil, fmt.Errorf("processor.grpc_server_address is required but not configured")
 	}
 
-	// Discover and load the specific C++ library version
-	registry := loader.NewRegistry(cfg.Processor.LibraryBasePath)
-	if discoverErr := registry.Discover(); discoverErr != nil {
-		return nil, fmt.Errorf("failed to discover processor libraries: %w", discoverErr)
-	}
-
-	libInfo, err := registry.GetByVersion(cppVersion)
+	grpcClient, err := processor.NewGRPCClient(ctx, processor.GRPCClientConfig{
+		Address:      cfg.Processor.GRPCServerAddress,
+		DialTimeout:  5 * time.Second,
+		MaxRecvBytes: 64 * 1024 * 1024,
+		MaxSendBytes: 64 * 1024 * 1024,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("c++ library version %s not found: %w", cppVersion, err)
+		return nil, fmt.Errorf("failed to initialize gRPC processor client (required): %w", err)
 	}
-
 	log.Info().
-		Str("library_path", libInfo.Path).
-		Str("version", cppVersion).
-		Msg("Loading processor library")
-
-	processorLoader, err := registry.LoadLibrary(cppVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load C++ library version %s: %w", cppVersion, err)
-	}
-
-	cppConnector, err := processor.New(libInfo.Path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create C++ connector: %w", err)
-	}
-
-	var grpcClient *processor.GRPCClient
-	if cfg.Processor.UseGRPCForProcessor {
-		client, clientErr := processor.NewGRPCClient(ctx, processor.GRPCClientConfig{
-			Address:      cfg.Processor.GRPCServerAddress,
-			DialTimeout:  5 * time.Second,
-			MaxRecvBytes: 64 * 1024 * 1024,
-			MaxSendBytes: 64 * 1024 * 1024,
-		})
-		if clientErr != nil {
-			log.Warn().
-				Err(clientErr).
-				Str("grpc_address", cfg.Processor.GRPCServerAddress).
-				Msg("Failed to initialize gRPC processor client, falling back to C++ connector")
-		} else {
-			grpcClient = client
-			log.Info().
-				Str("grpc_address", cfg.Processor.GRPCServerAddress).
-				Msg("gRPC client initialized successfully")
-		}
-	}
+		Str("grpc_address", cfg.Processor.GRPCServerAddress).
+		Msg("gRPC client initialized successfully")
 
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 
 	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
-
-	cppCapsRepo := processor.NewCPPCapabilitiesRepository(cppConnector)
-
-	var grpcCapsRepo interfaces.ProcessorCapabilitiesRepository
-	if grpcClient != nil {
-		grpcCapsRepo = processor.NewGRPCRepository(grpcClient)
-	}
-
-	_ = application.NewProcessorCapabilitiesUseCase(cppCapsRepo, grpcCapsRepo)
 
 	videoRepo := video.NewFileVideoRepository(context.Background(), "data/videos", "data/video_previews") //nolint:contextcheck
 	listInputsUseCase := application.NewListInputsUseCase(videoRepo)
@@ -202,10 +150,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		UploadImageUseCase:         uploadImageUseCase,
 		ListVideosUseCase:          listVideosUseCase,
 		UploadVideoUseCase:         uploadVideoUseCase,
-		CppConnector:               cppConnector,
-		ProcessorRegistry:          registry,
-		ProcessorLoader:            processorLoader,
-		LoaderMutex:                &sync.RWMutex{},
 		GRPCProcessorClient:        grpcClient,
 		fliptClientProxy:           fliptClientProxy,
 	}, nil
@@ -213,10 +157,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 func (c *Container) Close(ctx context.Context) error {
 	log := logger.Global()
-
-	if c.CppConnector != nil {
-		c.CppConnector.Close()
-	}
 
 	if c.GRPCProcessorClient != nil {
 		if err := c.GRPCProcessorClient.Close(); err != nil {

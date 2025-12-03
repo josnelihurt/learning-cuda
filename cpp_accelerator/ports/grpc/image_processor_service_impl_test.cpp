@@ -22,7 +22,7 @@ namespace jrb::ports::grpc_service {
 namespace {
 
 class FakeEngineProvider : public ProcessorEngineProvider {
- public:
+public:
   bool process_should_succeed = true;
   std::string last_error_message = "failure";
   int processed_requests = 0;
@@ -86,12 +86,12 @@ class FakeEngineProvider : public ProcessorEngineProvider {
 
   std::string last_request_trace_id;
 
- private:
+private:
   cuda_learning::GetCapabilitiesResponse capabilities_response_;
 };
 
 class ImageProcessorGrpcServiceTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     provider_ = std::make_shared<FakeEngineProvider>();
     service_ = std::make_unique<ImageProcessorServiceImpl>(provider_);
@@ -225,5 +225,3 @@ TEST_F(ImageProcessorGrpcServiceTest, GetVersionInfoReturnsVersionData) {
 }  // namespace
 
 }  // namespace jrb::ports::grpc_service
-
-

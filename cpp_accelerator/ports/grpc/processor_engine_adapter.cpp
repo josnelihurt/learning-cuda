@@ -30,8 +30,9 @@ bool ProcessorEngineAdapter::GetVersionInfo(cuda_learning::GetVersionInfoRespons
   }
 
   std::string server_version;
-  static const char* version_file_paths[] = {"cpp_accelerator/VERSION", "../cpp_accelerator/VERSION",
-                                              "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
+  static const char* version_file_paths[] = {"cpp_accelerator/VERSION",
+                                             "../cpp_accelerator/VERSION",
+                                             "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
 
   bool found = false;
   for (int i = 0; version_file_paths[i] != nullptr && !found; ++i) {
@@ -69,5 +70,3 @@ bool ProcessorEngineAdapter::GetVersionInfo(cuda_learning::GetVersionInfoRespons
 }
 
 }  // namespace jrb::ports::grpc_service
-
-

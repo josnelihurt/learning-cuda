@@ -22,7 +22,7 @@
                 <sync-flags-button style="display: none;"></sync-flags-button>
             </div>
             <div class="navbar-credit">
-                by <a href="https://josnelihurt.me" target="_blank">josnelihurt</a>
+                <span id="credit-by" style="cursor: pointer;" title="Click to clear localStorage">by</span> <a href="https://josnelihurt.me" target="_blank">josnelihurt</a>
                 <version-tooltip-lit>
                     <button class="info-btn" title="Version Information">
                         <span>i</span>
@@ -65,6 +65,15 @@
             const fliptBtn = document.getElementById('fliptBtn');
             if (jaegerBtn) jaegerBtn.href = `http://${hostname}:16686`;
             if (fliptBtn) fliptBtn.href = `http://${hostname}:8081`;
+            
+            const creditBy = document.getElementById('credit-by');
+            if (creditBy) {
+                creditBy.addEventListener('click', function() {
+                    localStorage.clear();
+                    console.log('LocalStorage cleared');
+                    alert('LocalStorage cleared!');
+                });
+            }
         });
     </script>
 </body>

@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { systemInfoService } from '../../services/system-info-service';
-import { grpcVersionService } from '../../services/grpc-version-service';
+import { systemInfoService } from '../../infrastructure/external/system-info-service';
+import { grpcVersionService } from '../../infrastructure/external/grpc-version-service';
 import { GetSystemInfoResponse } from '../../gen/config_service_pb';
 import { GetVersionInfoResponse } from '../../gen/image_processor_service_pb';
 

@@ -53,14 +53,16 @@ cuda_learning::GenericFilterParameterType ConvertParameterType(const std::string
 
 }  // namespace
 
-ImageProcessorServiceImpl::ImageProcessorServiceImpl(std::shared_ptr<ProcessorEngineProvider> engine)
+ImageProcessorServiceImpl::ImageProcessorServiceImpl(
+    std::shared_ptr<ProcessorEngineProvider> engine)
     : engine_(std::move(engine)) {}
 
 ::grpc::Status ImageProcessorServiceImpl::ProcessImage(
     ::grpc::ServerContext* /*context*/, const cuda_learning::ProcessImageRequest* request,
     cuda_learning::ProcessImageResponse* response) {
   if (!EnsureEngine() || request == nullptr || response == nullptr) {
-    return ::grpc::Status(::grpc::StatusCode::FAILED_PRECONDITION, "Processor engine not available");
+    return ::grpc::Status(::grpc::StatusCode::FAILED_PRECONDITION,
+                          "Processor engine not available");
   }
 
   CopyProcessMetadata(*request, response);
@@ -74,11 +76,12 @@ ImageProcessorServiceImpl::ImageProcessorServiceImpl(std::shared_ptr<ProcessorEn
   return ::grpc::Status::OK;
 }
 
-::grpc::Status ImageProcessorServiceImpl::ListFilters(::grpc::ServerContext* /*context*/,
-                                                      const cuda_learning::ListFiltersRequest* request,
-                                                      cuda_learning::ListFiltersResponse* response) {
+::grpc::Status ImageProcessorServiceImpl::ListFilters(
+    ::grpc::ServerContext* /*context*/, const cuda_learning::ListFiltersRequest* request,
+    cuda_learning::ListFiltersResponse* response) {
   if (!EnsureEngine() || request == nullptr || response == nullptr) {
-    return ::grpc::Status(::grpc::StatusCode::FAILED_PRECONDITION, "Processor engine not available");
+    return ::grpc::Status(::grpc::StatusCode::FAILED_PRECONDITION,
+                          "Processor engine not available");
   }
 
   response->clear_filters();
@@ -94,7 +97,8 @@ ImageProcessorServiceImpl::ImageProcessorServiceImpl(std::shared_ptr<ProcessorEn
     ::grpc::ServerReaderWriter<cuda_learning::ProcessImageResponse,
                                cuda_learning::ProcessImageRequest>* stream) {
   if (!EnsureEngine() || stream == nullptr) {
-    return ::grpc::Status(::grpc::StatusCode::FAILED_PRECONDITION, "Processor engine not available");
+    return ::grpc::Status(::grpc::StatusCode::FAILED_PRECONDITION,
+                          "Processor engine not available");
   }
 
   cuda_learning::ProcessImageRequest request;
@@ -102,7 +106,7 @@ ImageProcessorServiceImpl::ImageProcessorServiceImpl(std::shared_ptr<ProcessorEn
     cuda_learning::ProcessImageResponse response;
     CopyProcessMetadata(request, &response);
 
-  bool ok = engine_->ProcessImage(request, &response);
+    bool ok = engine_->ProcessImage(request, &response);
     if (!ok || response.code() != 0) {
       spdlog::warn("StreamProcessVideo frame failed (code={}): {}", response.code(),
                    response.message());
@@ -116,7 +120,9 @@ ImageProcessorServiceImpl::ImageProcessorServiceImpl(std::shared_ptr<ProcessorEn
   return ::grpc::Status::OK;
 }
 
-bool ImageProcessorServiceImpl::EnsureEngine() const { return static_cast<bool>(engine_); }
+bool ImageProcessorServiceImpl::EnsureEngine() const {
+  return static_cast<bool>(engine_);
+}
 
 void ImageProcessorServiceImpl::CopyTraceContext(const cuda_learning::TraceContext& source,
                                                  cuda_learning::TraceContext* target) const {
@@ -190,8 +196,9 @@ void ImageProcessorServiceImpl::PopulateListFiltersResponse(
   CopyTraceContext(request->trace_context(), response->mutable_trace_context());
 
   std::string server_version;
-  static const char* version_file_paths[] = {"cpp_accelerator/VERSION", "../cpp_accelerator/VERSION",
-                                              "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
+  static const char* version_file_paths[] = {"cpp_accelerator/VERSION",
+                                             "../cpp_accelerator/VERSION",
+                                             "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
 
   bool found = false;
   for (int i = 0; version_file_paths[i] != nullptr && !found; ++i) {
@@ -201,7 +208,8 @@ void ImageProcessorServiceImpl::PopulateListFiltersResponse(
       file.close();
       if (!server_version.empty()) {
         found = true;
-        spdlog::info("Server version loaded from file: {} = {}", version_file_paths[i], server_version);
+        spdlog::info("Server version loaded from file: {} = {}", version_file_paths[i],
+                     server_version);
       }
     }
   }
@@ -235,5 +243,3 @@ void ImageProcessorServiceImpl::PopulateListFiltersResponse(
 }
 
 }  // namespace jrb::ports::grpc_service
-
-

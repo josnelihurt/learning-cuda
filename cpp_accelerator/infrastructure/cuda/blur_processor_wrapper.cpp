@@ -92,7 +92,7 @@ bool CudaGaussianBlurFilter::Apply(FilterContext& context) {
   scoped_span.SetAttribute("kernel.separable", separable_);
 
   scoped_span.AddEvent(separable_ ? "Calling pure CUDA separable blur kernel"
-                                   : "Calling pure CUDA non-separable blur kernel");
+                                  : "Calling pure CUDA non-separable blur kernel");
 
   cudaError_t error;
   if (separable_) {

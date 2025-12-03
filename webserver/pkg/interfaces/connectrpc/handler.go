@@ -2,7 +2,6 @@ package connectrpc
 
 import (
 	"context"
-	"fmt"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
@@ -14,30 +13,13 @@ import (
 )
 
 type ImageProcessorHandler struct {
-	useCase        *application.ProcessImageUseCase
-	adapter        *adapters.ProtobufAdapter
-	filterCodec    *adapters.FilterCodec
-	capabilities   application.ProcessorCapabilitiesUseCase
-	evaluateFFUse  *application.EvaluateFeatureFlagUseCase
-	defaultUseGRPC bool
-	grpcClient     interface {
+	useCase       *application.ProcessImageUseCase
+	adapter       *adapters.ProtobufAdapter
+	filterCodec   *adapters.FilterCodec
+	capabilities  application.ProcessorCapabilitiesUseCase
+	evaluateFFUse *application.EvaluateFeatureFlagUseCase
+	grpcClient    interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
-	}
-}
-
-func NewImageProcessorHandler(
-	useCase *application.ProcessImageUseCase,
-	capabilitiesUC application.ProcessorCapabilitiesUseCase,
-	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
-	defaultUseGRPC bool,
-) *ImageProcessorHandler {
-	return &ImageProcessorHandler{
-		useCase:        useCase,
-		adapter:        adapters.NewProtobufAdapter(),
-		filterCodec:    adapters.NewFilterCodec(),
-		capabilities:   capabilitiesUC,
-		evaluateFFUse:  evaluateFFUse,
-		defaultUseGRPC: defaultUseGRPC,
 	}
 }
 
@@ -45,19 +27,17 @@ func NewImageProcessorHandlerWithGRPC(
 	useCase *application.ProcessImageUseCase,
 	capabilitiesUC application.ProcessorCapabilitiesUseCase,
 	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
-	defaultUseGRPC bool,
 	grpcClient interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	},
 ) *ImageProcessorHandler {
 	return &ImageProcessorHandler{
-		useCase:        useCase,
-		adapter:        adapters.NewProtobufAdapter(),
-		filterCodec:    adapters.NewFilterCodec(),
-		capabilities:   capabilitiesUC,
-		evaluateFFUse:  evaluateFFUse,
-		defaultUseGRPC: defaultUseGRPC,
-		grpcClient:     grpcClient,
+		useCase:       useCase,
+		adapter:       adapters.NewProtobufAdapter(),
+		filterCodec:   adapters.NewFilterCodec(),
+		capabilities:  capabilitiesUC,
+		evaluateFFUse: evaluateFFUse,
+		grpcClient:    grpcClient,
 	}
 }
 
@@ -90,13 +70,14 @@ func (h *ImageProcessorHandler) ListFilters(
 ) (*connect.Response[pb.ListFiltersResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	useGRPC := h.defaultUseGRPC
+	defaultUseGRPC := h.grpcClient != nil
+	useGRPC := defaultUseGRPC
 	if h.evaluateFFUse != nil {
 		value, err := h.evaluateFFUse.EvaluateBoolean(
 			ctx,
 			"processor_use_grpc_backend",
 			"webserver",
-			h.defaultUseGRPC,
+			defaultUseGRPC,
 		)
 		if err == nil {
 			useGRPC = value
@@ -149,13 +130,6 @@ func (h *ImageProcessorHandler) GetVersionInfo(
 	ctx context.Context,
 	req *connect.Request[pb.GetVersionInfoRequest],
 ) (*connect.Response[pb.GetVersionInfoResponse], error) {
-	if h.grpcClient == nil {
-		return nil, connect.NewError(
-			connect.CodeUnavailable,
-			fmt.Errorf("gRPC client not available"),
-		)
-	}
-
 	grpcReq := &pb.GetVersionInfoRequest{
 		ApiVersion:   req.Msg.ApiVersion,
 		TraceContext: req.Msg.TraceContext,

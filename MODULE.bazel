@@ -154,8 +154,9 @@ http_archive(
 http_archive(
     name = "com_github_paullouisageneau_libdatachannel",
     build_file = "//bazel/third_party:libdatachannel.BUILD",
-    strip_prefix = "libdatachannel-0.18.7",
-    urls = ["https://github.com/paullouisageneau/libdatachannel/archive/refs/tags/v0.18.7.tar.gz"],
+    integrity = "sha256-YqTR+0Pfc1SbvtnYIWHSv4sTlr7ipQdZudio0D5iqxI=",
+    strip_prefix = "libdatachannel-0.24.0",
+    urls = ["https://github.com/paullouisageneau/libdatachannel/archive/refs/tags/v0.24.0.tar.gz"],
 )
 
 http_archive(
@@ -164,18 +165,139 @@ http_archive(
 cc_library(
     name = "usrsctp",
     srcs = glob([
-        "usrsctplib/usrsctplib/*.c",
+        "usrsctplib/**/*.c",
     ]),
     hdrs = glob([
-        "usrsctplib/usrsctplib/*.h",
+        "usrsctplib/**/*.h",
     ]),
-    includes = ["usrsctplib/usrsctplib"],
+    includes = ["usrsctplib"],
     visibility = ["//visibility:public"],
-    copts = ["-w"],
+    copts = [
+        "-w",
+        "-D__Userspace__",
+        "-D__Userspace_os_Linux",
+        "-DSCTP_SIMPLE_ALLOCATOR",
+        "-DSCTP_PROCESS_LEVEL_LOCKS",
+    ],
 )
 """,
+    integrity = "sha256-JgEHyvMYZQpXqMqlk1UOObymlD6T+XDIDWwX5Z1izZI=",
     strip_prefix = "usrsctp-0.9.5.0",
     urls = ["https://github.com/sctplab/usrsctp/archive/refs/tags/0.9.5.0.tar.gz"],
+)
+
+http_archive(
+    name = "com_github_sergius02_plog",
+    build_file_content = """
+cc_library(
+    name = "plog",
+    hdrs = glob([
+        "include/plog/**/*.h",
+    ]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)
+""",
+    strip_prefix = "plog-1.1.9",
+    urls = ["https://github.com/SergiusTheBest/plog/archive/refs/tags/1.1.9.tar.gz"],
+)
+
+http_archive(
+    name = "com_github_cisco_libsrtp",
+    build_file_content = """
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+cc_library(
+    name = "srtp2",
+    srcs = [
+        "crypto/cipher/aes.c",
+        "crypto/cipher/aes_icm.c",
+        "crypto/cipher/cipher.c",
+        "crypto/cipher/null_cipher.c",
+        "crypto/hash/auth.c",
+        "crypto/hash/hmac.c",
+        "crypto/hash/null_auth.c",
+        "crypto/hash/sha1.c",
+        "crypto/hash/auth_test_cases.c",
+        "crypto/cipher/cipher_test_cases.c",
+        "crypto/kernel/alloc.c",
+        "crypto/kernel/crypto_kernel.c",
+        "crypto/kernel/err.c",
+        "crypto/kernel/key.c",
+        "crypto/math/datatypes.c",
+        "crypto/replay/rdb.c",
+        "crypto/replay/rdbx.c",
+        "srtp/srtp.c",
+    ],
+    hdrs = glob([
+        "include/**/*.h",
+        "crypto/include/**/*.h",
+        "crypto/**/*.h",
+    ], exclude = [
+        "**/*test*.c",
+        "**/*test*.h",
+    ]) + glob([
+        "srtp/*.h",
+    ], allow_empty = True) + [
+        "config.h",
+        "crypto/hash/auth_test_cases.h",
+        "crypto/cipher/cipher_test_cases.h",
+    ],
+    includes = ["include", "crypto/include", "crypto", "."],
+    visibility = ["//visibility:public"],
+    copts = [
+        "-w",
+        "-DHAVE_CONFIG_H",
+        "-DHAVE_STDLIB_H=1",
+        "-DHAVE_STRING_H=1",
+        "-DHAVE_STDINT_H=1",
+        "-DHAVE_INTTYPES_H=1",
+        "-DHAVE_SYS_TYPES_H=1",
+        "-DHAVE_NETINET_IN_H=1",
+        "-DHAVE_ARPA_INET_H=1",
+        "-DHAVE_SYS_SOCKET_H=1",
+        "-DHAVE_STDIO_H=1",
+        "-DHAVE_TIME_H=1",
+        "-DHAVE_UNISTD_H=1",
+        "-DHAVE_MEMORY_H=1",
+        "-DHAVE_ERRNO_H=1",
+        "-DPACKAGE_VERSION=\\\"2.5.0\\\"",
+        "-DPACKAGE_NAME=\\\"libsrtp\\\"",
+        "-DGCM",
+        "-DCPU_CISC",
+        "-DHAVE_UINT64_T=1",
+        "-DHAVE_UINT32_T=1",
+        "-DHAVE_UINT16_T=1",
+        "-DHAVE_UINT8_T=1",
+        "-UGCM",
+    ],
+    deps = [],
+)
+""",
+    patch_cmds = [
+        "echo '#define HAVE_STDLIB_H 1' > config.h",
+        "echo '#define HAVE_STRING_H 1' >> config.h",
+        "echo '#define HAVE_STDINT_H 1' >> config.h",
+        "echo '#define HAVE_INTTYPES_H 1' >> config.h",
+        "echo '#define HAVE_SYS_TYPES_H 1' >> config.h",
+        "echo '#define HAVE_NETINET_IN_H 1' >> config.h",
+        "echo '#define HAVE_ARPA_INET_H 1' >> config.h",
+        "echo '#define HAVE_SYS_SOCKET_H 1' >> config.h",
+        "echo '#define HAVE_STDIO_H 1' >> config.h",
+        "echo '#define HAVE_TIME_H 1' >> config.h",
+        "echo '#define HAVE_UNISTD_H 1' >> config.h",
+        "echo '#define HAVE_MEMORY_H 1' >> config.h",
+        "echo '#define HAVE_ERRNO_H 1' >> config.h",
+        "echo '#define HAVE_UINT64_T 1' >> config.h",
+        "echo '#define HAVE_UINT32_T 1' >> config.h",
+        "echo '#define HAVE_UINT16_T 1' >> config.h",
+        "echo '#define HAVE_UINT8_T 1' >> config.h",
+        "echo '#define PACKAGE_VERSION \"2.5.0\"' >> config.h",
+        "echo '#define PACKAGE_NAME \"libsrtp\"' >> config.h",
+        "echo '#define PACKAGE_STRING \"libsrtp 2.5.0\"' >> config.h",
+    ],
+    strip_prefix = "libsrtp-2.5.0",
+    urls = ["https://github.com/cisco/libsrtp/archive/refs/tags/v2.5.0.tar.gz"],
 )
 
 http_archive(
@@ -188,15 +310,17 @@ cc_library(
     ]),
     hdrs = glob([
         "include/juice/*.h",
+        "src/*.h",
     ]),
-    includes = ["include"],
+    includes = ["include", "include/juice", "src"],
     visibility = ["//visibility:public"],
     copts = ["-w"],
     deps = [],
 )
 """,
-    strip_prefix = "libjuice-1.3.3",
-    urls = ["https://github.com/paullouisageneau/libjuice/archive/refs/tags/v1.3.3.tar.gz"],
+    integrity = "sha256-pRDH35DYJzHR1eMuMiBdM3DsLmLWIw/+exmw88Gsq/I=",
+    strip_prefix = "libjuice-1.7.0",
+    urls = ["https://github.com/paullouisageneau/libjuice/archive/refs/tags/v1.7.0.tar.gz"],
 )
 
 # gRPC core and pinned third-party repos

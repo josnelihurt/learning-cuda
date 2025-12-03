@@ -21,7 +21,7 @@ func TestNewConfigHandler(t *testing.T) {
 		nil, // evaluateFFUseCase
 		nil, // getSystemInfoUseCase
 		mockConfigManager,
-		nil, // cppConnector
+		nil, // processorCapsUC
 	)
 
 	// Assert

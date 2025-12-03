@@ -14,12 +14,29 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+genrule(
+    name = "library_version_private",
+    srcs = ["//:cpp_accelerator/VERSION"],
+    outs = ["library_version_private.h"],
+    cmd = "VERSION=$$(cat $(location //:cpp_accelerator/VERSION) | tr -d '[:space:]'); echo '#pragma once' > $@; echo '#define LIBRARY_VERSION \"'$$VERSION'\"' >> $@",
+)
+
+cc_library(
+    name = "library_version",
+    hdrs = [
+        "library_version.h",
+        ":library_version_private",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "processor_engine",
     srcs = ["processor_engine.cpp"],
     hdrs = ["processor_engine.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":library_version",
         ":processor_api",
         "//cpp_accelerator/application/pipeline:filter_pipeline",
         "//cpp_accelerator/core:logger",
@@ -45,6 +62,7 @@ cc_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":image_buffer_adapter",
+        ":library_version",
         ":processor_engine",
         "//cpp_accelerator/core:logger",
         "//cpp_accelerator/core:telemetry",

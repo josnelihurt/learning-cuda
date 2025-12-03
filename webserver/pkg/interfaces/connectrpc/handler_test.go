@@ -22,9 +22,15 @@ func (m *mockCapabilitiesProvider) Execute(_ context.Context, _ bool) (*pb.Libra
 		return nil, "", errors.New("capabilities not available")
 	}
 	if m.origin == "" {
-		m.origin = application.ProcessorBackendOriginCGO
+		m.origin = application.ProcessorBackendOriginGRPCServer
 	}
 	return m.capabilities, m.origin, nil
+}
+
+type mockGRPCClient struct{}
+
+func (m *mockGRPCClient) GetVersionInfo(_ context.Context, _ *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error) {
+	return nil, errors.New("not implemented in mock")
 }
 
 func makeLibraryCapabilities() *pb.LibraryCapabilities {
@@ -89,7 +95,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	}{
 		{
 			name:     "Success_ReturnsGenericFilters",
-			provider: &mockCapabilitiesProvider{capabilities: makeLibraryCapabilities(), origin: application.ProcessorBackendOriginCGO},
+			provider: &mockCapabilitiesProvider{capabilities: makeLibraryCapabilities(), origin: application.ProcessorBackendOriginGRPCServer},
 			assertResult: func(t *testing.T, resp *connect.Response[pb.ListFiltersResponse], err error) {
 				// Assert
 				require.NoError(t, err)
@@ -111,7 +117,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 				assert.Equal(t, pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_RANGE, blur.Parameters[0].Type)
 				assert.Equal(t, pb.GenericFilterParameterType_GENERIC_FILTER_PARAMETER_TYPE_NUMBER, blur.Parameters[1].Type)
 
-				assert.Equal(t, "cgo", resp.Header().Get("X-Processor-Backend"))
+				assert.Equal(t, "grpc_server", resp.Header().Get("X-Processor-Backend"))
 			},
 		},
 		{
@@ -132,7 +138,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			sut := NewImageProcessorHandler((*application.ProcessImageUseCase)(nil), tt.provider, nil, false)
+			sut := NewImageProcessorHandlerWithGRPC((*application.ProcessImageUseCase)(nil), tt.provider, nil, &mockGRPCClient{})
 			req := connect.NewRequest(&pb.ListFiltersRequest{})
 
 			// Act

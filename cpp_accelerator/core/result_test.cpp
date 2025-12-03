@@ -124,4 +124,3 @@ TEST(ResultTest, DifferentExitCodesArePreserved) {
 
 }  // namespace
 }  // namespace jrb::core
-

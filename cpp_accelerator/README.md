@@ -27,7 +27,7 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 
 ### Component Overview
 
-The library supports two integration paths: **CGO (Shared Library)** and **gRPC Service**. Both paths converge at the `ProcessorEngine`, which orchestrates image processing through the filter pipeline.
+The library supports **gRPC Service** as the primary integration path. The CGO (Shared Library) path is deprecated and no longer used by the Go server. All processing requests flow through the gRPC service, which converges at the `ProcessorEngine` to orchestrate image processing through the filter pipeline.
 
 ```mermaid
 graph TB
@@ -35,7 +35,7 @@ graph TB
         GoClient[Go Client Application]
     end
     
-    subgraph "CGO Integration Path"
+    subgraph "CGO Integration Path (Deprecated)"
         Loader[Loader - dlopen]
         CAPI[C API - processor_api.h]
         SharedLibImpl[cuda_processor_impl.cpp]
@@ -63,11 +63,11 @@ graph TB
         CpuFilters[CPU Filters]
     end
     
-    GoClient --> Loader
+    GoClient -.->|Deprecated| Loader
     GoClient --> GRPCServer
-    Loader --> CAPI
-    CAPI --> SharedLibImpl
-    SharedLibImpl --> ProcessorEngine
+    Loader -.->|Deprecated| CAPI
+    CAPI -.->|Deprecated| SharedLibImpl
+    SharedLibImpl -.->|Deprecated| ProcessorEngine
     
     GRPCServer --> GRPCService
     GRPCService --> EngineAdapter
@@ -141,7 +141,9 @@ graph TB
 
 ### Initialization Sequences
 
-#### CGO (Shared Library) Initialization
+#### CGO (Shared Library) Initialization (Deprecated)
+
+> **Note**: The CGO integration path is deprecated. The Go server no longer uses CGO and communicates exclusively via gRPC. This section is retained for historical reference.
 
 ```mermaid
 sequenceDiagram
@@ -193,7 +195,9 @@ sequenceDiagram
 
 ### Processing Flows
 
-#### CGO (Shared Library) Processing Flow
+#### CGO (Shared Library) Processing Flow (Deprecated)
+
+> **Note**: The CGO processing flow is deprecated. The Go server no longer uses CGO. This section is retained for historical reference.
 
 ```mermaid
 sequenceDiagram
@@ -326,9 +330,9 @@ cpp_accelerator/
 │   └── filters/          # Filter equivalence tests
 │       └── blur_equivalence_test.cpp
 ├── ports/               # Ports layer - external adapters
-│   ├── cgo/             # CGO C++ interop
+│   ├── cgo/             # CGO C++ interop (deprecated, not used by Go server)
 │   │   └── cgo_api.cpp
-│   ├── grpc/            # gRPC service implementation
+│   ├── grpc/            # gRPC service implementation (primary integration path)
 │   │   ├── image_processor_service_impl.h/cpp
 │   │   ├── processor_engine_adapter.h/cpp
 │   │   ├── processor_engine_provider.h

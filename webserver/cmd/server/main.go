@@ -11,8 +11,6 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/app"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/container"
-	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	"github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
@@ -40,21 +38,17 @@ func main() {
 		log.Warn().Err(err).Msg("Failed to initialize telemetry")
 	}
 
-	processImageUseCase := application.NewProcessImageUseCase(di.CppConnector)
-	processorCapsUseCase := application.NewProcessorCapabilitiesUseCase(
-		processor.NewCPPCapabilitiesRepository(di.CppConnector),
-		func() interfaces.ProcessorCapabilitiesRepository {
-			if di.GRPCProcessorClient == nil {
-				return nil
-			}
-			return processor.NewGRPCRepository(di.GRPCProcessorClient)
-		}(),
-	)
-
-	var grpcProcessor domain.ImageProcessor
-	if di.GRPCProcessorClient != nil {
-		grpcProcessor = processor.NewGRPCProcessor(di.GRPCProcessorClient)
+	if di.GRPCProcessorClient == nil {
+		logger.Global().Fatal().Msg("GRPCProcessorClient is required")
 	}
+
+	grpcProcessor := processor.NewGRPCProcessor(di.GRPCProcessorClient)
+	processImageUseCase := application.NewProcessImageUseCase(grpcProcessor)
+
+	processorCapsUseCase := application.NewProcessorCapabilitiesUseCase(
+		nil,
+		processor.NewGRPCRepository(di.GRPCProcessorClient),
+	)
 
 	server := app.New(
 		ctx,
@@ -73,10 +67,6 @@ func main() {
 		app.WithListVideosUseCase(di.ListVideosUseCase),
 		app.WithUploadVideoUseCase(di.UploadVideoUseCase),
 		app.WithVideoRepository(di.VideoRepository),
-		app.WithProcessorRegistry(di.ProcessorRegistry),
-		app.WithProcessorLoader(&di.ProcessorLoader),
-		app.WithLoaderMutex(di.LoaderMutex),
-		app.WithCppConnector(di.CppConnector),
 	)
 
 	errChan := make(chan error, 1)

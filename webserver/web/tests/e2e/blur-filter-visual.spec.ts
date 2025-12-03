@@ -8,7 +8,7 @@ test.describe('Blur Filter Visual Validation', () => {
   test.beforeEach(async ({ page }) => {
     helpers = new TestHelpers(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await helpers.waitForPageReady();
     
     const count = await helpers.getSourceCount();
     if (count === 0) {

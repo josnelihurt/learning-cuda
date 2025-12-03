@@ -1,11 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { createApiUrl } from './utils/test-helpers';
+import { TestHelpers } from './helpers/test-helpers';
 
 test.describe('Stream Configuration API', () => {
+  let helpers: TestHelpers;
+
   test.beforeEach(async ({ page }) => {
-    // Navigate to the app to ensure the service is running
+    helpers = new TestHelpers(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await helpers.waitForPageReady();
   });
 
   test('should return default stream configuration when no feature flags are set', async ({ request }) => {

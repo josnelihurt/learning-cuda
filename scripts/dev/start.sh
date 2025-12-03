@@ -6,6 +6,10 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
+# Compose command configuration
+COMPOSE_CMD="podman compose"
+# COMPOSE_CMD="docker compose"
+
 wait_for_grpc() {
     echo "Waiting for gRPC dev server on localhost:60061..."
     local timeout=30
@@ -108,10 +112,20 @@ if [ ! -f ".secrets/localhost+2.pem" ]; then
     echo ""
 fi
 
+if [[ "$COMPOSE_CMD" == "podman compose"* ]]; then
+    if ! systemctl --user is-active --quiet podman.socket 2>/dev/null; then
+        echo "Starting Podman user socket..."
+        systemctl --user start podman.socket 2>/dev/null || {
+            echo "Warning: Could not start podman.socket. Trying to continue..."
+        }
+        sleep 1
+    fi
+fi
+
 echo "Checking services (Jaeger + OTel Collector + Flipt)..."
 if ! docker ps --format '{{.Names}}' | grep -q 'jaeger'; then
     echo "Starting services..."
-    docker compose -f docker-compose.dev.yml up -d \
+    $COMPOSE_CMD -f docker-compose.dev.yml up -d \
         jaeger \
         otel-collector \
         flipt \
@@ -156,7 +170,7 @@ else
     if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
         echo "Warning: Flipt is not responding at http://localhost:8081"
         echo "   Starting Flipt..."
-        docker compose -f docker-compose.dev.yml up -d flipt
+        $COMPOSE_CMD -f docker-compose.dev.yml up -d flipt
         sleep 5
     fi
 fi
@@ -272,8 +286,8 @@ sleep 2
 
 echo ""
 echo "Starting test report viewers..."
-docker compose -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report 2>/dev/null || true
-docker compose -f docker-compose.dev.yml --profile coverage up -d coverage-report-viewer gopkgview 2>/dev/null || true
+$COMPOSE_CMD -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report 2>/dev/null || true
+$COMPOSE_CMD -f docker-compose.dev.yml --profile coverage up -d coverage-report-viewer gopkgview 2>/dev/null || true
 sleep 2
 
 echo "================================================"

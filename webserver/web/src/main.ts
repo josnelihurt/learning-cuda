@@ -7,16 +7,19 @@ import './components/ui/tools-dropdown';
 import './components/video/video-grid';
 import './components/app/source-drawer';
 import './components/ui/add-source-fab';
+import './components/ui/accelerator-status-fab';
 import './components/app/version-footer';
 import './components/ui/version-tooltip-lit';
 import './components/image/image-selector-modal';
 import './components/flags/feature-flags-modal';
 import './components/flags/feature-flags-button';
+import './components/app/grpc-status-modal';
 import './components/video/video-selector';
 import './components/video/video-upload';
 import './components/app/information-banner';
 import './components/app/app-tour';
 import './components/app/app-root';
+import { acceleratorHealthMonitor } from './infrastructure/external/accelerator-health-monitor';
 import { container } from './application/di';
 import type {
   IConfigService,
@@ -103,6 +106,8 @@ const app = {
       'information-banner',
       'app-tour',
       'app-root',
+      'grpc-status-modal',
+      'accelerator-status-fab',
     ];
 
     await Promise.all(componentDefinitions.map((name) => customElements.whenDefined(name)));
@@ -132,6 +137,23 @@ const app = {
       logger.error('app-root element not found in DOM');
       toastManager?.error('Critical Error', 'Dashboard component not found');
     }
+
+    this.startHealthMonitoring();
+  },
+
+  startHealthMonitoring() {
+    const modalElement = document.querySelector('grpc-status-modal');
+    
+    acceleratorHealthMonitor.startMonitoring(
+      () => {
+        logger.warn('Accelerator health check detected unhealthy status, opening modal');
+        document.dispatchEvent(new CustomEvent('accelerator-unhealthy'));
+      },
+      () => {
+        return modalElement && (modalElement as any).isModalOpen ? (modalElement as any).isModalOpen() : false;
+      }
+    );
+    logger.info('Accelerator health monitoring started');
   },
 };
 
@@ -151,5 +173,6 @@ window.addEventListener('beforeunload', () => {
       // Ignore errors during page unload
     });
   });
+  acceleratorHealthMonitor.stopMonitoring();
   logger.shutdown();
 });

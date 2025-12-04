@@ -7,6 +7,7 @@ import (
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 )
 
 func RegisterRoutesWithHandler(mux *http.ServeMux, handler *ImageProcessorHandler, interceptors ...connect.Interceptor) {
@@ -73,5 +74,21 @@ func RegisterWebRTCSignalingService(
 	}
 
 	path, rpcHandler := genconnect.NewWebRTCSignalingServiceHandler(handler, opts...)
+	mux.Handle(path, rpcHandler)
+}
+
+func RegisterRemoteManagementService(
+	mux *http.ServeMux,
+	grpcClient *processor.GRPCClient,
+	interceptors ...connect.Interceptor,
+) {
+	handler := NewRemoteManagementHandler(grpcClient)
+
+	var opts []connect.HandlerOption
+	if len(interceptors) > 0 {
+		opts = append(opts, connect.WithInterceptors(interceptors...))
+	}
+
+	path, rpcHandler := genconnect.NewRemoteManagementServiceHandler(handler, opts...)
 	mux.Handle(path, rpcHandler)
 }

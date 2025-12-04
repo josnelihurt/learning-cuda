@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package cuda_learning;
+
+import "common.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
+
+enum StartJetsonNanoStatus {
+  START_JETSON_NANO_STATUS_UNSPECIFIED = 0;
+  START_JETSON_NANO_STATUS_IN_PROGRESS = 1;
+  START_JETSON_NANO_STATUS_SUCCESS = 2;
+  START_JETSON_NANO_STATUS_ERROR = 3;
+}
+
+message StartJetsonNanoRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message StartJetsonNanoResponse {
+  StartJetsonNanoStatus status = 1 [json_name = "status"];
+  string step = 3 [json_name = "step"];
+  string message = 5 [json_name = "message"];
+  TraceContext trace_context = 7 [json_name = "trace_context"];
+}
+
+message CheckAcceleratorHealthRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+enum AcceleratorHealthStatus {
+  ACCELERATOR_HEALTH_STATUS_UNSPECIFIED = 0;
+  ACCELERATOR_HEALTH_STATUS_HEALTHY = 1;
+  ACCELERATOR_HEALTH_STATUS_UNHEALTHY = 2;
+}
+
+message CheckAcceleratorHealthResponse {
+  AcceleratorHealthStatus status = 1 [json_name = "status"];
+  string message = 3 [json_name = "message"];
+  string server_version = 5 [json_name = "server_version"];
+  string library_version = 7 [json_name = "library_version"];
+  TraceContext trace_context = 9 [json_name = "trace_context"];
+}
+
+service RemoteManagementService {
+  rpc StartJetsonNano(StartJetsonNanoRequest) returns (stream StartJetsonNanoResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/remote/start-jetson-nano"
+      body: "*"
+    };
+  }
+  
+  rpc CheckAcceleratorHealth(CheckAcceleratorHealthRequest) returns (CheckAcceleratorHealthResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+    option (google.api.http) = {
+      get: "/api/v1/remote/accelerator/health"
+    };
+  }
+}
+

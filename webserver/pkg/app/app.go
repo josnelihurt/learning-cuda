@@ -218,6 +218,12 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.interceptors...,
 	)
 
+	connectrpc.RegisterRemoteManagementService(
+		mux,
+		a.grpcProcessorClient,
+		a.interceptors...,
+	)
+
 	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
 		ImageProcessorHandler: rpcHandler,
 		GetStreamConfigUC:     a.getStreamConfigUC,

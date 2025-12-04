@@ -18,8 +18,17 @@ test.describe('Tour Steps', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
     await page.waitForSelector('[data-testid="video-grid"]', { timeout: 30000 });
-    await page.waitForSelector('app-tour', { timeout: 5000 });
-    await page.waitForTimeout(1000);
+    await page.waitForSelector('app-tour', { timeout: 5000, state: 'attached' });
+    
+    // Wait for tour to become active/visible
+    await page.waitForFunction(() => {
+      const tour = document.querySelector('app-tour');
+      if (!tour) return false;
+      const overlay = tour.shadowRoot?.querySelector('.overlay');
+      return !!overlay && !overlay.classList.contains('hidden');
+    }, { timeout: 10000 });
+    
+    await page.waitForTimeout(500);
   });
 
   test('should show all 8 tour steps in sequence', async ({ page }) => {

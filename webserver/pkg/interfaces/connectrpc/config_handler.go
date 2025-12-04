@@ -84,6 +84,8 @@ func (h *ConfigHandler) GetStreamConfig(
 		},
 	}
 
+	log.Printf("DEBUG: StreamEndpoint console_logging value: %v", consoleLogging)
+
 	span.SetAttributes(
 		attribute.String("config.endpoint", streamConfig.WebsocketEndpoint),
 		attribute.String("config.transport_format", streamConfig.TransportFormat),

@@ -16,8 +16,17 @@ test.describe('First Run Tutorial', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
     await page.waitForSelector('[data-testid="video-grid"]', { timeout: 30000 });
-    await page.waitForSelector('app-tour', { timeout: 5000 });
-    await page.waitForTimeout(1000);
+    await page.waitForSelector('app-tour', { timeout: 5000, state: 'attached' });
+    
+    // Wait for tour to become active/visible
+    await page.waitForFunction(() => {
+      const tour = document.querySelector('app-tour');
+      if (!tour) return false;
+      const overlay = tour.shadowRoot?.querySelector('.overlay');
+      return !!overlay && !overlay.classList.contains('hidden');
+    }, { timeout: 10000 });
+    
+    await page.waitForTimeout(500);
   });
 
   test('shows tutorial on first load and can skip', async ({ page }) => {
@@ -95,14 +104,17 @@ test.describe('First Run Tutorial', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
     await page.waitForSelector('[data-testid="video-grid"]', { timeout: 30000 });
-    await page.waitForSelector('app-tour', { timeout: 5000 });
-    await page.waitForTimeout(1000);
-
+    await page.waitForSelector('app-tour', { timeout: 5000, state: 'attached' });
+    
+    // Wait for tour to become active/visible after reload
     await page.waitForFunction(() => {
       const tour = document.querySelector('app-tour');
-      const overlay = tour?.shadowRoot?.querySelector('.overlay');
+      if (!tour) return false;
+      const overlay = tour.shadowRoot?.querySelector('.overlay');
       return !!overlay && !overlay.classList.contains('hidden');
     }, { timeout: 10000 });
+    
+    await page.waitForTimeout(500);
   });
 });
 

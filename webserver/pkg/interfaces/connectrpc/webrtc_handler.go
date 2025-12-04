@@ -2,10 +2,14 @@ package connectrpc
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type WebRTCSignalingClient interface {
@@ -30,6 +34,14 @@ func (h *WebRTCSignalingHandler) StartSession(
 ) (*connect.Response[pb.StartSessionResponse], error) {
 	resp, err := h.client.StartWebRTCSession(ctx, req.Msg)
 	if err != nil {
+		// Check if error is gRPC Unimplemented status
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unimplemented {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("WebRTC signaling is not implemented in the gRPC processor server"))
+		}
+		// Check if error message contains "Unimplemented"
+		if strings.Contains(err.Error(), "Unimplemented") {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("WebRTC signaling is not implemented in the gRPC processor server"))
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -42,6 +54,14 @@ func (h *WebRTCSignalingHandler) SendIceCandidate(
 ) (*connect.Response[pb.SendIceCandidateResponse], error) {
 	resp, err := h.client.SendIceCandidate(ctx, req.Msg)
 	if err != nil {
+		// Check if error is gRPC Unimplemented status
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unimplemented {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("WebRTC signaling is not implemented in the gRPC processor server"))
+		}
+		// Check if error message contains "Unimplemented"
+		if strings.Contains(err.Error(), "Unimplemented") {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("WebRTC signaling is not implemented in the gRPC processor server"))
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -54,6 +74,14 @@ func (h *WebRTCSignalingHandler) CloseSession(
 ) (*connect.Response[pb.CloseSessionResponse], error) {
 	resp, err := h.client.CloseWebRTCSession(ctx, req.Msg)
 	if err != nil {
+		// Check if error is gRPC Unimplemented status
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unimplemented {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("WebRTC signaling is not implemented in the gRPC processor server"))
+		}
+		// Check if error message contains "Unimplemented"
+		if strings.Contains(err.Error(), "Unimplemented") {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("WebRTC signaling is not implemented in the gRPC processor server"))
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 

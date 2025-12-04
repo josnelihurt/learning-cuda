@@ -1,9 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { getBaseUrl, getFliptDashboardUrlPattern } from './utils/test-helpers';
+import { TestHelpers } from './helpers/test-helpers';
 
 test.describe('Flipt Dashboard Integration', () => {
+    let helpers: TestHelpers;
+
     test.beforeEach(async ({ page }) => {
+        helpers = new TestHelpers(page);
         await page.goto(getBaseUrl(), { waitUntil: 'domcontentloaded' });
+        await helpers.waitForPageReady();
     });
 
     test('opens Flipt dashboard when clicking Flipt Feature Flags', async ({ context, page }) => {

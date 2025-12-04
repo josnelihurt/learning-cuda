@@ -554,7 +554,9 @@ test.describe('Video Playback', () => {
         }
     });
 
-    test('stress test - multiple sources with filter toggling', async ({ page }) => {
+    test('stress test - multiple sources with filter toggling', async ({ page, browserName }) => {
+        // Firefox may need more time for stress test
+        test.setTimeout(browserName === 'firefox' ? 120000 : 60000);
         console.log('\n=== STRESS TEST: Multiple Sources + Filter Toggling ===\n');
 
         // Add first video

@@ -1,9 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { systemInfoService } from '../../infrastructure/external/system-info-service';
-import { grpcVersionService } from '../../infrastructure/external/grpc-version-service';
-import { GetSystemInfoResponse } from '../../gen/config_service_pb';
-import { GetVersionInfoResponse } from '../../gen/image_processor_service_pb';
+import { createPromiseClient } from '@connectrpc/connect';
+import { createConnectTransport } from '@connectrpc/connect-web';
+import { ConfigService } from '../../gen/config_service_connect';
+import { GetSystemInfoRequest, GetSystemInfoResponse } from '../../gen/config_service_pb';
 
 interface VersionField {
   label: string;
@@ -17,7 +17,6 @@ export class VersionTooltipLit extends LitElement {
   @state() private versionFields: VersionField[] = [];
   @state() private environment = 'Loading...';
   @state() private isLoading = true;
-  @state() private grpcVersionInfo: GetVersionInfoResponse | null = null;
   @state() private isLoadingGrpcVersion = false;
 
   static styles = css`
@@ -157,7 +156,12 @@ export class VersionTooltipLit extends LitElement {
 
   private async loadSystemInfo() {
     try {
-      const systemInfo = await systemInfoService.getSystemInfo();
+      const transport = createConnectTransport({
+        baseUrl: window.location.origin,
+        useHttpGet: true,
+      });
+      const client = createPromiseClient(ConfigService, transport);
+      const systemInfo = await client.getSystemInfo(new GetSystemInfoRequest({}));
       
       this.versionFields = this.extractVersionFields(systemInfo);
       this.environment = systemInfo.environment || 'Unknown';
@@ -172,21 +176,6 @@ export class VersionTooltipLit extends LitElement {
 
   private async handleSlotClick() {
     this.isOpen = !this.isOpen;
-    if (this.isOpen && !this.grpcVersionInfo && !this.isLoadingGrpcVersion) {
-      await this.loadGrpcVersionInfo();
-    }
-  }
-
-  private async loadGrpcVersionInfo() {
-    this.isLoadingGrpcVersion = true;
-    try {
-      this.grpcVersionInfo = await grpcVersionService.getVersionInfo();
-    } catch (error) {
-      console.error('Failed to load gRPC version info:', error);
-      this.grpcVersionInfo = null;
-    } finally {
-      this.isLoadingGrpcVersion = false;
-    }
   }
 
   private handleCloseClick(e: Event) {
@@ -218,23 +207,6 @@ export class VersionTooltipLit extends LitElement {
                 `
               )
           }
-          ${this.isOpen ? html`
-            ${this.isLoadingGrpcVersion
-              ? html`<div class="version-item"><span class="version-label">gRPC Server Version:</span><span class="version-value">Loading...</span></div>`
-              : this.grpcVersionInfo
-                ? html`
-                    <div class="version-item">
-                      <span class="version-label">gRPC Server Version:</span>
-                      <span class="version-value">${this.grpcVersionInfo.serverVersion || 'unknown'}</span>
-                    </div>
-                    <div class="version-item">
-                      <span class="version-label">C++ Library Version:</span>
-                      <span class="version-value">${this.grpcVersionInfo.libraryVersion || 'unknown'}</span>
-                    </div>
-                  `
-                : html`<div class="version-item"><span class="version-label">gRPC Server Version:</span><span class="version-value">Error loading</span></div>`
-            }
-          ` : ''}
           <div class="environment-section">
             <div class="version-item">
               <span class="version-label">Environment:</span>

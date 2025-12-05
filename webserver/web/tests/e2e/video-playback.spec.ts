@@ -1,12 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { getBaseUrl, getMinVideoFrames } from './utils/test-helpers';
+import { TestHelpers } from './helpers/test-helpers';
 // @ts-ignore - Node.js crypto module in test environment
 import * as crypto from 'crypto';
 
 test.describe('Video Playback', () => {
+    let helpers: TestHelpers;
+
     test.beforeEach(async ({ page }) => {
+        helpers = new TestHelpers(page);
         await page.goto(getBaseUrl());
-        await page.waitForLoadState('networkidle');
+        await helpers.waitForPageReady();
     });
 
     test('should display video preview thumbnails in selector', async ({ page }) => {
@@ -18,7 +22,7 @@ test.describe('Video Playback', () => {
         const previewImg = page.locator('[data-testid="video-card-e2e-test"] .preview-image');
         
         await previewImg.waitFor({ state: 'visible', timeout: 10000 });
-        await page.waitForLoadState('networkidle');
+        await helpers.waitForPageReady();
         
         const src = await previewImg.getAttribute('src');
         expect(src).toContain('/data/video_previews/');
@@ -550,7 +554,9 @@ test.describe('Video Playback', () => {
         }
     });
 
-    test('stress test - multiple sources with filter toggling', async ({ page }) => {
+    test('stress test - multiple sources with filter toggling', async ({ page, browserName }) => {
+        // Firefox may need more time for stress test
+        test.setTimeout(browserName === 'firefox' ? 120000 : 60000);
         console.log('\n=== STRESS TEST: Multiple Sources + Filter Toggling ===\n');
 
         // Add first video

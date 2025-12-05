@@ -72,7 +72,7 @@ The web server implements Clean Architecture with clear separation of concerns a
 
 ### Component Overview
 
-The web server follows Clean Architecture principles with clear separation between interfaces, application logic, domain models, and infrastructure. It integrates with the C++ CUDA accelerator library via CGO (shared library) or gRPC.
+The web server follows Clean Architecture principles with clear separation between interfaces, application logic, domain models, and infrastructure. It integrates with the C++ CUDA accelerator library via gRPC.
 
 ```mermaid
 graph TB
@@ -103,15 +103,13 @@ graph TB
     end
     
     subgraph "Go Infrastructure Layer"
-        CppConnector[CppConnector]
         GRPCProcessor[GRPCProcessor]
-        Loader[Loader - dlopen]
         FeatureFlags[Flipt Integration]
         FileSystem[File System Repos]
     end
     
     subgraph "C++ Backend"
-        CppBackend[C++ CUDA Accelerator<br/>gRPC / CGO]
+        CppBackend[C++ CUDA Accelerator<br/>gRPC Server]
     end
     
     Browser --> StaticHTTP
@@ -131,10 +129,7 @@ graph TB
     FileUC --> Image
     FileUC --> Video
     
-    ImageProcessor --> CppConnector
     ImageProcessor --> GRPCProcessor
-    CppConnector --> Loader
-    Loader --> CppBackend
     GRPCProcessor --> CppBackend
     
     ConfigUC --> FeatureFlags
@@ -162,10 +157,8 @@ webserver/
 │   │   └── interfaces/
 │   ├── infrastructure/  # External integrations
 │   │   ├── processor/   # C++/CUDA integration
-│   │   │   ├── cpp_connector.go
 │   │   │   ├── grpc_processor.go
-│   │   │   ├── grpc_client.go
-│   │   │   └── loader/  # dlopen wrapper
+│   │   │   └── grpc_client.go
 │   │   ├── featureflags/# Flipt integration
 │   │   ├── filesystem/  # File repositories
 │   │   ├── video/       # Video repositories
@@ -233,10 +226,9 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 ### Infrastructure Layer
 
 **Processor Integration** (`pkg/infrastructure/processor/`):
-- `CppConnector`: Integrates with C++ library via CGO (dlopen)
 - `GRPCProcessor`: Integrates with C++ library via gRPC
-- `Loader`: Wraps dlopen functionality for dynamic library loading
-- Both connectors implement `domain.ImageProcessor` interface
+- `grpc_client.go`: gRPC client implementation for remote processing
+- Implements `domain.ImageProcessor` interface
 
 **Feature Flags** (`pkg/infrastructure/featureflags/`):
 - Flipt client integration for feature flag management
@@ -266,7 +258,7 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 
 ## Features
 
-- **CUDA Acceleration**: GPU-powered image processing via dynamic plugin system (dlopen/CGO) or gRPC remote service
+- **CUDA Acceleration**: GPU-powered image processing via gRPC remote service
 - **Connect-RPC**: Type-safe RPC with HTTP/JSON and gRPC support
 - **Vanguard**: RESTful API transcoding using google.api.http annotations
 - **Protocol Buffers**: Multiple proto services (config_service, file_service, image_processor_service)
@@ -282,28 +274,17 @@ sequenceDiagram
     participant Main as main.go
     participant Container as Container
     participant Config as Config Manager
-    participant CppConn as CppConnector
-    participant Loader as Loader
-    participant CppBackend as C++ Backend
     participant GRPCClient as GRPCClient
+    participant GRPCServer as gRPC Server
     participant App as App Setup
     
     Main->>Container: New(ctx, configFile)
     Container->>Config: New(configFile)
     Container->>Config: Load configuration
     
-    alt CGO Mode
-        Container->>CppConn: New(libraryPath)
-        CppConn->>Loader: NewLoader(path)
-        Loader->>Loader: dlopen(libcuda_processor.so)
-        Loader->>CppBackend: processor_init()
-        CppBackend-->>Loader: InitResponse
-        Loader-->>CppConn: Ready
-    else gRPC Mode
-        Container->>GRPCClient: NewGRPCClient(ctx, config)
-        GRPCClient->>GRPCClient: Dial gRPC server
-        GRPCClient-->>Container: Connected
-    end
+    Container->>GRPCClient: NewGRPCClient(ctx, config)
+    GRPCClient->>GRPCServer: Dial gRPC server
+    GRPCServer-->>GRPCClient: Connected
     
     Container->>Container: Create Use Cases
     Container->>Container: Create Repositories
@@ -313,40 +294,6 @@ sequenceDiagram
 ```
 
 ### Processing Flows
-
-#### CGO (Shared Library) Processing Flow
-
-```mermaid
-sequenceDiagram
-    participant Client as Client
-    participant Handler as Connect-RPC Handler
-    participant UseCase as ProcessImageUseCase
-    participant Processor as ImageProcessor
-    participant CppConn as CppConnector
-    participant Loader as Loader
-    participant CppBackend as C++ Backend
-    
-    Client->>Handler: ProcessImage(request)
-    Handler->>Handler: Convert protobuf to domain
-    Handler->>UseCase: Execute(ctx, image, filters, accelerator)
-    
-    UseCase->>Processor: ProcessImage(ctx, image, filters, accelerator)
-    Processor->>CppConn: ProcessImage(ctx, image, filters, accelerator)
-    
-    CppConn->>CppConn: Convert domain to protobuf
-    CppConn->>Loader: ProcessImage(ProcessImageRequest)
-    Loader->>Loader: Marshal protobuf
-    Loader->>CppBackend: processor_process_image()
-    CppBackend-->>Loader: ProcessImageResponse
-    Loader->>Loader: Unmarshal protobuf
-    Loader-->>CppConn: ProcessImageResponse
-    CppConn->>CppConn: Convert protobuf to domain.Image
-    CppConn-->>Processor: domain.Image
-    Processor-->>UseCase: domain.Image
-    UseCase-->>Handler: domain.Image
-    Handler->>Handler: Convert domain to protobuf
-    Handler-->>Client: ProcessImageResponse
-```
 
 #### gRPC Processing Flow
 
@@ -388,29 +335,16 @@ sequenceDiagram
 sequenceDiagram
     participant Client as Client
     participant Handler as ImageProcessorHandler
-    participant FFUseCase as EvaluateFeatureFlagUseCase
     participant CapabilitiesUC as ProcessorCapabilitiesUseCase
     participant Processor as ImageProcessor
-    participant CppBackend as C++ Backend
+    participant GRPCServer as gRPC Server
     
     Client->>Handler: ListFilters(request)
-    Handler->>FFUseCase: EvaluateBoolean("processor_use_grpc_backend")
-    FFUseCase-->>Handler: useGRPC flag
-    
-    alt gRPC Mode
-        Handler->>CapabilitiesUC: GetCapabilities(ctx)
-        CapabilitiesUC->>Processor: GetCapabilities()
-        Processor->>CppBackend: gRPC GetCapabilities()
-        CppBackend-->>Processor: CapabilitiesResponse
-        Processor-->>CapabilitiesUC: Capabilities
-    else CGO Mode
-        Handler->>CapabilitiesUC: GetCapabilities(ctx)
-        CapabilitiesUC->>Processor: GetCapabilities()
-        Processor->>CppBackend: processor_get_capabilities()
-        CppBackend-->>Processor: CapabilitiesResponse
-        Processor-->>CapabilitiesUC: Capabilities
-    end
-    
+    Handler->>CapabilitiesUC: GetCapabilities(ctx)
+    CapabilitiesUC->>Processor: GetCapabilities()
+    Processor->>GRPCServer: gRPC ListFilters()
+    GRPCServer-->>Processor: ListFiltersResponse
+    Processor-->>CapabilitiesUC: Filter definitions
     CapabilitiesUC-->>Handler: Filter definitions
     Handler->>Handler: Build ListFiltersResponse
     Handler-->>Client: ListFiltersResponse
@@ -469,8 +403,8 @@ sequenceDiagram
     participant Client as Client
     participant Handler as ConfigHandler
     participant SystemInfoUC as GetSystemInfoUseCase
-    participant CppConn as CppConnector
-    participant CppBackend as C++ Backend
+    participant CapabilitiesUC as ProcessorCapabilitiesUseCase
+    participant GRPCServer as gRPC Server
     participant BuildRepo as BuildInfoRepository
     
     Client->>Handler: GetSystemInfo(request)
@@ -478,10 +412,10 @@ sequenceDiagram
     SystemInfoUC->>BuildRepo: GetBuildInfo()
     BuildRepo-->>SystemInfoUC: BuildInfo
     
-    SystemInfoUC->>CppConn: GetVersionInfo()
-    CppConn->>CppBackend: processor_get_library_version()
-    CppBackend-->>CppConn: Version string
-    CppConn-->>SystemInfoUC: Version
+    SystemInfoUC->>CapabilitiesUC: GetCapabilities(ctx)
+    CapabilitiesUC->>GRPCServer: gRPC GetVersionInfo()
+    GRPCServer-->>CapabilitiesUC: VersionInfoResponse
+    CapabilitiesUC-->>SystemInfoUC: Version
     
     SystemInfoUC-->>Handler: SystemInfo
     Handler-->>Client: GetSystemInfoResponse

@@ -8,7 +8,7 @@
 namespace jrb::ports::grpc_service {
 
 class ProcessorEngineAdapter : public ProcessorEngineProvider {
- public:
+public:
   explicit ProcessorEngineAdapter(std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine);
   ~ProcessorEngineAdapter() override = default;
 
@@ -21,10 +21,8 @@ class ProcessorEngineAdapter : public ProcessorEngineProvider {
 
   std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> underlying() const { return engine_; }
 
- private:
+private:
   std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine_;
 };
 
 }  // namespace jrb::ports::grpc_service
-
-

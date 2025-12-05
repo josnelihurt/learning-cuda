@@ -1,0 +1,32 @@
+services:
+  go-server:
+    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda:amd64-latest}
+    container_name: cuda-go-server
+    restart: unless-stopped
+    
+    volumes:
+      - ./data:/data:ro
+      - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - /tmp:/tmp
+    
+    networks:
+      - public-wan
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.go-server.rule=Host(`app-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.go-server.entrypoints=websecure"
+      - "traefik.http.routers.go-server.tls=true"
+      - "traefik.http.services.go-server.loadbalancer.server.port=8080"
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  public-wan:
+    external: true
+

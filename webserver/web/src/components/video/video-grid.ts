@@ -1,12 +1,14 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { InputSource } from '../../gen/config_service_pb';
-import { WebSocketService } from '../../services/websocket-service';
+import { WebSocketService } from '../../infrastructure/transport/websocket-frame-transport';
 import type { ActiveFilterState } from '../app/filter-panel.types';
-import { FilterData } from '../../domain/value-objects';
+import { FilterData, WebRTCSession } from '../../domain/value-objects';
 import type { StatsPanel } from '../app/stats-panel';
 import type { CameraPreview } from './camera-preview';
 import type { ToastContainer } from '../app/toast-container';
+import { logger } from '../../infrastructure/observability/otel-logger';
+import { webrtcService } from '../../infrastructure/connection/webrtc-service';
 import './video-source-card';
 
 interface GridSource {
@@ -22,6 +24,7 @@ interface GridSource {
   filters: ActiveFilterState[];
   resolution: string;
   videoId?: string;
+  webrtcSession?: WebRTCSession;
 }
 
 @customElement('video-grid')
@@ -134,6 +137,9 @@ export class VideoGrid extends LitElement {
       }
 
       ws = new WebSocketService(this.statsManager!, cameraPreview, this.toastManager!);
+      if (this.statsManager && 'setWebSocketService' in this.statsManager) {
+        (this.statsManager as any).setWebSocketService(ws);
+      }
       ws.connect();
 
       ws.onFrameResult((data) => {
@@ -174,6 +180,9 @@ export class VideoGrid extends LitElement {
         document.createElement('camera-preview') as CameraPreview,
         this.toastManager!
       );
+      if (this.statsManager && 'setWebSocketService' in this.statsManager) {
+        (this.statsManager as any).setWebSocketService(ws);
+      }
       ws.connect();
 
       ws.onFrameResult((data) => {
@@ -183,8 +192,8 @@ export class VideoGrid extends LitElement {
           if (!frameData) return;
 
           let binary = '';
-          const len = frameData.imageData?.byteLength || frameData.frameData?.byteLength || 0;
-          const imageBytes = frameData.imageData || frameData.frameData;
+          const len = (frameData as any).imageData?.byteLength || (frameData as any).frameData?.byteLength || 0;
+          const imageBytes = (frameData as any).imageData || (frameData as any).frameData;
           if (!imageBytes) return;
 
           for (let i = 0; i < len; i++) {
@@ -217,6 +226,9 @@ export class VideoGrid extends LitElement {
         document.createElement('camera-preview') as CameraPreview,
         this.toastManager!
       );
+      if (this.statsManager && 'setWebSocketService' in this.statsManager) {
+        (this.statsManager as any).setWebSocketService(ws);
+      }
       ws.connect();
 
       ws.onFrameResult((data) => {
@@ -272,6 +284,27 @@ export class VideoGrid extends LitElement {
       'grid.total': this.sources.length,
     });
 
+    webrtcService
+      .createSession(uniqueId)
+      .then((session) => {
+        const sourceIndex = this.sources.findIndex((s) => s.id === uniqueId);
+        if (sourceIndex !== -1) {
+          this.sources[sourceIndex].webrtcSession = session;
+          this.sources = [...this.sources];
+          // Heartbeat will be started automatically when data channel opens
+          logger.info(`WebRTC session created for source`, {
+            'source.id': uniqueId,
+            'session.id': session.getId(),
+          });
+        }
+      })
+      .catch((error) => {
+        logger.debug(`Failed to create WebRTC session for source (non-critical)`, {
+          'source.id': uniqueId,
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      });
+
     this.requestUpdate();
     return true;
   }
@@ -279,6 +312,18 @@ export class VideoGrid extends LitElement {
   removeSource(sourceId: string): void {
     const source = this.sources.find((s) => s.id === sourceId);
     if (!source) return;
+
+    if (source.webrtcSession) {
+      webrtcService.stopHeartbeat(source.webrtcSession.getId());
+      webrtcService
+        .closeSession(source.webrtcSession.getId())
+        .catch((error) => {
+          logger.debug(`Failed to close WebRTC session (non-critical)`, {
+            'session.id': source.webrtcSession?.getId(),
+            'error.message': error instanceof Error ? error.message : String(error),
+          });
+        });
+    }
 
     if (source.ws) {
       source.ws.disconnect();

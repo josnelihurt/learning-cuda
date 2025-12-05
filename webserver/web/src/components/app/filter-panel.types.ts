@@ -2,9 +2,9 @@ import type { FilterDefinition } from '../../gen/common_pb';
 import type {
   GenericFilterDefinition,
   GenericFilterParameter,
-  GenericFilterParameterType,
   GenericFilterParameterOption,
 } from '../../gen/image_processor_service_pb';
+import { GenericFilterParameterType } from '../../gen/image_processor_service_pb';
 
 export type FilterParameterType = 'select' | 'range' | 'number' | 'checkbox' | 'text';
 
@@ -109,11 +109,12 @@ function buildLegacyOptions(options: string[] = []): FilterOption[] {
 
 function mapGenericParameter(param: GenericFilterParameter): FilterParameterConfig {
   const metadata = param.metadata ?? {};
+  const options = mapGenericOptions(param.options ?? []);
   return {
     id: param.id,
     name: param.name,
     type: mapGenericParameterType(param.type),
-    options: mapGenericOptions(param.options),
+    options,
     defaultValue: param.defaultValue || '',
     min: metadata.min !== undefined ? parseFloat(metadata.min) : undefined,
     max: metadata.max !== undefined ? parseFloat(metadata.max) : undefined,
@@ -124,33 +125,36 @@ function mapGenericParameter(param: GenericFilterParameter): FilterParameterConf
 
 function mapGenericParameterType(type: GenericFilterParameterType): FilterParameterType {
   switch (type) {
-    case GenericFilterParameterType.GENERIC_FILTER_PARAMETER_TYPE_SELECT:
+    case GenericFilterParameterType.SELECT:
       return 'select';
-    case GenericFilterParameterType.GENERIC_FILTER_PARAMETER_TYPE_RANGE:
+    case GenericFilterParameterType.RANGE:
       return 'range';
-    case GenericFilterParameterType.GENERIC_FILTER_PARAMETER_TYPE_NUMBER:
+    case GenericFilterParameterType.NUMBER:
       return 'number';
-    case GenericFilterParameterType.GENERIC_FILTER_PARAMETER_TYPE_CHECKBOX:
+    case GenericFilterParameterType.CHECKBOX:
       return 'checkbox';
-    case GenericFilterParameterType.GENERIC_FILTER_PARAMETER_TYPE_TEXT:
+    case GenericFilterParameterType.TEXT:
       return 'text';
     default:
       return 'text';
   }
 }
 
-function mapGenericOptions(options: GenericFilterParameterOption[]): FilterOption[] {
+function mapGenericOptions(options: GenericFilterParameterOption[] | undefined): FilterOption[] {
   if (!options || options.length === 0) {
     return [];
   }
 
   return options.map((option) => {
-    const value = option.value || option.label || '';
+    const optionValue = option?.value ?? '';
+    const optionLabel = option?.label ?? '';
+    const value = optionValue || optionLabel || '';
+    const label = optionLabel || legacyLabelMap[value] || value || optionValue;
     return {
-      value,
-      label: option.label || legacyLabelMap[value] || value,
+      value: value || label || '',
+      label: label || value || '',
     };
-  });
+  }).filter((opt) => opt.value && opt.label);
 }
 
 const legacyLabelMap: Record<string, string> = {

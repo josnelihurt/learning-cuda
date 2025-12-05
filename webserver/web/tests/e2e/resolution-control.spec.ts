@@ -7,7 +7,7 @@ test.describe('Resolution Control', () => {
   test.beforeEach(async ({ page }) => {
     helpers = new TestHelpers(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await helpers.waitForPageReady();
     await helpers.enableDebugLogging();
     
     const count = await helpers.getSourceCount();

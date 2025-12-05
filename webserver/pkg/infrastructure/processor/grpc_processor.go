@@ -6,7 +6,6 @@ import (
 
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -155,7 +154,7 @@ func (p *GRPCProcessor) ProcessImage(
 	traceID, spanID, traceFlags := extractTraceContext(ctx, span)
 
 	procReq := &pb.ProcessImageRequest{
-		ApiVersion:    loader.CurrentAPIVersion,
+		ApiVersion:    "2.0.0",
 		ImageData:     img.Data,
 		Width:         int32(img.Width),
 		Height:        int32(img.Height),

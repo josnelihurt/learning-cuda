@@ -4,9 +4,9 @@
 ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
-ARG PROTO_VERSION=1.0.0
-ARG CPP_VERSION=2.1.0
-ARG GOLANG_VERSION=1.0.0
+ARG PROTO_VERSION=2.4.0
+ARG CPP_VERSION=2.4.0
+ARG GOLANG_VERSION=1.4.0
 ARG NODE_VERSION=20
 ARG PLAYWRIGHT_VERSION=v1.56.1
 ARG UBUNTU_VARIANT=jammy
@@ -195,7 +195,6 @@ WORKDIR /app
 
 # Copy compiled artifacts from intermediate images
 COPY --from=golang-built-ref /artifacts/bin/server /app/server
-COPY --from=cpp-built-ref /artifacts/lib/ /app/lib/
 COPY --from=frontend-builder /build/webserver/web/static/ /app/web/static/
 COPY --from=frontend-builder /build/webserver/web/templates/ /app/web/templates/
 
@@ -208,15 +207,8 @@ COPY config/config.production.yaml /app/config/config.production.yaml
 
 # Copy VERSION files for version detection
 COPY webserver/VERSION /app/webserver/VERSION
-COPY cpp_accelerator/VERSION /app/cpp_accelerator/VERSION
 COPY proto/VERSION /app/proto/VERSION
 
-# Update shared library cache for dynamic loading
-RUN ldconfig
-
 EXPOSE 8080 8443
-
-# Set library path for dynamic loading
-ENV LD_LIBRARY_PATH=/app/lib:${LD_LIBRARY_PATH}
 
 CMD ["/app/server", "-config=/app/config/config.yaml"]

@@ -6,8 +6,8 @@ import { FilterDefinition } from '../gen/common_pb';
 import {
   GenericFilterDefinition,
 } from '../gen/image_processor_service_pb';
-import { telemetryService } from './telemetry-service';
-import { logger } from './otel-logger';
+import { telemetryService } from '../infrastructure/observability/telemetry-service';
+import { logger } from '../infrastructure/observability/otel-logger';
 import {
   Filter,
   createFilterFromDefinition,
@@ -33,6 +33,8 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
   private genericFiltersLoaded = false;
   private listFiltersPromise: Promise<void> | null = null;
   private filterListeners = new Set<() => void>();
+  private grpcAvailable: boolean = false;
+  private lastStatusCheck: Date | null = null;
 
   constructor() {
     const transport = createConnectTransport({
@@ -67,6 +69,8 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
             this.filterDefinitions = response.capabilities.filters;
             this.filters = this.filterDefinitions.map(createFilterFromDefinition);
             this.notifyFilterListeners();
+            this.grpcAvailable = true;
+            this.lastStatusCheck = new Date();
 
             span?.setAttribute('capabilities.filter_count', this.filterDefinitions.length);
             span?.setAttribute('capabilities.api_version', response.capabilities.apiVersion);
@@ -81,10 +85,14 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
           } else {
             span?.addEvent('No capabilities in response');
             logger.warn('No capabilities in response');
+            this.grpcAvailable = false;
+            this.lastStatusCheck = new Date();
           }
         } catch (error) {
           span?.addEvent('Failed to load processor capabilities');
           span?.setAttribute('error', true);
+          this.grpcAvailable = false;
+          this.lastStatusCheck = new Date();
           logger.error('Failed to load processor capabilities', {
             'error.message': error instanceof Error ? error.message : String(error),
           });
@@ -107,6 +115,28 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
 
   isInitialized(): boolean {
     return this.filters.length > 0;
+  }
+
+  isGRPCAvailable(): boolean {
+    return this.grpcAvailable;
+  }
+
+  async refreshGRPCStatus(): Promise<boolean> {
+    try {
+      const response = await this.client.getProcessorStatus({});
+      const available = !!(response.capabilities && response.capabilities.filters);
+      this.grpcAvailable = available;
+      this.lastStatusCheck = new Date();
+      return available;
+    } catch (error) {
+      this.grpcAvailable = false;
+      this.lastStatusCheck = new Date();
+      return false;
+    }
+  }
+
+  getLastStatusCheck(): Date | null {
+    return this.lastStatusCheck;
   }
 
   getGenericFilters(): GenericFilterDefinition[] {
@@ -144,7 +174,17 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
           this.genericFiltersLoaded = true;
 
           if (this.genericFilters.length > 0) {
-            this.filters = this.genericFilters.map(createFilterFromGenericDefinition);
+            // Use generic filters if we don't have filters from capabilities, otherwise merge
+            if (this.filters.length === 0) {
+              this.filters = this.genericFilters.map(createFilterFromGenericDefinition);
+            } else {
+              // Merge generic filters with existing filters, avoiding duplicates
+              const existingIds = new Set(this.filters.map(f => f.id));
+              const newFilters = this.genericFilters
+                .filter(gf => !existingIds.has(gf.id))
+                .map(createFilterFromGenericDefinition);
+              this.filters = [...this.filters, ...newFilters];
+            }
             this.notifyFilterListeners();
           }
 
@@ -182,9 +222,5 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
   }
 }
 
-
-ProcessorCapabilitiesService.prototype['notifyFilterListeners'] = function notifyFilterListeners(this: ProcessorCapabilitiesService) {
-  this.filterListeners.forEach((listener) => notifyListener(listener));
-};
 
 export const processorCapabilitiesService = new ProcessorCapabilitiesService();

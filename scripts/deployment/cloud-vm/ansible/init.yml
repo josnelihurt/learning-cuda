@@ -1,0 +1,7 @@
+---
+- name: Initialize Cloud VM deployment
+  hosts: cloud
+  roles:
+    - setup
+    - application
+

@@ -1,9 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { TestHelpers } from './helpers/test-helpers';
 
 test.describe('Feature Flags Modal', () => {
+  let helpers: TestHelpers;
+
   test.beforeEach(async ({ page }) => {
+    helpers = new TestHelpers(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await helpers.waitForPageReady();
   });
 
   test('should display feature flags button in navbar', async ({ page }) => {

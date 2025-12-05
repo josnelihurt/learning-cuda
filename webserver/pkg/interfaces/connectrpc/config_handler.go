@@ -10,7 +10,6 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -22,7 +21,7 @@ type ConfigHandler struct {
 	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
 	getSystemInfoUseCase   *application.GetSystemInfoUseCase
 	configManager          *config.Manager
-	cppConnector           *processor.CppConnector
+	processorCapsUC        application.ProcessorCapabilitiesUseCase
 }
 
 func NewConfigHandler(
@@ -32,7 +31,7 @@ func NewConfigHandler(
 	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
 	getSystemInfoUC *application.GetSystemInfoUseCase,
 	configManager *config.Manager,
-	cppConnector *processor.CppConnector,
+	processorCapsUC application.ProcessorCapabilitiesUseCase,
 ) *ConfigHandler {
 	return &ConfigHandler{
 		getStreamConfigUseCase: getStreamConfigUC,
@@ -41,7 +40,7 @@ func NewConfigHandler(
 		evaluateFFUseCase:      evaluateFFUC,
 		getSystemInfoUseCase:   getSystemInfoUC,
 		configManager:          configManager,
-		cppConnector:           cppConnector,
+		processorCapsUC:        processorCapsUC,
 	}
 }
 
@@ -84,6 +83,8 @@ func (h *ConfigHandler) GetStreamConfig(
 			ConsoleLogging:  consoleLogging,
 		},
 	}
+
+	log.Printf("DEBUG: StreamEndpoint console_logging value: %v", consoleLogging)
 
 	span.SetAttributes(
 		attribute.String("config.endpoint", streamConfig.WebsocketEndpoint),
@@ -132,13 +133,6 @@ func (h *ConfigHandler) SyncFeatureFlags(
 			Type:         domain.BooleanFlagType,
 			Enabled:      true,
 			DefaultValue: true,
-		},
-		{
-			Key:          "processor_use_grpc_backend",
-			Name:         "Use gRPC backend for image processor",
-			Type:         domain.BooleanFlagType,
-			Enabled:      true,
-			DefaultValue: false,
 		},
 	}
 
@@ -324,40 +318,36 @@ func (h *ConfigHandler) GetProcessorStatus(
 ) (*connect.Response[pb.GetProcessorStatusResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	if h.cppConnector == nil {
-		span.RecordError(fmt.Errorf("c++ connector not available"))
+	if h.processorCapsUC == nil {
+		span.RecordError(fmt.Errorf("processor capabilities use case not available"))
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("processor not available"))
 	}
 
-	capabilities := h.cppConnector.GetCapabilities()
-	apiVersion := h.cppConnector.GetAPIVersion()
-	libraryVersion, err := h.cppConnector.GetLibraryVersion()
+	caps, origin, err := h.processorCapsUC.Execute(ctx, true) // force gRPC
 	if err != nil {
-		libraryVersion = "unknown"
+		span.RecordError(err)
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("failed to get processor capabilities: %w", err))
 	}
 
-	span.SetAttributes(
-		attribute.String("processor.api_version", apiVersion),
-		attribute.String("processor.library_version", libraryVersion),
-	)
-
-	if capabilities == nil {
+	if caps == nil {
 		span.RecordError(fmt.Errorf("capabilities not available"))
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("processor capabilities not available"))
 	}
 
-	response := &pb.GetProcessorStatusResponse{
-		ApiVersion:     apiVersion,
-		Capabilities:   capabilities,
-		CurrentLibrary: libraryVersion,
-	}
-
 	span.SetAttributes(
-		attribute.Int("processor.filter_count", len(capabilities.Filters)),
+		attribute.String("processor.api_version", caps.ApiVersion),
+		attribute.String("processor.backend_origin", string(origin)),
+		attribute.Int("processor.filter_count", len(caps.Filters)),
 	)
 
-	log.Printf("GetProcessorStatus: returning capabilities with %d filters, api_version: %s, library_version: %s",
-		len(capabilities.Filters), apiVersion, libraryVersion)
+	response := &pb.GetProcessorStatusResponse{
+		ApiVersion:     caps.ApiVersion,
+		Capabilities:   caps,
+		CurrentLibrary: caps.LibraryVersion,
+	}
+
+	log.Printf("GetProcessorStatus: returning capabilities with %d filters, api_version: %s, library_version: %s, origin: %s",
+		len(caps.Filters), caps.ApiVersion, caps.LibraryVersion, origin)
 
 	return connect.NewResponse(response), nil
 }

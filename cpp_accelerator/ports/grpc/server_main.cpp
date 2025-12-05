@@ -14,6 +14,8 @@
 
 #include "cpp_accelerator/ports/grpc/image_processor_service_impl.h"
 #include "cpp_accelerator/ports/grpc/processor_engine_adapter.h"
+#include "cpp_accelerator/ports/grpc/webrtc_manager.h"
+#include "cpp_accelerator/ports/grpc/webrtc_signaling_service_impl.h"
 #include "cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 ABSL_FLAG(std::string, listen_addr, "0.0.0.0:60061",
@@ -49,10 +51,19 @@ int main(int argc, char** argv) {
 
   auto adapter = std::make_shared<jrb::ports::grpc_service::ProcessorEngineAdapter>(engine);
   auto service = std::make_unique<jrb::ports::grpc_service::ImageProcessorServiceImpl>(adapter);
+  auto webrtc_manager = std::make_shared<jrb::ports::grpc_service::WebRTCManager>();
+  if (!webrtc_manager->Initialize()) {
+    spdlog::warn("WebRTCManager failed to initialize");
+  } else {
+    spdlog::info("WebRTCManager ready for signaling");
+  }
+  auto signaling_service =
+      std::make_unique<jrb::ports::grpc_service::WebRTCSignalingServiceImpl>(webrtc_manager);
 
   grpc::ServerBuilder builder;
   builder.AddListeningPort(absl::GetFlag(FLAGS_listen_addr), grpc::InsecureServerCredentials());
   builder.RegisterService(service.get());
+  builder.RegisterService(signaling_service.get());
 
   const int message_bytes = absl::GetFlag(FLAGS_max_message_mb) * 1024 * 1024;
   builder.SetMaxReceiveMessageSize(message_bytes);
@@ -64,7 +75,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  spdlog::info("ImageProcessorService gRPC server listening on {}", absl::GetFlag(FLAGS_listen_addr));
+  spdlog::info("ImageProcessorService gRPC server listening on {}",
+               absl::GetFlag(FLAGS_listen_addr));
 
   std::signal(SIGINT, HandleSignal);
   std::signal(SIGTERM, HandleSignal);
@@ -73,5 +85,3 @@ int main(int argc, char** argv) {
   spdlog::info("gRPC server exited gracefully");
   return 0;
 }
-
-

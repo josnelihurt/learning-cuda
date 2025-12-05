@@ -1,0 +1,29 @@
+{
+  "version": "1",
+  "name": "grpc-test",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ],
+  "size": 0,
+  "filesCount": 0,
+  "protobuf": {
+    "protoFiles": [
+      {
+        "path": "../../../proto/webrtc_signal.proto",
+        "type": "file"
+      },
+      {
+        "path": "../../../proto/image_processor_service.proto",
+        "type": "file"
+      }
+    ],
+    "importPaths": [
+      {
+        "path": "../../../proto",
+        "enabled": true
+      }
+    ]
+  }
+}

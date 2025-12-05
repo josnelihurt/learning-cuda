@@ -7,7 +7,7 @@ test.describe('Independent Filter Configuration', () => {
   test.beforeEach(async ({ page }) => {
     helpers = new TestHelpers(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await helpers.waitForPageReady();
     await helpers.enableDebugLogging();
     
     const currentCount = await helpers.getSourceCount();
@@ -18,17 +18,19 @@ test.describe('Independent Filter Configuration', () => {
     }
   });
 
-  test('Test 3.1: Configure Source 1', async ({ page }) => {
+  test('Test 3.1: Configure Source 1', async ({ page, browserName }) => {
     await helpers.selectSource(1);
     await helpers.enableFilter('grayscale');
     await helpers.selectFilterParameter('grayscale', 'algorithm', 'bt601');
     
-    await page.waitForTimeout(1000);
+    // WebKit may need more time for filter configuration
+    const waitTime = browserName === 'webkit' ? 2000 : 1000;
+    await page.waitForTimeout(waitTime);
     
     await helpers.expectSourceFilterParameter(1, 'grayscale', 'algorithm', 'bt601');
   });
 
-  test('Test 3.2: Configure Source 2 (Different Settings)', async ({ page }) => {
+  test('Test 3.2: Configure Source 2 (Different Settings)', async ({ page, browserName }) => {
     await helpers.selectSource(2);
     
     const isEnabled = await helpers.isFilterEnabled('grayscale');
@@ -37,7 +39,9 @@ test.describe('Independent Filter Configuration', () => {
     await helpers.enableFilter('grayscale');
     await helpers.selectFilterParameter('grayscale', 'algorithm', 'bt709');
     
-    await page.waitForTimeout(1000);
+    // WebKit may need more time for filter configuration
+    const waitTime = browserName === 'webkit' ? 2000 : 1000;
+    await page.waitForTimeout(waitTime);
     
     await helpers.expectSourceFilterParameter(2, 'grayscale', 'algorithm', 'bt709');
   });
@@ -52,12 +56,14 @@ test.describe('Independent Filter Configuration', () => {
     await helpers.expectSourceFilterParameter(3, 'grayscale', 'algorithm', 'average');
   });
 
-  test('Test 3.4: Configure Source 4 (Different Algorithm)', async ({ page }) => {
+  test('Test 3.4: Configure Source 4 (Different Algorithm)', async ({ page, browserName }) => {
     await helpers.selectSource(4);
     await helpers.enableFilter('grayscale');
     await helpers.selectFilterParameter('grayscale', 'algorithm', 'lightness');
     
-    await page.waitForTimeout(1000);
+    // WebKit may need more time for filter configuration
+    const waitTime = browserName === 'webkit' ? 2000 : 1000;
+    await page.waitForTimeout(waitTime);
     
     await helpers.expectSourceFilterParameter(4, 'grayscale', 'algorithm', 'lightness');
   });

@@ -50,6 +50,12 @@ logging:
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
 
+mqtt:
+  broker: "vultur.josnelihurt.me"
+  port: 1883
+  client_id: "cuda-learning-remote-management"
+  topic: "pow/S31JetsonNanoOrin"
+
 static_images:
   directory: "data/static_images"
 
@@ -76,7 +82,7 @@ tools:
   features:
     - id: "flipt"
       name: "Flipt Feature Flags"
-      icon_path: "/static/img/tools/flipt.png"
+      icon_path: "/static/img/tools/flipt.svg"
       type: "url"
       url_dev: "http://localhost:8081"
       url_prod: "/flipt"
@@ -94,7 +100,7 @@ tools:
       url_prod: "/reports"
     - id: "e2e_reports"
       name: "E2E Test Results (Playwright)"
-      icon_path: "/static/img/tools/playwright.png"
+      icon_path: "/static/img/tools/playwright.svg"
       type: "url"
       url_dev: "http://localhost:5051"
       url_prod: "/e2e"

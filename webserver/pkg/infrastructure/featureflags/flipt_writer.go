@@ -25,11 +25,19 @@ type FliptWriter struct {
 
 // Flag represents a feature flag as returned by the Flipt HTTP API.
 type Flag struct {
-	Key         string `json:"key"`
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Enabled     bool   `json:"enabled"`
-	Description string `json:"description"`
+	Key         string    `json:"key"`
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Enabled     bool      `json:"enabled"`
+	Description string    `json:"description"`
+	Variants    []Variant `json:"variants,omitempty"`
+}
+
+// Variant represents a variant of a feature flag.
+type Variant struct {
+	Key        string          `json:"key"`
+	Name       string          `json:"name"`
+	Attachment json.RawMessage `json:"attachment,omitempty"`
 }
 
 func NewFliptWriter(grpcURL, namespace string, client httpClient) *FliptWriter {

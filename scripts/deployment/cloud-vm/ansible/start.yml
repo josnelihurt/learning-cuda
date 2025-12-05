@@ -1,0 +1,140 @@
+---
+- name: Start services on Cloud VM
+  hosts: cloud
+  tasks:
+    - name: Verify repository exists on remote
+      stat:
+        path: "{{ app_directory }}/.git"
+      register: repo_check
+
+    - name: Fail if repository doesn't exist
+      fail:
+        msg: "Repository not found at {{ app_directory }}"
+      when: not repo_check.stat.exists
+
+    - name: Verify .secrets directory exists
+      stat:
+        path: "{{ app_directory }}/.secrets"
+      register: secrets_check
+
+    - name: Fail if secrets don't exist
+      fail:
+        msg: ".secrets directory not found at {{ app_directory }}/.secrets"
+      when: not secrets_check.stat.exists
+
+    - name: Verify docker-compose.go-cloud.yml exists
+      stat:
+        path: "{{ app_directory }}/docker-compose.go-cloud.yml"
+      register: compose_check
+
+    - name: Fail if docker-compose.go-cloud.yml doesn't exist
+      fail:
+        msg: "docker-compose.go-cloud.yml not found at {{ app_directory }}"
+      when: not compose_check.stat.exists
+
+    - name: List .secrets files
+      shell: ls -1 {{ app_directory }}/.secrets/*.env
+      register: secrets_files
+      changed_when: false
+      failed_when: false
+
+    - name: Display secrets found
+      debug:
+        msg: "Found secrets: {{ secrets_files.stdout_lines }}"
+      when: secrets_files.rc == 0
+
+    - name: Set APP_IMAGE variable
+      set_fact:
+        app_image: "{{ lookup('env', 'APP_IMAGE') | default('ghcr.io/josnelihurt/learning-cuda:amd64-latest', true) }}"
+
+    - name: Pull latest container images
+      shell: |
+        cd {{ app_directory }}
+        export APP_IMAGE="{{ app_image }}"
+        docker compose -f docker-compose.go-cloud.yml pull
+      register: docker_pull
+      changed_when: "'Downloaded' in docker_pull.stdout or 'Updated' in docker_pull.stdout or 'Pulling' in docker_pull.stdout"
+      failed_when: docker_pull.rc != 0
+
+    - name: Stop existing containers
+      shell: |
+        cd {{ app_directory }}
+        export APP_IMAGE="{{ app_image }}"
+        docker compose -f docker-compose.go-cloud.yml down
+      register: stop_result
+      failed_when: false
+      changed_when: stop_result.rc == 0
+
+    - name: Start services with docker compose
+      shell: |
+        cd {{ app_directory }}
+        export APP_IMAGE="{{ app_image }}"
+        docker compose -f docker-compose.go-cloud.yml up -d
+      register: docker_up
+      failed_when: docker_up.rc != 0
+
+    - name: Display docker up output
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ docker_up.stdout_lines }}"
+      when: docker_up.stdout_lines is defined
+
+    - name: Display docker up errors
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ docker_up.stderr_lines }}"
+      when: docker_up.stderr_lines is defined
+
+    - name: Wait for services to be up
+      shell: cd {{ app_directory }} && docker compose -f docker-compose.go-cloud.yml ps
+      register: services_status
+      retries: 30
+      delay: 5
+      changed_when: false
+      failed_when: false
+
+    - name: Display services status
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ services_status.stdout_lines }}"
+
+    - name: Verify no services exited
+      fail:
+        msg: "Some services have exited. Check the status above."
+      when: "'Exited' in services_status.stdout"
+
+    - name: Wait for service health check
+      wait_for:
+        port: 8080
+        host: "{{ ansible_host }}"
+        timeout: 60
+        delay: 10
+      failed_when: false
+
+    - name: Check service health
+      uri:
+        url: "http://{{ ansible_host }}:8080/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 5
+      delay: 10
+      failed_when: false
+
+    - name: Display deployment status
+      debug:
+        msg:
+          - "Services started successfully"
+          - "Health check: {{ 'PASSED' if health_check.status == 200 else 'FAILED' }}"
+          - "Application URL: https://app-cuda-demo.josnelihurt.me"
+
+    - name: Final service check
+      shell: cd {{ app_directory }} && docker compose -f docker-compose.go-cloud.yml ps
+      register: final_status
+      changed_when: false
+
+    - name: Display final status
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ final_status.stdout_lines }}"
+

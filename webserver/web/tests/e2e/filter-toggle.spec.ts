@@ -7,7 +7,7 @@ test.describe('Filter Toggle and Changes', () => {
   test.beforeEach(async ({ page }) => {
     helpers = new TestHelpers(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await helpers.waitForPageReady();
     
     const count = await helpers.getSourceCount();
     if (count === 0) {

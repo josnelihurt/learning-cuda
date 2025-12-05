@@ -35,6 +35,9 @@ flowchart TB
     App --> Publish{"Push tags?"}
     Publish -->|push event| GHCR[(GHCR)]
     Publish -->|pull_request| LocalRegistry["Load images only"]
+    
+    GHCR -->|x86 workflow| DeployCloudVM["Deploy to Cloud VM<br/>(Go server)"]
+    GHCR -->|arm workflow| DeployJetson["Deploy to Jetson Nano<br/>(gRPC server)"]
 
     subgraph Architectures
         Base --> ARM64["ARM64 runners"]
@@ -49,3 +52,9 @@ flowchart TB
 ## Related Automation
 - Staging deployments `scripts/deployment/staging_local/` consume the published AMD64 images.
 - Production deployments on Jetson hardware rely on the latest ARM64 `app` tag produced by the ARM workflow.
+- **Cloud VM Deployment**: The x86 workflow (`docker-monorepo-build-x86.yml`) includes an automated `deploy_prod` job that runs after `build_and_push` on pushes to `main`. This job:
+  - Installs Ansible if not present
+  - Configures SSH authentication using `CLOUD_VM_SSH_KEY` secret
+  - Executes deployment scripts (`scripts/deployment/cloud-vm/deploy.sh`) to deploy the Go server to the production cloud VM
+  - Uses the latest AMD64 image tag from GHCR
+  - Requires GitHub secrets: `CLOUD_VM_HOST`, `CLOUD_VM_USER`, `CLOUD_VM_SSH_KEY` (see `.secrets/production.env.example` for configuration details)

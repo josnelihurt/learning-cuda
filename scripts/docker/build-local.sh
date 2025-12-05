@@ -357,7 +357,7 @@ run_app_image() {
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "cpp_accelerator/VERSION")"
   golang_version="$(read_version "webserver/VERSION")"
-  local app_tag="${golang_version}-proto${proto_version}-cpp${cpp_version}-go${golang_version}"
+  local app_tag="${golang_version}"
   local version_tag="${IMAGE_BASE}/app:${app_tag}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/app:latest-${ARCH}"
 

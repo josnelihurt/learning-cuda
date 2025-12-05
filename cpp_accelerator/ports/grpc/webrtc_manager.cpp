@@ -29,6 +29,11 @@ bool WebRTCManager::Initialize() {
     config_ = std::make_unique<rtc::Configuration>();
     config_->iceServers.emplace_back("stun:stun.l.google.com:19302");
 
+    config_->portRangeBegin = 10000;
+    config_->portRangeEnd = 10199;
+    spdlog::info("WebRTC port range configured: UDP {}-{}", config_->portRangeBegin,
+                 config_->portRangeEnd);
+
     cleanup_running_ = true;
     cleanup_thread_ = std::thread([this]() {
       while (cleanup_running_) {

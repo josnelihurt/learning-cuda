@@ -1,0 +1,268 @@
+---
+- name: Manage GitHub Actions runner on Cloud VM
+  hosts: cloud
+  become: yes
+  vars:
+    runner_name: "{{ runner_name | default('learning-cuda-cloud-vm-1') }}"
+    runner_labels: "{{ runner_labels | default('self-hosted,Linux,X64,prod,cloud-vm') }}"
+    runner_state: "{{ runner_state | default('present') }}"
+    repo_slug: "{{ repo_slug }}"
+    runner_root: "/opt/actions-runner-cloud-vm"
+    runner_archive: "{{ runner_root }}/runner.tar.gz"
+    runner_service_name: "actions.runner.{{ repo_slug | replace('/', '-') }}.{{ runner_name }}"
+    runner_labels_csv: "{{ runner_labels }}"
+    runner_service_path: "/etc/systemd/system/{{ runner_service_name }}.service"
+  tasks:
+    - name: Remove legacy runner container if present
+      ansible.builtin.command:
+        cmd: "docker rm -f learning-cuda-runner"
+      register: legacy_remove
+      failed_when: false
+      changed_when: legacy_remove.rc == 0
+      when: runner_state in ['present', 'absent']
+
+    - name: Ensure required packages are installed
+      ansible.builtin.apt:
+        name:
+          - curl
+          - jq
+          - tar
+          - git
+          - ca-certificates
+          - libicu-dev
+        state: present
+        update_cache: true
+      when: runner_state == 'present'
+
+    - name: Create runner directory
+      ansible.builtin.file:
+        path: "{{ runner_root }}"
+        state: directory
+        mode: "0755"
+      when: runner_state == 'present'
+
+    - name: Check runner directory
+      ansible.builtin.stat:
+        path: "{{ runner_root }}"
+      register: runner_dir
+
+    - name: Check existing runner configuration
+      ansible.builtin.stat:
+        path: "{{ runner_root }}/.runner"
+      register: runner_config
+      when: runner_dir.stat.exists
+
+    - name: Check runner service
+      ansible.builtin.stat:
+        path: "{{ runner_service_path }}"
+      register: runner_service
+
+    - name: Lookup existing runner ID
+      ansible.builtin.command: >
+        gh api repos/{{ repo_slug }}/actions/runners --paginate
+        --jq '.runners[] | select(.name == "{{ runner_name }}") | .id'
+      delegate_to: localhost
+      become: false
+      register: runner_existing_id
+
+    - name: Remove existing runner registration
+      ansible.builtin.command: >
+        gh api repos/{{ repo_slug }}/actions/runners/{{ runner_existing_id.stdout }} --method DELETE
+      when:
+        - runner_existing_id.stdout | length > 0
+        - runner_state == 'present'
+        - not (runner_config.stat.exists | default(false))
+      delegate_to: localhost
+      become: false
+      changed_when: true
+
+    - name: Download runner archive
+      ansible.builtin.get_url:
+        url: "{{ runner_download_url }}"
+        dest: "{{ runner_archive }}"
+        mode: "0644"
+      when:
+        - runner_state == 'present'
+        - not (runner_config.stat.exists | default(false))
+
+    - name: Extract runner archive
+      ansible.builtin.unarchive:
+        src: "{{ runner_archive }}"
+        dest: "{{ runner_root }}"
+        remote_src: true
+      when:
+        - runner_state == 'present'
+        - not (runner_config.stat.exists | default(false))
+
+    - name: Ensure runner directory ownership
+      ansible.builtin.file:
+        path: "{{ runner_root }}"
+        state: directory
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
+        mode: "0755"
+        recurse: true
+      when: runner_state == 'present'
+
+    - name: Ensure diagnostics directory exists
+      ansible.builtin.file:
+        path: "{{ runner_root }}/_diag"
+        state: directory
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
+        mode: "0775"
+      when: runner_state == 'present'
+
+    - name: Obtain GitHub Actions registration token
+      ansible.builtin.command: >
+        gh api --method POST repos/{{ repo_slug }}/actions/runners/registration-token --jq .token
+      register: runner_registration_token
+      when:
+        - runner_state == 'present'
+        - not (runner_config.stat.exists | default(false))
+      delegate_to: localhost
+      become: false
+
+    - name: Configure runner
+      ansible.builtin.shell: >-
+        ./config.sh --unattended
+        --url https://github.com/{{ repo_slug }}
+        --token {{ runner_registration_token.stdout }}
+        {% if runner_labels_csv %} --labels {{ runner_labels_csv }}{% endif %}
+        --name {{ runner_name }}
+        --work _work
+      args:
+        chdir: "{{ runner_root }}"
+      environment:
+        RUNNER_ALLOW_RUNASROOT: "1"
+      when:
+        - runner_state == 'present'
+        - not runner_config.stat.exists
+
+    - name: Ensure credentials files have correct permissions
+      ansible.builtin.file:
+        path: "{{ runner_root }}/{{ item }}"
+        state: file
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
+        mode: "0600"
+      loop:
+        - .credentials
+        - .credentials_rsaparams
+        - .runner
+        - .env
+        - .path
+      when:
+        - runner_state == 'present'
+        - runner_config.stat.exists | default(false)
+      ignore_errors: true
+
+    - name: Install runner service
+      ansible.builtin.command:
+        cmd: "./svc.sh install"
+        chdir: "{{ runner_root }}"
+      environment:
+        RUNNER_ALLOW_RUNASROOT: "1"
+      when:
+        - runner_state == 'present'
+        - not (runner_service.stat.exists | default(false))
+
+    - name: Ensure runner systemd override directory exists
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ runner_service_name }}.service.d"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: runner_state == 'present'
+
+    - name: Configure runner restart policy override
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ runner_service_name }}.service.d/override.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          Restart=always
+          RestartSec=5
+          StartLimitIntervalSec=0
+      when: runner_state == 'present'
+
+    - name: Reload systemd after runner override
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: runner_state == 'present'
+
+    - name: Enable runner service at boot
+      ansible.builtin.systemd:
+        name: "{{ runner_service_name }}.service"
+        enabled: true
+      when: runner_state == 'present'
+
+    - name: Ensure credentials files have correct permissions after service install
+      ansible.builtin.file:
+        path: "{{ runner_root }}/{{ item }}"
+        state: file
+        owner: "{{ deployment_user | default(ansible_user_id) }}"
+        group: "{{ deployment_group | default(deployment_user | default(ansible_user_id)) }}"
+        mode: "0600"
+      loop:
+        - .credentials
+        - .credentials_rsaparams
+        - .runner
+        - .env
+        - .path
+      when:
+        - runner_state == 'present'
+        - runner_config.stat.exists | default(false)
+      ignore_errors: true
+
+    - name: Ensure runner service is running
+      ansible.builtin.command:
+        cmd: "./svc.sh start"
+        chdir: "{{ runner_root }}"
+      register: runner_start
+      changed_when: runner_start.rc == 0
+      environment:
+        RUNNER_ALLOW_RUNASROOT: "1"
+      when: runner_state == 'present'
+
+    - name: Stop runner service if present
+      ansible.builtin.command:
+        cmd: "./svc.sh stop"
+        chdir: "{{ runner_root }}"
+      environment:
+        RUNNER_ALLOW_RUNASROOT: "1"
+      failed_when: false
+      when:
+        - runner_state == 'absent'
+        - runner_service.stat.exists | default(false)
+
+    - name: Uninstall runner service if present
+      ansible.builtin.command:
+        cmd: "./svc.sh uninstall"
+        chdir: "{{ runner_root }}"
+      environment:
+        RUNNER_ALLOW_RUNASROOT: "1"
+      failed_when: false
+      when:
+        - runner_state == 'absent'
+        - runner_service.stat.exists | default(false)
+
+    - name: Remove runner files
+      ansible.builtin.file:
+        path: "{{ runner_root }}"
+        state: absent
+      when: runner_state == 'absent'
+
+    - name: Deregister runner from GitHub
+      ansible.builtin.command: >
+        gh api repos/{{ repo_slug }}/actions/runners/{{ runner_existing_id.stdout }} --method DELETE
+      when:
+        - runner_state == 'absent'
+        - runner_existing_id.stdout | length > 0
+      delegate_to: localhost
+      become: false
+      changed_when: true
+

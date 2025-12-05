@@ -25,7 +25,7 @@ for var in CLOUD_VM_HOST CLOUD_VM_USER; do
 done
 
 # Export for Ansible
-export CLOUD_VM_HOST CLOUD_VM_USER
+export CLOUD_VM_HOST CLOUD_VM_USER CLOUD_VM_SUDO_PASSWORD
 
 # Debug: Show environment variables (without sensitive data)
 echo "Deployment configuration:"

@@ -182,9 +182,7 @@ RUN npm install multiple-cucumber-html-reporter && \
 #################################################################################
 #                            RUNTIME STAGE (FINAL)                              #
 #################################################################################
-# Minimal runtime image with CUDA runtime (no compiler/build tools)
-# Combines: Go server + C++ libraries + frontend static files
-# The Go server loads C++ .so dynamically based on config
+# Minimal runtime image without CUDA runtime (no compiler/build tools)
 #################################################################################
 
 FROM ${BASE_REGISTRY}/base:runtime-base-${BASE_TAG}-${TARGETARCH} AS runtime-base

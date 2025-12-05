@@ -1,0 +1,60 @@
+---
+- name: Check Docker installation
+  command: docker --version
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Check Docker Compose installation
+  command: docker compose version
+  register: compose_check
+  failed_when: false
+  changed_when: false
+
+- name: Fail if Docker is not installed
+  fail:
+    msg: "Docker is not installed. Please install Docker."
+  when: docker_check.rc != 0
+
+- name: Fail if Docker Compose is not available
+  fail:
+    msg: "Docker Compose is not available. Please install docker-compose-plugin."
+  when: compose_check.rc != 0
+
+- name: Check if Docker service is running
+  command: systemctl is-active docker
+  register: docker_service_status
+  failed_when: false
+  changed_when: false
+
+- name: Warn if Docker service is not running
+  debug:
+    msg: "Warning: Docker service is not running. Please start it manually if needed."
+  when: docker_service_status.rc != 0
+
+- name: Check if user is in docker group
+  shell: groups | grep -q docker && echo "yes" || echo "no"
+  register: user_in_docker_group
+  changed_when: false
+
+- name: Warn if user is not in docker group
+  debug:
+    msg: "Warning: User {{ deployment_user }} is not in docker group. Docker commands may fail."
+  when: "'yes' not in user_in_docker_group.stdout"
+
+- name: Create application directory
+  file:
+    path: "{{ app_directory }}"
+    state: directory
+    mode: '0755'
+
+- name: Create secrets directory
+  file:
+    path: "{{ app_directory }}/.secrets"
+    state: directory
+    mode: '0700'
+
+- name: Display setup summary
+  debug:
+    msg: "Setup complete: Docker={{ docker_check.stdout_lines[0] if docker_check.rc == 0 else 'N/A' }}, Docker Compose={{ compose_check.stdout_lines[0] if compose_check.rc == 0 else 'N/A' }}"
+

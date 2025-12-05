@@ -1,0 +1,18 @@
+all:
+  children:
+    cloud:
+      hosts:
+        cloud-vm:
+          ansible_host: "{{ lookup('env', 'CLOUD_VM_HOST') }}"
+          ansible_user: "{{ lookup('env', 'CLOUD_VM_USER') }}"
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+      vars:
+        deployment_user: "{{ lookup('env', 'CLOUD_VM_USER') }}"
+        deployment_group: "{{ lookup('env', 'CLOUD_VM_USER') }}"
+        app_directory: "/home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning"
+        repo_url: https://github.com/josnelihurt/learning-cuda.git
+        repo_branch: main
+        docker_compose_file: docker-compose.go-cloud.yml
+        production_profile: production
+

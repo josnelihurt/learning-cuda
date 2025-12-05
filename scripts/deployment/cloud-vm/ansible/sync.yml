@@ -1,0 +1,60 @@
+---
+- name: Sync files to Cloud VM
+  hosts: cloud
+  tasks:
+    - name: Get project root
+      set_fact:
+        project_root: "{{ playbook_dir | dirname | dirname | dirname | dirname }}"
+
+    - name: Validate repository exists locally
+      stat:
+        path: "{{ project_root }}/.git"
+      register: git_repo
+      delegate_to: localhost
+      failed_when: not git_repo.stat.exists
+
+    - name: Pull latest changes from repository
+      shell: cd {{ app_directory }} && git pull
+
+    - name: Sync .secrets directory with rsync
+      synchronize:
+        src: "{{ project_root }}/.secrets/"
+        dest: "{{ app_directory }}/.secrets/"
+        delete: no
+        rsync_opts:
+          - "--exclude=*.example"
+          - "--exclude=.gitignore"
+          - "--exclude=README.md"
+        mode: push
+
+    - name: Copy docker-compose.go-cloud.yml
+      copy:
+        src: "{{ project_root }}/docker-compose.go-cloud.yml"
+        dest: "{{ app_directory }}/docker-compose.go-cloud.yml"
+        mode: '0644'
+
+    - name: Copy config.production.yaml
+      copy:
+        src: "{{ project_root }}/config/config.production.yaml"
+        dest: "{{ app_directory }}/config/config.production.yaml"
+        mode: '0644'
+
+    - name: Ensure config directory exists
+      file:
+        path: "{{ app_directory }}/config"
+        state: directory
+        mode: '0755'
+
+    - name: List .secrets files on remote
+      shell: ls -1 {{ app_directory }}/.secrets/
+      register: secrets_list
+      changed_when: false
+
+    - name: Display .secrets content
+      debug:
+        msg: "{{ secrets_list.stdout_lines }}"
+
+    - name: Display summary
+      debug:
+        msg: "Files synced: docker-compose.go-cloud.yml, config/config.production.yaml, .secrets/"
+

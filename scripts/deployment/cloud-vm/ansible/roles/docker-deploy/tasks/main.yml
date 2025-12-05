@@ -1,0 +1,4 @@
+---
+# Docker deployment tasks are handled directly in start.yml
+# This role is kept for consistency with the structure but tasks are in start.yml
+

@@ -31,8 +31,13 @@ bool WebRTCManager::Initialize() {
 
     config_->portRangeBegin = 10000;
     config_->portRangeEnd = 10199;
-    spdlog::info("WebRTC port range configured: UDP {}-{}", config_->portRangeBegin,
-                 config_->portRangeEnd);
+
+    spdlog::info("WebRTC Configuration:");
+    spdlog::info("  - STUN Server: stun.l.google.com:19302");
+    spdlog::info("  - UDP Port Range: {}-{} ({} ports)", config_->portRangeBegin,
+                 config_->portRangeEnd, config_->portRangeEnd - config_->portRangeBegin + 1);
+    spdlog::info("  - TURN Server: Not configured");
+    spdlog::info("  - Session Cleanup: Enabled (30s timeout)");
 
     cleanup_running_ = true;
     cleanup_thread_ = std::thread([this]() {

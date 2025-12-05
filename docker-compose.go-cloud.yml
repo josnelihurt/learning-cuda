@@ -25,8 +25,8 @@ services:
       start_period: 40s
 
     networks:
-      - manage_proxy-net-wan
       - iot_default
+      - public-wan
 
   flipt:
     image: flipt/flipt:latest
@@ -38,7 +38,7 @@ services:
       - FLIPT_META_TELEMETRY_ENABLED=false
     
     networks:
-      - manage_proxy-net-wan
+      - public-wan
     
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
@@ -56,7 +56,7 @@ services:
       - "traefik.http.services.flipt.loadbalancer.server.port=8080"
 
 networks:
-  manage_proxy-net-wan:
+  public-wan:
     external: true
   iot_default:
     external: true

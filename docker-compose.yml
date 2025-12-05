@@ -1,43 +1,4 @@
 services:
-  app:
-    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda:arm64-latest}
-    container_name: cuda-image-processor
-    restart: unless-stopped
-    
-    volumes:
-      - ./data:/data:ro
-      - ./config/config.production.yaml:/app/config/config.yaml:ro
-      - /tmp:/tmp
-    
-    networks:
-      - traefik
-    
-    depends_on:
-      flipt:
-        condition: service_healthy
-      traefik:
-        condition: service_started
-      otel-collector:
-        condition: service_started
-      jaeger:
-        condition: service_healthy
-      loki:
-        condition: service_healthy
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cuda-app.rule=Host(`app-cuda-demo.josnelihurt.me`)"
-      - "traefik.http.routers.cuda-app.entrypoints=websecure"
-      - "traefik.http.routers.cuda-app.tls=true"
-      - "traefik.http.services.cuda-app.loadbalancer.server.port=8080"
-    
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
   traefik:
     image: traefik:latest
     container_name: traefik

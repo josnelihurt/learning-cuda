@@ -37,15 +37,11 @@
       register: docker_pull
       changed_when: "'Downloaded' in docker_pull.stdout or 'Updated' in docker_pull.stdout"
       failed_when: docker_pull.rc != 0
-      environment:
-        APP_IMAGE: "{{ lookup('env', 'APP_IMAGE') | default('', true) }}"
 
     - name: Start services with docker compose
       shell: cd {{ app_directory }} && docker compose --profile production up -d
       register: docker_up
       ignore_errors: yes
-      environment:
-        APP_IMAGE: "{{ lookup('env', 'APP_IMAGE') | default('', true) }}"
 
     - name: Display docker up output
       debug:

@@ -73,3 +73,45 @@ jobs:
             echo "Pushing ${img}..."
             docker push "${img}"
           done
+
+  deploy_prod:
+    name: Deploy production (Cloud VM)
+    needs:
+      - build_and_push
+    runs-on: ["self-hosted", "Linux", "X64"]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check if Ansible is installed
+        id: check_ansible
+        run: |
+          if command -v ansible-playbook &> /dev/null; then
+            echo "installed=true" >> $GITHUB_OUTPUT
+          else
+            echo "installed=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Install Ansible (if not installed)
+        if: steps.check_ansible.outputs.installed == 'false'
+        run: |
+          pip install --user ansible
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CLOUD_VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.CLOUD_VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+      
+      - name: Deploy to Cloud VM
+        env:
+          CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
+          CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
+          APP_IMAGE: ghcr.io/josnelihurt/learning-cuda:amd64-latest
+        run: |
+          cd scripts/deployment/cloud-vm
+          export CLOUD_VM_HOST CLOUD_VM_USER
+          ./deploy.sh

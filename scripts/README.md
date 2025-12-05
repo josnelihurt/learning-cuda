@@ -43,6 +43,13 @@ flowchart LR
 ### `deployment/jetson-nano`
 - Automates production deployment on Jetson Nano hardware using Ansible playbooks (`deploy.sh` orchestrates `init`, `sync`, and `start`). Aligns with the ARM64 CI workflow outputs.
 
+### `deployment/cloud-vm`
+- Automates production deployment of the Go server to a cloud VM (x86_64) using Ansible playbooks. The Go server runs separately from the Jetson Nano deployment, which only hosts the gRPC server (C++ with CUDA) and infrastructure services.
+- **Pipeline**: `deploy.sh` orchestrates `init.sh` (setup Docker and directories), `sync.sh` (sync configuration and secrets), and `start.sh` (pull images and start services).
+- **Automation**: Integrated into the x86 CI workflow (`docker-monorepo-build-x86.yml`) to automatically deploy after building and pushing images to GHCR.
+- **Requirements**: SSH access to the cloud VM, Docker installed, user in docker group. Secrets configured in GitHub Actions: `CLOUD_VM_HOST`, `CLOUD_VM_USER`, `CLOUD_VM_SSH_KEY`.
+- **Configuration**: Uses `docker-compose.go-cloud.yml` to deploy only the Go server service, connecting to existing Traefik instance via `public-wan` Docker network.
+
 ### `deployment/local_dev`
 - Provides `start.sh` for fast local stacks without cloud dependencies, targeting developers iterating on scripts or runtime settings.
 

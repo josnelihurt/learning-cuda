@@ -4,12 +4,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
-# Load env
-if [ ! -f "${PROJECT_ROOT}/.secrets/production.env" ]; then
-    echo "Error: .secrets/production.env not found"
-    exit 1
+# Load env variables
+# Check if variables are already set (CI scenario)
+if [ -z "${CLOUD_VM_HOST:-}" ] || [ -z "${CLOUD_VM_USER:-}" ]; then
+    # Variables not set, try to load from file (local scenario)
+    if [ ! -f "${PROJECT_ROOT}/.secrets/production.env" ]; then
+        echo "Error: .secrets/production.env not found and CLOUD_VM_HOST/CLOUD_VM_USER not set"
+        exit 1
+    fi
+    . "${PROJECT_ROOT}/.secrets/production.env"
 fi
-. "${PROJECT_ROOT}/.secrets/production.env"
 
 # Validate vars
 for var in CLOUD_VM_HOST CLOUD_VM_USER; do

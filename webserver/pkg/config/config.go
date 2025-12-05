@@ -19,6 +19,7 @@ type Manager struct {
 	Processor         ProcessorConfig     `mapstructure:"processor"`
 	Tools             ToolsConfig         `mapstructure:"tools"`
 	StaticImages      StaticImagesConfig  `mapstructure:"static_images"`
+	MQTT              MQTTConfig          `mapstructure:"mqtt"`
 }
 
 type FliptConfig struct {
@@ -120,6 +121,11 @@ func setDefaults(v *viper.Viper) {
 		"processor.grpc_server_address": "localhost:60061",
 
 		"static_images.directory": "/data/static_images",
+
+		"mqtt.broker":    "vultur.josnelihurt.me",
+		"mqtt.port":      1883,
+		"mqtt.client_id": "cuda-learning-remote-management",
+		"mqtt.topic":     "pow/S31JetsonNanoOrin",
 	}
 
 	for key, value := range defaults {

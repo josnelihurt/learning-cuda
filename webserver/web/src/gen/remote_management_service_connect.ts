@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CheckAcceleratorHealthRequest, CheckAcceleratorHealthResponse, StartJetsonNanoRequest, StartJetsonNanoResponse } from "./remote_management_service_pb.js";
+import { CheckAcceleratorHealthRequest, CheckAcceleratorHealthResponse, MonitorJetsonNanoRequest, MonitorJetsonNanoResponse, StartJetsonNanoRequest, StartJetsonNanoResponse } from "./remote_management_service_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,7 +19,7 @@ export const RemoteManagementService = {
       name: "StartJetsonNano",
       I: StartJetsonNanoRequest,
       O: StartJetsonNanoResponse,
-      kind: MethodKind.ServerStreaming,
+      kind: MethodKind.Unary,
     },
     /**
      * @generated from rpc cuda_learning.RemoteManagementService.CheckAcceleratorHealth
@@ -30,6 +30,15 @@ export const RemoteManagementService = {
       O: CheckAcceleratorHealthResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc cuda_learning.RemoteManagementService.MonitorJetsonNano
+     */
+    monitorJetsonNano: {
+      name: "MonitorJetsonNano",
+      I: MonitorJetsonNanoRequest,
+      O: MonitorJetsonNanoResponse,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;

@@ -315,4 +315,5 @@ echo "To stop services, run: ./scripts/dev/stop.sh"
 echo "To view logs:"
 echo "  Vite:      tail -f /tmp/vite.log"
 echo "  Go Server: tail -f /tmp/goserver.log"
+echo "  Cpp Client: tail -f  /tmp/grpc-server.log"
 

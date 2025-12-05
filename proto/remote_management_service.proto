@@ -43,8 +43,17 @@ message CheckAcceleratorHealthResponse {
   TraceContext trace_context = 9 [json_name = "trace_context"];
 }
 
+message MonitorJetsonNanoRequest {
+  TraceContext trace_context = 1 [json_name = "trace_context"];
+}
+
+message MonitorJetsonNanoResponse {
+  string data = 1 [json_name = "data"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
 service RemoteManagementService {
-  rpc StartJetsonNano(StartJetsonNanoRequest) returns (stream StartJetsonNanoResponse) {
+  rpc StartJetsonNano(StartJetsonNanoRequest) returns (StartJetsonNanoResponse) {
     option (google.api.http) = {
       post: "/api/v1/remote/start-jetson-nano"
       body: "*"
@@ -55,6 +64,12 @@ service RemoteManagementService {
     option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = {
       get: "/api/v1/remote/accelerator/health"
+    };
+  }
+  
+  rpc MonitorJetsonNano(MonitorJetsonNanoRequest) returns (stream MonitorJetsonNanoResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/remote/monitor-jetson-nano"
     };
   }
 }

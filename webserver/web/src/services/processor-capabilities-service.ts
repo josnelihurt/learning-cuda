@@ -223,8 +223,4 @@ class ProcessorCapabilitiesService implements IProcessorCapabilitiesService {
 }
 
 
-ProcessorCapabilitiesService.prototype['notifyFilterListeners'] = function notifyFilterListeners(this: ProcessorCapabilitiesService) {
-  this.filterListeners.forEach((listener) => notifyListener(listener));
-};
-
 export const processorCapabilitiesService = new ProcessorCapabilitiesService();

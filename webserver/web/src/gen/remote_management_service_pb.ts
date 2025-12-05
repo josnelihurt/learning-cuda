@@ -255,3 +255,83 @@ export class CheckAcceleratorHealthResponse extends Message<CheckAcceleratorHeal
   }
 }
 
+/**
+ * @generated from message cuda_learning.MonitorJetsonNanoRequest
+ */
+export class MonitorJetsonNanoRequest extends Message<MonitorJetsonNanoRequest> {
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 1 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<MonitorJetsonNanoRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.MonitorJetsonNanoRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MonitorJetsonNanoRequest {
+    return new MonitorJetsonNanoRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MonitorJetsonNanoRequest {
+    return new MonitorJetsonNanoRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MonitorJetsonNanoRequest {
+    return new MonitorJetsonNanoRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MonitorJetsonNanoRequest | PlainMessage<MonitorJetsonNanoRequest> | undefined, b: MonitorJetsonNanoRequest | PlainMessage<MonitorJetsonNanoRequest> | undefined): boolean {
+    return proto3.util.equals(MonitorJetsonNanoRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.MonitorJetsonNanoResponse
+ */
+export class MonitorJetsonNanoResponse extends Message<MonitorJetsonNanoResponse> {
+  /**
+   * @generated from field: string data = 1;
+   */
+  data = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<MonitorJetsonNanoResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.MonitorJetsonNanoResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "data", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MonitorJetsonNanoResponse {
+    return new MonitorJetsonNanoResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MonitorJetsonNanoResponse {
+    return new MonitorJetsonNanoResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MonitorJetsonNanoResponse {
+    return new MonitorJetsonNanoResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MonitorJetsonNanoResponse | PlainMessage<MonitorJetsonNanoResponse> | undefined, b: MonitorJetsonNanoResponse | PlainMessage<MonitorJetsonNanoResponse> | undefined): boolean {
+    return proto3.util.equals(MonitorJetsonNanoResponse, a, b);
+  }
+}
+

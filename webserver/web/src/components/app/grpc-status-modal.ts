@@ -36,6 +36,7 @@ export class GrpcStatusModal extends LitElement {
   @state() private isStartingJetson = false;
   private client: PromiseClient<typeof ConfigService>;
   private refreshInterval: number | null = null;
+  private monitorStreamAbortController: AbortController | null = null;
 
   constructor() {
     super();
@@ -390,6 +391,7 @@ export class GrpcStatusModal extends LitElement {
     });
     await Promise.all([this.loadStatus(), this.loadAcceleratorHealth()]);
     this.startAutoRefresh();
+    this.startMonitoring();
   }
 
   minimize() {
@@ -410,6 +412,7 @@ export class GrpcStatusModal extends LitElement {
       clearInterval(this.refreshInterval);
       this.refreshInterval = null;
     }
+    this.stopMonitoring();
     this.minimize();
     this.isMinimized = false;
   }
@@ -524,46 +527,24 @@ export class GrpcStatusModal extends LitElement {
     }
 
     this.isStartingJetson = true;
-    this.terminalOutput = [];
-    this.requestUpdate();
-
-    this.addTerminalLine('Initiating Jetson Nano startup sequence...', 'info');
-    this.addTerminalLine('Sending power-on command via MQTT to Tasmota device...', 'info');
+    this.addTerminalLine('Sending POWER ON command via MQTT...', 'info');
 
     try {
       await remoteManagementService.startJetsonNano(
         (event: StartJetsonNanoEvent) => {
           const status = event.status || 'UNKNOWN';
-          const step = event.step || '';
           const message = event.message || '';
 
-          if (step) {
-            this.addTerminalLine(`Step: ${step}`, 'info');
-          }
-
-          if (message) {
-            if (status.includes('ERROR')) {
-              this.addTerminalLine(`Error: ${message}`, 'error');
-            } else if (status.includes('SUCCESS')) {
-              this.addTerminalLine(`Success: ${message}`, 'success');
-            } else {
-              this.addTerminalLine(message, status.includes('PROGRESS') ? 'info' : 'normal');
-            }
-          }
-
           if (status === 'START_JETSON_NANO_STATUS_SUCCESS') {
-            this.addTerminalLine('Jetson Nano startup completed successfully!', 'success');
+            this.addTerminalLine('Command sent successfully. Monitoring device status...', 'success');
             this.isStartingJetson = false;
-            setTimeout(() => {
-              this.loadAcceleratorHealth();
-            }, 5000);
           } else if (status === 'START_JETSON_NANO_STATUS_ERROR') {
-            this.addTerminalLine('Jetson Nano startup failed. Please check the logs.', 'error');
+            this.addTerminalLine(`Error: ${message}`, 'error');
             this.isStartingJetson = false;
           }
         },
         (error: Error) => {
-          this.addTerminalLine(`Failed to start Jetson Nano: ${error.message}`, 'error');
+          this.addTerminalLine(`Failed to send command: ${error.message}`, 'error');
           this.isStartingJetson = false;
         }
       );
@@ -571,6 +552,37 @@ export class GrpcStatusModal extends LitElement {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.addTerminalLine(`Error: ${errorMsg}`, 'error');
       this.isStartingJetson = false;
+    }
+  }
+
+  private startMonitoring() {
+    this.stopMonitoring();
+    
+    this.monitorStreamAbortController = new AbortController();
+    
+    remoteManagementService.monitorJetsonNano(
+      (data: string) => {
+        this.addTerminalLine(data, 'normal');
+      },
+      (error: Error) => {
+        logger.error('Failed to monitor Jetson Nano', {
+          'error.message': error.message,
+        });
+        this.addTerminalLine(`Monitoring error: ${error.message}`, 'error');
+      }
+    ).catch((error) => {
+      if (error.name !== 'AbortError') {
+        logger.error('Monitor stream error', {
+          'error.message': error.message,
+        });
+      }
+    });
+  }
+
+  private stopMonitoring() {
+    if (this.monitorStreamAbortController) {
+      this.monitorStreamAbortController.abort();
+      this.monitorStreamAbortController = null;
     }
   }
 
@@ -613,7 +625,7 @@ export class GrpcStatusModal extends LitElement {
               smart plug (<a href="https://tasmota.github.io/docs/devices/Sonoff-S31/" target="_blank" rel="noopener noreferrer">Sonoff S31</a>) 
               controlled via <a href="https://mqtt.org/" target="_blank" rel="noopener noreferrer">MQTT</a>, integrated with my homelab automation. 
               This interface allows you to start the Jetson Nano remotely. Please note that this is real hardware, 
-              and the Jetson Nano's Linux system will take some time to boot up after receiving the power-on command.
+              and the Jetson Nano's Linux system will take some time to boot up after receiving the power-on command. In the following terminal output, you will see the progress the output of some MQTT messages and debugging information.
             </p>
           </div>
 
@@ -636,7 +648,7 @@ export class GrpcStatusModal extends LitElement {
               @click=${this.handleStartJetson}
               ?disabled=${this.isStartingJetson}
             >
-              <span>${this.isStartingJetson ? 'Starting...' : 'Start Jetson Nano'}</span>
+              <span>${this.isStartingJetson ? 'Powering on...' : 'Power On'}</span>
             </button>
           </div>
         </div>

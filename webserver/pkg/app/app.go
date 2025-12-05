@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	domainInterfaces "github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
@@ -35,6 +37,7 @@ type App struct {
 	listVideosUC          *application.ListVideosUseCase
 	uploadVideoUC         *application.UploadVideoUseCase
 	videoRepository       domain.VideoRepository
+	deviceMonitor         domainInterfaces.MQTTDeviceMonitor
 	interceptors          []connect.Interceptor
 }
 
@@ -142,6 +145,12 @@ func WithVideoRepository(repo domain.VideoRepository) Option {
 	}
 }
 
+func WithDeviceMonitor(monitor domainInterfaces.MQTTDeviceMonitor) Option {
+	return func(a *App) {
+		a.deviceMonitor = monitor
+	}
+}
+
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
 	if !a.config.IsObservabilityEnabled(a.appContext) {
 		return handler
@@ -221,6 +230,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	connectrpc.RegisterRemoteManagementService(
 		mux,
 		a.grpcProcessorClient,
+		a.config,
+		a.deviceMonitor,
 		a.interceptors...,
 	)
 
@@ -303,6 +314,22 @@ func (a *App) setupStaticHandler(mux *http.ServeMux) {
 
 func (a *App) Run() error {
 	log := logger.Global()
+	defer func() {
+		if err := a.deviceMonitor.Stop(); err != nil {
+			log.Warn().Err(err).Msg("Failed to stop MQTT device monitor")
+		}
+	}()
+
+	if a.deviceMonitor == nil {
+		return errors.New("MQTT device monitor not initialized")
+	}
+
+	if err := a.deviceMonitor.Start(a.appContext); err != nil {
+		log.Err(err).Msg("Failed to start MQTT device monitor")
+		return err
+	}
+	log.Info().Msg("MQTT device monitor started")
+
 	mux := http.NewServeMux()
 	a.setupObservability(mux)
 

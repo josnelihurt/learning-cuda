@@ -67,6 +67,7 @@ func main() {
 		app.WithListVideosUseCase(di.ListVideosUseCase),
 		app.WithUploadVideoUseCase(di.UploadVideoUseCase),
 		app.WithVideoRepository(di.VideoRepository),
+		app.WithDeviceMonitor(di.DeviceMonitor),
 	)
 
 	errChan := make(chan error, 1)

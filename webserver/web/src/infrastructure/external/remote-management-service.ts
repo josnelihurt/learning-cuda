@@ -6,7 +6,9 @@ import {
   StartJetsonNanoResponse,
   CheckAcceleratorHealthRequest,
   CheckAcceleratorHealthResponse,
-  AcceleratorHealthStatus
+  AcceleratorHealthStatus,
+  MonitorJetsonNanoRequest,
+  MonitorJetsonNanoResponse
 } from '../../gen/remote_management_service_pb';
 import { logger } from '../observability/otel-logger';
 import { telemetryService } from '../observability/telemetry-service';
@@ -43,15 +45,13 @@ class RemoteManagementService {
   ): Promise<void> {
     try {
       const request = new StartJetsonNanoRequest({});
-      const stream = this.client.startJetsonNano(request);
+      const response = await this.client.startJetsonNano(request);
 
-      for await (const response of stream) {
-        onEvent({
-          status: response.status?.toString() || 'UNKNOWN',
-          step: response.step || '',
-          message: response.message || '',
-        });
-      }
+      onEvent({
+        status: response.status?.toString() || 'UNKNOWN',
+        step: response.step || '',
+        message: response.message || '',
+      });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to start Jetson Nano', {
@@ -76,6 +76,32 @@ class RemoteManagementService {
         'error.message': err.message,
       });
       throw err;
+    }
+  }
+
+  async monitorJetsonNano(
+    onData: (data: string) => void,
+    onError?: (error: Error) => void
+  ): Promise<void> {
+    try {
+      const request = new MonitorJetsonNanoRequest({});
+      const stream = this.client.monitorJetsonNano(request);
+
+      for await (const response of stream) {
+        if (response.data) {
+          onData(response.data);
+        }
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('Failed to monitor Jetson Nano', {
+        'error.message': err.message,
+      });
+      if (onError) {
+        onError(err);
+      } else {
+        throw err;
+      }
     }
   }
 }

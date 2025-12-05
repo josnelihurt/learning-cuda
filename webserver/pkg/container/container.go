@@ -8,12 +8,14 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	domainInterfaces "github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build"
 	configrepo "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/filesystem"
 	httpinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/mqtt"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/version"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/video"
@@ -42,6 +44,7 @@ type Container struct {
 	UploadVideoUseCase         *application.UploadVideoUseCase
 
 	GRPCProcessorClient *processor.GRPCClient
+	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
 
 	fliptClientProxy featureflags.FliptClientInterface
 }
@@ -56,6 +59,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		FilePath:      cfg.Logging.FilePath,
 		IncludeCaller: cfg.Logging.IncludeCaller,
 	})
+	log.Info().Str("config_file", configFile).Any("config", cfg).Msg("Container initialized")
 
 	httpClient := httpinfra.NewInstrumentedClient(httpinfra.ClientConfig{
 		Timeout:         cfg.HTTPClientTimeout,
@@ -135,6 +139,17 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	listVideosUseCase := application.NewListVideosUseCase(videoRepo)
 	uploadVideoUseCase := application.NewUploadVideoUseCase(videoRepo, "data/videos", "data/video_previews")
 
+	var deviceMonitor domainInterfaces.MQTTDeviceMonitor
+	if cfg.MQTT.Broker != "" {
+		monitor, err := mqtt.NewDeviceMonitor(cfg.MQTT)
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to initialize MQTT device monitor")
+		} else {
+			deviceMonitor = monitor
+			log.Info().Msg("MQTT device monitor initialized")
+		}
+	}
+
 	return &Container{
 		Config:                     cfg,
 		HTTPClient:                 httpClient,
@@ -151,6 +166,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		ListVideosUseCase:          listVideosUseCase,
 		UploadVideoUseCase:         uploadVideoUseCase,
 		GRPCProcessorClient:        grpcClient,
+		DeviceMonitor:              deviceMonitor,
 		fliptClientProxy:           fliptClientProxy,
 	}, nil
 }

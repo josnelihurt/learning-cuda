@@ -7,6 +7,7 @@ import (
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	domainInterfaces "github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
 )
 
@@ -80,9 +81,11 @@ func RegisterWebRTCSignalingService(
 func RegisterRemoteManagementService(
 	mux *http.ServeMux,
 	grpcClient *processor.GRPCClient,
+	configManager *config.Manager,
+	deviceMonitor domainInterfaces.MQTTDeviceMonitor,
 	interceptors ...connect.Interceptor,
 ) {
-	handler := NewRemoteManagementHandler(grpcClient)
+	handler := NewRemoteManagementHandler(grpcClient, configManager, deviceMonitor)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

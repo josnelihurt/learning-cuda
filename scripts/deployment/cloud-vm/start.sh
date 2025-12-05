@@ -6,5 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "${SCRIPT_DIR}"
 echo "Starting services..."
-ansible-playbook -i ansible/inventory.yml ansible/start.yml -v 2>&1
+echo "Running: ansible-playbook -i ansible/inventory.yml ansible/start.yml -v"
+if ! ansible-playbook -i ansible/inventory.yml ansible/start.yml -v; then
+    echo "ERROR: Ansible playbook failed during service startup"
+    exit 1
+fi
 

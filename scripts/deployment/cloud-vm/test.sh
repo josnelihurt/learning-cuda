@@ -25,7 +25,13 @@ for var in CLOUD_VM_HOST CLOUD_VM_USER; do
 done
 
 # Export for Ansible
-export CLOUD_VM_HOST CLOUD_VM_USER
+export CLOUD_VM_HOST CLOUD_VM_USER CLOUD_VM_SUDO_PASSWORD
+
+# Debug: Show environment variables (without sensitive data)
+echo "Deployment configuration:"
+echo "  CLOUD_VM_HOST: ${CLOUD_VM_HOST}"
+echo "  CLOUD_VM_USER: ${CLOUD_VM_USER}"
+echo "  APP_IMAGE: ${APP_IMAGE:-not set}"
 
 # Check Ansible
 ANSIBLE_PATH=$(command -v ansible-playbook 2>/dev/null || echo "")
@@ -34,6 +40,7 @@ if [ -z "$ANSIBLE_PATH" ]; then
     echo "PATH: $PATH"
     exit 1
 fi
+echo "Ansible found at: ${ANSIBLE_PATH}"
 
 # Test SSH (optional - Ansible will handle connection)
 # Skip SSH test in CI/Docker environments where it may not work reliably

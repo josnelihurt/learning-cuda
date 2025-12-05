@@ -78,31 +78,55 @@ jobs:
     name: Deploy production (Cloud VM)
     needs:
       - build_and_push
-    runs-on: ["self-hosted", "Linux", "X64"]
+    runs-on: ["self-hosted", "Linux", "X64", "prod", "cloud-vm"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.CLOUD_VM_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.CLOUD_VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Deploy to Cloud VM using Ansible container
+      - name: Pull latest container images
         env:
-          CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
-          CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
-          APP_IMAGE: ghcr.io/josnelihurt/learning-cuda:amd64-latest
+          APP_IMAGE: ghcr.io/josnelihurt/learning-cuda/app:latest-amd64
         run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/workspace:ro" \
-            -v "$HOME/.ssh:/root/.ssh:ro" \
-            -w /workspace/scripts/deployment/cloud-vm \
-            -e CLOUD_VM_HOST="${{ secrets.CLOUD_VM_HOST }}" \
-            -e CLOUD_VM_USER="${{ secrets.CLOUD_VM_USER }}" \
-            -e APP_IMAGE="ghcr.io/josnelihurt/learning-cuda:amd64-latest" \
-            cytopia/ansible:latest \
-            sh -c "./deploy.sh"
+          cd /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning
+          export APP_IMAGE="${APP_IMAGE}"
+          docker compose -f docker-compose.yml pull
+      
+      - name: Restart services
+        env:
+          APP_IMAGE: ghcr.io/josnelihurt/learning-cuda/app:latest-amd64
+        run: |
+          cd /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning
+          export APP_IMAGE="${APP_IMAGE}"
+          docker compose -f docker-compose.yml up -d
+      
+      - name: Wait for services to be ready
+        run: |
+          cd /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning
+          timeout=60
+          while [ $timeout -gt 0 ]; do
+            if docker compose -f docker-compose.yml ps --filter "status=running" --format "{{.Name}}" | grep -q "cuda-go-server"; then
+              echo "Services are running"
+              break
+            fi
+            sleep 1
+            timeout=$((timeout - 1))
+          done
+      
+      - name: Check service health
+        run: |
+          sleep 10
+          if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+            echo "Health check passed"
+          else
+            echo "Health check failed"
+            docker compose -f /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning/docker-compose.yml ps
+            exit 1
+          fi

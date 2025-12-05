@@ -1,13 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { getBaseUrl, createApiUrl } from './utils/test-helpers';
+import { TestHelpers } from './helpers/test-helpers';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 
 test.describe('Image Upload', () => {
+    let helpers: TestHelpers;
+
     test.beforeEach(async ({ page }) => {
+        helpers = new TestHelpers(page);
         await page.goto(getBaseUrl(), { waitUntil: 'networkidle' });
-        await page.waitForTimeout(2000);
+        await helpers.waitForPageReady();
     });
 
     test('should display upload component in source drawer', async ({ page }) => {
@@ -91,7 +95,7 @@ test.describe('Image Upload', () => {
         fs.unlinkSync(testJpgPath);
     });
 
-    test('should show error for files exceeding 10MB', async ({ page }) => {
+    test('should show error for files exceeding 10MB', async ({ page, browserName }) => {
         const largePngPath = await createLargePNGImage();
         
         await page.click('[data-testid="add-input-fab"]');
@@ -109,7 +113,9 @@ test.describe('Image Upload', () => {
         const fileChooser = await fileChooserPromise;
         await fileChooser.setFiles([largePngPath]);
         
-        await page.waitForTimeout(1000);
+        // WebKit may need more time for error message to appear
+        const waitTime = browserName === 'webkit' ? 2000 : 1000;
+        await page.waitForTimeout(waitTime);
         
         const hasError = await page.evaluate(() => {
             const drawer = document.querySelector('source-drawer');

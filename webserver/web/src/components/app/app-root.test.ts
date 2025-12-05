@@ -141,7 +141,7 @@ describe('AppRoot', () => {
       await element.initialize();
 
       expect(mockLogger.info).toHaveBeenCalledWith('Initializing app-root...');
-      expect(mockLogger.info).toHaveBeenCalledWith('App-root initialized');
+      expect(mockLogger.info).toHaveBeenCalledWith('App-root initialized', expect.any(Object));
 
       vi.restoreAllMocks();
     });
@@ -178,7 +178,7 @@ describe('AppRoot', () => {
       await element.updateComplete;
 
       expect(mockProcessorCapabilitiesService.addFiltersUpdatedListener).toHaveBeenCalledTimes(1);
-      const handler = mockProcessorCapabilitiesService.addFiltersUpdatedListener.mock.calls[0][0];
+      const handler = vi.mocked(mockProcessorCapabilitiesService.addFiltersUpdatedListener).mock.calls[0][0];
       expect(typeof handler).toBe('function');
     });
 

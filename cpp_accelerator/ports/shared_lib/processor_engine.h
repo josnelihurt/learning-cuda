@@ -16,19 +16,18 @@
 namespace jrb::ports::shared_lib {
 
 class ProcessorEngine {
- public:
+public:
   explicit ProcessorEngine(std::string component_name = "processor-engine");
   ~ProcessorEngine() = default;
 
-  bool Initialize(const cuda_learning::InitRequest& request,
-                  cuda_learning::InitResponse* response);
+  bool Initialize(const cuda_learning::InitRequest& request, cuda_learning::InitResponse* response);
 
   bool ProcessImage(const cuda_learning::ProcessImageRequest& request,
                     cuda_learning::ProcessImageResponse* response);
 
   bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response);
 
- private:
+private:
   jrb::domain::interfaces::GrayscaleAlgorithm ProtoToAlgorithm(
       cuda_learning::GrayscaleType type) const;
   bool ApplyFilters(const cuda_learning::ProcessImageRequest& request,
@@ -38,5 +37,3 @@ class ProcessorEngine {
 };
 
 }  // namespace jrb::ports::shared_lib
-
-

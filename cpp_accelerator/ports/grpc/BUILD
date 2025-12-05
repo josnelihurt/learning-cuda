@@ -34,6 +34,31 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "webrtc_manager_lib",
+    srcs = ["webrtc_manager.cpp"],
+    hdrs = ["webrtc_manager.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@spdlog",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+    ],
+)
+
+cc_library(
+    name = "webrtc_signaling_service_impl_lib",
+    srcs = ["webrtc_signaling_service_impl.cpp"],
+    hdrs = ["webrtc_signaling_service_impl.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":webrtc_manager_lib",
+        "//proto:webrtc_signal_cc_proto",
+        "//proto:webrtc_signal_grpc",
+        "@com_github_grpc_grpc//:grpc++",
+        "@spdlog",
+    ],
+)
+
 cc_binary(
     name = "image_processor_grpc_server",
     srcs = ["server_main.cpp"],
@@ -41,6 +66,8 @@ cc_binary(
     deps = [
         ":image_processor_service_impl_lib",
         ":processor_engine_adapter_lib",
+        ":webrtc_signaling_service_impl_lib",
+        ":webrtc_manager_lib",
         "//cpp_accelerator/ports/shared_lib:processor_engine",
         "//proto:image_processor_service_cc_proto",
         "@com_github_grpc_grpc//:grpc++",

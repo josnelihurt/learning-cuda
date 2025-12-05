@@ -10,7 +10,7 @@
 namespace jrb::ports::grpc_service {
 
 class ProcessorEngineProvider {
- public:
+public:
   virtual ~ProcessorEngineProvider() = default;
 
   virtual bool ProcessImage(const cuda_learning::ProcessImageRequest& request,
@@ -22,5 +22,3 @@ class ProcessorEngineProvider {
 };
 
 }  // namespace jrb::ports::grpc_service
-
-

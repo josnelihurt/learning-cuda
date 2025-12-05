@@ -23,6 +23,54 @@ export class TestHelpers {
     });
   }
 
+  async waitForPageReady(timeout = 30000): Promise<void> {
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.waitForSelector('[data-testid="video-grid"]', { timeout });
+    await this.page.waitForSelector('header', { timeout: 5000 });
+    await this.page.waitForTimeout(500);
+    await this.dismissTourIfActive();
+  }
+
+  async dismissTourIfActive(): Promise<void> {
+    try {
+      await this.page.waitForSelector('app-tour', { timeout: 2000, state: 'attached' }).catch(() => {
+        // Tour might not be present, ignore
+      });
+
+      const tourActive = await this.page.evaluate(() => {
+        const tour = document.querySelector('app-tour');
+        if (!tour) return false;
+        const overlay = tour.shadowRoot?.querySelector('.overlay');
+        return overlay && !overlay.classList.contains('hidden');
+      });
+
+      if (tourActive) {
+        await this.page.evaluate(() => {
+          const tour = document.querySelector('app-tour');
+          if (!tour) return;
+          const skipButton = tour.shadowRoot?.querySelector('button.secondary') as HTMLButtonElement | undefined;
+          if (skipButton) {
+            skipButton.click();
+          }
+        });
+        await this.page.waitForTimeout(500);
+        
+        const stillActive = await this.page.evaluate(() => {
+          const tour = document.querySelector('app-tour');
+          if (!tour) return false;
+          const overlay = tour.shadowRoot?.querySelector('.overlay');
+          return overlay && !overlay.classList.contains('hidden');
+        });
+        
+        if (stillActive) {
+          await this.page.waitForTimeout(500);
+        }
+      }
+    } catch (error) {
+      // Tour might not be present or already dismissed, ignore
+    }
+  }
+
   async enableDebugLogging(): Promise<void> {
     await this.page.evaluate(() => {
       const logger = (window as any).logger;
@@ -56,16 +104,18 @@ export class TestHelpers {
   }
 
   async addSource(sourceName: string): Promise<void> {
-    await this.page.click('[data-testid="add-input-fab"]');
+    await this.dismissTourIfActive();
+    await this.page.click('[data-testid="add-input-fab"]', { force: true });
     await this.page.waitForSelector('[data-testid="source-drawer"]', { state: 'visible' });
     await this.page.click(`[data-testid="source-item-${sourceName}"]`);
     await this.page.waitForTimeout(300);
   }
 
   async selectSource(sourceNumber: number): Promise<void> {
+    await this.dismissTourIfActive();
     const card = this.page.locator(`[data-source-number="${sourceNumber}"]`);
     const sourceNumberBadge = card.locator('.source-number');
-    await sourceNumberBadge.click();
+    await sourceNumberBadge.click({ force: true });
     await this.page.waitForTimeout(150);
     
     await this.page.waitForFunction(
@@ -250,7 +300,8 @@ export class TestHelpers {
   }
 
   async openDrawer(): Promise<void> {
-    await this.page.click('[data-testid="add-input-fab"]');
+    await this.dismissTourIfActive();
+    await this.page.click('[data-testid="add-input-fab"]', { force: true });
     await this.page.waitForSelector('[data-testid="source-drawer"]', { state: 'visible' });
   }
 

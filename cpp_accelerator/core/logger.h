@@ -6,4 +6,3 @@ namespace jrb::core {
 void initialize_logger();
 
 }  // namespace jrb::core
-

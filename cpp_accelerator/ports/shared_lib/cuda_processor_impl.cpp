@@ -1,6 +1,5 @@
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <memory>
 #include <string>
 
@@ -15,11 +14,12 @@
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 
-#include "image_buffer_adapter.h"
-#include "cpp_accelerator/ports/shared_lib/processor_api.h"
-#include "cpp_accelerator/ports/shared_lib/processor_engine.h"
 #include "cpp_accelerator/core/logger.h"
 #include "cpp_accelerator/core/telemetry.h"
+#include "cpp_accelerator/ports/shared_lib/library_version.h"
+#include "cpp_accelerator/ports/shared_lib/processor_api.h"
+#include "cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "image_buffer_adapter.h"
 
 namespace {
 
@@ -134,29 +134,8 @@ bool processor_get_library_version(char* version_buf, int buf_len) {
 
   version_buf[0] = '\0';
 
-  std::string version;
-  bool found = false;
-
-  static const char* version_file_paths[] = {"cpp_accelerator/VERSION",
-                                             "../cpp_accelerator/VERSION",
-                                             "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
-
-  for (int i = 0; version_file_paths[i] != nullptr && !found; ++i) {
-    std::ifstream file(version_file_paths[i]);
-    if (file.is_open()) {
-      std::getline(file, version);
-      file.close();
-      if (!version.empty()) {
-        found = true;
-        spdlog::info("Library version loaded from file: {} = {}", version_file_paths[i], version);
-      }
-    }
-  }
-
-  if (!found) {
-    version = PROCESSOR_API_VERSION;
-    spdlog::warn("VERSION file not found, using API version as fallback: {}", version);
-  }
+  std::string version = LIBRARY_VERSION_STR;
+  spdlog::info("Library version from embedded VERSION file: {}", version);
 
   size_t copy_len = version.size();
   if (copy_len >= static_cast<size_t>(buf_len)) {

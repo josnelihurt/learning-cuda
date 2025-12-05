@@ -2,6 +2,7 @@ package featureflags
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
@@ -115,6 +116,39 @@ func (r *FliptRepository) EvaluateVariant(
 	ctx context.Context,
 	flagKey, entityID string,
 ) (*domain.FeatureFlagEvaluation, error) {
+	// Prefer HTTP flag state so that toggling via Flipt's API is reflected immediately.
+	// For variant flags, try to get the first variant if no rules are configured.
+	if r.writer != nil {
+		if flag, err := r.writer.GetFlag(ctx, flagKey); err == nil && flag != nil {
+			// If flag has variants, try to extract value from the first variant's attachment
+			if len(flag.Variants) > 0 {
+				var attachment map[string]interface{}
+				if err := json.Unmarshal(flag.Variants[0].Attachment, &attachment); err == nil {
+					if value, ok := attachment["value"].(string); ok && value != "" {
+						return &domain.FeatureFlagEvaluation{
+							FlagKey:      flagKey,
+							EntityID:     entityID,
+							Result:       value,
+							Success:      true,
+							UsedFallback: false,
+						}, nil
+					}
+				}
+				// If attachment parsing fails, use variant key as fallback
+				if flag.Variants[0].Key != "" {
+					return &domain.FeatureFlagEvaluation{
+						FlagKey:      flagKey,
+						EntityID:     entityID,
+						Result:       flag.Variants[0].Key,
+						Success:      true,
+						UsedFallback: false,
+					}, nil
+				}
+			}
+		}
+	}
+
+	// Fallback to gRPC-based evaluation when HTTP lookup fails or no variants found.
 	return r.evaluateFlag(
 		ctx,
 		flagKey,

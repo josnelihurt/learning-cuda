@@ -1,0 +1,18 @@
+meta {
+  name: version
+  type: grpc
+  seq: 1
+}
+
+grpc {
+  url: localhost:60061
+  body: grpc
+  auth: inherit
+}
+
+body:grpc {
+  name: message 1
+  content: '''
+    {}
+  '''
+}

@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
-import { logger } from '../../services/otel-logger';
+import { logger } from '../../infrastructure/observability/otel-logger';
 
 interface StatsManager {
   updateCameraStatus(status: string, type: 'success' | 'error' | 'warning' | 'inactive'): void;

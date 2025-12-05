@@ -7,6 +7,7 @@ export interface IProcessorCapabilitiesService {
   getFilters(): Filter[];
   getFilterDefinitions(): FilterDefinition[];
   isInitialized(): boolean;
+  isGRPCAvailable(): boolean;
   getGenericFilters(): GenericFilterDefinition[];
   addFiltersUpdatedListener(listener: () => void): void;
   removeFiltersUpdatedListener(listener: () => void): void;

@@ -54,4 +54,5 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	steps.InitializeImageSteps(ctx, testCtx)
 	steps.InitializeInputSourceSteps(ctx, testCtx)
 	steps.InitializeAvailableImagesSteps(ctx, testCtx)
+	steps.InitializeFrontendLoggingSteps(ctx, testCtx)
 }

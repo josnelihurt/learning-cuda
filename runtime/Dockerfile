@@ -1,7 +1,6 @@
-ARG CUDA_VERSION=12.5.1
 ARG UBUNTU_VERSION=24.04
 
-FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS runtime-base
+FROM ubuntu:${UBUNTU_VERSION} AS runtime-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 

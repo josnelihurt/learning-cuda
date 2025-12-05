@@ -6,6 +6,7 @@ compile_commands.json
 
 # External dependencies symlink
 external
+!webserver/web/src/infrastructure/external
 
 # Editor and caches
 .vscode/

@@ -2,6 +2,7 @@ exports_files([
     "buf.yaml",
     "buf.gen.yaml",
     "bufgen.dockerfile",
+    "cpp_accelerator/VERSION",
 ])
 
 # This is the root BUILD file for the cuda_learning workspace

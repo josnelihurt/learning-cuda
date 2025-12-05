@@ -14,7 +14,7 @@
 namespace jrb::ports::grpc_service {
 
 class ImageProcessorServiceImpl final : public cuda_learning::ImageProcessorService::Service {
- public:
+public:
   explicit ImageProcessorServiceImpl(std::shared_ptr<ProcessorEngineProvider> engine);
   ~ImageProcessorServiceImpl() override = default;
 
@@ -35,7 +35,7 @@ class ImageProcessorServiceImpl final : public cuda_learning::ImageProcessorServ
                                 const cuda_learning::GetVersionInfoRequest* request,
                                 cuda_learning::GetVersionInfoResponse* response) override;
 
- private:
+private:
   bool EnsureEngine() const;
   void CopyTraceContext(const cuda_learning::TraceContext& source,
                         cuda_learning::TraceContext* target) const;
@@ -48,5 +48,3 @@ class ImageProcessorServiceImpl final : public cuda_learning::ImageProcessorServ
 };
 
 }  // namespace jrb::ports::grpc_service
-
-

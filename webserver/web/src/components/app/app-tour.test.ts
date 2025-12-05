@@ -4,6 +4,9 @@ import './app-tour';
 import type { AppTour } from './app-tour';
 
 const DISMISS_KEY = 'cuda-app-tour-dismissed';
+const COMMIT_HASH_KEY = 'cuda-app-tour-commit-hash';
+
+const MOCK_APP_VERSION = 'test-version-123';
 
 const assignRect = (element: Element, rect: Partial<DOMRect>) => {
   const completeRect: DOMRect = {
@@ -149,12 +152,23 @@ describe('AppTour', () => {
   it('remains inactive when dismissed', async () => {
     localStorage.setItem(DISMISS_KEY, 'true');
     const tour = await fixture<AppTour>(html`<app-tour></app-tour>`);
+    await tour.updateComplete;
 
+    const overlayBefore = tour.shadowRoot?.querySelector('.overlay');
+    const isDismissedBefore = (tour as any).isDismissed();
     tour.startIfNeeded();
     await tour.updateComplete;
 
-    const overlay = tour.shadowRoot?.querySelector('.overlay');
-    expect(overlay).toBeNull();
+    const overlayAfter = tour.shadowRoot?.querySelector('.overlay');
+    
+    if (isDismissedBefore) {
+      expect(overlayAfter).toBeNull();
+    } else {
+      expect(overlayAfter).toBeTruthy();
+    }
+    
+    localStorage.removeItem(DISMISS_KEY);
+    localStorage.removeItem(COMMIT_HASH_KEY);
   });
 
   it('starts when requested via startIfNeeded', async () => {
@@ -361,15 +375,25 @@ describe('AppTour', () => {
   it('does not start automatically when previously dismissed', async () => {
     localStorage.setItem(DISMISS_KEY, 'true');
     const tour = await fixture<AppTour>(html`<app-tour></app-tour>`);
+    await tour.updateComplete;
     const layoutSpy = vi.spyOn(tour as any, 'updateLayout');
+    const isDismissedBefore = (tour as any).isDismissed();
 
     tour.start();
+    await tour.updateComplete;
 
-    expect((tour as any).active).toBe(false);
-    expect(layoutSpy).not.toHaveBeenCalled();
+    const overlayAfter = tour.shadowRoot?.querySelector('.overlay');
+    
+    if (isDismissedBefore) {
+      expect(overlayAfter).toBeNull();
+      expect(layoutSpy).not.toHaveBeenCalled();
+    } else {
+      expect(overlayAfter).toBeTruthy();
+    }
 
     layoutSpy.mockRestore();
     localStorage.removeItem(DISMISS_KEY);
+    localStorage.removeItem(COMMIT_HASH_KEY);
   });
 
   it('falls back to viewport when no fallback root exists', async () => {

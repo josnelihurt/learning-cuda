@@ -7,7 +7,7 @@ test.describe('Image Selection', () => {
   test.beforeEach(async ({ page }) => {
     helpers = new TestHelpers(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await helpers.waitForPageReady();
     await helpers.enableDebugLogging();
   });
 

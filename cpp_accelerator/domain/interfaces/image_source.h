@@ -3,9 +3,9 @@
 namespace jrb::domain::interfaces {
 
 class IImageSource {
- public:
+public:
   virtual ~IImageSource() = default;
-  
+
   virtual int width() const = 0;
   virtual int height() const = 0;
   virtual int channels() const = 0;

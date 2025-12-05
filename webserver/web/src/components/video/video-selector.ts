@@ -1,9 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { StaticVideo } from '../../gen/common_pb';
-import { videoService } from '../../services/video-service';
-import { telemetryService } from '../../services/telemetry-service';
-import { logger } from '../../services/otel-logger';
+import { videoService } from '../../infrastructure/data/video-service';
+import { telemetryService } from '../../infrastructure/observability/telemetry-service';
+import { logger } from '../../infrastructure/observability/otel-logger';
 
 @customElement('video-selector')
 export class VideoSelector extends LitElement {

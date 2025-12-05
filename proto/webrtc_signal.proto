@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package cuda_learning;
+
+import "common.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
+
+message StartSessionRequest {
+  string session_id = 1 [json_name = "session_id"];
+  string sdp_offer = 3 [json_name = "sdp_offer"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+message StartSessionResponse {
+  string session_id = 1 [json_name = "session_id"];
+  string sdp_answer = 3 [json_name = "sdp_answer"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+message IceCandidate {
+  string candidate = 1 [json_name = "candidate"];
+  string sdp_mid = 3 [json_name = "sdp_mid"];
+  int32 sdp_mline_index = 5 [json_name = "sdp_mline_index"];
+}
+
+message SendIceCandidateRequest {
+  string session_id = 1 [json_name = "session_id"];
+  IceCandidate candidate = 3 [json_name = "candidate"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+message SendIceCandidateResponse {
+  string session_id = 1 [json_name = "session_id"];
+  bool accepted = 3 [json_name = "accepted"];
+  string message = 5 [json_name = "message"];
+  TraceContext trace_context = 7 [json_name = "trace_context"];
+}
+
+message CloseSessionRequest {
+  string session_id = 1 [json_name = "session_id"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message CloseSessionResponse {
+  string session_id = 1 [json_name = "session_id"];
+  bool closed = 3 [json_name = "closed"];
+  TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+service WebRTCSignalingService {
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/webrtc/session"
+      body: "*"
+    };
+  }
+
+  rpc SendIceCandidate(SendIceCandidateRequest) returns (SendIceCandidateResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/webrtc/candidate"
+      body: "*"
+    };
+  }
+
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/webrtc/session/close"
+      body: "*"
+    };
+  }
+}
+
+

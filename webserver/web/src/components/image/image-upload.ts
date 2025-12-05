@@ -1,7 +1,8 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { fileService } from '../../services/file-service';
-import { telemetryService } from '../../services/telemetry-service';
+import { fileService } from '../../infrastructure/data/file-service';
+import { telemetryService } from '../../infrastructure/observability/telemetry-service';
+import { logger } from '../../infrastructure/observability/otel-logger';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 

@@ -1,8 +1,8 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { InputSource } from '../../gen/config_service_pb';
-import { telemetryService } from '../../services/telemetry-service';
-import { logger } from '../../services/otel-logger';
+import { telemetryService } from '../../infrastructure/observability/telemetry-service';
+import { logger } from '../../infrastructure/observability/otel-logger';
 import '../image/image-upload';
 import '../video/video-upload';
 import '../video/video-selector';

@@ -12,10 +12,9 @@
 
 namespace jrb::infrastructure::image {
 
-ImageLoader::ImageLoader() 
-    : data_(nullptr), width_(0), height_(0), channels_(0) {
+ImageLoader::ImageLoader() : data_(nullptr), width_(0), height_(0), channels_(0) {
   data_ = stbi_load(kImagePath, &width_, &height_, &channels_, 0);
-  
+
   if (data_ == nullptr) {
     spdlog::error("Failed to load image from {}", kImagePath);
     spdlog::error("STB Error: {}", stbi_failure_reason());
@@ -27,10 +26,9 @@ ImageLoader::ImageLoader()
   }
 }
 
-ImageLoader::ImageLoader(const char* path) 
-    : data_(nullptr), width_(0), height_(0), channels_(0) {
+ImageLoader::ImageLoader(const char* path) : data_(nullptr), width_(0), height_(0), channels_(0) {
   data_ = stbi_load(path, &width_, &height_, &channels_, 0);
-  
+
   if (data_ == nullptr) {
     spdlog::error("Failed to load image from {}", path);
     spdlog::error("STB Error: {}", stbi_failure_reason());
@@ -50,10 +48,7 @@ ImageLoader::~ImageLoader() {
 }
 
 ImageLoader::ImageLoader(ImageLoader&& other) noexcept
-    : data_(other.data_),
-      width_(other.width_),
-      height_(other.height_),
-      channels_(other.channels_) {
+    : data_(other.data_), width_(other.width_), height_(other.height_), channels_(other.channels_) {
   other.data_ = nullptr;
   other.width_ = 0;
   other.height_ = 0;
@@ -65,12 +60,12 @@ ImageLoader& ImageLoader::operator=(ImageLoader&& other) noexcept {
     if (data_ != nullptr) {
       stbi_image_free(data_);
     }
-    
+
     data_ = other.data_;
     width_ = other.width_;
     height_ = other.height_;
     channels_ = other.channels_;
-    
+
     other.data_ = nullptr;
     other.width_ = 0;
     other.height_ = 0;

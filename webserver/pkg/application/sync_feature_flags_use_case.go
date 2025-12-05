@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/jrb/cuda-learning/webserver/pkg/domain"
@@ -31,6 +32,13 @@ func (uc *SyncFeatureFlagsUseCase) Execute(
 	span.SetAttributes(attribute.Int("flags.count", len(flags)))
 
 	log.Printf("Syncing %d feature flags to repository", len(flags))
+
+	if uc.repository == nil {
+		err := fmt.Errorf("feature flag repository not initialized")
+		span.RecordError(err)
+		log.Printf("Failed to sync feature flags: %v", err)
+		return err
+	}
 
 	err := uc.repository.SyncFlags(ctx, flags)
 	if err != nil {

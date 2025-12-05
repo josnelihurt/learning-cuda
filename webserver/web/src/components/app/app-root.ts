@@ -9,6 +9,7 @@ import type {
   IProcessorCapabilitiesService,
   IToolsService,
   IVideoService,
+  IWebRTCService,
 } from '../../application/di';
 import type { VideoGrid } from '../video/video-grid';
 import type { FilterPanel } from './filter-panel';
@@ -19,6 +20,7 @@ import type { AppTour } from './app-tour';
 import type { ToastContainer } from './toast-container';
 import type { StatsPanel } from './stats-panel';
 import type { ActiveFilterState } from './filter-panel.types';
+import { container } from '../../application/di';
 
 const TOUR_DISMISS_KEY = 'cuda-app-tour-dismissed';
 
@@ -31,6 +33,7 @@ export class AppRoot extends LitElement {
   @property({ type: Object }) processorCapabilitiesService?: IProcessorCapabilitiesService;
   @property({ type: Object }) toolsService?: IToolsService;
   @property({ type: Object }) videoService?: IVideoService;
+  @property({ type: Object }) webrtcService?: IWebRTCService;
 
   @state() private selectedAccelerator = 'gpu';
   @state() private selectedResolution = 'original';
@@ -48,7 +51,17 @@ export class AppRoot extends LitElement {
   private tour: AppTour | null = null;
   private filtersUpdatedHandler = () => {
     if (this.filterManager && this.processorCapabilitiesService) {
-      this.filterManager.filters = this.processorCapabilitiesService.getFilters();
+      const filters = this.processorCapabilitiesService.getFilters();
+      this.logger?.debug('Filters updated handler called', {
+        'filters.count': filters.length,
+        'filters': filters.map((f) => f.name).join(','),
+      });
+      this.filterManager.filters = filters;
+    } else {
+      this.logger?.warn('Filters updated handler called but filterManager or service not available', {
+        'hasFilterManager': !!this.filterManager,
+        'hasService': !!this.processorCapabilitiesService,
+      });
     }
   };
 
@@ -214,7 +227,17 @@ export class AppRoot extends LitElement {
       this.statsManager.reset();
     }
 
-    this.logger.info('App-root initialized');
+    if (this.configService) {
+      const logLevel = this.configService.getLogLevel();
+      const consoleLogging = this.configService.getConsoleLogging();
+      console.log(`[App-Root] Log level configured: ${logLevel.toUpperCase()}, Console logging: ${consoleLogging}`);
+      this.logger.info('App-root initialized', {
+        'log.level': logLevel,
+        'log.console_enabled': consoleLogging,
+      });
+    } else {
+      this.logger.info('App-root initialized no config service');
+    }
 
     await this.updateComplete;
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
@@ -243,6 +266,10 @@ export class AppRoot extends LitElement {
     this.statsManager = document.querySelector('stats-panel');
     this.filterManager = document.querySelector('filter-panel');
     this.videoGrid = document.querySelector('video-grid');
+    
+    if (this.statsManager && 'setWebRTCService' in this.statsManager) {
+      (this.statsManager as any).setWebRTCService(container.getWebRTCService());
+    }
     this.sourceDrawer = document.querySelector('source-drawer');
     this.toolsDropdown = document.querySelector('tools-dropdown');
     this.imageSelectorModal = document.querySelector('image-selector-modal');
@@ -252,6 +279,11 @@ export class AppRoot extends LitElement {
 
     if (this.toastManager) {
       this.toastManager.configure({ duration: 7000 });
+    }
+
+    // Register filter listener early
+    if (this.processorCapabilitiesService) {
+      this.processorCapabilitiesService.addFiltersUpdatedListener(this.filtersUpdatedHandler);
     }
 
     this.updateFiltersFromService();
@@ -264,16 +296,32 @@ export class AppRoot extends LitElement {
 
   private updateFiltersFromService(): void {
     if (this.filterManager && this.processorCapabilitiesService?.isInitialized()) {
-      this.filterManager.filters = this.processorCapabilitiesService.getFilters();
+      const filters = this.processorCapabilitiesService.getFilters();
+      this.logger?.debug('Updating filters from service', {
+        'filters.count': filters.length,
+        'filters': filters.map((f) => f.name).join(','),
+      });
+      this.filterManager.filters = filters;
     } else if (this.processorCapabilitiesService && !this.processorCapabilitiesService.isInitialized()) {
       this.processorCapabilitiesService.initialize().then(() => {
         if (this.filterManager) {
-          this.filterManager.filters = this.processorCapabilitiesService!.getFilters();
+          const filters = this.processorCapabilitiesService!.getFilters();
+          this.logger?.debug('Filters loaded after initialization', {
+            'filters.count': filters.length,
+            'filters': filters.map((f) => f.name).join(','),
+          });
+          this.filterManager.filters = filters;
         }
       }).catch((error) => {
         this.logger?.error('Failed to initialize processor capabilities', {
           'error.message': error instanceof Error ? error.message : String(error),
         });
+      });
+    } else {
+      this.logger?.warn('Cannot update filters: service not available', {
+        'hasFilterManager': !!this.filterManager,
+        'hasService': !!this.processorCapabilitiesService,
+        'isInitialized': this.processorCapabilitiesService?.isInitialized() ?? false,
       });
     }
   }

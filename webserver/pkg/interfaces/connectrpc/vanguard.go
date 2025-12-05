@@ -2,7 +2,6 @@ package connectrpc
 
 import (
 	"net/http"
-	"sync"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/vanguard"
@@ -10,8 +9,6 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
 	"github.com/jrb/cuda-learning/webserver/pkg/config"
 	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor/loader"
 )
 
 // VanguardConfig groups all dependencies needed to setup Vanguard transcoder
@@ -22,12 +19,8 @@ type VanguardConfig struct {
 	ListInputsUC          *application.ListInputsUseCase
 	EvaluateFFUC          *application.EvaluateFeatureFlagUseCase
 	GetSystemInfoUC       *application.GetSystemInfoUseCase
-	Registry              *loader.Registry
-	//TODO: loader needs a better abstraction
-	CurrentLoader         **loader.Loader
-	LoaderMutex           *sync.RWMutex
 	ConfigManager         *config.Manager
-	CppConnector          *processor.CppConnector
+	ProcessorCapsUC       application.ProcessorCapabilitiesUseCase
 	ListAvailableImagesUC *application.ListAvailableImagesUseCase
 	UploadImageUC         *application.UploadImageUseCase
 	ListVideosUC          *application.ListVideosUseCase
@@ -50,7 +43,7 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 
 	configHandler := NewConfigHandler(
 		cfg.GetStreamConfigUC, cfg.SyncFlagsUC, cfg.ListInputsUC, cfg.EvaluateFFUC,
-		cfg.GetSystemInfoUC, cfg.ConfigManager, cfg.CppConnector,
+		cfg.GetSystemInfoUC, cfg.ConfigManager, cfg.ProcessorCapsUC,
 	)
 	_, configConnectHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 

@@ -1,0 +1,47 @@
+You are an autonomous testing agent focused on validating the complete build process of `scripts/docker/build-local.sh`. Your goal is to verify that the script successfully builds all final Docker images (app and grpc-server) from scratch.
+
+## Objective
+Test the complete end-to-end build process that produces the final application images, not individual intermediate stages.
+
+## Execution Context
+- Working directory: Repository root current working directory
+- Timeout: Maximum expected build duration 30 minutes
+
+## Pre-flight Checks
+Before running the build, verify:
+1. Docker daemon is running: `docker info`
+2. Required VERSION files exist:
+   - `proto/VERSION`
+   - `cpp_accelerator/VERSION`
+   - `webserver/VERSION`
+   - `proto/docker-build-base/VERSION`
+   - `webserver/builder/VERSION`
+   - `cpp_accelerator/docker-build-base/VERSION`
+   - `runtime/VERSION`
+   - `integration/VERSION`
+
+## Test Execution
+
+### 1. Verify Script Interface
+- Run `./scripts/docker/build-local.sh --help` and confirm usage information is displayed correctly
+- Run `./scripts/docker/build-local.sh --list-stages` and verify all 10 stages are listed
+
+### 2. Test Complete Build (Default Configuration)
+Execute the full build without any flags:
+```bash
+./scripts/docker/build-local.sh
+```
+
+**Success Criteria:**
+- Script completes without errors (exit code 0)
+- All stages execute in order: proto-tools → go-builder → bazel-base → runtime-base → integration-base → proto → cpp → golang → app → grpc-server
+- Final images are created:
+  - `local/josnelihurt/learning-cuda/app:<version>-<arch>` (versioned tag)
+  - `local/josnelihurt/learning-cuda/app:latest-<arch>` (latest tag)
+  - `local/josnelihurt/learning-cuda/grpc-server:<version>-<arch>` (versioned tag)
+  - `local/josnelihurt/learning-cuda/grpc-server:latest-<arch>` (latest tag)
+- Verify images exist: `docker image inspect <tag>` for each final image
+- Script output shows "All requested stages completed."
+
+Be concise, action-oriented, and technical—this prompt addresses an AI, not a human. Focus on automated verification of the complete build process.
+

@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { TestHelpers } from './helpers/test-helpers';
 
 test.describe('Dashboard Bootstrap', () => {
+  let helpers: TestHelpers;
+
   test.beforeEach(async ({ page }) => {
+    helpers = new TestHelpers(page);
     await page.goto('/');
+    await helpers.waitForPageReady();
   });
 
   test('should load dashboard successfully', async ({ page }) => {

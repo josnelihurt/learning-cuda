@@ -63,9 +63,9 @@ void initialize_logger() {
       console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
       logger = std::make_shared<spdlog::logger>("cpp_accelerator",
                                                 spdlog::sinks_init_list{console_sink});
-      logger->set_level(spdlog::level::info);
+      logger->set_level(spdlog::level::debug);
       spdlog::set_default_logger(logger);
-      spdlog::set_level(spdlog::level::info);
+      spdlog::set_level(spdlog::level::debug);
 
       std::cerr << "WARNING: Using console logger as fallback (file logger failed)" << std::endl;
       logger->error("Failed to initialize file logger, using console only");
@@ -87,9 +87,9 @@ void initialize_logger() {
       console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
       logger = std::make_shared<spdlog::logger>("cpp_accelerator",
                                                 spdlog::sinks_init_list{console_sink});
-      logger->set_level(spdlog::level::info);
+      logger->set_level(spdlog::level::debug);
       spdlog::set_default_logger(logger);
-      spdlog::set_level(spdlog::level::info);
+      spdlog::set_level(spdlog::level::debug);
 
       std::cerr << "WARNING: Using console logger as fallback (file logger failed)" << std::endl;
     } catch (const std::exception& fallback_ex) {

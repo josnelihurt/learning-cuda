@@ -1,7 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { systemInfoService } from '../../services/system-info-service';
-import { GetSystemInfoResponse } from '../../gen/config_service_pb';
+import { createPromiseClient } from '@connectrpc/connect';
+import { createConnectTransport } from '@connectrpc/connect-web';
+import { ConfigService } from '../../gen/config_service_connect';
+import { GetSystemInfoRequest, GetSystemInfoResponse } from '../../gen/config_service_pb';
 
 interface VersionField {
   label: string;
@@ -80,7 +82,12 @@ export class VersionFooter extends LitElement {
 
   async loadVersions() {
     try {
-      const systemInfo = await systemInfoService.getSystemInfo();
+      const transport = createConnectTransport({
+        baseUrl: window.location.origin,
+        useHttpGet: true,
+      });
+      const client = createPromiseClient(ConfigService, transport);
+      const systemInfo = await client.getSystemInfo(new GetSystemInfoRequest({}));
       this.versionFields = this.extractVersionFields(systemInfo);
     } catch (e) {
       console.warn('Failed to load backend versions', e);

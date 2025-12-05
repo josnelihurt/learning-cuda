@@ -1,9 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { createFliptApiUrl, getBaseUrl } from './utils/test-helpers';
+import { TestHelpers } from './helpers/test-helpers';
 
 test.describe('Flipt Flag Synchronization', () => {
+    let helpers: TestHelpers;
+
     test.beforeEach(async ({ page }) => {
+        helpers = new TestHelpers(page);
         await page.goto(getBaseUrl(), { waitUntil: 'networkidle' });
+        await helpers.waitForPageReady();
     });
 
     test('syncs feature flags to Flipt successfully', async ({ page }) => {

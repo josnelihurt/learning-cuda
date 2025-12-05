@@ -9,3 +9,4 @@ export type { ITelemetryService } from '../../domain/interfaces/ITelemetryServic
 export type { ILogger } from '../../domain/interfaces/ILogger';
 export type { IToolsService } from '../../domain/interfaces/IToolsService';
 export type { IUIService } from '../../domain/interfaces/IUIService';
+export type { IWebRTCService } from '../../domain/interfaces/IWebRTCService';

@@ -1,7 +1,10 @@
 #include "cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 #include <cstring>
+#include <string>
 #include <utility>
+
+#include "cpp_accelerator/ports/shared_lib/library_version.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -107,7 +110,7 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
 
   auto* caps = response->mutable_capabilities();
   caps->set_api_version(PROCESSOR_API_VERSION);
-  caps->set_library_version(PROCESSOR_API_VERSION);
+  caps->set_library_version(LIBRARY_VERSION_STR);
   caps->set_supports_streaming(false);
   caps->set_build_date(__DATE__);
 #ifdef BUILD_COMMIT
@@ -199,8 +202,9 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
   }
 
   auto& telemetry = jrb::core::telemetry::TelemetryManager::GetInstance();
-  auto span = telemetry.CreateChildSpan(component_name_, "ProcessImage", request.trace_id(),
-                                        request.span_id(), static_cast<uint8_t>(request.trace_flags()));
+  auto span =
+      telemetry.CreateChildSpan(component_name_, "ProcessImage", request.trace_id(),
+                                request.span_id(), static_cast<uint8_t>(request.trace_flags()));
   jrb::core::telemetry::ScopedSpan scoped_span(span);
 
   scoped_span.SetAttribute("image.width", static_cast<int64_t>(request.width()));
@@ -222,10 +226,12 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
       if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
         GrayscaleAlgorithm algorithm = ProtoToAlgorithm(grayscale_type);
         if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
-          pipeline.AddFilter(std::make_unique<jrb::infrastructure::cuda::GrayscaleFilter>(algorithm));
+          pipeline.AddFilter(
+              std::make_unique<jrb::infrastructure::cuda::GrayscaleFilter>(algorithm));
           scoped_span.AddEvent("Added CUDA grayscale filter to pipeline");
         } else {
-          pipeline.AddFilter(std::make_unique<jrb::infrastructure::cpu::GrayscaleFilter>(algorithm));
+          pipeline.AddFilter(
+              std::make_unique<jrb::infrastructure::cpu::GrayscaleFilter>(algorithm));
           scoped_span.AddEvent("Added CPU grayscale filter to pipeline");
         }
       } else if (filter == cuda_learning::FILTER_TYPE_BLUR) {
@@ -241,10 +247,9 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
         }
 
         if (accelerator == cuda_learning::ACCELERATOR_TYPE_CUDA) {
-          auto border_mode =
-              request.has_blur_params()
-                  ? ProtoToCudaBorderMode(request.blur_params().border_mode())
-                  : jrb::infrastructure::cuda::BorderMode::REFLECT;
+          auto border_mode = request.has_blur_params()
+                                 ? ProtoToCudaBorderMode(request.blur_params().border_mode())
+                                 : jrb::infrastructure::cuda::BorderMode::REFLECT;
 
           pipeline.AddFilter(std::make_unique<jrb::infrastructure::cuda::CudaGaussianBlurFilter>(
               kernel_size, sigma, border_mode, separable));
@@ -316,5 +321,3 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
 }
 
 }  // namespace jrb::ports::shared_lib
-
-

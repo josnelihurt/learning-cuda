@@ -35,21 +35,14 @@ func NewProcessorCapabilitiesUseCase(
 }
 
 func (uc *processorCapabilitiesUseCase) Execute(ctx context.Context, useGRPC bool) (*pb.LibraryCapabilities, ProcessorBackendOrigin, error) {
-	if useGRPC && uc.grpcRepo != nil {
-		caps, err := uc.grpcRepo.GetCapabilities(ctx)
-		if err == nil {
-			return caps, ProcessorBackendOriginGRPCServer, nil
-		}
+	if uc.grpcRepo == nil {
+		return nil, "", fmt.Errorf("gRPC processor capabilities repository required")
 	}
 
-	if uc.cppRepo == nil {
-		return nil, "", fmt.Errorf("no processor capabilities repository configured")
-	}
-
-	caps, err := uc.cppRepo.GetCapabilities(ctx)
+	caps, err := uc.grpcRepo.GetCapabilities(ctx)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to get capabilities via gRPC: %w", err)
 	}
 
-	return caps, ProcessorBackendOriginCGO, nil
+	return caps, ProcessorBackendOriginGRPCServer, nil
 }

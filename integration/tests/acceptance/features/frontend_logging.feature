@@ -4,7 +4,8 @@ Feature: Frontend Logging System
   So that I can configure log levels and console output dynamically
 
   Background:
-    Given the server is running
+    Given Flipt is running at "http://localhost:8081" with namespace "default"
+    And the service is running at "https://localhost:8443"
     And observability is enabled
 
   Scenario: Frontend receives log level configuration from backend

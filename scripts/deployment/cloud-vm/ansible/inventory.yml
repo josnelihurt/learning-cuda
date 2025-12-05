@@ -13,6 +13,6 @@ all:
         app_directory: "/home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning"
         repo_url: https://github.com/josnelihurt/learning-cuda.git
         repo_branch: main
-        docker_compose_file: docker-compose.go-cloud.yml
+        docker_compose_file: docker-compose.yml
         production_profile: production
 

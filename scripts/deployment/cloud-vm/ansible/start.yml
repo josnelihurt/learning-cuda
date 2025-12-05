@@ -2,16 +2,6 @@
 - name: Start services on Cloud VM
   hosts: cloud
   tasks:
-    - name: Verify repository exists on remote
-      stat:
-        path: "{{ app_directory }}/.git"
-      register: repo_check
-
-    - name: Fail if repository doesn't exist
-      fail:
-        msg: "Repository not found at {{ app_directory }}"
-      when: not repo_check.stat.exists
-
     - name: Verify .secrets directory exists
       stat:
         path: "{{ app_directory }}/.secrets"
@@ -22,14 +12,14 @@
         msg: ".secrets directory not found at {{ app_directory }}/.secrets"
       when: not secrets_check.stat.exists
 
-    - name: Verify docker-compose.go-cloud.yml exists
+    - name: Verify docker-compose.yml exists
       stat:
-        path: "{{ app_directory }}/docker-compose.go-cloud.yml"
+        path: "{{ app_directory }}/docker-compose.yml"
       register: compose_check
 
-    - name: Fail if docker-compose.go-cloud.yml doesn't exist
+    - name: Fail if docker-compose.yml doesn't exist
       fail:
-        msg: "docker-compose.go-cloud.yml not found at {{ app_directory }}"
+        msg: "docker-compose.yml not found at {{ app_directory }}"
       when: not compose_check.stat.exists
 
     - name: List .secrets files
@@ -45,13 +35,13 @@
 
     - name: Set APP_IMAGE variable
       set_fact:
-        app_image: "{{ lookup('env', 'APP_IMAGE') | default('ghcr.io/josnelihurt/learning-cuda:amd64-latest', true) }}"
+        app_image: "{{ lookup('env', 'APP_IMAGE') | default('ghcr.io/josnelihurt/learning-cuda/app:1.4.0-amd64', true) }}"
 
     - name: Pull latest container images
       shell: |
         cd {{ app_directory }}
         export APP_IMAGE="{{ app_image }}"
-        docker compose -f docker-compose.go-cloud.yml pull
+        docker compose -f docker-compose.yml pull
       register: docker_pull
       changed_when: "'Downloaded' in docker_pull.stdout or 'Updated' in docker_pull.stdout or 'Pulling' in docker_pull.stdout"
       failed_when: docker_pull.rc != 0
@@ -60,7 +50,7 @@
       shell: |
         cd {{ app_directory }}
         export APP_IMAGE="{{ app_image }}"
-        docker compose -f docker-compose.go-cloud.yml down
+        docker compose -f docker-compose.yml down
       register: stop_result
       failed_when: false
       changed_when: stop_result.rc == 0
@@ -69,7 +59,7 @@
       shell: |
         cd {{ app_directory }}
         export APP_IMAGE="{{ app_image }}"
-        docker compose -f docker-compose.go-cloud.yml up -d
+        docker compose -f docker-compose.yml up -d
       register: docker_up
       failed_when: docker_up.rc != 0
 
@@ -86,7 +76,7 @@
       when: docker_up.stderr_lines is defined
 
     - name: Wait for services to be up
-      shell: cd {{ app_directory }} && docker compose -f docker-compose.go-cloud.yml ps
+      shell: cd {{ app_directory }} && docker compose -f docker-compose.yml ps
       register: services_status
       retries: 30
       delay: 5
@@ -129,7 +119,7 @@
           - "Application URL: https://app-cuda-demo.josnelihurt.me"
 
     - name: Final service check
-      shell: cd {{ app_directory }} && docker compose -f docker-compose.go-cloud.yml ps
+      shell: cd {{ app_directory }} && docker compose -f docker-compose.yml ps
       register: final_status
       changed_when: false
 

@@ -3,5 +3,4 @@
   hosts: cloud
   roles:
     - setup
-    - application
 

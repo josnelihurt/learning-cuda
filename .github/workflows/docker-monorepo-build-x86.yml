@@ -84,21 +84,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Check if Ansible is installed
-        id: check_ansible
-        run: |
-          if command -v ansible-playbook &> /dev/null; then
-            echo "installed=true" >> $GITHUB_OUTPUT
-          else
-            echo "installed=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Install Ansible (if not installed)
-        if: steps.check_ansible.outputs.installed == 'false'
-        run: |
-          pip install --user ansible
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-      
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -106,12 +91,18 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.CLOUD_VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
       
-      - name: Deploy to Cloud VM
+      - name: Deploy to Cloud VM using Ansible container
         env:
           CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
           CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
           APP_IMAGE: ghcr.io/josnelihurt/learning-cuda:amd64-latest
         run: |
-          cd scripts/deployment/cloud-vm
-          export CLOUD_VM_HOST CLOUD_VM_USER
-          ./deploy.sh
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace:ro" \
+            -v "$HOME/.ssh:/root/.ssh:ro" \
+            -w /workspace/scripts/deployment/cloud-vm \
+            -e CLOUD_VM_HOST="${{ secrets.CLOUD_VM_HOST }}" \
+            -e CLOUD_VM_USER="${{ secrets.CLOUD_VM_USER }}" \
+            -e APP_IMAGE="ghcr.io/josnelihurt/learning-cuda:amd64-latest" \
+            cytopia/ansible:latest \
+            sh -c "./deploy.sh"

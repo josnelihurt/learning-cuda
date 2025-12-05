@@ -16,6 +16,7 @@
 #include "cpp_accelerator/ports/grpc/processor_engine_adapter.h"
 #include "cpp_accelerator/ports/grpc/webrtc_manager.h"
 #include "cpp_accelerator/ports/grpc/webrtc_signaling_service_impl.h"
+#include "cpp_accelerator/ports/shared_lib/library_version.h"
 #include "cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 ABSL_FLAG(std::string, listen_addr, "0.0.0.0:60061",
@@ -38,6 +39,21 @@ void HandleSignal(int signum) {
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
+
+  // Log server startup information
+  std::string server_version = LIBRARY_VERSION_STR;
+  std::string listen_addr = absl::GetFlag(FLAGS_listen_addr);
+  int cuda_device_id = absl::GetFlag(FLAGS_cuda_device_id);
+  int max_message_mb = absl::GetFlag(FLAGS_max_message_mb);
+
+  spdlog::info("========================================");
+  spdlog::info("CUDA Accelerator gRPC Server Starting");
+  spdlog::info("========================================");
+  spdlog::info("Server Version: {}", server_version);
+  spdlog::info("Listen Address: {}", listen_addr);
+  spdlog::info("CUDA Device ID: {}", cuda_device_id);
+  spdlog::info("Max Message Size: {} MiB", max_message_mb);
+  spdlog::info("========================================");
 
   auto engine = std::make_shared<jrb::ports::shared_lib::ProcessorEngine>("grpc-transport");
 
@@ -75,8 +91,14 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  spdlog::info("ImageProcessorService gRPC server listening on {}",
-               absl::GetFlag(FLAGS_listen_addr));
+  spdlog::info("========================================");
+  spdlog::info("gRPC Server Started Successfully");
+  spdlog::info("========================================");
+  spdlog::info("ImageProcessorService listening on: {}", absl::GetFlag(FLAGS_listen_addr));
+  spdlog::info("WebRTC Signaling Service: Enabled");
+  spdlog::info("WebRTC UDP Port Range: 10000-10199");
+  spdlog::info("STUN Server: stun.l.google.com:19302");
+  spdlog::info("========================================");
 
   std::signal(SIGINT, HandleSignal);
   std::signal(SIGTERM, HandleSignal);

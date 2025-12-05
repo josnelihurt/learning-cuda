@@ -43,7 +43,7 @@ logging:
 
 processor:
   library_base_path: "/app/lib"
-  grpc_server_address: "grpc-server:60061"
+  grpc_server_address: "xb19042.glddns.com:60061"
 
 mqtt:
   broker: "mqtt5"

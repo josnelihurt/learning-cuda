@@ -35,7 +35,7 @@ observability:
   trace_sampling_rate: 1.0
 
 logging:
-  level: "info"
+  level: "debug"
   format: "json"
   output: "file"
   file_path: "/tmp/goserver.log"
@@ -44,6 +44,12 @@ logging:
 processor:
   library_base_path: "/app/lib"
   grpc_server_address: "grpc-server:60061"
+
+mqtt:
+  broker: "mqtt5"
+  port: 1883
+  client_id: "cuda-learning-remote-management"
+  topic: "pow/S31JetsonNanoOrin"
 
 static_images:
   directory: "/app/data/static_images"

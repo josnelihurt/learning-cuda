@@ -5,11 +5,28 @@ cc_library(
 )
 
 cc_library(
+    name = "otel_log_sink",
+    srcs = ["otel_log_sink.cpp"],
+    hdrs = ["otel_log_sink.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@spdlog",
+        "@io_opentelemetry_cpp//api:api",
+        "@io_opentelemetry_cpp//exporters/otlp:otlp_http_log_record_exporter",
+        "@io_opentelemetry_cpp//sdk/src/logs:logs",
+        "@io_opentelemetry_cpp//sdk/src/resource:resource",
+        "@curl//:curl",
+        "//cpp_accelerator/ports/shared_lib:library_version",
+    ],
+)
+
+cc_library(
     name = "logger",
     srcs = ["logger.cpp"],
     hdrs = ["logger.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":otel_log_sink",
         "@spdlog",
     ],
 )

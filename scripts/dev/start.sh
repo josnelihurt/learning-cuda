@@ -101,8 +101,6 @@ if [ "$SHOW_HELP" = true ]; then
     echo "Examples:"
     echo "  ./scripts/dev/start.sh         # Start development server"
     echo "  ./scripts/dev/start.sh --build # Build + start development server"
-    echo ""
-    echo "Default processor library: 2.0.0 (CUDA)"
     exit 0
 fi
 
@@ -122,31 +120,10 @@ if [[ "$COMPOSE_CMD" == "podman compose"* ]]; then
     fi
 fi
 
-echo "Checking services (Jaeger + OTel Collector + Flipt)..."
-if ! docker ps --format '{{.Names}}' | grep -q 'jaeger'; then
+echo "Checking services (Flipt)..."
+if ! docker ps --format '{{.Names}}' | grep -q 'flipt'; then
     echo "Starting services..."
-    $COMPOSE_CMD -f docker-compose.dev.yml up -d \
-        jaeger \
-        otel-collector \
-        flipt \
-        loki \
-        promtail \
-        grafana \
-        mcp-grafana
-    
-    echo "Waiting for Jaeger to be healthy..."
-    timeout=30
-    while [ $timeout -gt 0 ]; do
-        if docker ps --format '{{.Names}}\t{{.Status}}' | grep 'jaeger' | grep -q 'healthy'; then
-            echo "Jaeger is ready!"
-            break
-        fi
-        sleep 1
-        timeout=$((timeout - 1))
-    done
-    if [ $timeout -eq 0 ]; then
-        echo "Warning: Jaeger health check timeout. Continuing anyway..."
-    fi
+    $COMPOSE_CMD -f docker-compose.dev.yml up -d flipt
     
     echo "Waiting for Flipt to be ready..."
     timeout=30
@@ -184,29 +161,6 @@ echo "Stopping previous application services..."
         ./scripts/build/protos.sh
     fi
     
-    echo "Building C++ processor libraries..."
-    bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
-    
-    echo "Installing libraries..."
-    ensure_writable ".ignore/lib/cuda_learning"
-    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-    DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    VERSION=$(cat cpp_accelerator/VERSION)
-    rm -f .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
-    cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so
-    
-    cat > .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so.json <<EOF
-{
-  "name": "CUDA Image Processor",
-  "version": "${VERSION}",
-  "api_version": "2.1.0",
-  "type": "gpu",
-  "build_date": "${DATE}",
-  "build_commit": "${COMMIT}",
-  "description": "CUDA-accelerated image processing with CPU fallback"
-    }
-EOF
-    
     echo "Building gRPC processor server..."
     bazel build //cpp_accelerator/ports/grpc:image_processor_grpc_server
 
@@ -228,7 +182,7 @@ GRPC_PID=$!
 
 wait_for_grpc
 
-cd webserver/web
+cd "$PROJECT_ROOT/webserver/web"
 [ ! -d "node_modules" ] && npm install
 cd "$PROJECT_ROOT"
 
@@ -263,17 +217,15 @@ sleep 2
 
 echo "Starting Go server..."
 echo "Building Go server (always compile)..."
-cd webserver && make build && cd ..
+cd "$PROJECT_ROOT/webserver" && make build && cd ..
 
 # Check if build was successful
-if [ ! -f "./bin/server" ]; then
+if [ ! -f "$PROJECT_ROOT/bin/server" ]; then
     echo "Build failed, exiting..."
     exit 1
 fi
 
-VERSION=$(cat cpp_accelerator/VERSION)
-echo "Using CUDA processor library (version ${VERSION})"
-./bin/server -config=config/config.dev.yaml > /tmp/goserver.log 2>&1 &
+"$PROJECT_ROOT/bin/server" -config=config/config.dev.yaml > /tmp/goserver.log 2>&1 &
 GO_PID=$!
 
 sleep 2
@@ -293,7 +245,6 @@ sleep 2
 echo "================================================"
 echo "Development server running:"
 echo "  HTTPS:  https://localhost:8443"
-echo "  Jaeger: http://localhost:16686"
 echo "  Flipt:  http://localhost:8081"
 echo ""
 echo "Test Reports:"
@@ -303,8 +254,7 @@ echo "  Coverage: http://localhost:5052"
 echo "  Go Deps:  http://localhost:5053"
 echo "================================================"
 echo "Dev mode - hot reload enabled"
-echo "Observability & Feature Flags enabled"
-echo "Processor: CUDA (version 2.0.0)"
+echo "Feature Flags enabled"
 echo ""
 echo "Services running in background"
 echo "  Vite PID: $VITE_PID"

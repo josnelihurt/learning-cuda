@@ -52,6 +52,59 @@
         dest: "{{ app_directory }}/config/config.production.yaml"
         mode: push
 
+    - name: Sync otel-collector-config.yaml
+      synchronize:
+        src: "{{ project_root }}/otel-collector-config.yaml"
+        dest: "{{ app_directory }}/otel-collector-config.yaml"
+        mode: push
+
+    - name: Sync loki-config.yaml
+      synchronize:
+        src: "{{ project_root }}/config/loki-config.yaml"
+        dest: "{{ app_directory }}/config/loki-config.yaml"
+        mode: push
+
+    - name: Sync grafana-datasources.yaml
+      synchronize:
+        src: "{{ project_root }}/config/grafana-datasources.yaml"
+        dest: "{{ app_directory }}/config/grafana-datasources.yaml"
+        mode: push
+
+    - name: Sync grafana-dashboards.yaml
+      synchronize:
+        src: "{{ project_root }}/config/grafana-dashboards.yaml"
+        dest: "{{ app_directory }}/config/grafana-dashboards.yaml"
+        mode: push
+
+    - name: Sync grafana-dashboard-logs.json
+      synchronize:
+        src: "{{ project_root }}/config/grafana-dashboard-logs.json"
+        dest: "{{ app_directory }}/config/grafana-dashboard-logs.json"
+        mode: push
+
+    - name: Sync grafana.ini
+      synchronize:
+        src: "{{ project_root }}/config/grafana.ini"
+        dest: "{{ app_directory }}/config/grafana.ini"
+        mode: push
+
+    - name: Ensure scripts/deployment/cloud-vm directory exists on remote
+      file:
+        path: "{{ app_directory }}/scripts/deployment/cloud-vm"
+        state: directory
+        mode: '0755'
+
+    - name: Sync generate-grafana-token.sh
+      synchronize:
+        src: "{{ project_root }}/scripts/deployment/cloud-vm/generate-grafana-token.sh"
+        dest: "{{ app_directory }}/scripts/deployment/cloud-vm/generate-grafana-token.sh"
+        mode: push
+
+    - name: Make generate-grafana-token.sh executable
+      file:
+        path: "{{ app_directory }}/scripts/deployment/cloud-vm/generate-grafana-token.sh"
+        mode: '0755'
+
     - name: List .secrets files on remote
       shell: ls -1 {{ app_directory }}/.secrets/ 2>/dev/null || echo ""
       register: secrets_list
@@ -70,5 +123,5 @@
 
     - name: Display summary
       debug:
-        msg: "Files synced (minimal deployment): docker-compose.yml, config/config.production.yaml, .secrets/, data/ directory created"
+        msg: "Files synced: docker-compose.yml, config/config.production.yaml, otel-collector-config.yaml, config/loki-config.yaml, config/grafana-datasources.yaml, config/grafana-dashboards.yaml, config/grafana-dashboard-logs.json, config/grafana.ini, scripts/deployment/cloud-vm/generate-grafana-token.sh, .secrets/, data/ directory created"
 

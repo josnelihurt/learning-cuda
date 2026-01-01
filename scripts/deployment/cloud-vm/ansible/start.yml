@@ -50,10 +50,17 @@
       shell: |
         cd {{ app_directory }}
         export APP_IMAGE="{{ app_image }}"
-        docker compose -f docker-compose.yml down
+        docker compose -f docker-compose.yml down --remove-orphans
       register: stop_result
       failed_when: false
       changed_when: stop_result.rc == 0
+
+    - name: Remove any orphaned containers with same names
+      shell: |
+        docker rm -f cuda-go-server flipt loki-cloud otel-collector-cloud jaeger-cloud 2>/dev/null || true
+      register: remove_orphans
+      failed_when: false
+      changed_when: remove_orphans.rc == 0
 
     - name: Start services with docker compose
       shell: |
@@ -92,6 +99,37 @@
       fail:
         msg: "Some services have exited. Check the status above."
       when: "'Exited' in services_status.stdout"
+
+    - name: Check if Grafana API token exists in secrets
+      shell: |
+        if [ -f {{ app_directory }}/.secrets/production.env ]; then
+          grep -q "^GRAFANA_API_TOKEN=" {{ app_directory }}/.secrets/production.env && grep -v "^GRAFANA_API_TOKEN=$" {{ app_directory }}/.secrets/production.env | grep -q "^GRAFANA_API_TOKEN=" || echo "missing"
+        else
+          echo "missing"
+        fi
+      register: token_check
+      changed_when: false
+      failed_when: false
+
+    - name: Generate Grafana API token if missing
+      shell: |
+        cd {{ app_directory }}
+        export GRAFANA_URL=https://grafana-cuda-demo.josnelihurt.me
+        export SECRETS_FILE={{ app_directory }}/.secrets/production.env
+        if [ -f {{ app_directory }}/.secrets/production.env ]; then
+          source {{ app_directory }}/.secrets/production.env
+        fi
+        export GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+        export GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+        {{ project_root }}/scripts/deployment/cloud-vm/generate-grafana-token.sh
+      register: token_generation
+      when: token_check.stdout == "missing"
+      changed_when: token_generation.rc == 0
+      failed_when: token_generation.rc != 0
+
+    - name: Display token generation result
+      debug:
+        msg: "{{ 'Grafana API token generated successfully' if token_check.stdout == 'missing' else 'Grafana API token already exists' }}"
 
     - name: Wait for service health check
       wait_for:

@@ -16,6 +16,7 @@ import (
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/webserver/pkg/interfaces/http"
 	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/statichttp"
+	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/websocket"
 	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -200,13 +201,15 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 
 	connectrpc.RegisterConfigService(
 		mux,
-		a.getStreamConfigUC,
-		a.syncFlagsUC,
-		a.listInputsUC,
-		a.evaluateFFUC,
-		a.getSystemInfoUC,
-		a.config,
-		a.processorCapsUC,
+		connectrpc.ConfigHandlerDeps{
+			GetStreamConfigUC: a.getStreamConfigUC,
+			SyncFlagsUC:       a.syncFlagsUC,
+			ListInputsUC:      a.listInputsUC,
+			EvaluateFFUC:      a.evaluateFFUC,
+			GetSystemInfoUC:   a.getSystemInfoUC,
+			ConfigManager:     a.config,
+			ProcessorCapsUC:   a.processorCapsUC,
+		},
 		a.interceptors...,
 	)
 
@@ -220,12 +223,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	)
 
 	connectrpc.RegisterRoutesWithHandler(mux, rpcHandler, a.interceptors...)
-
-	connectrpc.RegisterWebRTCSignalingService(
-		mux,
-		a.grpcProcessorClient,
-		a.interceptors...,
-	)
 
 	connectrpc.RegisterRemoteManagementService(
 		mux,
@@ -251,15 +248,15 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		Interceptors:          a.interceptors,
 	})
 
-	staticHandler := statichttp.NewStaticHandler(
-		&a.config.Server,
-		a.config.Stream,
-		a.useCase,
-		a.videoRepository,
-		a.config.Flipt.URL,
-		a.evaluateFFUC,
-		a.grpcProcessor,
-	)
+	staticHandler := statichttp.NewStaticHandler(&statichttp.StaticHandlerDeps{
+		ServerConfig:  &a.config.Server,
+		StreamConfig:  a.config.Stream,
+		UseCase:       a.useCase,
+		VideoRepo:     a.videoRepository,
+		FliptURL:      a.config.Flipt.URL,
+		EvaluateFFUC:  a.evaluateFFUC,
+		GRPCProcessor: a.grpcProcessor,
+	})
 	serveIndex := staticHandler.GetServeIndex()
 
 	// Register catch-all handler AFTER Connect-RPC handlers to ensure specific routes are matched first
@@ -300,16 +297,22 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 }
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
-	staticHandler := statichttp.NewStaticHandler(
-		&a.config.Server,
-		a.config.Stream,
-		a.useCase,
-		a.videoRepository,
-		a.config.Flipt.URL,
-		a.evaluateFFUC,
-		a.grpcProcessor,
-	)
+	staticHandler := statichttp.NewStaticHandler(&statichttp.StaticHandlerDeps{
+		ServerConfig:  &a.config.Server,
+		StreamConfig:  a.config.Stream,
+		UseCase:       a.useCase,
+		VideoRepo:     a.videoRepository,
+		FliptURL:      a.config.Flipt.URL,
+		EvaluateFFUC:  a.evaluateFFUC,
+		GRPCProcessor: a.grpcProcessor,
+	})
 	staticHandler.RegisterRoutes(mux)
+}
+
+func (a *App) setupWebRTCSignalingWebSocket(mux *http.ServeMux) {
+	webrtcHandler := websocket.NewWebRTCSignalingHandler(a.grpcProcessorClient)
+	mux.HandleFunc("/ws/webrtc-signaling", webrtcHandler.HandleWebRTCSignaling)
+	logger.Global().Info().Msg("WebRTC signaling WebSocket endpoint registered at /ws/webrtc-signaling")
 }
 
 func (a *App) Run() error {
@@ -335,6 +338,7 @@ func (a *App) Run() error {
 
 	a.setupHealthEndpoint(mux)
 	a.setupStaticHandler(mux)
+	a.setupWebRTCSignalingWebSocket(mux)
 	a.setupConnectRPCServices(mux)
 	handler := a.makeTelemetryMiddleware(mux)
 

@@ -23,16 +23,10 @@ func RegisterRoutesWithHandler(mux *http.ServeMux, handler *ImageProcessorHandle
 
 func RegisterConfigService(
 	mux *http.ServeMux,
-	getStreamConfigUC *application.GetStreamConfigUseCase,
-	syncFlagsUC *application.SyncFeatureFlagsUseCase,
-	listInputsUC *application.ListInputsUseCase,
-	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
-	getSystemInfoUC *application.GetSystemInfoUseCase,
-	configManager *config.Manager,
-	processorCapsUC application.ProcessorCapabilitiesUseCase,
+	deps ConfigHandlerDeps,
 	interceptors ...connect.Interceptor,
 ) {
-	configHandler := NewConfigHandler(getStreamConfigUC, syncFlagsUC, listInputsUC, evaluateFFUC, getSystemInfoUC, configManager, processorCapsUC)
+	configHandler := NewConfigHandler(deps)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

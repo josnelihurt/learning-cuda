@@ -47,12 +47,20 @@ func NewClient(cfg config.MQTTConfig) (*Client, error) {
 	opts.SetConnectRetryInterval(5 * time.Second)
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetPingTimeout(10 * time.Second)
+	opts.SetConnectTimeout(10 * time.Second)
+	opts.SetWriteTimeout(10 * time.Second)
 
 	client := mqtt.NewClient(opts)
 
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		return nil, fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
 	}
+
+	if !client.IsConnected() {
+		return nil, fmt.Errorf("MQTT client not connected after Connect()")
+	}
+
+	time.Sleep(500 * time.Millisecond)
 
 	return &Client{
 		client: client,
@@ -102,6 +110,10 @@ func (c *Client) SubscribeToSensor(callback func(power float64, timestamp string
 }
 
 func (c *Client) SubscribeToSensorWithRaw(callback func(data SensorData) error) error {
+	if !c.client.IsConnected() {
+		return fmt.Errorf("MQTT client not connected")
+	}
+
 	topic := fmt.Sprintf("tele/%s/SENSOR", c.config.Topic)
 
 	messageHandler := func(client mqtt.Client, msg mqtt.Message) {
@@ -116,7 +128,9 @@ func (c *Client) SubscribeToSensorWithRaw(callback func(data SensorData) error) 
 	}
 
 	token := c.client.Subscribe(topic, 0, messageHandler)
-	token.Wait()
+	if !token.WaitTimeout(10 * time.Second) {
+		return fmt.Errorf("timeout waiting for subscribe to sensor topic")
+	}
 
 	if token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to sensor topic: %w", token.Error())

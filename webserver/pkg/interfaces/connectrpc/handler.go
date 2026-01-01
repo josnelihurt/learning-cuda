@@ -47,14 +47,10 @@ func (h *ImageProcessorHandler) ProcessImage(
 ) (*connect.Response[pb.ProcessImageResponse], error) {
 	msg := req.Msg
 
-	procConfig := h.adapter.ExtractProcessingConfig(msg)
-	filters := procConfig.Filters
-	grayscaleType := procConfig.Grayscale
-	blurParams := procConfig.Blur
-	accelerator := h.adapter.ToAccelerator(msg.Accelerator)
+	opts := h.adapter.ExtractProcessingOptions(msg)
 	domainImg := h.adapter.ToDomainImage(msg)
 
-	processedImg, err := h.useCase.Execute(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
+	processedImg, err := h.useCase.Execute(ctx, domainImg, opts)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

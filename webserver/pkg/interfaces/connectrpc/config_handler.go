@@ -24,23 +24,26 @@ type ConfigHandler struct {
 	processorCapsUC        application.ProcessorCapabilitiesUseCase
 }
 
-func NewConfigHandler(
-	getStreamConfigUC *application.GetStreamConfigUseCase,
-	syncFlagsUC *application.SyncFeatureFlagsUseCase,
-	listInputsUC *application.ListInputsUseCase,
-	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
-	getSystemInfoUC *application.GetSystemInfoUseCase,
-	configManager *config.Manager,
-	processorCapsUC application.ProcessorCapabilitiesUseCase,
-) *ConfigHandler {
+// ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
+type ConfigHandlerDeps struct {
+	GetStreamConfigUC *application.GetStreamConfigUseCase
+	SyncFlagsUC       *application.SyncFeatureFlagsUseCase
+	ListInputsUC      *application.ListInputsUseCase
+	EvaluateFFUC      *application.EvaluateFeatureFlagUseCase
+	GetSystemInfoUC   *application.GetSystemInfoUseCase
+	ConfigManager     *config.Manager
+	ProcessorCapsUC   application.ProcessorCapabilitiesUseCase
+}
+
+func NewConfigHandler(deps ConfigHandlerDeps) *ConfigHandler {
 	return &ConfigHandler{
-		getStreamConfigUseCase: getStreamConfigUC,
-		syncFlagsUseCase:       syncFlagsUC,
-		listInputsUseCase:      listInputsUC,
-		evaluateFFUseCase:      evaluateFFUC,
-		getSystemInfoUseCase:   getSystemInfoUC,
-		configManager:          configManager,
-		processorCapsUC:        processorCapsUC,
+		getStreamConfigUseCase: deps.GetStreamConfigUC,
+		syncFlagsUseCase:       deps.SyncFlagsUC,
+		listInputsUseCase:      deps.ListInputsUC,
+		evaluateFFUseCase:      deps.EvaluateFFUC,
+		getSystemInfoUseCase:   deps.GetSystemInfoUC,
+		configManager:          deps.ConfigManager,
+		processorCapsUC:        deps.ProcessorCapsUC,
 	}
 }
 
@@ -203,7 +206,7 @@ func (h *ConfigHandler) GetAvailableTools(
 	categories := []*pb.ToolCategory{}
 
 	if len(h.configManager.Tools.Observability) > 0 {
-		tools := h.buildTools(h.configManager.Tools.Observability, h.configManager.Environment)
+		tools := h.buildTools(h.configManager.Tools.Observability)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "observability",
 			Name:  "Observability",
@@ -212,7 +215,7 @@ func (h *ConfigHandler) GetAvailableTools(
 	}
 
 	if len(h.configManager.Tools.Features) > 0 {
-		tools := h.buildTools(h.configManager.Tools.Features, h.configManager.Environment)
+		tools := h.buildTools(h.configManager.Tools.Features)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "features",
 			Name:  "Features",
@@ -221,7 +224,7 @@ func (h *ConfigHandler) GetAvailableTools(
 	}
 
 	if len(h.configManager.Tools.Testing) > 0 {
-		tools := h.buildTools(h.configManager.Tools.Testing, h.configManager.Environment)
+		tools := h.buildTools(h.configManager.Tools.Testing)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "testing",
 			Name:  "Testing",
@@ -242,7 +245,7 @@ func (h *ConfigHandler) GetAvailableTools(
 	}), nil
 }
 
-func (h *ConfigHandler) buildTools(toolDefs []config.ToolDefinition, environment string) []*pb.Tool {
+func (h *ConfigHandler) buildTools(toolDefs []config.ToolDefinition) []*pb.Tool {
 	tools := make([]*pb.Tool, 0, len(toolDefs))
 
 	for _, toolDef := range toolDefs {
@@ -254,11 +257,7 @@ func (h *ConfigHandler) buildTools(toolDefs []config.ToolDefinition, environment
 		}
 
 		if toolDef.Type == "url" {
-			if environment == "production" {
-				tool.Url = toolDef.URLProd
-			} else {
-				tool.Url = toolDef.URLDev
-			}
+			tool.Url = toolDef.URL
 		} else if toolDef.Type == "action" {
 			tool.Action = toolDef.Action
 		}

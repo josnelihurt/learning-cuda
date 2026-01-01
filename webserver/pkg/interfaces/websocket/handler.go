@@ -282,11 +282,7 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 		return result
 	}
 
-	procConfig := h.adapter.ExtractProcessingConfig(req)
-	filters := procConfig.Filters
-	grayscaleType := procConfig.Grayscale
-	blurParams := procConfig.Blur
-	accelerator := h.adapter.ToAccelerator(req.Accelerator)
+	opts := h.adapter.ExtractProcessingOptions(req)
 
 	h.frameCounter++
 	span.SetAttributes(
@@ -300,7 +296,7 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 		return result
 	}
 
-	processedImg, err := h.grpcProcessor.ProcessImage(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
+	processedImg, err := h.grpcProcessor.ProcessImage(ctx, domainImg, opts)
 
 	if err != nil {
 		result.Error = "processing failed: " + err.Error()
@@ -308,7 +304,7 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 	}
 
 	hasGrayscale := false
-	for _, f := range filters {
+	for _, f := range opts.Filters {
 		if f == domain.FilterGrayscale {
 			hasGrayscale = true
 			break
@@ -337,10 +333,10 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 			Dur("elapsed", elapsed).
 			Int("width", processedImg.Width).
 			Int("height", processedImg.Height).
-			Str("accelerator", string(accelerator))
+			Str("accelerator", string(opts.Accelerator))
 
-		if len(filters) > 0 {
-			log = log.Str("filter", string(filters[0]))
+		if len(opts.Filters) > 0 {
+			log = log.Str("filter", string(opts.Filters[0]))
 		}
 
 		log.Msg("Frame processed")
@@ -370,12 +366,14 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 		Float64("fps", player.GetFPS()).
 		Msg("Starting real video playback with FFmpeg")
 
-	domainFilters := h.adapter.ToFilters(req.Filters)
-	domainAccelerator := h.adapter.ToAccelerator(req.Accelerator)
-	domainGrayscale := h.adapter.ToGrayscaleType(req.GrayscaleType)
-	blurParams := h.adapter.ToBlurParameters(req.BlurParams)
+	opts := domain.ProcessingOptions{
+		Filters:       h.adapter.ToFilters(req.Filters),
+		Accelerator:   h.adapter.ToAccelerator(req.Accelerator),
+		GrayscaleType: h.adapter.ToGrayscaleType(req.GrayscaleType),
+		BlurParams:    h.adapter.ToBlurParameters(req.BlurParams),
+	}
 
-	for _, f := range domainFilters {
+	for _, f := range opts.Filters {
 		if f == domain.FilterGrayscale {
 			log.Info().Msg("Grayscale filter will be applied to video")
 			break
@@ -389,14 +387,14 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 		default:
 		}
 
-		result, err := h.useCase.Execute(ctx, domainImg, domainFilters, domainAccelerator, domainGrayscale, blurParams)
+		result, err := h.useCase.Execute(ctx, domainImg, opts)
 		if err != nil {
 			log.Error().Err(err).Int("frame", frameNumber).Msg("Failed to process video frame")
 			return err
 		}
 
 		hasGrayscale := false
-		for _, f := range domainFilters {
+		for _, f := range opts.Filters {
 			if f == domain.FilterGrayscale {
 				hasGrayscale = true
 				break

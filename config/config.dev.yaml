@@ -36,9 +36,8 @@ flipt:
   http_timeout: "10s"
 
 observability:
-  service_name: "cuda-image-processor"
-  service_version: "1.0.0"
-  otel_collector_endpoint: "localhost:4317"
+  service_name: "go-app"
+  otel_collector_endpoint: "http://vultur.josnelihurt.me:8018/v1/logs"
   trace_sampling_rate: 1.0
 
 logging:
@@ -46,10 +45,18 @@ logging:
   format: "json"
   output: "stdout"
   include_caller: true
+  remote_enabled: true
+  remote_environment: "development"
 
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
   grpc_server_address: "localhost:60061"
+
+mqtt:
+  broker: "vultur.josnelihurt.me"
+  port: 1883
+  client_id: "cuda-learning-remote-management"
+  topic: "pow/S31JetsonNanoOrin"
 
 static_images:
   directory: "data/static_images"
@@ -60,27 +67,23 @@ tools:
       name: "Jaeger Tracing"
       icon_path: "/static/img/tools/jaeger.svg"
       type: "url"
-      url_dev: "http://localhost:16686"
-      url_prod: "https://jaeger.production.example.com"
+      url: "https://jaeger-cuda-demo.josnelihurt.me"
     - id: "grafana_logs"
       name: "Logs Dashboard"
       icon_path: "/static/img/tools/grafana.svg"
       type: "url"
-      url_dev: "http://localhost:3001/d/cuda-multi-layer-logs"
-      url_prod: "/grafana/d/cuda-multi-layer-logs"
+      url: "https://grafana-cuda-demo.josnelihurt.me/d/cuda-multi-layer-logs"
     - id: "grafana_explore"
       name: "Grafana Explore"
       icon_path: "/static/img/tools/grafana.svg"
       type: "url"
-      url_dev: "http://localhost:3001/explore"
-      url_prod: "/grafana/explore"
+      url: "https://grafana-cuda-demo.josnelihurt.me/explore"
   features:
     - id: "flipt"
       name: "Flipt Feature Flags"
       icon_path: "/static/img/tools/flipt.svg"
       type: "url"
-      url_dev: "http://localhost:8081"
-      url_prod: "/flipt"
+      url: "http://localhost:8081"
     - id: "sync_flags"
       name: "Sync Feature Flags"
       icon_path: ""
@@ -91,17 +94,14 @@ tools:
       name: "Test Reports (BDD)"
       icon_path: ""
       type: "url"
-      url_dev: "http://localhost:5050"
-      url_prod: "/reports"
+      url: "https://reports-cuda-demo.josnelihurt.me"
     - id: "e2e_reports"
       name: "E2E Test Results (Playwright)"
       icon_path: "/static/img/tools/playwright.svg"
       type: "url"
-      url_dev: "http://localhost:5051"
-      url_prod: "/e2e"
+      url: "https://reports-cuda-demo.josnelihurt.me/e2e"
     - id: "coverage_reports"
       name: "Code Coverage"
       icon_path: ""
       type: "url"
-      url_dev: "http://localhost:5052"
-      url_prod: "/coverage"
+      url: "https://reports-cuda-demo.josnelihurt.me/coverage"

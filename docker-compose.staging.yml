@@ -31,12 +31,6 @@ services:
         condition: service_healthy
       traefik:
         condition: service_started
-      otel-collector:
-        condition: service_started
-      jaeger:
-        condition: service_healthy
-      loki:
-        condition: service_healthy
       grpc-server:
         condition: service_healthy
     
@@ -85,144 +79,6 @@ services:
     depends_on: []
     
 
-  jaeger:
-    image: jaegertracing/all-in-one:1.52
-    container_name: jaeger-staging
-    restart: unless-stopped
-    
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-    
-    networks:
-      - traefik
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.jaeger.rule=Host(`jaeger.localhost`)"
-      - "traefik.http.routers.jaeger.entrypoints=websecure"
-      - "traefik.http.routers.jaeger.tls=true"
-      - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  loki:
-    image: grafana/loki:2.9.3
-    container_name: loki-staging
-    restart: unless-stopped
-    
-    
-    command: -config.file=/etc/loki/loki-config.yaml
-    
-    volumes:
-      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-    
-    networks:
-      - traefik
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  promtail:
-    image: grafana/promtail:2.9.3
-    container_name: promtail-staging
-    restart: unless-stopped
-    
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./config/promtail-config.yaml:/etc/promtail/config.yml:ro
-      - /tmp:/tmp:ro
-      - /tmp:/host-tmp:ro
-    
-    command: -config.file=/etc/promtail/config.yml
-    
-    depends_on:
-      loki:
-        condition: service_healthy
-    
-    networks:
-      - traefik
-
-  grafana:
-    image: grafana/grafana:10.2.3
-    container_name: grafana-staging
-    restart: unless-stopped
-    
-    
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_FEATURE_TOGGLES_ENABLE=traceToLogs
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-      - GF_SERVER_ROOT_URL=https://grafana.localhost
-      - GF_SERVER_SERVE_FROM_SUB_PATH=false
-    
-    volumes:
-      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
-      - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
-      - ./config/grafana-dashboard-logs.json:/etc/grafana/dashboards/logs.json:ro
-      - grafana-storage:/var/lib/grafana
-    
-    depends_on:
-      loki:
-        condition: service_healthy
-      jaeger:
-        condition: service_healthy
-    
-    networks:
-      - traefik
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.routers.grafana.tls=true"
-      - "traefik.http.routers.grafana.priority=100"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.91.0
-    container_name: otel-collector-staging
-    restart: unless-stopped
-    
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-      - /tmp:/tmp:ro
-    
-    ports:
-      - "13133:13133"
-    
-    networks:
-      - traefik
-    
-    depends_on:
-      jaeger:
-        condition: service_healthy
-    
-    healthcheck:
-      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otel-collector-config.yaml"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
   flipt:
     image: flipt/flipt:latest
     container_name: flipt-staging
@@ -259,6 +115,9 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - OTEL_LOGS_ENABLED=true
+      - OTEL_LOGS_ENDPOINT=https://otel-cuda-demo.josnelihurt.me/v1/logs
+      - OTEL_ENVIRONMENT=staging
 
     ports:
       - "60061:60061"
@@ -316,7 +175,5 @@ networks:
     name: traefik-staging
     driver: bridge
 
-volumes:
-  grafana-storage:
-    name: grafana-storage-staging
+volumes: {}
 

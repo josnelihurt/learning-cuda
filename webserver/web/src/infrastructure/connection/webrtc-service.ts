@@ -1,15 +1,13 @@
-import { createPromiseClient, PromiseClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
 import { logger } from '../observability/otel-logger';
 import { telemetryService } from '../observability/telemetry-service';
 import type { IWebRTCService } from '../../domain/interfaces/IWebRTCService';
-import { WebRTCSignalingService } from '../../gen/webrtc_signal_connect';
 import { WebRTCSession } from '../../domain/value-objects/WebRTCSession';
+import { SignalingMessage } from '../../gen/webrtc_signal_pb';
 
 class WebRTCService implements IWebRTCService {
   private initialized: boolean = false;
   private initPromise: Promise<void> | null = null;
-  private signalingClient: PromiseClient<typeof WebRTCSignalingService>;
+  private signalingWebSockets: Map<string, WebSocket> = new Map();
   private sessions: Map<string, WebRTCSession> = new Map();
   private heartbeatIntervals: Map<string, number> = new Map();
   private peerConnections: Map<string, RTCPeerConnection> = new Map();
@@ -18,12 +16,7 @@ class WebRTCService implements IWebRTCService {
   private lastRequest: string | null = null;
   private lastRequestTime: Date | null = null;
 
-  constructor() {
-    const transport = createConnectTransport({
-      baseUrl: window.location.origin,
-    });
-    this.signalingClient = createPromiseClient(WebRTCSignalingService, transport);
-  }
+  constructor() {}
 
   async initialize(): Promise<void> {
     if (this.initPromise) {
@@ -186,14 +179,14 @@ class WebRTCService implements IWebRTCService {
 
       // Configure data channel callbacks
       dataChannel.onopen = () => {
-        console.log(`[WebRTC:${sessionId}] Data channel opened`);
+        logger.debug(`[WebRTC:${sessionId}] Data channel opened`);
         dataChannel.send('ping');
-        console.log(`[WebRTC:${sessionId}] Sent: ping`);
+        logger.debug(`[WebRTC:${sessionId}] Sent: ping`);
       };
 
       dataChannel.onmessage = (event: MessageEvent) => {
         const message = event.data;
-        console.log(`[WebRTC:${sessionId}] Received: ${message}`);
+        logger.debug(`[WebRTC:${sessionId}] Received: ${message}`);
         if (message === 'pong') {
           logger.info(`[WebRTC:${sessionId}] Ping-pong successful!`);
         }
@@ -206,34 +199,43 @@ class WebRTCService implements IWebRTCService {
       };
 
       dataChannel.onclose = () => {
-        console.log(`[WebRTC:${sessionId}] Data channel closed`);
+        logger.debug(`[WebRTC:${sessionId}] Data channel closed`);
       };
 
       // Handle ICE candidates
       peerConnection.onicecandidate = async (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate) {
-          try {
-            await this.signalingClient.sendIceCandidate({
-              sessionId,
-              candidate: {
-                candidate: event.candidate.candidate,
-                sdpMid: event.candidate.sdpMid || '',
-                sdpMlineIndex: event.candidate.sdpMLineIndex || 0,
-              },
-            });
-            console.log(`[WebRTC:${sessionId}] Sent ICE candidate: ${event.candidate.candidate}`);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.error(`[WebRTC:${sessionId}] Failed to send ICE candidate`, {
-              'error.message': errorMessage,
-            });
+          const ws = this.signalingWebSockets.get(sessionId);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            try {
+              const msg = new SignalingMessage({
+                message: {
+                  case: 'iceCandidate',
+                  value: {
+                    sessionId,
+                    candidate: {
+                      candidate: event.candidate.candidate,
+                      sdpMid: event.candidate.sdpMid || '',
+                      sdpMlineIndex: event.candidate.sdpMLineIndex || 0,
+                    },
+                  },
+                },
+              });
+              ws.send(msg.toJsonString());
+              logger.debug(`[WebRTC:${sessionId}] Sent ICE candidate: ${event.candidate.candidate}`);
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              logger.error(`[WebRTC:${sessionId}] Failed to send ICE candidate`, {
+                'error.message': errorMessage,
+              });
+            }
           }
         }
       };
 
       peerConnection.onconnectionstatechange = () => {
         if (peerConnection) {
-          console.log(`[WebRTC:${sessionId}] Connection state: ${peerConnection.connectionState}`);
+          logger.debug(`[WebRTC:${sessionId}] Connection state: ${peerConnection.connectionState}`);
         }
       };
 
@@ -243,34 +245,31 @@ class WebRTCService implements IWebRTCService {
         return;
       }
 
+      const ws = await this.createSignalingStream(sessionId);
+
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      const startResponse = await this.signalingClient.startSession({
-        sessionId,
-        sdpOffer: offer.sdp || '',
-      });
-
-      if (!startResponse.sdpAnswer) {
-        logger.debug(`[WebRTC:${sessionId}] No SDP answer received`);
+      if (ws.readyState === WebSocket.OPEN) {
+        const msg = new SignalingMessage({
+          message: {
+            case: 'startSession',
+            value: {
+              sessionId,
+              sdpOffer: offer.sdp || '',
+            },
+          },
+        });
+        ws.send(msg.toJsonString());
+        logger.info(`[WebRTC:${sessionId}] Start session request sent via WebSocket, waiting for response`);
+      } else {
+        logger.error(`[WebRTC:${sessionId}] WebSocket not open, cannot send start session`);
         if (peerConnection) {
           peerConnection.close();
           peerConnection = null;
         }
         return;
       }
-
-      if (!peerConnection) {
-        logger.debug(`[WebRTC:${sessionId}] Peer connection lost before setting remote description`);
-        return;
-      }
-
-      await peerConnection.setRemoteDescription(
-        new RTCSessionDescription({
-          type: 'answer',
-          sdp: startResponse.sdpAnswer,
-        })
-      );
 
       logger.debug(`[WebRTC:${sessionId}] WebRTC connection established`);
     } catch (error) {
@@ -290,16 +289,206 @@ class WebRTCService implements IWebRTCService {
     }
   }
 
+  private createSignalingStream(sessionId: string): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/webrtc-signaling`;
+      logger.debug(`[WebRTC:${sessionId}] Creating WebSocket connection to: ${wsUrl}`);
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        logger.info(`[WebRTC:${sessionId}] Signaling WebSocket connected`);
+        resolve(ws);
+      };
+
+    ws.onmessage = async (event) => {
+      try {
+        logger.debug(`[WebRTC:${sessionId}] Received message from WebSocket`);
+        const data = SignalingMessage.fromJsonString(event.data);
+        this.handleSignalingMessage(data, sessionId);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`[WebRTC:${sessionId}] Failed to parse signaling message`, {
+          'error.message': errorMessage,
+        });
+      }
+    };
+
+      ws.onerror = (event: Event) => {
+        logger.error(`[WebRTC:${sessionId}] WebSocket error`, {
+          'error.type': event.type,
+        });
+        reject(new Error('WebSocket connection failed'));
+      };
+
+      ws.onclose = (event: CloseEvent) => {
+        logger.info(`[WebRTC:${sessionId}] Signaling WebSocket closed`, {
+          'websocket.code': event.code,
+          'websocket.reason': event.reason,
+          'websocket.wasClean': event.wasClean,
+        });
+        this.signalingWebSockets.delete(sessionId);
+        if (!event.wasClean && event.code !== 1000) {
+          this.reconnectSignalingStream(sessionId);
+        }
+      };
+
+      const timeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          ws.close();
+          reject(new Error('WebSocket connection timeout'));
+        }
+      }, 10000);
+
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        logger.info(`[WebRTC:${sessionId}] Signaling WebSocket connected`);
+        this.signalingWebSockets.set(sessionId, ws);
+        resolve(ws);
+      };
+    });
+  }
+
+  private async handleSignalingMessage(msg: SignalingMessage, sessionId: string): Promise<void> {
+    const peerConnection = this.peerConnections.get(sessionId);
+    if (!peerConnection) {
+      logger.warn(`[WebRTC:${sessionId}] Received signaling message but peer connection not found`);
+      return;
+    }
+
+    if (msg.message.case === 'startSessionResponse') {
+      const resp = msg.message.value;
+      if (resp.sdpAnswer) {
+        try {
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription({
+              type: 'answer',
+              sdp: resp.sdpAnswer,
+            })
+          );
+          logger.info(`[WebRTC:${sessionId}] Remote description set from WebSocket`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error(`[WebRTC:${sessionId}] Failed to set remote description`, {
+            'error.message': errorMessage,
+          });
+        }
+      }
+    } else if (msg.message.case === 'iceCandidate') {
+      const resp = msg.message.value;
+      if (resp.candidate) {
+        try {
+          await peerConnection.addIceCandidate(
+            new RTCIceCandidate({
+              candidate: resp.candidate.candidate,
+              sdpMid: resp.candidate.sdpMid || null,
+              sdpMLineIndex: resp.candidate.sdpMlineIndex || null,
+            })
+          );
+          logger.debug(`[WebRTC:${sessionId}] Added remote ICE candidate from WebSocket`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error(`[WebRTC:${sessionId}] Failed to add remote ICE candidate`, {
+            'error.message': errorMessage,
+          });
+        }
+      }
+    } else if (msg.message.case === 'iceCandidateResponse') {
+      logger.debug(`[WebRTC:${sessionId}] ICE candidate response received`);
+    } else if (msg.message.case === 'closeSessionResponse') {
+      logger.info(`[WebRTC:${sessionId}] Session closed via WebSocket`);
+      this.cleanupSession(sessionId);
+    } else if (msg.message.case === 'keepAlive') {
+      logger.debug(`[WebRTC:${sessionId}] Keepalive received`);
+    }
+  }
+
+  private handleSessionError(sessionId: string, error: Error): void {
+    logger.error(`[WebRTC:${sessionId}] Session error`, {
+      'error.message': error.message,
+    });
+    const peerConnection = this.peerConnections.get(sessionId);
+    if (peerConnection) {
+      const iceState = peerConnection.iceConnectionState;
+      if (iceState === 'failed' || iceState === 'disconnected') {
+        this.cleanupSession(sessionId);
+      }
+    }
+  }
+
+  // Reconnects signaling stream if it closes unexpectedly.
+  // Checks WebRTC connection state:
+  // - If WebRTC is connected/completed: Reconnects stream silently (for ICE restart capability)
+  // - If WebRTC is not connected: Cleans up entire session
+  // Prevents infinite reconnection loops by checking WebRTC state before reconnecting.
+  private async reconnectSignalingStream(sessionId: string): Promise<void> {
+    const peerConnection = this.peerConnections.get(sessionId);
+    if (!peerConnection) {
+      logger.debug(`[WebRTC:${sessionId}] No peer connection, cleaning up`);
+      this.cleanupSession(sessionId);
+      return;
+    }
+
+    const iceState = peerConnection.iceConnectionState;
+    if (iceState === 'connected' || iceState === 'completed') {
+      logger.info(`[WebRTC:${sessionId}] Reconnecting signaling stream (WebRTC still connected)`);
+      try {
+        await this.createSignalingStream(sessionId);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`[WebRTC:${sessionId}] Failed to reconnect stream`, {
+          'error.message': errorMessage,
+        });
+        this.cleanupSession(sessionId);
+      }
+    } else {
+      logger.warn(`[WebRTC:${sessionId}] Signaling stream closed and WebRTC not connected, cleaning up`);
+      this.cleanupSession(sessionId);
+    }
+  }
+
+  private cleanupSession(sessionId: string): void {
+    this.stopHeartbeat(sessionId);
+    const peerConnection = this.peerConnections.get(sessionId);
+    if (peerConnection) {
+      try {
+        peerConnection.close();
+      } catch (error) {
+        logger.debug(`[WebRTC:${sessionId}] Error closing peer connection`, {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      }
+      this.peerConnections.delete(sessionId);
+    }
+    this.dataChannels.delete(sessionId);
+    this.sessions.delete(sessionId);
+    const ws = this.signalingWebSockets.get(sessionId);
+    if (ws) {
+      try {
+        ws.close();
+      } catch (error) {
+        logger.debug(`[WebRTC:${sessionId}] Error closing WebSocket`, {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      }
+      this.signalingWebSockets.delete(sessionId);
+    }
+  }
+
   async createSession(sourceId: string): Promise<WebRTCSession> {
+    logger.info(`[WebRTC] createSession called for sourceId: ${sourceId}`);
     if (!this.isSupported()) {
+      logger.error('[WebRTC] WebRTC is not supported in this browser');
       throw new Error('WebRTC is not supported in this browser');
     }
 
     await this.initialize();
     if (!this.initialized) {
+      logger.error('[WebRTC] WebRTC service not initialized');
       throw new Error('WebRTC service not initialized');
     }
 
+    logger.info(`[WebRTC] Service initialized, creating session for sourceId: ${sourceId}`);
     const session = WebRTCSession.create(sourceId);
     const sessionId = session.getId();
 
@@ -413,49 +602,55 @@ class WebRTCService implements IWebRTCService {
         this.stopHeartbeat(sessionId);
       };
 
+      logger.info(`[WebRTC:${sessionId}] Creating signaling WebSocket...`);
+      const stream = await this.createSignalingStream(sessionId);
+      logger.info(`[WebRTC:${sessionId}] Signaling WebSocket connected and ready, readyState: ${stream.readyState}`);
+
       peerConnection.onicecandidate = async (event: RTCPeerConnectionIceEvent) => {
-        if (event.candidate && peerConnection) {
-          try {
-            await this.signalingClient.sendIceCandidate({
-              sessionId,
-              candidate: {
-                candidate: event.candidate.candidate,
-                sdpMid: event.candidate.sdpMid || '',
-                sdpMlineIndex: event.candidate.sdpMLineIndex || 0,
-              },
-            });
-            logger.debug(`[WebRTC:${sessionId}] Sent ICE candidate`);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.error(`[WebRTC:${sessionId}] Failed to send ICE candidate`, {
-              'error.message': errorMessage,
-            });
+        if (event.candidate) {
+          const ws = this.signalingWebSockets.get(sessionId);
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            try {
+              const msg = new SignalingMessage({
+                message: {
+                  case: 'iceCandidate',
+                  value: {
+                    sessionId,
+                    candidate: {
+                      candidate: event.candidate.candidate,
+                      sdpMid: event.candidate.sdpMid || '',
+                      sdpMlineIndex: event.candidate.sdpMLineIndex || 0,
+                    },
+                  },
+                },
+              });
+              ws.send(msg.toJsonString());
+              logger.debug(`[WebRTC:${sessionId}] Sent ICE candidate via WebSocket`);
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              logger.error(`[WebRTC:${sessionId}] Failed to send ICE candidate via WebSocket`, {
+                'error.message': errorMessage,
+              });
+            }
           }
         }
       };
 
-
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
+      logger.debug(`[WebRTC:${sessionId}] Created SDP offer, WebSocket readyState: ${stream.readyState}`);
 
-      const startResponse = await this.signalingClient.startSession({
-        sessionId,
-        sdpOffer: offer.sdp || '',
+      const msg = new SignalingMessage({
+        message: {
+          case: 'startSession',
+          value: {
+            sessionId,
+            sdpOffer: offer.sdp || '',
+          },
+        },
       });
-
-      if (!startResponse.sdpAnswer) {
-        peerConnection.close();
-        this.peerConnections.delete(sessionId);
-        this.dataChannels.delete(sessionId);
-        throw new Error('No SDP answer received');
-      }
-
-      await peerConnection.setRemoteDescription(
-        new RTCSessionDescription({
-          type: 'answer',
-          sdp: startResponse.sdpAnswer,
-        })
-      );
+      stream.send(msg.toJsonString());
+      logger.info(`[WebRTC:${sessionId}] Start session request sent via WebSocket, waiting for response`);
 
       // Check data channel state after setting remote description
       const dataChannelState = dataChannel.readyState;
@@ -539,6 +734,37 @@ class WebRTCService implements IWebRTCService {
   async closeSession(sessionId: string): Promise<void> {
     this.stopHeartbeat(sessionId);
 
+    const ws = this.signalingWebSockets.get(sessionId);
+    if (ws) {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          const msg = new SignalingMessage({
+            message: {
+              case: 'closeSession',
+              value: {
+                sessionId,
+              },
+            },
+          });
+          ws.send(msg.toJsonString());
+          logger.info(`[WebRTC:${sessionId}] Close session request sent via WebSocket`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.debug(`[WebRTC:${sessionId}] Failed to send close session via WebSocket`, {
+            'error.message': errorMessage,
+          });
+        }
+      }
+      try {
+        ws.close();
+      } catch (error) {
+        logger.debug(`[WebRTC:${sessionId}] Error closing WebSocket`, {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      }
+      this.signalingWebSockets.delete(sessionId);
+    }
+
     const peerConnection = this.peerConnections.get(sessionId);
     if (peerConnection) {
       try {
@@ -553,20 +779,6 @@ class WebRTCService implements IWebRTCService {
 
     this.dataChannels.delete(sessionId);
     this.sessions.delete(sessionId);
-
-    try {
-      if ('closeSession' in this.signalingClient && typeof this.signalingClient.closeSession === 'function') {
-        await (this.signalingClient as any).closeSession({ sessionId });
-        logger.info(`[WebRTC:${sessionId}] Session closed successfully`);
-      } else {
-        logger.debug(`[WebRTC:${sessionId}] CloseSession not yet available in signaling client (proto not regenerated)`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.debug(`[WebRTC:${sessionId}] Failed to close session on backend (may already be closed)`, {
-        'error.message': errorMessage,
-      });
-    }
   }
 
   startHeartbeat(sessionId: string, intervalMs: number): void {

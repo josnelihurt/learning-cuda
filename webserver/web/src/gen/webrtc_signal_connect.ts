@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CloseSessionRequest, CloseSessionResponse, SendIceCandidateRequest, SendIceCandidateResponse, StartSessionRequest, StartSessionResponse } from "./webrtc_signal_pb.js";
+import { SignalingMessage } from "./webrtc_signal_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -13,31 +13,13 @@ export const WebRTCSignalingService = {
   typeName: "cuda_learning.WebRTCSignalingService",
   methods: {
     /**
-     * @generated from rpc cuda_learning.WebRTCSignalingService.StartSession
+     * @generated from rpc cuda_learning.WebRTCSignalingService.SignalingStream
      */
-    startSession: {
-      name: "StartSession",
-      I: StartSessionRequest,
-      O: StartSessionResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc cuda_learning.WebRTCSignalingService.SendIceCandidate
-     */
-    sendIceCandidate: {
-      name: "SendIceCandidate",
-      I: SendIceCandidateRequest,
-      O: SendIceCandidateResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc cuda_learning.WebRTCSignalingService.CloseSession
-     */
-    closeSession: {
-      name: "CloseSession",
-      I: CloseSessionRequest,
-      O: CloseSessionResponse,
-      kind: MethodKind.Unary,
+    signalingStream: {
+      name: "SignalingStream",
+      I: SignalingMessage,
+      O: SignalingMessage,
+      kind: MethodKind.BiDiStreaming,
     },
   }
 } as const;

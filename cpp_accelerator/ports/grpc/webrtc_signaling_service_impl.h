@@ -1,6 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -17,17 +20,10 @@ public:
   explicit WebRTCSignalingServiceImpl(std::shared_ptr<WebRTCManager> manager);
   ~WebRTCSignalingServiceImpl() override = default;
 
-  ::grpc::Status StartSession(::grpc::ServerContext* context,
-                              const cuda_learning::StartSessionRequest* request,
-                              cuda_learning::StartSessionResponse* response) override;
-
-  ::grpc::Status SendIceCandidate(::grpc::ServerContext* context,
-                                  const cuda_learning::SendIceCandidateRequest* request,
-                                  cuda_learning::SendIceCandidateResponse* response) override;
-
-  ::grpc::Status CloseSession(::grpc::ServerContext* context,
-                              const cuda_learning::CloseSessionRequest* request,
-                              cuda_learning::CloseSessionResponse* response) override;
+  ::grpc::Status SignalingStream(
+      ::grpc::ServerContext* context,
+      ::grpc::ServerReaderWriter<cuda_learning::SignalingMessage,
+                                 cuda_learning::SignalingMessage>* stream) override;
 
 private:
   std::shared_ptr<WebRTCManager> manager_;

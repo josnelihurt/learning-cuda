@@ -240,8 +240,13 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
           }
         });
 
-    session->peer_connection->onLocalCandidate([session_id](rtc::Candidate candidate) {
+    session->peer_connection->onLocalCandidate([session_id, session](rtc::Candidate candidate) {
       spdlog::info("[WebRTC:{}] Local ICE candidate: {}", session_id, candidate.candidate());
+      {
+        std::lock_guard<std::mutex> lock(session->candidates_mutex);
+        session->local_candidates_queue.push(candidate);
+      }
+      session->candidates_cv.notify_one();
     });
 
     // Register callback to receive remote data channel from client
@@ -519,6 +524,20 @@ bool WebRTCManager::HandleRemoteCandidate(const std::string& session_id,
     spdlog::error("[WebRTC:{}] Failed to add candidate: {}", session_id, e.what());
     return false;
   }
+}
+
+std::vector<rtc::Candidate> WebRTCManager::GetPendingLocalCandidates(
+    const std::string& session_id) {
+  std::vector<rtc::Candidate> candidates;
+  auto session = GetSession(session_id);
+  if (session) {
+    std::lock_guard<std::mutex> lock(session->candidates_mutex);
+    while (!session->local_candidates_queue.empty()) {
+      candidates.push_back(session->local_candidates_queue.front());
+      session->local_candidates_queue.pop();
+    }
+  }
+  return candidates;
 }
 
 std::shared_ptr<WebRTCManager::SessionState> WebRTCManager::GetSession(

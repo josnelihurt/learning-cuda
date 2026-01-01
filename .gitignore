@@ -107,3 +107,4 @@ server
 **/.terraform.lock.hcl
 **/*.tfstate
 **/*.tfstate.backup
+.venv-mcp/

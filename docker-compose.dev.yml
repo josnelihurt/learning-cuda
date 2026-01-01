@@ -1,50 +1,4 @@
 services:
-  jaeger:
-    image: jaegertracing/all-in-one:1.52
-    container_name: jaeger
-    restart: unless-stopped
-    
-    ports:
-      - "16686:16686"
-      - "14250:14250"
-    
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - LOG_LEVEL=debug
-    
-    networks:
-      - dev-network
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.91.0
-    container_name: otel-collector
-    restart: unless-stopped
-    
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-      - /tmp:/tmp:ro
-    
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "13133:13133"
-    
-    networks:
-      - dev-network
-    
-    depends_on:
-      jaeger:
-        condition: service_healthy
-
   flipt:
     image: flipt/flipt:latest
     container_name: flipt
@@ -73,47 +27,6 @@ services:
       retries: 5
       start_period: 10s
 
-  loki:
-    image: grafana/loki:2.9.3
-    container_name: loki
-    restart: unless-stopped
-    
-    ports:
-      - "3100:3100"
-    
-    command: -config.file=/etc/loki/loki-config.yaml
-    
-    volumes:
-      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-    
-    networks:
-      - dev-network
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  promtail:
-    image: grafana/promtail:2.9.3
-    container_name: promtail
-    restart: unless-stopped
-    
-    volumes:
-      - ./config/promtail-config.yaml:/etc/promtail/config.yml:ro
-      - /tmp:/tmp:ro
-    
-    command: -config.file=/etc/promtail/config.yml
-    
-    depends_on:
-      loki:
-        condition: service_healthy
-    
-    networks:
-      - dev-network
-
   app-dev:
     image: ubuntu:22.04
     container_name: cuda-image-processor
@@ -135,14 +48,8 @@ services:
     command: ["/app/server", "-webroot=webserver/web"]
     
     depends_on:
-      loki:
-        condition: service_healthy
       flipt:
         condition: service_healthy
-      jaeger:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
     
     networks:
       - dev-network
@@ -160,67 +67,16 @@ services:
     restart: unless-stopped
     runtime: nvidia
 
+    environment:
+      - OTEL_LOGS_ENABLED=true
+      - OTEL_LOGS_ENDPOINT=https://otel-cuda-demo.josnelihurt.me/v1/logs
+      - OTEL_ENVIRONMENT=development
+
     ports:
       - "60061:60061"
 
     networks:
       - dev-network
-
-  grafana:
-    image: grafana/grafana:10.2.3
-    container_name: grafana
-    restart: unless-stopped
-    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
-    
-    ports:
-      - "3001:3000"
-    
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_FEATURE_TOGGLES_ENABLE=traceToLogs
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-      - GF_PATHS_DATA=/tmp/grafana
-    
-    volumes:
-      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
-      - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
-      - ./config/grafana-dashboard-logs.json:/etc/grafana/dashboards/logs.json:ro
-    
-    depends_on:
-      loki:
-        condition: service_healthy
-      jaeger:
-        condition: service_healthy
-    
-    networks:
-      - dev-network
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  mcp-grafana:
-    image: grafana/mcp-grafana:latest
-    container_name: mcp-grafana-server
-    restart: unless-stopped
-    
-    environment:
-      - GRAFANA_URL=${GRAFANA_URL:-http://grafana:3000}
-      - GRAFANA_SERVICE_ACCOUNT_TOKEN=${GRAFANA_API_KEY}
-    
-    ports:
-      - "8000:8000"
-    
-    networks:
-      - dev-network
-    
-    depends_on:
-      grafana:
-        condition: service_healthy
 
   integration-tests:
     build:
@@ -274,8 +130,6 @@ services:
     
     depends_on:
       - flipt
-      - jaeger
-      - otel-collector
     
     profiles:
       - testing

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { TraceContext } from "./common_pb.js";
 
 /**
@@ -347,6 +347,128 @@ export class CloseSessionResponse extends Message<CloseSessionResponse> {
 
   static equals(a: CloseSessionResponse | PlainMessage<CloseSessionResponse> | undefined, b: CloseSessionResponse | PlainMessage<CloseSessionResponse> | undefined): boolean {
     return proto3.util.equals(CloseSessionResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.KeepAlive
+ */
+export class KeepAlive extends Message<KeepAlive> {
+  /**
+   * @generated from field: int64 timestamp = 1;
+   */
+  timestamp = protoInt64.zero;
+
+  constructor(data?: PartialMessage<KeepAlive>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.KeepAlive";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "timestamp", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeepAlive {
+    return new KeepAlive().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeepAlive {
+    return new KeepAlive().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeepAlive {
+    return new KeepAlive().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeepAlive | PlainMessage<KeepAlive> | undefined, b: KeepAlive | PlainMessage<KeepAlive> | undefined): boolean {
+    return proto3.util.equals(KeepAlive, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.SignalingMessage
+ */
+export class SignalingMessage extends Message<SignalingMessage> {
+  /**
+   * @generated from oneof cuda_learning.SignalingMessage.message
+   */
+  message: {
+    /**
+     * @generated from field: cuda_learning.StartSessionRequest start_session = 1 [json_name = "start_session"];
+     */
+    value: StartSessionRequest;
+    case: "startSession";
+  } | {
+    /**
+     * @generated from field: cuda_learning.StartSessionResponse start_session_response = 2 [json_name = "start_session_response"];
+     */
+    value: StartSessionResponse;
+    case: "startSessionResponse";
+  } | {
+    /**
+     * @generated from field: cuda_learning.SendIceCandidateRequest ice_candidate = 3 [json_name = "ice_candidate"];
+     */
+    value: SendIceCandidateRequest;
+    case: "iceCandidate";
+  } | {
+    /**
+     * @generated from field: cuda_learning.SendIceCandidateResponse ice_candidate_response = 4 [json_name = "ice_candidate_response"];
+     */
+    value: SendIceCandidateResponse;
+    case: "iceCandidateResponse";
+  } | {
+    /**
+     * @generated from field: cuda_learning.CloseSessionRequest close_session = 5 [json_name = "close_session"];
+     */
+    value: CloseSessionRequest;
+    case: "closeSession";
+  } | {
+    /**
+     * @generated from field: cuda_learning.CloseSessionResponse close_session_response = 6 [json_name = "close_session_response"];
+     */
+    value: CloseSessionResponse;
+    case: "closeSessionResponse";
+  } | {
+    /**
+     * @generated from field: cuda_learning.KeepAlive keep_alive = 7 [json_name = "keep_alive"];
+     */
+    value: KeepAlive;
+    case: "keepAlive";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<SignalingMessage>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.SignalingMessage";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "start_session", jsonName: "start_session", kind: "message", T: StartSessionRequest, oneof: "message" },
+    { no: 2, name: "start_session_response", jsonName: "start_session_response", kind: "message", T: StartSessionResponse, oneof: "message" },
+    { no: 3, name: "ice_candidate", jsonName: "ice_candidate", kind: "message", T: SendIceCandidateRequest, oneof: "message" },
+    { no: 4, name: "ice_candidate_response", jsonName: "ice_candidate_response", kind: "message", T: SendIceCandidateResponse, oneof: "message" },
+    { no: 5, name: "close_session", jsonName: "close_session", kind: "message", T: CloseSessionRequest, oneof: "message" },
+    { no: 6, name: "close_session_response", jsonName: "close_session_response", kind: "message", T: CloseSessionResponse, oneof: "message" },
+    { no: 7, name: "keep_alive", jsonName: "keep_alive", kind: "message", T: KeepAlive, oneof: "message" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignalingMessage {
+    return new SignalingMessage().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SignalingMessage {
+    return new SignalingMessage().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SignalingMessage {
+    return new SignalingMessage().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SignalingMessage | PlainMessage<SignalingMessage> | undefined, b: SignalingMessage | PlainMessage<SignalingMessage> | undefined): boolean {
+    return proto3.util.equals(SignalingMessage, a, b);
   }
 }
 

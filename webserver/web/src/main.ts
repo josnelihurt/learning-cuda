@@ -20,6 +20,7 @@ import './components/app/information-banner';
 import './components/app/app-tour';
 import './components/app/app-root';
 import { acceleratorHealthMonitor } from './infrastructure/external/accelerator-health-monitor';
+import { systemInfoService } from './infrastructure/external/system-info-service';
 import { container } from './application/di';
 import type {
   IConfigService,
@@ -71,6 +72,18 @@ const app = {
     });
 
     logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging());
+
+    try {
+      await systemInfoService.initialize();
+      const systemInfo = await systemInfoService.getSystemInfo();
+      if (systemInfo.environment) {
+        logger.setEnvironment(systemInfo.environment);
+      }
+    } catch (error) {
+      logger.warn('Failed to load system info for environment', {
+        'error.message': error instanceof Error ? error.message : String(error),
+      });
+    }
 
     const dataServicesResults = await Promise.allSettled([
       inputSourceService.initialize(),

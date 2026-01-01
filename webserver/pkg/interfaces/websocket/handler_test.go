@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -43,17 +44,18 @@ func TestHandler_safeWriteMessage(t *testing.T) {
 }
 
 func TestHandler_cleanupConnMutex(t *testing.T) {
+	// Fixed: Updated to use new cleanupConnection API with connID
 	// Arrange
 	sut := NewHandler(nil, makeValidStreamConfig(), nil, nil, nil)
-	conn := &websocket.Conn{} // This would need proper initialization in real tests
+	testConnID := connID("test-conn-id")
 
-	// Act
-	sut.cleanupConnMutex(conn)
+	// Register a connection first
+	sut.connections[testConnID] = &websocket.Conn{}
 
-	// Assert
-	// The method should not panic and should clean up the mutex
+	// Act & Assert
+	// The method should not panic and should clean up the connection
 	assert.NotPanics(t, func() {
-		sut.cleanupConnMutex(conn)
+		sut.cleanupConnection(testConnID)
 	})
 }
 
@@ -165,31 +167,38 @@ func TestHandler_processFrame(t *testing.T) {
 }
 
 func TestVideoSessionManager_CreateSession(t *testing.T) {
+	// Fixed: Updated to use new CreateSession API with context and connID
 	// Arrange
 	manager := NewVideoSessionManager()
 	sessionID := "session123"
 	videoID := "vid123"
+	testConnID := connID("conn-123")
 	conn := &websocket.Conn{} // This would need proper initialization in real tests
 	transportFormat := "json"
+	ctx := context.Background()
 
 	// Act
-	session := manager.CreateSession(sessionID, videoID, conn, transportFormat)
+	session := manager.CreateSession(ctx, sessionID, videoID, testConnID, conn, transportFormat)
 
 	// Assert
 	assert.NotNil(t, session)
 	assert.Equal(t, sessionID, session.ID)
 	assert.Equal(t, videoID, session.VideoID)
+	assert.Equal(t, testConnID, session.ConnID)
 	assert.Equal(t, conn, session.Conn)
 	assert.Equal(t, transportFormat, session.TransportFormat)
 	assert.NotNil(t, session.CancelFunc)
 }
 
 func TestVideoSessionManager_GetSession(t *testing.T) {
+	// Fixed: Updated to use new CreateSession API
 	// Arrange
 	manager := NewVideoSessionManager()
 	sessionID := "session123"
+	testConnID := connID("conn-123")
 	conn := &websocket.Conn{} // This would need proper initialization in real tests
-	manager.CreateSession(sessionID, "vid123", conn, "json")
+	ctx := context.Background()
+	manager.CreateSession(ctx, sessionID, "vid123", testConnID, conn, "json")
 
 	// Act
 	session := manager.GetSession(sessionID)
@@ -211,11 +220,14 @@ func TestVideoSessionManager_GetSession_NotFound(t *testing.T) {
 }
 
 func TestVideoSessionManager_GetSessionByConn(t *testing.T) {
+	// Fixed: Updated to use new CreateSession API
 	// Arrange
 	manager := NewVideoSessionManager()
 	sessionID := "session123"
+	testConnID := connID("conn-123")
 	conn := &websocket.Conn{} // This would need proper initialization in real tests
-	manager.CreateSession(sessionID, "vid123", conn, "json")
+	ctx := context.Background()
+	manager.CreateSession(ctx, sessionID, "vid123", testConnID, conn, "json")
 
 	// Act
 	session := manager.GetSessionByConn(conn)
@@ -226,11 +238,14 @@ func TestVideoSessionManager_GetSessionByConn(t *testing.T) {
 }
 
 func TestVideoSessionManager_RemoveSession(t *testing.T) {
+	// Fixed: Updated to use new CreateSession API
 	// Arrange
 	manager := NewVideoSessionManager()
 	sessionID := "session123"
+	testConnID := connID("conn-123")
 	conn := &websocket.Conn{} // This would need proper initialization in real tests
-	manager.CreateSession(sessionID, "vid123", conn, "json")
+	ctx := context.Background()
+	manager.CreateSession(ctx, sessionID, "vid123", testConnID, conn, "json")
 
 	// Act
 	manager.RemoveSession(sessionID)
@@ -241,11 +256,14 @@ func TestVideoSessionManager_RemoveSession(t *testing.T) {
 }
 
 func TestVideoSessionManager_StopSession(t *testing.T) {
+	// Fixed: Updated to use new CreateSession API
 	// Arrange
 	manager := NewVideoSessionManager()
 	sessionID := "session123"
+	testConnID := connID("conn-123")
 	conn := &websocket.Conn{} // This would need proper initialization in real tests
-	manager.CreateSession(sessionID, "vid123", conn, "json")
+	ctx := context.Background()
+	manager.CreateSession(ctx, sessionID, "vid123", testConnID, conn, "json")
 
 	// Act
 	manager.StopSession(sessionID)
@@ -256,12 +274,16 @@ func TestVideoSessionManager_StopSession(t *testing.T) {
 }
 
 func TestVideoSessionManager_GetAllSessions(t *testing.T) {
+	// Fixed: Updated to use new CreateSession API
 	// Arrange
 	manager := NewVideoSessionManager()
+	connID1 := connID("conn-1")
+	connID2 := connID("conn-2")
 	conn1 := &websocket.Conn{} // This would need proper initialization in real tests
 	conn2 := &websocket.Conn{} // This would need proper initialization in real tests
-	manager.CreateSession("session1", "vid1", conn1, "json")
-	manager.CreateSession("session2", "vid2", conn2, "json")
+	ctx := context.Background()
+	manager.CreateSession(ctx, "session1", "vid1", connID1, conn1, "json")
+	manager.CreateSession(ctx, "session2", "vid2", connID2, conn2, "json")
 
 	// Act
 	sessions := manager.GetAllSessions()

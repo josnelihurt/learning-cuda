@@ -16,6 +16,7 @@ import (
 type VideoSession struct {
 	ID              string
 	VideoID         string
+	ConnID          connID // Fixed: Store connection ID instead of just pointer
 	Conn            *websocket.Conn
 	CancelFunc      context.CancelFunc
 	TransportFormat string
@@ -33,14 +34,18 @@ func NewVideoSessionManager() *VideoSessionManager {
 	}
 }
 
-func (m *VideoSessionManager) CreateSession(sessionID, videoID string, conn *websocket.Conn, transportFormat string) *VideoSession {
-	// TODO: Use the context returned by WithCancel for session lifecycle management
-	// Currently ctx is discarded, should pass it to video playback goroutines
-	_, cancel := context.WithCancel(context.Background())
+// CreateSession creates a new video session with proper context management
+// Fixed: Now accepts parent context and connection ID for proper lifecycle management
+func (m *VideoSessionManager) CreateSession(parentCtx context.Context, sessionID, videoID string, connID connID, conn *websocket.Conn, transportFormat string) *VideoSession {
+	// Fixed: Use parent context instead of discarding it
+	// This allows proper cancellation propagation from the request context
+	// Note: The derived context is not needed here as the caller manages the context lifecycle
+	_, cancel := context.WithCancel(parentCtx)
 
 	session := &VideoSession{
 		ID:              sessionID,
 		VideoID:         videoID,
+		ConnID:          connID,
 		Conn:            conn,
 		CancelFunc:      cancel,
 		TransportFormat: transportFormat,

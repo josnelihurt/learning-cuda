@@ -43,8 +43,7 @@ type ToolDefinition struct {
 	Name     string `mapstructure:"name"`
 	IconPath string `mapstructure:"icon_path"`
 	Type     string `mapstructure:"type"`
-	URLDev   string `mapstructure:"url_dev"`
-	URLProd  string `mapstructure:"url_prod"`
+	URL      string `mapstructure:"url"`
 	Action   string `mapstructure:"action"`
 }
 
@@ -112,10 +111,12 @@ func setDefaults(v *viper.Viper) {
 		"flipt.update_interval": "30s",
 		"flipt.http_timeout":    "10s",
 
-		"logging.level":          "info",
-		"logging.format":         "json",
-		"logging.output":         "stdout",
-		"logging.include_caller": true,
+		"logging.level":              "info",
+		"logging.format":             "json",
+		"logging.output":             "stdout",
+		"logging.include_caller":     true,
+		"logging.remote_enabled":     false,
+		"logging.remote_environment": "development",
 
 		"processor.library_base_path":   ".ignore/lib/cuda_learning",
 		"processor.grpc_server_address": "localhost:60061",

@@ -22,8 +22,8 @@ func NewProcessImageUseCase(processor domain.ImageProcessor) *ProcessImageUseCas
 	}
 }
 
-// Execute processes an image with the specified filters, accelerator, and grayscale type
-func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *domain.BlurParameters) (*domain.Image, error) {
+// Execute processes an image with the specified processing options.
+func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, opts domain.ProcessingOptions) (*domain.Image, error) {
 	tracer := otel.Tracer("process-image-use-case")
 	ctx, span := tracer.Start(ctx, "ProcessImageUseCase.Execute",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -34,27 +34,27 @@ func (uc *ProcessImageUseCase) Execute(ctx context.Context, img *domain.Image, f
 		attribute.Int("image.width", img.Width),
 		attribute.Int("image.height", img.Height),
 		attribute.Int("image.size_bytes", len(img.Data)),
-		attribute.String("accelerator", string(accelerator)),
-		attribute.String("grayscale_type", string(grayscaleType)),
-		attribute.Int("filters_count", len(filters)),
+		attribute.String("accelerator", string(opts.Accelerator)),
+		attribute.String("grayscale_type", string(opts.GrayscaleType)),
+		attribute.Int("filters_count", len(opts.Filters)),
 	)
 
-	filterNames := make([]string, len(filters))
-	for i, f := range filters {
+	filterNames := make([]string, len(opts.Filters))
+	for i, f := range opts.Filters {
 		filterNames[i] = string(f)
 	}
 	span.SetAttributes(attribute.StringSlice("filters", filterNames))
 
-	if blurParams != nil {
+	if opts.BlurParams != nil {
 		span.SetAttributes(
-			attribute.Int("blur.kernel_size", int(blurParams.KernelSize)),
-			attribute.Float64("blur.sigma", float64(blurParams.Sigma)),
-			attribute.String("blur.border_mode", string(blurParams.BorderMode)),
-			attribute.Bool("blur.separable", blurParams.Separable),
+			attribute.Int("blur.kernel_size", int(opts.BlurParams.KernelSize)),
+			attribute.Float64("blur.sigma", float64(opts.BlurParams.Sigma)),
+			attribute.String("blur.border_mode", string(opts.BlurParams.BorderMode)),
+			attribute.Bool("blur.separable", opts.BlurParams.Separable),
 		)
 	}
 
-	result, err := uc.processor.ProcessImage(ctx, img, filters, accelerator, grayscaleType, blurParams)
+	result, err := uc.processor.ProcessImage(ctx, img, opts)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to process image: %w", err)

@@ -15,8 +15,8 @@ type mockImageProcessor struct {
 	mock.Mock
 }
 
-func (m *mockImageProcessor) ProcessImage(ctx context.Context, img *domain.Image, filters []domain.FilterType, accelerator domain.AcceleratorType, grayscaleType domain.GrayscaleType, blurParams *domain.BlurParameters) (*domain.Image, error) {
-	args := m.Called(ctx, img, filters, accelerator, grayscaleType, blurParams)
+func (m *mockImageProcessor) ProcessImage(ctx context.Context, img *domain.Image, opts domain.ProcessingOptions) (*domain.Image, error) {
+	args := m.Called(ctx, img, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -65,23 +65,23 @@ func TestProcessImageUseCase_Execute(t *testing.T) {
 	)
 
 	tests := []struct {
-		name          string
-		inputImage    *domain.Image
-		filters       []domain.FilterType
-		accelerator   domain.AcceleratorType
-		grayscaleType domain.GrayscaleType
-		mockResult    *domain.Image
-		mockError     error
-		assertResult  func(t *testing.T, result *domain.Image, err error)
+		name         string
+		inputImage   *domain.Image
+		opts         domain.ProcessingOptions
+		mockResult   *domain.Image
+		mockError    error
+		assertResult func(t *testing.T, result *domain.Image, err error)
 	}{
 		{
-			name:          "Success_CPUGrayscale",
-			inputImage:    makeRGBImage(100, 100),
-			filters:       []domain.FilterType{domain.FilterGrayscale},
-			accelerator:   domain.AcceleratorCPU,
-			grayscaleType: domain.GrayscaleAverage,
-			mockResult:    makeGrayscaleImage(100, 100),
-			mockError:     nil,
+			name:       "Success_CPUGrayscale",
+			inputImage: makeRGBImage(100, 100),
+			opts: domain.ProcessingOptions{
+				Filters:       []domain.FilterType{domain.FilterGrayscale},
+				Accelerator:   domain.AcceleratorCPU,
+				GrayscaleType: domain.GrayscaleAverage,
+			},
+			mockResult: makeGrayscaleImage(100, 100),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result *domain.Image, err error) {
 				assert.NoError(t, err)
 				require.NotNil(t, result)
@@ -90,13 +90,15 @@ func TestProcessImageUseCase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name:          "Success_GPULuminosity",
-			inputImage:    makeRGBImage(200, 150),
-			filters:       []domain.FilterType{domain.FilterGrayscale},
-			accelerator:   domain.AcceleratorGPU,
-			grayscaleType: domain.GrayscaleLuminosity,
-			mockResult:    makeGrayscaleImage(200, 150),
-			mockError:     nil,
+			name:       "Success_GPULuminosity",
+			inputImage: makeRGBImage(200, 150),
+			opts: domain.ProcessingOptions{
+				Filters:       []domain.FilterType{domain.FilterGrayscale},
+				Accelerator:   domain.AcceleratorGPU,
+				GrayscaleType: domain.GrayscaleLuminosity,
+			},
+			mockResult: makeGrayscaleImage(200, 150),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result *domain.Image, err error) {
 				assert.NoError(t, err)
 				require.NotNil(t, result)
@@ -104,39 +106,45 @@ func TestProcessImageUseCase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name:          "Success_BT709Algorithm",
-			inputImage:    makeRGBImage(100, 100),
-			filters:       []domain.FilterType{domain.FilterGrayscale},
-			accelerator:   domain.AcceleratorCPU,
-			grayscaleType: domain.GrayscaleBT709,
-			mockResult:    makeGrayscaleImage(100, 100),
-			mockError:     nil,
+			name:       "Success_BT709Algorithm",
+			inputImage: makeRGBImage(100, 100),
+			opts: domain.ProcessingOptions{
+				Filters:       []domain.FilterType{domain.FilterGrayscale},
+				Accelerator:   domain.AcceleratorCPU,
+				GrayscaleType: domain.GrayscaleBT709,
+			},
+			mockResult: makeGrayscaleImage(100, 100),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result *domain.Image, err error) {
 				assert.NoError(t, err)
 				assert.NotNil(t, result, "expected non-nil result")
 			},
 		},
 		{
-			name:          "Error_ProcessingFailed",
-			inputImage:    makeRGBImage(100, 100),
-			filters:       []domain.FilterType{domain.FilterGrayscale},
-			accelerator:   domain.AcceleratorCPU,
-			grayscaleType: domain.GrayscaleAverage,
-			mockResult:    nil,
-			mockError:     errProcessingFailed,
+			name:       "Error_ProcessingFailed",
+			inputImage: makeRGBImage(100, 100),
+			opts: domain.ProcessingOptions{
+				Filters:       []domain.FilterType{domain.FilterGrayscale},
+				Accelerator:   domain.AcceleratorCPU,
+				GrayscaleType: domain.GrayscaleAverage,
+			},
+			mockResult: nil,
+			mockError:  errProcessingFailed,
 			assertResult: func(t *testing.T, result *domain.Image, err error) {
 				assert.ErrorIs(t, err, errProcessingFailed)
 				assert.Nil(t, result)
 			},
 		},
 		{
-			name:          "Edge_EmptyFilters",
-			inputImage:    makeRGBImage(100, 100),
-			filters:       []domain.FilterType{},
-			accelerator:   domain.AcceleratorCPU,
-			grayscaleType: domain.GrayscaleAverage,
-			mockResult:    makeRGBImage(100, 100),
-			mockError:     nil,
+			name:       "Edge_EmptyFilters",
+			inputImage: makeRGBImage(100, 100),
+			opts: domain.ProcessingOptions{
+				Filters:       []domain.FilterType{},
+				Accelerator:   domain.AcceleratorCPU,
+				GrayscaleType: domain.GrayscaleAverage,
+			},
+			mockResult: makeRGBImage(100, 100),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result *domain.Image, err error) {
 				assert.NoError(t, err)
 				require.NotNil(t, result)
@@ -144,13 +152,15 @@ func TestProcessImageUseCase_Execute(t *testing.T) {
 			},
 		},
 		{
-			name:          "Error_NilImage",
-			inputImage:    makeEmptyImage(),
-			filters:       []domain.FilterType{domain.FilterGrayscale},
-			accelerator:   domain.AcceleratorCPU,
-			grayscaleType: domain.GrayscaleAverage,
-			mockResult:    nil,
-			mockError:     errInvalidImageData,
+			name:       "Error_NilImage",
+			inputImage: makeEmptyImage(),
+			opts: domain.ProcessingOptions{
+				Filters:       []domain.FilterType{domain.FilterGrayscale},
+				Accelerator:   domain.AcceleratorCPU,
+				GrayscaleType: domain.GrayscaleAverage,
+			},
+			mockResult: nil,
+			mockError:  errInvalidImageData,
 			assertResult: func(t *testing.T, result *domain.Image, err error) {
 				assert.ErrorIs(t, err, errInvalidImageData)
 				assert.Nil(t, result)
@@ -165,17 +175,14 @@ func TestProcessImageUseCase_Execute(t *testing.T) {
 			mockProc.On("ProcessImage",
 				mock.Anything,
 				tt.inputImage,
-				tt.filters,
-				tt.accelerator,
-				tt.grayscaleType,
-				mock.Anything, // blurParams
+				tt.opts,
 			).Return(tt.mockResult, tt.mockError).Once()
 
 			sut := NewProcessImageUseCase(mockProc)
 			ctx := context.Background()
 
 			// Act
-			result, err := sut.Execute(ctx, tt.inputImage, tt.filters, tt.accelerator, tt.grayscaleType, nil)
+			result, err := sut.Execute(ctx, tt.inputImage, tt.opts)
 
 			// Assert
 			tt.assertResult(t, result, err)
@@ -190,20 +197,22 @@ func TestProcessImageUseCase_Execute_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	img := makeRGBImage(100, 100)
+	opts := domain.ProcessingOptions{
+		Filters:       []domain.FilterType{domain.FilterGrayscale},
+		Accelerator:   domain.AcceleratorCPU,
+		GrayscaleType: domain.GrayscaleAverage,
+	}
 
 	mockProc.On("ProcessImage",
 		mock.Anything,
 		img,
-		[]domain.FilterType{domain.FilterGrayscale},
-		domain.AcceleratorCPU,
-		domain.GrayscaleAverage,
-		mock.Anything, // blurParams
+		opts,
 	).Return(nil, ctx.Err()).Once()
 
 	sut := NewProcessImageUseCase(mockProc)
 
 	// Act
-	result, err := sut.Execute(ctx, img, []domain.FilterType{domain.FilterGrayscale}, domain.AcceleratorCPU, domain.GrayscaleAverage, nil)
+	result, err := sut.Execute(ctx, img, opts)
 
 	// Assert
 	assert.Error(t, err, "expected error from canceled context")

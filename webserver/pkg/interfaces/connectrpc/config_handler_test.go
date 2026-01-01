@@ -14,15 +14,9 @@ func TestNewConfigHandler(t *testing.T) {
 	mockConfigManager := &config.Manager{}
 
 	// Act
-	sut := NewConfigHandler(
-		nil, // getStreamConfigUseCase
-		nil, // syncFlagsUseCase
-		nil, // listInputsUseCase
-		nil, // evaluateFFUseCase
-		nil, // getSystemInfoUseCase
-		mockConfigManager,
-		nil, // processorCapsUC
-	)
+	sut := NewConfigHandler(ConfigHandlerDeps{
+		ConfigManager: mockConfigManager,
+	})
 
 	// Assert
 	require.NotNil(t, sut)

@@ -22,38 +22,41 @@ type StaticHandler struct {
 	fliptURL         string
 }
 
-func NewStaticHandler(
-	serverConfig *config.ServerConfig,
-	streamConfig config.StreamConfig,
-	useCase *application.ProcessImageUseCase,
-	videoRepo domain.VideoRepository,
-	fliptURL string,
-	evaluateFFUC *application.EvaluateFeatureFlagUseCase,
-	grpcProcessor domain.ImageProcessor,
-) *StaticHandler {
+// StaticHandlerDeps groups all dependencies needed to create a StaticHandler.
+type StaticHandlerDeps struct {
+	ServerConfig  *config.ServerConfig
+	StreamConfig  config.StreamConfig
+	UseCase       *application.ProcessImageUseCase
+	VideoRepo     domain.VideoRepository
+	FliptURL      string
+	EvaluateFFUC  *application.EvaluateFeatureFlagUseCase
+	GRPCProcessor domain.ImageProcessor
+}
+
+func NewStaticHandler(deps *StaticHandlerDeps) *StaticHandler {
 	var tmpl *template.Template
-	if !serverConfig.HotReloadEnabled {
-		templatePath := filepath.Join(serverConfig.WebRootPath, "templates", "index.html")
+	if !deps.ServerConfig.HotReloadEnabled {
+		templatePath := filepath.Join(deps.ServerConfig.WebRootPath, "templates", "index.html")
 		tmpl = template.Must(template.ParseFiles(templatePath))
 	}
 
 	var assetHandler AssetHandler
-	if serverConfig.HotReloadEnabled {
+	if deps.ServerConfig.HotReloadEnabled {
 		assetHandler = NewDevelopmentAssetHandler(
-			serverConfig.DevServerURL,
-			serverConfig.DevServerPaths,
+			deps.ServerConfig.DevServerURL,
+			deps.ServerConfig.DevServerPaths,
 		)
 	} else {
-		assetHandler = NewProductionAssetHandler(serverConfig.WebRootPath)
+		assetHandler = NewProductionAssetHandler(deps.ServerConfig.WebRootPath)
 	}
 
 	return &StaticHandler{
-		webRootPath:      serverConfig.WebRootPath,
-		hotReloadEnabled: serverConfig.HotReloadEnabled,
+		webRootPath:      deps.ServerConfig.WebRootPath,
+		hotReloadEnabled: deps.ServerConfig.HotReloadEnabled,
 		tmpl:             tmpl,
-		wsHandler:        websocket.NewHandler(useCase, streamConfig, videoRepo, evaluateFFUC, grpcProcessor),
+		wsHandler:        websocket.NewHandler(deps.UseCase, deps.StreamConfig, deps.VideoRepo, deps.EvaluateFFUC, deps.GRPCProcessor),
 		assetHandler:     assetHandler,
-		fliptURL:         fliptURL,
+		fliptURL:         deps.FliptURL,
 	}
 }
 

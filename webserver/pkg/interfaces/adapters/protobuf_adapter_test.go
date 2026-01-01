@@ -216,7 +216,7 @@ func TestProtobufAdapter_BlurParametersRoundTrip(t *testing.T) {
 	}
 }
 
-func TestProtobufAdapter_ExtractProcessingConfig_GenericSelections(t *testing.T) {
+func TestProtobufAdapter_ExtractProcessingOptions_GenericSelections(t *testing.T) {
 	t.Parallel()
 
 	adapter := NewProtobufAdapter()
@@ -255,21 +255,21 @@ func TestProtobufAdapter_ExtractProcessingConfig_GenericSelections(t *testing.T)
 		},
 	}
 
-	config := adapter.ExtractProcessingConfig(req)
+	opts := adapter.ExtractProcessingOptions(req)
 
-	require.Len(t, config.Filters, 2)
-	assert.Equal(t, domain.FilterGrayscale, config.Filters[0])
-	assert.Equal(t, domain.FilterBlur, config.Filters[1])
-	assert.Equal(t, domain.GrayscaleBT709, config.Grayscale)
+	require.Len(t, opts.Filters, 2)
+	assert.Equal(t, domain.FilterGrayscale, opts.Filters[0])
+	assert.Equal(t, domain.FilterBlur, opts.Filters[1])
+	assert.Equal(t, domain.GrayscaleBT709, opts.GrayscaleType)
 
-	require.NotNil(t, config.Blur)
-	assert.Equal(t, int32(9), config.Blur.KernelSize)
-	assert.InDelta(t, 2.5, config.Blur.Sigma, 0.001)
-	assert.Equal(t, domain.BorderModeWrap, config.Blur.BorderMode)
-	assert.False(t, config.Blur.Separable)
+	require.NotNil(t, opts.BlurParams)
+	assert.Equal(t, int32(9), opts.BlurParams.KernelSize)
+	assert.InDelta(t, 2.5, opts.BlurParams.Sigma, 0.001)
+	assert.Equal(t, domain.BorderModeWrap, opts.BlurParams.BorderMode)
+	assert.False(t, opts.BlurParams.Separable)
 }
 
-func TestProtobufAdapter_ExtractProcessingConfig_FallbackToLegacyFields(t *testing.T) {
+func TestProtobufAdapter_ExtractProcessingOptions_FallbackToLegacyFields(t *testing.T) {
 	t.Parallel()
 
 	adapter := NewProtobufAdapter()
@@ -291,14 +291,14 @@ func TestProtobufAdapter_ExtractProcessingConfig_FallbackToLegacyFields(t *testi
 		},
 	}
 
-	config := adapter.ExtractProcessingConfig(req)
+	opts := adapter.ExtractProcessingOptions(req)
 
-	require.Len(t, config.Filters, 1)
-	assert.Equal(t, domain.FilterBlur, config.Filters[0])
-	assert.Equal(t, domain.GrayscaleLightness, config.Grayscale)
-	require.NotNil(t, config.Blur)
-	assert.Equal(t, int32(11), config.Blur.KernelSize)
-	assert.Equal(t, float32(0.9), config.Blur.Sigma)
-	assert.Equal(t, domain.BorderModeClamp, config.Blur.BorderMode)
-	assert.False(t, config.Blur.Separable)
+	require.Len(t, opts.Filters, 1)
+	assert.Equal(t, domain.FilterBlur, opts.Filters[0])
+	assert.Equal(t, domain.GrayscaleLightness, opts.GrayscaleType)
+	require.NotNil(t, opts.BlurParams)
+	assert.Equal(t, int32(11), opts.BlurParams.KernelSize)
+	assert.Equal(t, float32(0.9), opts.BlurParams.Sigma)
+	assert.Equal(t, domain.BorderModeClamp, opts.BlurParams.BorderMode)
+	assert.False(t, opts.BlurParams.Separable)
 }

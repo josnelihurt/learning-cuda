@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/version"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -15,14 +16,18 @@ import (
 var globalLogger zerolog.Logger
 
 type Config struct {
-	Level         string
-	Format        string
-	Output        string
-	FilePath      string
-	IncludeCaller bool
+	Level             string
+	Format            string
+	Output            string
+	FilePath          string
+	IncludeCaller     bool
+	RemoteEnabled     bool
+	RemoteEndpoint    string
+	RemoteEnvironment string
+	ServiceName       string
 }
 
-func New(cfg Config) zerolog.Logger {
+func New(cfg *Config) zerolog.Logger {
 	var output io.Writer = os.Stdout
 
 	level, err := zerolog.ParseLevel(cfg.Level)
@@ -39,31 +44,75 @@ func New(cfg Config) zerolog.Logger {
 		}
 	}
 
-	if cfg.Output == "file" && cfg.FilePath != "" {
-		// Open file in append mode, create if not exists
-		file, err := os.OpenFile(cfg.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-		if err == nil {
-			// Write to both stdout and file to ensure visibility and file shipping
-			output = io.MultiWriter(os.Stdout, file)
-		}
-	}
+	output = buildOutputWriter(cfg, output)
+	otlpHook := buildOTLPHook(cfg)
 
 	logger := zerolog.New(output).
 		Level(level).
 		With().
 		Timestamp()
 
+	loggerCtx := configureCaller(&logger, cfg)
+
+	globalLogger = loggerCtx.Logger()
+	if otlpHook != nil {
+		globalLogger = globalLogger.Hook(otlpHook)
+	}
+
+	return globalLogger
+}
+
+func buildOutputWriter(cfg *Config, defaultOutput io.Writer) io.Writer {
+	var writers []io.Writer
+	writers = append(writers, os.Stdout)
+
+	if cfg.Output == "file" && cfg.FilePath != "" {
+		file, err := os.OpenFile(cfg.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err == nil {
+			writers = append(writers, file)
+		}
+	}
+
+	if len(writers) > 1 {
+		return io.MultiWriter(writers...)
+	}
+	if len(writers) == 1 {
+		return writers[0]
+	}
+	return defaultOutput
+}
+
+func buildOTLPHook(cfg *Config) zerolog.Hook {
+	if !cfg.RemoteEnabled || cfg.RemoteEndpoint == "" {
+		return nil
+	}
+
+	serviceName := cfg.ServiceName
+	if serviceName == "" {
+		serviceName = "go-app"
+	}
+	serviceVersion := version.NewVersionRepository().GetGoVersion()
+	if serviceVersion == "" || serviceVersion == "unknown" {
+		serviceVersion = "1.0.0"
+	}
+
+	hook, err := NewOTLPHook(cfg.RemoteEndpoint, cfg.RemoteEnvironment, serviceName, serviceVersion)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to initialize OTLP hook: %v\n", err)
+		return nil
+	}
+	return hook
+}
+
+func configureCaller(loggerCtx *zerolog.Context, cfg *Config) zerolog.Context {
 	if cfg.IncludeCaller {
-		// Set up custom caller formatter to show only filename
 		zerolog.CallerFieldName = "caller"
 		zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
 			return filepath.Base(fmt.Sprintf("%s:%d", file, line))
 		}
-		logger = logger.CallerWithSkipFrameCount(1)
+		return loggerCtx.CallerWithSkipFrameCount(1)
 	}
-
-	globalLogger = logger.Logger()
-	return globalLogger
+	return *loggerCtx
 }
 
 func Global() *zerolog.Logger {

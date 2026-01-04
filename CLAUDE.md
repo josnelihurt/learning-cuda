@@ -123,6 +123,14 @@ Go Server → gRPC Client → gRPC Server (C++) → ProcessorEngine → FilterPi
 
 Proto generation: `./scripts/build/protos.sh`
 
+## Tech Stack
+
+- **Backend**: Go with native HTTPS, WebSocket support
+- **Processing**: C++/CUDA via gRPC service (ConnectRPC)
+- **Build**: Bazel for C++/CUDA, Makefile for Go
+- **Frontend**: Lit Web Components + TypeScript with Vite
+- **Observability**: OpenTelemetry, Jaeger tracing, Grafana dashboards, Loki logs
+
 ## Git Hooks
 
 ```bash

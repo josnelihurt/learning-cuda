@@ -32,7 +32,7 @@ observability:
   service_name: "cuda-image-processor"
   service_version: "1.0.0"
   otel_collector_grpc_endpoint: "otel-collector:4317"
-  otel_collector_http_endpoint: "otel-collector:4318"
+  otel_collector_http_endpoint: "http://otel-collector:4318"
   trace_sampling_rate: 1.0
 
 logging:

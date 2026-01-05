@@ -1,33 +1,32 @@
 services:
-  # go-server:
-  #   image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda/app:latest-amd64}
-  #   container_name: cuda-go-server
-  #   restart: unless-stopped
+  go-server:
+    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda/app:rc-amd64}
+    container_name: cuda-go-server
+    restart: unless-stopped
     
-  #   volumes:
-  #     - ./data:/data:ro
-  #     - ./config/config.production.yaml:/app/config/config.yaml:ro
-  #     - /tmp:/tmp
+    volumes:
+      - ./data:/data:ro
+      - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - /tmp:/tmp
     
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.go-server.rule=Host(`app-cuda-demo.josnelihurt.me`)"
-  #     - "traefik.http.routers.go-server.entrypoints=https"
-  #     - "traefik.http.routers.go-server.tls=true"
-  #     - "traefik.http.routers.go-server.tls.certresolver=cloudflare"
-  #     - "traefik.http.services.go-server.loadbalancer.server.port=8080"
-  #     - "traefik.http.services.go-server.loadbalancer.responseForwarding.flushInterval=1ms"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.go-server.rule=Host(`app-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.go-server.entrypoints=https"
+      - "traefik.http.routers.go-server.tls=true"
+      - "traefik.http.routers.go-server.tls.certresolver=cloudflare"
+      - "traefik.http.services.go-server.loadbalancer.server.port=8080"
     
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-  #     interval: 60s
-  #     timeout: 10s
-  #     retries: 2
-  #     start_period: 40s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  #   networks:
-  #     - iot_default
-  #     - public-wan
+    networks:
+      - iot-internal
+      - public-wan
 
   flipt:
     image: flipt/flipt:latest
@@ -43,9 +42,9 @@ services:
     
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
-      interval: 60s
+      interval: 10s
       timeout: 5s
-      retries: 2
+      retries: 5
       start_period: 30s
     
     labels:
@@ -56,144 +55,10 @@ services:
       - "traefik.http.routers.flipt.priority=200"
       - "traefik.http.services.flipt.loadbalancer.server.port=8080"
 
-  loki:
-    image: grafana/loki:2.9.3
-    container_name: loki-cloud
-    restart: unless-stopped
-    
-    command: -config.file=/etc/loki/loki-config.yaml
-    
-    volumes:
-      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-      - loki-data:/tmp/loki
-    
-    networks:
-      - iot_default
-      - public-wan
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
-      interval: 60s
-      timeout: 5s
-      retries: 2
-      start_period: 10s
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.110.0
-    container_name: otel-collector-cloud
-    restart: unless-stopped
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    ports:
-      - "8018:4318"
-    networks:
-      - iot_default
-      - public-wan
-    
-    depends_on:
-      loki:
-        condition: service_healthy
-    
-    healthcheck:
-      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otel-collector-config.yaml"]
-      interval: 60s
-      timeout: 10s
-      retries: 2
-      start_period: 60s
-
-  jaeger:
-    image: jaegertracing/all-in-one:1.57
-    container_name: jaeger-cloud
-    restart: unless-stopped
-    
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - COLLECTOR_OTLP_GRPC_ENDPOINT=0.0.0.0:4317
-      - COLLECTOR_OTLP_HTTP_ENDPOINT=0.0.0.0:4318
-      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
-    
-    ports:
-      - "14268:14268"
-      - "14250:14250"
-      - "16686:16686"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-    
-    networks:
-      - iot_default
-      - public-wan
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.jaeger.rule=Host(`jaeger-cuda-demo.josnelihurt.me`)"
-      - "traefik.http.routers.jaeger.entrypoints=https"
-      - "traefik.http.routers.jaeger.tls=true"
-      - "traefik.http.routers.jaeger.tls.certresolver=cloudflare"
-      - "traefik.http.routers.jaeger.priority=160"
-      - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana-cloud
-    restart: unless-stopped
-    
-    mem_limit: 1g
-    mem_reservation: 256m
-    cpus: 1.0
-    
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_SERVER_ROOT_URL=https://grafana-cuda-demo.josnelihurt.me
-      - GF_SERVER_DOMAIN=grafana-cuda-demo.josnelihurt.me
-      - GF_SERVER_HTTP_ADDR=0.0.0.0
-      - GF_SERVER_HTTP_PORT=3000
-      - GF_INSTALL_PLUGINS=
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=5m
-      - GF_DATAPROXY_TIMEOUT=60
-      - GF_DATAPROXY_DIAL_TIMEOUT=30
-      - GF_UNIFIED_ALERTING_MIN_INTERVAL=10s
-      - GF_UNIFIED_ALERTING_EVALUATION_TIMEOUT=30s
-      - GF_QUERY_TIMEOUT=60s
-      - GF_MAX_CONCURRENT_SHARED_QUERIES=5
-    
-    volumes:
-      - ./config/grafana.ini:/etc/grafana/grafana.ini:ro
-      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
-      - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
-      - ./config/grafana-dashboard-logs.json:/etc/grafana/dashboards/cuda-multi-layer-logs.json:ro
-      - grafana-data:/var/lib/grafana
-    
-    networks:
-      - iot_default
-      - public-wan
-    
-    depends_on:
-      loki:
-        condition: service_healthy
-      jaeger:
-        condition: service_healthy
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana-cuda-demo.josnelihurt.me`)"
-      - "traefik.http.routers.grafana.entrypoints=https"
-      - "traefik.http.routers.grafana.tls=true"
-      - "traefik.http.routers.grafana.tls.certresolver=cloudflare"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-
-volumes:
-  loki-data:
-    driver: local
-  grafana-data:
-    driver: local
-
 networks:
   public-wan:
     external: true
-  iot_default:
+  iot-internal:
     external: true
+
 

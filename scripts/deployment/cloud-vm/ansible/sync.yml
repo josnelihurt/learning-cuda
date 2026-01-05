@@ -2,21 +2,17 @@
 - name: Sync files to Cloud VM
   hosts: cloud
   tasks:
-    - name: Get project root
+    - name: Use project root from environment
       set_fact:
-        project_root: "{{ playbook_dir | dirname | dirname | dirname | dirname }}"
-
-    - name: Ensure application directory exists on remote
-      file:
-        path: "{{ app_directory }}"
-        state: directory
-        mode: '0755'
+        project_root: "{{ lookup('env', 'PROJECT_ROOT') }}"
+      when: PROJECT_ROOT is defined
 
     - name: Sync project files with rsync
       synchronize:
-        src: "{{ project_root }}"
+        src: "{{ project_root }}/"
         dest: "{{ app_directory }}"
         delete: no
+        compress: false
         rsync_opts:
           - "--exclude=.git/"
           - "--exclude=.ignore/"
@@ -32,4 +28,3 @@
           - "--exclude=.cache/"
           - "--exclude=test-data/"
         mode: push
-      

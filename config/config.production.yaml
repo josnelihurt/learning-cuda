@@ -49,7 +49,7 @@ processor:
   grpc_server_address: "xb19042.glddns.com:60061"
 
 mqtt:
-  broker: "mqtt5"
+  broker: "mosquitto"
   port: 1883
   client_id: "cuda-learning-remote-management"
   topic: "pow/S31JetsonNanoOrin"

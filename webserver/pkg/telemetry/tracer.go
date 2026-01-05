@@ -22,7 +22,7 @@ type TracerProvider struct {
 	enabled  bool
 }
 
-func New(ctx context.Context, enabled bool, config config.ObservabilityConfig) (*TracerProvider, error) {
+func New(ctx context.Context, enabled bool, config *config.ObservabilityConfig) (*TracerProvider, error) {
 	if !enabled {
 		log.Println("Observability disabled by feature flag")
 		return &TracerProvider{enabled: false}, nil
@@ -41,11 +41,11 @@ func New(ctx context.Context, enabled bool, config config.ObservabilityConfig) (
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	conn, err := grpc.NewClient(config.OtelCollectorEndpoint,
+	conn, err := grpc.NewClient(config.OtelCollectorGRPCEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to OpenTelemetry collector at %s: %w", config.OtelCollectorEndpoint, err)
+		return nil, fmt.Errorf("failed to connect to OpenTelemetry collector at %s: %w", config.OtelCollectorGRPCEndpoint, err)
 	}
 
 	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
@@ -76,7 +76,7 @@ func New(ctx context.Context, enabled bool, config config.ObservabilityConfig) (
 		propagation.Baggage{},
 	))
 
-	log.Printf("OpenTelemetry tracer initialized (endpoint: %s, sampling: %.2f)", config.OtelCollectorEndpoint, config.TraceSamplingRate)
+	log.Printf("OpenTelemetry tracer initialized (grpc_endpoint: %s, sampling: %.2f)", config.OtelCollectorGRPCEndpoint, config.TraceSamplingRate)
 
 	return &TracerProvider{
 		provider: provider,

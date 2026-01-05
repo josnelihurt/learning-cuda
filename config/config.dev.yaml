@@ -37,7 +37,8 @@ flipt:
 
 observability:
   service_name: "go-app"
-  otel_collector_endpoint: "http://vultur.josnelihurt.me:8018/v1/logs"
+  otel_collector_grpc_endpoint: "localhost:4317"
+  otel_collector_http_endpoint: "localhost:4318"
   trace_sampling_rate: 1.0
 
 logging:

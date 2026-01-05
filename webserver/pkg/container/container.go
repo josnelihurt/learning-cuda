@@ -60,7 +60,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		FilePath:          cfg.Logging.FilePath,
 		IncludeCaller:     cfg.Logging.IncludeCaller,
 		RemoteEnabled:     cfg.Logging.RemoteEnabled,
-		RemoteEndpoint:    cfg.Observability.OtelCollectorEndpoint,
+		RemoteEndpoint:    cfg.Observability.OtelCollectorHTTPEndpoint,
 		RemoteEnvironment: cfg.Logging.RemoteEnvironment,
 		ServiceName:       cfg.Observability.ServiceName,
 	})

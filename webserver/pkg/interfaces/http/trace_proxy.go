@@ -56,16 +56,12 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var collectorURL string
 	if strings.HasPrefix(h.collectorEndpoint, "http://") || strings.HasPrefix(h.collectorEndpoint, "https://") {
-		collectorURL = strings.Replace(h.collectorEndpoint, "/v1/logs", "/v1/traces", 1)
-		if !strings.Contains(collectorURL, "/v1/traces") {
-			collectorURL = strings.TrimSuffix(collectorURL, "/") + "/v1/traces"
+		collectorURL = strings.TrimSuffix(h.collectorEndpoint, "/")
+		if !strings.HasSuffix(collectorURL, "/v1/traces") {
+			collectorURL += "/v1/traces"
 		}
 	} else {
-		collectorEndpoint := h.collectorEndpoint
-		if strings.HasSuffix(collectorEndpoint, ":4317") {
-			collectorEndpoint = strings.TrimSuffix(collectorEndpoint, ":4317") + ":4318"
-		}
-		collectorURL = fmt.Sprintf("http://%s/v1/traces", collectorEndpoint)
+		collectorURL = fmt.Sprintf("http://%s/v1/traces", h.collectorEndpoint)
 	}
 	logger.Global().Debug().
 		Str("collector_url", collectorURL).

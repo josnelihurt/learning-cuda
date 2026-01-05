@@ -254,7 +254,7 @@ func TestObservabilityConfig_Validation(t *testing.T) {
 				ServiceName:               "cuda-image-processor",
 				ServiceVersion:            "1.0.0",
 				OtelCollectorGRPCEndpoint: "localhost:4317",
-				OtelCollectorHTTPEndpoint: "localhost:4318",
+				OtelCollectorHTTPEndpoint: "http://localhost:4318",
 				TraceSamplingRate:         1.0,
 			},
 			expectValid: true,

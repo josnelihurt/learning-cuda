@@ -12,116 +12,24 @@
         state: directory
         mode: '0755'
 
-    - name: Check if .secrets directory exists locally
-      stat:
-        path: "{{ project_root }}/.secrets"
-      register: secrets_dir_local
-      delegate_to: localhost
-      failed_when: false
-      changed_when: false
-
-    - name: Sync .secrets directory with rsync
+    - name: Sync project files with rsync
       synchronize:
-        src: "{{ project_root }}/.secrets/"
-        dest: "{{ app_directory }}/.secrets/"
+        src: "{{ project_root }}"
+        dest: "{{ app_directory }}"
         delete: no
         rsync_opts:
-          - "--exclude=*.example"
-          - "--exclude=.gitignore"
-          - "--exclude=README.md"
+          - "--exclude=.git/"
+          - "--exclude=.ignore/"
+          - "--exclude=*.md"
+          - "--exclude=bazel*"
+          - "--exclude=bin/"
+          - "--exclude=coverage/"
+          - "--exclude=cpp_accelerator/"
+          - "--exclude=webserver/web/node_modules"
+          - "--exclude=third_party/"
+          - "--exclude=venv-mcp/"
+          - "--exclude=grpc-test/"
+          - "--exclude=.cache/"
+          - "--exclude=test-data/"
         mode: push
-      when: secrets_dir_local.stat.exists
-      failed_when: false
-      changed_when: false
-
-    - name: Ensure config directory exists on remote
-      file:
-        path: "{{ app_directory }}/config"
-        state: directory
-        mode: '0755'
-
-    - name: Sync docker-compose.go-cloud.yml as docker-compose.yml
-      synchronize:
-        src: "{{ project_root }}/docker-compose.go-cloud.yml"
-        dest: "{{ app_directory }}/docker-compose.yml"
-        mode: push
-
-    - name: Sync config.production.yaml
-      synchronize:
-        src: "{{ project_root }}/config/config.production.yaml"
-        dest: "{{ app_directory }}/config/config.production.yaml"
-        mode: push
-
-    - name: Sync otel-collector-config.yaml
-      synchronize:
-        src: "{{ project_root }}/otel-collector-config.yaml"
-        dest: "{{ app_directory }}/otel-collector-config.yaml"
-        mode: push
-
-    - name: Sync loki-config.yaml
-      synchronize:
-        src: "{{ project_root }}/config/loki-config.yaml"
-        dest: "{{ app_directory }}/config/loki-config.yaml"
-        mode: push
-
-    - name: Sync grafana-datasources.yaml
-      synchronize:
-        src: "{{ project_root }}/config/grafana-datasources.yaml"
-        dest: "{{ app_directory }}/config/grafana-datasources.yaml"
-        mode: push
-
-    - name: Sync grafana-dashboards.yaml
-      synchronize:
-        src: "{{ project_root }}/config/grafana-dashboards.yaml"
-        dest: "{{ app_directory }}/config/grafana-dashboards.yaml"
-        mode: push
-
-    - name: Sync grafana-dashboard-logs.json
-      synchronize:
-        src: "{{ project_root }}/config/grafana-dashboard-logs.json"
-        dest: "{{ app_directory }}/config/grafana-dashboard-logs.json"
-        mode: push
-
-    - name: Sync grafana.ini
-      synchronize:
-        src: "{{ project_root }}/config/grafana.ini"
-        dest: "{{ app_directory }}/config/grafana.ini"
-        mode: push
-
-    - name: Ensure scripts/deployment/cloud-vm directory exists on remote
-      file:
-        path: "{{ app_directory }}/scripts/deployment/cloud-vm"
-        state: directory
-        mode: '0755'
-
-    - name: Sync generate-grafana-token.sh
-      synchronize:
-        src: "{{ project_root }}/scripts/deployment/cloud-vm/generate-grafana-token.sh"
-        dest: "{{ app_directory }}/scripts/deployment/cloud-vm/generate-grafana-token.sh"
-        mode: push
-
-    - name: Make generate-grafana-token.sh executable
-      file:
-        path: "{{ app_directory }}/scripts/deployment/cloud-vm/generate-grafana-token.sh"
-        mode: '0755'
-
-    - name: List .secrets files on remote
-      shell: ls -1 {{ app_directory }}/.secrets/ 2>/dev/null || echo ""
-      register: secrets_list
-      changed_when: false
-      failed_when: false
-
-    - name: Display .secrets content
-      debug:
-        msg: "{{ secrets_list.stdout_lines if secrets_list.stdout_lines | length > 0 else ['No secrets directory found or empty (secrets may be pre-installed)'] }}"
-
-    - name: Ensure data directory exists on remote (if needed)
-      file:
-        path: "{{ app_directory }}/data"
-        state: directory
-        mode: '0755'
-
-    - name: Display summary
-      debug:
-        msg: "Files synced: docker-compose.yml, config/config.production.yaml, otel-collector-config.yaml, config/loki-config.yaml, config/grafana-datasources.yaml, config/grafana-dashboards.yaml, config/grafana-dashboard-logs.json, config/grafana.ini, scripts/deployment/cloud-vm/generate-grafana-token.sh, .secrets/, data/ directory created"
-
+      

@@ -49,27 +49,24 @@ message CloseSessionResponse {
   TraceContext trace_context = 5 [json_name = "trace_context"];
 }
 
+message KeepAlive {
+  int64 timestamp = 1 [json_name = "timestamp"];
+}
+
+message SignalingMessage {
+  oneof message {
+    StartSessionRequest start_session = 1 [json_name = "start_session"];
+    StartSessionResponse start_session_response = 2 [json_name = "start_session_response"];
+    SendIceCandidateRequest ice_candidate = 3 [json_name = "ice_candidate"];
+    SendIceCandidateResponse ice_candidate_response = 4 [json_name = "ice_candidate_response"];
+    CloseSessionRequest close_session = 5 [json_name = "close_session"];
+    CloseSessionResponse close_session_response = 6 [json_name = "close_session_response"];
+    KeepAlive keep_alive = 7 [json_name = "keep_alive"];
+  }
+}
+
 service WebRTCSignalingService {
-  rpc StartSession(StartSessionRequest) returns (StartSessionResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/webrtc/session"
-      body: "*"
-    };
-  }
-
-  rpc SendIceCandidate(SendIceCandidateRequest) returns (SendIceCandidateResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/webrtc/candidate"
-      body: "*"
-    };
-  }
-
-  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/webrtc/session/close"
-      body: "*"
-    };
-  }
+  rpc SignalingStream(stream SignalingMessage) returns (stream SignalingMessage);
 }
 
 

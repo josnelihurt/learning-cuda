@@ -52,12 +52,17 @@ type Container struct {
 func New(ctx context.Context, configFile string) (*Container, error) {
 	cfg := config.New(configFile)
 
-	log := logger.New(logger.Config{
-		Level:         cfg.Logging.Level,
-		Format:        cfg.Logging.Format,
-		Output:        cfg.Logging.Output,
-		FilePath:      cfg.Logging.FilePath,
-		IncludeCaller: cfg.Logging.IncludeCaller,
+	//nolint:contextcheck // logger.New creates its own context for OTLP initialization
+	log := logger.New(&logger.Config{
+		Level:             cfg.Logging.Level,
+		Format:            cfg.Logging.Format,
+		Output:            cfg.Logging.Output,
+		FilePath:          cfg.Logging.FilePath,
+		IncludeCaller:     cfg.Logging.IncludeCaller,
+		RemoteEnabled:     cfg.Logging.RemoteEnabled,
+		RemoteEndpoint:    cfg.Observability.OtelCollectorEndpoint,
+		RemoteEnvironment: cfg.Logging.RemoteEnvironment,
+		ServiceName:       cfg.Observability.ServiceName,
 	})
 	log.Info().Str("config_file", configFile).Any("config", cfg).Msg("Container initialized")
 

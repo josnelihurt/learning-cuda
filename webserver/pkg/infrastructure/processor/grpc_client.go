@@ -105,41 +105,15 @@ func (c *GRPCClient) GetVersionInfo(ctx context.Context, req *gen.GetVersionInfo
 	return resp, nil
 }
 
-func (c *GRPCClient) StartWebRTCSession(ctx context.Context, req *gen.StartSessionRequest) (*gen.StartSessionResponse, error) {
+func (c *GRPCClient) SignalingStream(ctx context.Context) (gen.WebRTCSignalingService_SignalingStreamClient, error) {
 	if c.webrtcClient == nil {
 		return nil, fmt.Errorf("webrtc signaling client not initialized")
 	}
 
-	resp, err := c.webrtcClient.StartSession(ctx, req)
+	stream, err := c.webrtcClient.SignalingStream(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("grpc StartSession call failed: %w", err)
+		return nil, fmt.Errorf("grpc SignalingStream call failed: %w", err)
 	}
 
-	return resp, nil
-}
-
-func (c *GRPCClient) SendIceCandidate(ctx context.Context, req *gen.SendIceCandidateRequest) (*gen.SendIceCandidateResponse, error) {
-	if c.webrtcClient == nil {
-		return nil, fmt.Errorf("webrtc signaling client not initialized")
-	}
-
-	resp, err := c.webrtcClient.SendIceCandidate(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("grpc SendIceCandidate call failed: %w", err)
-	}
-
-	return resp, nil
-}
-
-func (c *GRPCClient) CloseWebRTCSession(ctx context.Context, req *gen.CloseSessionRequest) (*gen.CloseSessionResponse, error) {
-	if c.webrtcClient == nil {
-		return nil, fmt.Errorf("webrtc signaling client not initialized")
-	}
-
-	resp, err := c.webrtcClient.CloseSession(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("grpc CloseSession call failed: %w", err)
-	}
-
-	return resp, nil
+	return stream, nil
 }

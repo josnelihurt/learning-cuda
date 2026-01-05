@@ -1,7 +1,9 @@
 #include "cpp_accelerator/core/logger.h"
 
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -10,29 +12,71 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
+#include "cpp_accelerator/core/otel_log_sink.h"
+
 namespace jrb::core {
 
 // Build-time constant to verify library reloading
 constexpr const char* LOGGER_BUILD_TIMESTAMP = __DATE__ " " __TIME__;
 
-void initialize_logger() {
+void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
+                       const std::string& environment) {
+  // Read configuration from environment variables if not provided
+  std::string endpoint = otlp_endpoint;
+  bool enabled = remote_enabled;
+  std::string env = environment;
+
+  const char* env_endpoint = std::getenv("OTEL_LOGS_ENDPOINT");
+  const char* env_enabled = std::getenv("OTEL_LOGS_ENABLED");
+  const char* env_environment = std::getenv("OTEL_ENVIRONMENT");
+
+  if (env_endpoint && env_endpoint[0] != '\0') {
+    endpoint = env_endpoint;
+  }
+  if (env_enabled) {
+    enabled = (std::string(env_enabled) == "true" || std::string(env_enabled) == "1");
+  }
+  if (env_environment && env_environment[0] != '\0') {
+    env = env_environment;
+  }
+
   std::cout << "DEBUG: initialize_logger() called [BUILD: " << LOGGER_BUILD_TIMESTAMP << "]"
             << std::endl;
 
   const char* log_file = "/tmp/cppaccelerator.log";
   std::shared_ptr<spdlog::logger> logger;
+  std::vector<spdlog::sink_ptr> sinks;
 
   std::cout << "DEBUG: Attempting to create file logger at: " << log_file << std::endl;
 
   try {
-    // Use basic_logger_mt which handles file creation and lifecycle better
-    logger = spdlog::basic_logger_mt("cpp_accelerator", log_file, true);
-    std::cout << "DEBUG: basic_logger_mt created successfully" << std::endl;
-
-    // Set JSON pattern for structured logs with Unix epoch timestamp
-    logger->set_pattern(
+    // Create file sink
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_file, true);
+    file_sink->set_pattern(
         "{\"timestamp\":%E,\"level\":\"%l\",\"message\":\"%v\",\"source\":"
         "\"cpp\"}\n");
+    sinks.push_back(file_sink);
+    std::cout << "DEBUG: basic_file_sink_mt created successfully" << std::endl;
+
+    // Add OpenTelemetry sink if enabled
+    if (enabled && !endpoint.empty()) {
+      try {
+        auto otel_sink = std::make_shared<OtelLogSink>(endpoint, env);
+        sinks.push_back(otel_sink);
+        std::cout << "DEBUG: OpenTelemetry log sink added (endpoint: " << endpoint << ")"
+                  << std::endl;
+      } catch (const std::exception& otel_ex) {
+        std::cerr << "WARNING: Failed to create OpenTelemetry sink: " << otel_ex.what()
+                  << std::endl;
+        std::cerr << "WARNING: Continuing with file logger only" << std::endl;
+      }
+    } else if (enabled) {
+      std::cerr << "WARNING: OpenTelemetry logging enabled but endpoint not configured"
+                << std::endl;
+    }
+
+    // Create logger with all sinks
+    logger = std::make_shared<spdlog::logger>("cpp_accelerator", sinks.begin(), sinks.end());
 
     logger->set_level(spdlog::level::info);
     logger->flush_on(spdlog::level::info);

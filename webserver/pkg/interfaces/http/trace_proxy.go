@@ -54,12 +54,20 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	collectorEndpoint := h.collectorEndpoint
-	if strings.HasSuffix(collectorEndpoint, ":4317") {
-		collectorEndpoint = strings.TrimSuffix(collectorEndpoint, ":4317") + ":4318"
+	var collectorURL string
+	if strings.HasPrefix(h.collectorEndpoint, "http://") || strings.HasPrefix(h.collectorEndpoint, "https://") {
+		collectorURL = strings.Replace(h.collectorEndpoint, "/v1/logs", "/v1/traces", 1)
+		if !strings.Contains(collectorURL, "/v1/traces") {
+			collectorURL = strings.TrimSuffix(collectorURL, "/") + "/v1/traces"
+		}
+	} else {
+		collectorEndpoint := h.collectorEndpoint
+		if strings.HasSuffix(collectorEndpoint, ":4317") {
+			collectorEndpoint = strings.TrimSuffix(collectorEndpoint, ":4317") + ":4318"
+		}
+		collectorURL = fmt.Sprintf("http://%s/v1/traces", collectorEndpoint)
 	}
-	collectorURL := fmt.Sprintf("http://%s/v1/traces", collectorEndpoint)
-	logger.Global().Info().
+	logger.Global().Debug().
 		Str("collector_url", collectorURL).
 		Msg("Forwarding browser traces")
 
@@ -88,7 +96,7 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	respBody, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort response logging
 
-	logger.Global().Info().
+	logger.Global().Debug().
 		Int("status_code", resp.StatusCode).
 		Msg("Traces forwarded successfully")
 

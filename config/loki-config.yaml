@@ -42,14 +42,15 @@ compactor:
   retention_delete_delay: 2h
   retention_delete_worker_count: 150
 
-ruler:
-  storage:
-    type: local
-    local:
-      directory: /tmp/loki/rules
-  rule_path: /tmp/loki/rules-temp
-  ring:
-    kvstore:
-      store: inmemory
-  enable_api: true
+# Ruler disabled - not needed for basic log aggregation
+# ruler:
+#   storage:
+#     type: local
+#     local:
+#       directory: /tmp/loki/rules
+#   rule_path: /tmp/loki/rules-temp
+#   ring:
+#     kvstore:
+#       store: inmemory
+#   enable_api: true
 

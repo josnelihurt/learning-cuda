@@ -11,6 +11,7 @@ services:
     
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=public-wan"
       - "traefik.http.routers.go-server.rule=Host(`app-cuda-demo.josnelihurt.me`)"
       - "traefik.http.routers.go-server.entrypoints=https"
       - "traefik.http.routers.go-server.tls=true"
@@ -25,7 +26,7 @@ services:
       start_period: 40s
 
     networks:
-      - iot_default
+      - iot-internal
       - public-wan
 
   flipt:
@@ -49,6 +50,7 @@ services:
     
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=public-wan"
       - "traefik.http.routers.flipt.rule=Host(`flipt-cuda-demo.josnelihurt.me`)"
       - "traefik.http.routers.flipt.entrypoints=https"
       - "traefik.http.routers.flipt.tls=true"
@@ -58,7 +60,7 @@ services:
 networks:
   public-wan:
     external: true
-  iot_default:
+  iot-internal:
     external: true
 
 

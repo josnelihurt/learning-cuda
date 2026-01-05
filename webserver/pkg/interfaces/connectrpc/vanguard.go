@@ -41,10 +41,15 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 		cfg.ImageProcessorHandler, opts...,
 	)
 
-	configHandler := NewConfigHandler(
-		cfg.GetStreamConfigUC, cfg.SyncFlagsUC, cfg.ListInputsUC, cfg.EvaluateFFUC,
-		cfg.GetSystemInfoUC, cfg.ConfigManager, cfg.ProcessorCapsUC,
-	)
+	configHandler := NewConfigHandler(ConfigHandlerDeps{
+		GetStreamConfigUC: cfg.GetStreamConfigUC,
+		SyncFlagsUC:       cfg.SyncFlagsUC,
+		ListInputsUC:      cfg.ListInputsUC,
+		EvaluateFFUC:      cfg.EvaluateFFUC,
+		GetSystemInfoUC:   cfg.GetSystemInfoUC,
+		ConfigManager:     cfg.ConfigManager,
+		ProcessorCapsUC:   cfg.ProcessorCapsUC,
+	})
 	_, configConnectHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 
 	fileHandler := NewFileHandler(

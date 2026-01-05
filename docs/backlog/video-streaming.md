@@ -183,3 +183,45 @@ Choose implementation based on:
 - Can run multiple transports simultaneously (feature flag)
 - Consider adding `/api/transport/select` endpoint to switch modes
 
+## WebRTC Bidirectional Stream Implementation
+
+**Status**: Implemented - Replaces unidirectional RPC methods with bidirectional streaming
+
+### Architecture
+
+```
+Frontend (Connect-RPC Stream) 
+    ↕ keepalive + reconexión automática
+Go Server (Proxy transparente)
+    ↕ gRPC stream bidireccional
+C++ gRPC Server (Lógica WebRTC + cola thread-safe)
+```
+
+### Message Flow
+
+1. **Start Session**: Frontend sends `start_session` → C++ creates WebRTC session → C++ sends `start_session_response` with SDP answer
+2. **ICE Candidates**: 
+   - Frontend → C++: Local candidates from browser
+   - C++ → Frontend: Local candidates from server (via thread-safe queue)
+3. **Keepalive**: C++ sends keepalive every 30 seconds to maintain stream
+4. **Close Session**: Frontend sends `close_session` → C++ closes WebRTC session → C++ sends `close_session_response`
+
+### Error Handling and Reconnection
+
+- **Stream disconnection**: Frontend detects stream close and attempts reconnection
+- **WebRTC state check**: If WebRTC is connected, stream reconnects silently; if not, session is cleaned up
+- **Context cancellation**: Go proxy uses context cancellation for proper cleanup
+- **Thread safety**: C++ uses mutex and condition variables for candidate queue
+
+### Keepalive
+
+- Interval: 30 seconds
+- Purpose: Maintain stream alive, detect dead connections
+- Implementation: Separate thread in C++ server sends keepalive messages
+
+### Lifecycle Management
+
+- **RAII**: C++ ensures cleanup with thread joins
+- **WaitGroups**: Go uses WaitGroups to synchronize goroutines
+- **Session cleanup**: Automatic cleanup when stream closes or session times out
+

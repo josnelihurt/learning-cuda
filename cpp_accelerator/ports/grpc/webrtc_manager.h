@@ -2,8 +2,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -32,12 +34,17 @@ public:
                              const std::string& sdp_mid, int sdp_mline_index,
                              std::string* error_message);
 
+  std::vector<rtc::Candidate> GetPendingLocalCandidates(const std::string& session_id);
+
 private:
   struct SessionState {
     std::shared_ptr<rtc::PeerConnection> peer_connection;
     std::shared_ptr<rtc::DataChannel> data_channel;
     std::vector<rtc::Candidate> pending_candidates;
+    std::queue<rtc::Candidate> local_candidates_queue;
     std::mutex mutex;
+    std::mutex candidates_mutex;
+    std::condition_variable candidates_cv;
     std::chrono::steady_clock::time_point created_at;
     std::chrono::steady_clock::time_point last_heartbeat;
   };

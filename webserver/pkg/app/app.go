@@ -177,14 +177,14 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 	}
 	a.interceptors = append(a.interceptors, telemetry.TraceContextInterceptor())
 	traceProxy := httphandlers.NewTraceProxyHandler(
-		a.config.Observability.OtelCollectorEndpoint,
+		a.config.Observability.OtelCollectorHTTPEndpoint,
 		true,
 	)
 	mux.Handle("/api/traces", traceProxy)
 	log.Info().Msg("Trace proxy endpoint registered at /api/traces")
 
 	logsProxy := httphandlers.NewLogsProxyHandler(
-		a.config.Observability.OtelCollectorEndpoint,
+		a.config.Observability.OtelCollectorHTTPEndpoint,
 		true,
 	)
 	mux.Handle("/api/logs", logsProxy)

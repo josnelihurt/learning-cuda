@@ -97,11 +97,12 @@ func setDefaults(v *viper.Viper) {
 		"stream.transport_format":   "json",
 		"stream.websocket_endpoint": "/ws",
 
-		"observability.enabled":                 true,
-		"observability.service_name":            "cuda-image-processor",
-		"observability.service_version":         "1.0.0",
-		"observability.otel_collector_endpoint": "localhost:4317",
-		"observability.trace_sampling_rate":     1.0,
+		"observability.enabled":                      true,
+		"observability.service_name":                 "cuda-image-processor",
+		"observability.service_version":              "1.0.0",
+		"observability.otel_collector_grpc_endpoint": "localhost:4317",
+		"observability.otel_collector_http_endpoint": "localhost:4318",
+		"observability.trace_sampling_rate":          1.0,
 
 		"flipt.enabled":         true,
 		"flipt.url":             "http://localhost:8081",

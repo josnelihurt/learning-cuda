@@ -32,7 +32,7 @@ func main() {
 	tracerProvider, err := telemetry.New(
 		ctx,
 		di.Config.IsObservabilityEnabled(ctx),
-		di.Config.Observability,
+		&di.Config.Observability,
 	)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to initialize telemetry")

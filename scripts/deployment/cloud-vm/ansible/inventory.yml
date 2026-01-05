@@ -9,9 +9,11 @@ all:
           ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
           ansible_become_pass: "{{ lookup('env', 'CLOUD_VM_SUDO_PASSWORD') }}"
       vars:
+        app_image: "{{ lookup('env', 'APP_IMAGE') }}"
+        project_root: "{{ lookup('env', 'PROJECT_ROOT') }}"
         deployment_user: "{{ lookup('env', 'CLOUD_VM_USER') }}"
         deployment_group: "{{ lookup('env', 'CLOUD_VM_USER') }}"
-        app_directory: "/home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning"
+        app_directory: "/home/jrb/infra/projects/cuda-learning"
         repo_url: https://github.com/josnelihurt/learning-cuda.git
         repo_branch: main
         docker_compose_file: docker-compose.yml

@@ -1,6 +1,10 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { telemetryService } from './telemetry-service';
-import type { ILogger } from '../domain/interfaces/ILogger';
+import type { ILogger } from '../../domain/interfaces/ILogger';
+
+declare const __APP_VERSION__: string;
+
+const SERVICE_NAME = 'web-app';
 
 type LogAttributes = Record<string, string | number | boolean>;
 
@@ -10,11 +14,15 @@ class OtelLogger implements ILogger {
   private initialized = false;
   private logQueue: any[] = [];
   private flushTimer: number | null = null;
+  private environment: string = 'development';
 
-  initialize(logLevel: string, consoleEnabled: boolean): void {
+  initialize(logLevel: string, consoleEnabled: boolean, environment?: string): void {
     try {
       this.consoleEnabled = consoleEnabled;
       this.minLogLevel = this.parseLogLevel(logLevel);
+      if (environment) {
+        this.environment = environment;
+      }
       this.initialized = true;
 
       this.flushTimer = window.setInterval(() => {
@@ -57,6 +65,10 @@ class OtelLogger implements ILogger {
     await this.flushLogs();
   }
 
+  setEnvironment(environment: string): void {
+    this.environment = environment;
+  }
+
   private async flushLogs(): Promise<void> {
     if (this.logQueue.length === 0) {
       return;
@@ -64,6 +76,8 @@ class OtelLogger implements ILogger {
 
     const logsToSend = [...this.logQueue];
     this.logQueue = [];
+
+    const serviceVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
 
     try {
       await fetch(`${window.location.origin}/api/logs`, {
@@ -74,8 +88,19 @@ class OtelLogger implements ILogger {
         body: JSON.stringify({
           resourceLogs: [
             {
+              resource: {
+                attributes: [
+                  { key: 'service.name', value: { stringValue: SERVICE_NAME } },
+                  { key: 'service.version', value: { stringValue: serviceVersion } },
+                  { key: 'environment', value: { stringValue: this.environment } },
+                ],
+              },
               scopeLogs: [
                 {
+                  scope: {
+                    name: SERVICE_NAME,
+                    version: serviceVersion,
+                  },
                   logRecords: logsToSend,
                 },
               ],
@@ -98,12 +123,12 @@ class OtelLogger implements ILogger {
     message: string,
     attributes?: LogAttributes
   ): void {
-    if (!this.initialized || !this.shouldLog(severityNumber)) {
-      return;
-    }
-
     if (this.consoleEnabled) {
       this.logToConsole(severityNumber, message, attributes);
+    }
+
+    if (!this.initialized || !this.shouldLog(severityNumber)) {
+      return;
     }
 
     const traceHeaders = telemetryService.getTraceHeaders() || {};

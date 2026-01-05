@@ -80,46 +80,59 @@ jobs:
       - build_and_push
     runs-on: ["self-hosted", "Linux", "X64", "prod", "cloud-vm"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    env:
+      APP_DIRECTORY: /home/jrb/infra/projects/cuda-learning
+      APP_IMAGE: ghcr.io/josnelihurt/learning-cuda/app:latest-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
+      - name: Sync deployment files
+        run: |
+          mkdir -p "${{ env.APP_DIRECTORY }}/config" "${{ env.APP_DIRECTORY }}/data"
+
+          # Sync docker-compose file
+          cp docker-compose.go-cloud.yml "${{ env.APP_DIRECTORY }}/docker-compose.go-cloud.yml"
+
+          # Sync config directory
+          rsync -a --delete config/ "${{ env.APP_DIRECTORY }}/config/"
+
+          # Sync data directory (static images, videos, etc.)
+          rsync -a --delete data/ "${{ env.APP_DIRECTORY }}/data/"
+
       - name: Pull latest container images
-        env:
-          APP_IMAGE: ghcr.io/josnelihurt/learning-cuda/app:latest-amd64
         run: |
-          cd /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning
-          export APP_IMAGE="${APP_IMAGE}"
-          docker compose -f docker-compose.yml pull
-      
+          cd "${{ env.APP_DIRECTORY }}"
+          export APP_IMAGE="${{ env.APP_IMAGE }}"
+          docker compose -f docker-compose.go-cloud.yml pull
+
       - name: Restart services
-        env:
-          APP_IMAGE: ghcr.io/josnelihurt/learning-cuda/app:latest-amd64
         run: |
-          cd /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning
-          export APP_IMAGE="${APP_IMAGE}"
-          docker compose -f docker-compose.yml up -d
-      
+          cd "${{ env.APP_DIRECTORY }}"
+          export APP_IMAGE="${{ env.APP_IMAGE }}"
+          docker compose -f docker-compose.go-cloud.yml down --remove-orphans || true
+          docker compose -f docker-compose.go-cloud.yml up -d
+
       - name: Wait for services to be ready
         run: |
-          cd /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning
+          cd "${{ env.APP_DIRECTORY }}"
           timeout=60
           while [ $timeout -gt 0 ]; do
-            if docker compose -f docker-compose.yml ps --filter "status=running" --format "{{.Name}}" | grep -q "cuda-go-server"; then
+            if docker compose -f docker-compose.go-cloud.yml ps --filter "status=running" --format "{{.Name}}" | grep -q "cuda-go-server"; then
               echo "Services are running"
               break
             fi
             sleep 1
             timeout=$((timeout - 1))
           done
-      
+
       - name: Check service health
         run: |
           sleep 10
@@ -127,6 +140,7 @@ jobs:
             echo "Health check passed"
           else
             echo "Health check failed"
-            docker compose -f /home/jrb/docker_data/vultur1/docker_data/manage/josnelihurt/cuda-learning/docker-compose.yml ps
+            docker compose -f "${{ env.APP_DIRECTORY }}/docker-compose.go-cloud.yml" ps
+            docker compose -f "${{ env.APP_DIRECTORY }}/docker-compose.go-cloud.yml" logs --tail=50
             exit 1
           fi

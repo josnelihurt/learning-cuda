@@ -124,10 +124,7 @@ func extractTraceContext(ctx context.Context, span trace.Span) (traceID, spanID 
 func (p *GRPCProcessor) ProcessImage(
 	ctx context.Context,
 	img *domain.Image,
-	filters []domain.FilterType,
-	accelerator domain.AcceleratorType,
-	grayscaleType domain.GrayscaleType,
-	blurParams *domain.BlurParameters,
+	opts domain.ProcessingOptions,
 ) (*domain.Image, error) {
 	tracer := otel.Tracer("grpc-processor")
 	ctx, span := tracer.Start(ctx, "GRPCProcessor.ProcessImage",
@@ -136,11 +133,11 @@ func (p *GRPCProcessor) ProcessImage(
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("accelerator", string(accelerator)),
-		attribute.String("grayscale_type", string(grayscaleType)),
+		attribute.String("accelerator", string(opts.Accelerator)),
+		attribute.String("grayscale_type", string(opts.GrayscaleType)),
 	)
 
-	protoFilters, hasBlur, err := p.domainToProtoFilters(filters)
+	protoFilters, hasBlur, err := p.domainToProtoFilters(opts.Filters)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +145,9 @@ func (p *GRPCProcessor) ProcessImage(
 		return img, nil
 	}
 
-	finalBlurParams := p.buildBlurParams(hasBlur, blurParams)
-	protoAccelerator := p.domainToProtoAccelerator(accelerator)
-	protoGrayscaleType := p.domainToProtoGrayscaleType(grayscaleType)
+	finalBlurParams := p.buildBlurParams(hasBlur, opts.BlurParams)
+	protoAccelerator := p.domainToProtoAccelerator(opts.Accelerator)
+	protoGrayscaleType := p.domainToProtoGrayscaleType(opts.GrayscaleType)
 	traceID, spanID, traceFlags := extractTraceContext(ctx, span)
 
 	procReq := &pb.ProcessImageRequest{

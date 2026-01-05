@@ -54,6 +54,8 @@ bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
 VERSION=$(cat cpp_accelerator/VERSION)
 TARGET_FILE=".ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so"
 
+# Remove existing file first to handle permission issues
+rm -f "$TARGET_FILE"
 cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so "$TARGET_FILE"
 chmod 644 "$TARGET_FILE"
 

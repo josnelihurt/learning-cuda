@@ -23,7 +23,7 @@ TEST_F(LoggerTest, InitializeLoggerCreatesDefaultLogger) {
   auto uut = initialize_logger;
 
   // Act
-  uut();
+  uut("", false, "test");
 
   // Assert
   auto default_logger = spdlog::default_logger();
@@ -36,7 +36,7 @@ TEST_F(LoggerTest, InitializeLoggerSetsInfoLevel) {
   auto uut = initialize_logger;
 
   // Act
-  uut();
+  uut("", false, "test");
 
   // Assert
   auto default_logger = spdlog::default_logger();
@@ -47,7 +47,7 @@ TEST_F(LoggerTest, InitializeLoggerSetsInfoLevel) {
 TEST_F(LoggerTest, LoggerCanBeUsedAfterInitialization) {
   // Arrange
   auto uut = initialize_logger;
-  uut();
+  uut("", false, "test");
 
   // Act & Assert (should not throw)
   EXPECT_NO_THROW(spdlog::info("Test log message"));

@@ -2,73 +2,29 @@
 - name: Sync files to Cloud VM
   hosts: cloud
   tasks:
-    - name: Get project root
+    - name: Use project root from environment
       set_fact:
-        project_root: "{{ playbook_dir | dirname | dirname | dirname | dirname }}"
+        project_root: "{{ lookup('env', 'PROJECT_ROOT') }}"
+      when: PROJECT_ROOT is defined
 
-    - name: Ensure application directory exists on remote
-      file:
-        path: "{{ app_directory }}"
-        state: directory
-        mode: '0755'
-
-    - name: Check if .secrets directory exists locally
-      stat:
-        path: "{{ project_root }}/.secrets"
-      register: secrets_dir_local
-      delegate_to: localhost
-      failed_when: false
-      changed_when: false
-
-    - name: Sync .secrets directory with rsync
+    - name: Sync project files with rsync
       synchronize:
-        src: "{{ project_root }}/.secrets/"
-        dest: "{{ app_directory }}/.secrets/"
+        src: "{{ project_root }}/"
+        dest: "{{ app_directory }}"
         delete: no
+        compress: false
         rsync_opts:
-          - "--exclude=*.example"
-          - "--exclude=.gitignore"
-          - "--exclude=README.md"
+          - "--exclude=.git/"
+          - "--exclude=.ignore/"
+          - "--exclude=*.md"
+          - "--exclude=bazel*"
+          - "--exclude=bin/"
+          - "--exclude=coverage/"
+          - "--exclude=cpp_accelerator/"
+          - "--exclude=webserver/web/node_modules"
+          - "--exclude=third_party/"
+          - "--exclude=venv-mcp/"
+          - "--exclude=grpc-test/"
+          - "--exclude=.cache/"
+          - "--exclude=test-data/"
         mode: push
-      when: secrets_dir_local.stat.exists
-      failed_when: false
-      changed_when: false
-
-    - name: Ensure config directory exists on remote
-      file:
-        path: "{{ app_directory }}/config"
-        state: directory
-        mode: '0755'
-
-    - name: Sync docker-compose.go-cloud.yml as docker-compose.yml
-      synchronize:
-        src: "{{ project_root }}/docker-compose.go-cloud.yml"
-        dest: "{{ app_directory }}/docker-compose.yml"
-        mode: push
-
-    - name: Sync config.production.yaml
-      synchronize:
-        src: "{{ project_root }}/config/config.production.yaml"
-        dest: "{{ app_directory }}/config/config.production.yaml"
-        mode: push
-
-    - name: List .secrets files on remote
-      shell: ls -1 {{ app_directory }}/.secrets/ 2>/dev/null || echo ""
-      register: secrets_list
-      changed_when: false
-      failed_when: false
-
-    - name: Display .secrets content
-      debug:
-        msg: "{{ secrets_list.stdout_lines if secrets_list.stdout_lines | length > 0 else ['No secrets directory found or empty (secrets may be pre-installed)'] }}"
-
-    - name: Ensure data directory exists on remote (if needed)
-      file:
-        path: "{{ app_directory }}/data"
-        state: directory
-        mode: '0755'
-
-    - name: Display summary
-      debug:
-        msg: "Files synced (minimal deployment): docker-compose.yml, config/config.production.yaml, .secrets/, data/ directory created"
-

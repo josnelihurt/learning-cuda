@@ -11,29 +11,25 @@ import (
 
 type ProtobufAdapter struct{}
 
-type ProcessingConfig struct {
-	Filters   []domain.FilterType
-	Grayscale domain.GrayscaleType
-	Blur      *domain.BlurParameters
-}
-
 func NewProtobufAdapter() *ProtobufAdapter {
 	return &ProtobufAdapter{}
 }
 
-func (a *ProtobufAdapter) ExtractProcessingConfig(req *pb.ProcessImageRequest) ProcessingConfig {
+func (a *ProtobufAdapter) ExtractProcessingOptions(req *pb.ProcessImageRequest) domain.ProcessingOptions {
 	if req == nil {
-		return ProcessingConfig{
-			Grayscale: domain.GrayscaleBT601,
+		return domain.ProcessingOptions{
+			GrayscaleType: domain.GrayscaleBT601,
+			Accelerator:   domain.AcceleratorGPU,
 		}
 	}
 
 	filters, grayscale, blurParams := a.resolveProtoProcessingFields(req)
 
-	return ProcessingConfig{
-		Filters:   a.ToFilters(filters),
-		Grayscale: a.ToGrayscaleType(grayscale),
-		Blur:      a.ToBlurParameters(blurParams),
+	return domain.ProcessingOptions{
+		Filters:       a.ToFilters(filters),
+		Accelerator:   a.ToAccelerator(req.Accelerator),
+		GrayscaleType: a.ToGrayscaleType(grayscale),
+		BlurParams:    a.ToBlurParameters(blurParams),
 	}
 }
 

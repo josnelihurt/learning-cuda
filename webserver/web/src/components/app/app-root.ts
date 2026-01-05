@@ -230,7 +230,6 @@ export class AppRoot extends LitElement {
     if (this.configService) {
       const logLevel = this.configService.getLogLevel();
       const consoleLogging = this.configService.getConsoleLogging();
-      console.log(`[App-Root] Log level configured: ${logLevel.toUpperCase()}, Console logging: ${consoleLogging}`);
       this.logger.info('App-root initialized', {
         'log.level': logLevel,
         'log.console_enabled': consoleLogging,

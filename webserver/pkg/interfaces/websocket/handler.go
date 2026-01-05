@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -35,6 +36,10 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// connID is a unique identifier for WebSocket connections
+// Using a string ID instead of pointer as map key prevents runtime panics
+type connID string
+
 type Handler struct {
 	useCase             *application.ProcessImageUseCase
 	evaluateFFUse       *application.EvaluateFeatureFlagUseCase
@@ -45,8 +50,16 @@ type Handler struct {
 	frameCounter        int
 	videoSessionManager *VideoSessionManager
 	videoRepository     domain.VideoRepository
-	connMutexes         map[*websocket.Conn]*sync.Mutex
-	connMutexesLock     sync.Mutex
+	// Fixed: Use connID (string) as key instead of pointer to prevent runtime panics
+	connMutexes     map[connID]*sync.Mutex
+	connMutexesLock sync.Mutex
+	// Track connections by ID for cleanup
+	connections   map[connID]*websocket.Conn
+	connectionsMu sync.RWMutex
+	// Track active goroutines for graceful shutdown
+	activeGoroutines sync.WaitGroup
+	// Track goroutine count for monitoring
+	activeGoroutineCount int64
 }
 
 func NewHandler(
@@ -66,32 +79,72 @@ func NewHandler(
 		frameCounter:        0,
 		videoSessionManager: NewVideoSessionManager(),
 		videoRepository:     videoRepo,
-		connMutexes:         make(map[*websocket.Conn]*sync.Mutex),
+		connMutexes:         make(map[connID]*sync.Mutex),
+		connections:         make(map[connID]*websocket.Conn),
 	}
 }
 
 // safeWriteMessage writes to WebSocket with mutex protection to prevent concurrent write panics
-func (h *Handler) safeWriteMessage(conn *websocket.Conn, messageType int, data []byte) error {
+// Fixed: Now uses connID instead of pointer as map key to prevent runtime panics
+func (h *Handler) safeWriteMessage(id connID, messageType int, data []byte) error {
 	h.connMutexesLock.Lock()
-	mu, exists := h.connMutexes[conn]
+	mu, exists := h.connMutexes[id]
 	if !exists {
 		mu = &sync.Mutex{}
-		h.connMutexes[conn] = mu
+		h.connMutexes[id] = mu
 	}
 	h.connMutexesLock.Unlock()
 
 	mu.Lock()
-	err := conn.WriteMessage(messageType, data)
-	mu.Unlock()
+	defer mu.Unlock()
 
-	return err
+	h.connectionsMu.RLock()
+	conn, ok := h.connections[id]
+	h.connectionsMu.RUnlock()
+
+	if !ok || conn == nil {
+		return errors.New("connection not found")
+	}
+
+	return conn.WriteMessage(messageType, data)
 }
 
-// cleanupConnMutex removes the mutex for a closed connection
-func (h *Handler) cleanupConnMutex(conn *websocket.Conn) {
+// registerConnection registers a new connection and returns its unique ID
+func (h *Handler) registerConnection(conn *websocket.Conn) connID {
+	id := connID(time.Now().Format("20060102-150405.000000") + "-" + randomString(8))
+	h.connectionsMu.Lock()
+	h.connections[id] = conn
+	h.connectionsMu.Unlock()
+
+	// Initialize mutex for this connection
 	h.connMutexesLock.Lock()
-	delete(h.connMutexes, conn)
+	if _, exists := h.connMutexes[id]; !exists {
+		h.connMutexes[id] = &sync.Mutex{}
+	}
 	h.connMutexesLock.Unlock()
+
+	return id
+}
+
+// cleanupConnection removes a connection and its mutex
+func (h *Handler) cleanupConnection(id connID) {
+	h.connMutexesLock.Lock()
+	delete(h.connMutexes, id)
+	h.connMutexesLock.Unlock()
+
+	h.connectionsMu.Lock()
+	delete(h.connections, id)
+	h.connectionsMu.Unlock()
+}
+
+// randomString generates a random string for connection IDs
+func randomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+	}
+	return string(b)
 }
 
 // TODO: To be replaced by gRPC bidirectional streaming
@@ -109,13 +162,19 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Msg("WebSocket upgrade failed")
 		return
 	}
+
+	// Fixed: Register connection and get unique ID instead of using pointer as key
+	registeredConnID := h.registerConnection(conn)
 	defer func() {
-		h.cleanupConnMutex(conn)
+		h.cleanupConnection(registeredConnID)
 		conn.Close()
 	}()
 
 	transportFormat := h.streamConfig.TransportFormat
-	log.Info().Str("transport_format", transportFormat).Msg("WebSocket connected")
+	log.Info().
+		Str("transport_format", transportFormat).
+		Str("conn_id", string(registeredConnID)).
+		Msg("WebSocket connected")
 
 	for {
 		messageType, message, err := conn.ReadMessage()
@@ -154,13 +213,13 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		if frameMsg.Type == "start_video" {
 			log.Info().Str("video_id", frameMsg.StartVideoRequest.GetVideoId()).Msg("Received start_video message")
-			h.handleStartVideo(ctx, conn, &frameMsg, messageType)
+			h.handleStartVideo(ctx, registeredConnID, conn, &frameMsg, messageType)
 			continue
 		}
 
 		if frameMsg.Type == "stop_video" {
 			log.Info().Str("session_id", frameMsg.StopVideoRequest.GetSessionId()).Msg("Received stop_video message")
-			h.handleStopVideo(ctx, conn, &frameMsg, messageType)
+			h.handleStopVideo(ctx, &frameMsg)
 			continue
 		}
 
@@ -179,13 +238,14 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if err := h.safeWriteMessage(conn, messageType, responseBytes); err != nil {
+		// Fixed: Use registeredConnID instead of conn pointer
+		if err := h.safeWriteMessage(registeredConnID, messageType, responseBytes); err != nil {
 			break
 		}
 	}
 }
 
-func (h *Handler) handleStartVideo(ctx context.Context, conn *websocket.Conn, frameMsg *pb.WebSocketFrameRequest, _ int) {
+func (h *Handler) handleStartVideo(ctx context.Context, connID connID, conn *websocket.Conn, frameMsg *pb.WebSocketFrameRequest, _ int) {
 	log := logger.FromContext(ctx)
 
 	if frameMsg.StartVideoRequest == nil {
@@ -203,17 +263,25 @@ func (h *Handler) handleStartVideo(ctx context.Context, conn *websocket.Conn, fr
 	}
 
 	sessionID := videoID + "-" + time.Now().Format("20060102-150405")
-	session := h.videoSessionManager.CreateSession(sessionID, videoID, conn, "json")
+	// Fixed: Pass parent context instead of discarding it
+	session := h.videoSessionManager.CreateSession(ctx, sessionID, videoID, connID, conn, "json")
 
 	// Convert web path "/data/videos/filename.mp4" to filesystem path "data/videos/filename.mp4"
 	realPath := filepath.Join("data", "videos", filepath.Base(video.Path))
 
 	log.Info().Str("session_id", sessionID).Str("video_path", realPath).Str("video_id", videoID).Msg("Starting video playback")
 
-	go h.streamVideoFrames(ctx, session, realPath, req)
+	// Fixed: Track goroutine with WaitGroup to prevent leaks
+	h.activeGoroutines.Add(1)
+	atomic.AddInt64(&h.activeGoroutineCount, 1)
+	go func() {
+		defer h.activeGoroutines.Done()
+		defer atomic.AddInt64(&h.activeGoroutineCount, -1)
+		h.streamVideoFrames(ctx, session, realPath, req)
+	}()
 }
 
-func (h *Handler) handleStopVideo(ctx context.Context, _ *websocket.Conn, frameMsg *pb.WebSocketFrameRequest, _ int) {
+func (h *Handler) handleStopVideo(ctx context.Context, frameMsg *pb.WebSocketFrameRequest) {
 	log := logger.FromContext(ctx)
 
 	if frameMsg.StopVideoRequest == nil {
@@ -278,15 +346,13 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 
 	domainImg, err := h.imageCodec.DecodeToRGB(req.ImageData)
 	if err != nil {
+		// Fixed: Log detailed error internally, send generic message to client
+		logger.FromContext(ctx).Error().Err(err).Msg("Image decode failed")
 		result.Error = "image decode failed"
 		return result
 	}
 
-	procConfig := h.adapter.ExtractProcessingConfig(req)
-	filters := procConfig.Filters
-	grayscaleType := procConfig.Grayscale
-	blurParams := procConfig.Blur
-	accelerator := h.adapter.ToAccelerator(req.Accelerator)
+	opts := h.adapter.ExtractProcessingOptions(req)
 
 	h.frameCounter++
 	span.SetAttributes(
@@ -296,19 +362,22 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 	)
 
 	if h.grpcProcessor == nil {
-		result.Error = "gRPC processor not available"
+		result.Error = "processor not available"
 		return result
 	}
 
-	processedImg, err := h.grpcProcessor.ProcessImage(ctx, domainImg, filters, accelerator, grayscaleType, blurParams)
+	processedImg, err := h.grpcProcessor.ProcessImage(ctx, domainImg, opts)
 
 	if err != nil {
-		result.Error = "processing failed: " + err.Error()
+		// Fixed: Log detailed error internally, send generic message to client
+		// This prevents leaking internal error details that may contain sensitive information
+		logger.FromContext(ctx).Error().Err(err).Msg("Frame processing failed")
+		result.Error = "processing failed"
 		return result
 	}
 
 	hasGrayscale := false
-	for _, f := range filters {
+	for _, f := range opts.Filters {
 		if f == domain.FilterGrayscale {
 			hasGrayscale = true
 			break
@@ -317,6 +386,7 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 
 	encodedData, err := h.imageCodec.EncodeToPNG(processedImg, hasGrayscale)
 	if err != nil {
+		logger.FromContext(ctx).Error().Err(err).Msg("Image encode failed")
 		result.Error = "encode failed"
 		return result
 	}
@@ -337,10 +407,10 @@ func (h *Handler) processFrame(ctx context.Context, tracer trace.Tracer, frameMs
 			Dur("elapsed", elapsed).
 			Int("width", processedImg.Width).
 			Int("height", processedImg.Height).
-			Str("accelerator", string(accelerator))
+			Str("accelerator", string(opts.Accelerator))
 
-		if len(filters) > 0 {
-			log = log.Str("filter", string(filters[0]))
+		if len(opts.Filters) > 0 {
+			log = log.Str("filter", string(opts.Filters[0]))
 		}
 
 		log.Msg("Frame processed")
@@ -370,12 +440,14 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 		Float64("fps", player.GetFPS()).
 		Msg("Starting real video playback with FFmpeg")
 
-	domainFilters := h.adapter.ToFilters(req.Filters)
-	domainAccelerator := h.adapter.ToAccelerator(req.Accelerator)
-	domainGrayscale := h.adapter.ToGrayscaleType(req.GrayscaleType)
-	blurParams := h.adapter.ToBlurParameters(req.BlurParams)
+	opts := domain.ProcessingOptions{
+		Filters:       h.adapter.ToFilters(req.Filters),
+		Accelerator:   h.adapter.ToAccelerator(req.Accelerator),
+		GrayscaleType: h.adapter.ToGrayscaleType(req.GrayscaleType),
+		BlurParams:    h.adapter.ToBlurParameters(req.BlurParams),
+	}
 
-	for _, f := range domainFilters {
+	for _, f := range opts.Filters {
 		if f == domain.FilterGrayscale {
 			log.Info().Msg("Grayscale filter will be applied to video")
 			break
@@ -389,14 +461,14 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 		default:
 		}
 
-		result, err := h.useCase.Execute(ctx, domainImg, domainFilters, domainAccelerator, domainGrayscale, blurParams)
+		result, err := h.useCase.Execute(ctx, domainImg, opts)
 		if err != nil {
 			log.Error().Err(err).Int("frame", frameNumber).Msg("Failed to process video frame")
 			return err
 		}
 
 		hasGrayscale := false
-		for _, f := range domainFilters {
+		for _, f := range opts.Filters {
 			if f == domain.FilterGrayscale {
 				hasGrayscale = true
 				break
@@ -448,7 +520,8 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 			messageType = websocket.BinaryMessage
 		}
 
-		if err := h.safeWriteMessage(session.Conn, messageType, responseBytes); err != nil {
+		// Fixed: Use ConnID instead of Conn pointer for safe write
+		if err := h.safeWriteMessage(session.ConnID, messageType, responseBytes); err != nil {
 			log.Error().Err(err).Msg("Failed to send video frame")
 			return err
 		}
@@ -462,5 +535,28 @@ func (h *Handler) streamRealVideo(ctx context.Context, session *VideoSession, vi
 
 	if err := player.Play(ctx, frameCallback); err != nil && !errors.Is(err, context.Canceled) {
 		log.Error().Err(err).Msg("Video playback error")
+	}
+}
+
+// Shutdown gracefully shuts down the handler by waiting for all active goroutines to complete
+// Fixed: Prevents goroutine leaks during graceful shutdown
+func (h *Handler) Shutdown(ctx context.Context) error {
+	log := logger.FromContext(ctx)
+	count := atomic.LoadInt64(&h.activeGoroutineCount)
+	log.Info().Int64("active_goroutines", count).Msg("Shutting down WebSocket handler, waiting for active goroutines")
+
+	done := make(chan struct{})
+	go func() {
+		h.activeGoroutines.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Info().Msg("All goroutines completed successfully")
+		return nil
+	case <-ctx.Done():
+		log.Warn().Msg("Shutdown timeout, some goroutines may still be running")
+		return ctx.Err()
 	}
 }

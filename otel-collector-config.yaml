@@ -14,63 +14,6 @@ receivers:
           allowed_origins:
             - "http://*"
             - "https://*"
-  
-  # Unified: Capture logs from /tmp files (works for both dev and prod)
-  filelog/cpp:
-    include: ["/tmp/cppaccelerator.log"]
-    start_at: beginning
-    operators:
-      # Filter: only process lines that start with {
-      - type: filter
-        expr: 'body matches "^\\{"'
-      # Parse JSON
-      - type: json_parser
-        parse_from: body
-        severity:
-          parse_from: attributes.level
-          mapping:
-            info: info
-            debug: debug
-            warn: warn
-            error: error
-        timestamp:
-          parse_from: attributes.timestamp
-          layout_type: epoch
-          layout: s
-      # Ensure source attribute is set (json_parser extracts it, but explicit for clarity)
-      - type: add
-        field: attributes.source
-        value: cpp
-      - type: add
-        field: attributes.job
-        value: cpp-logs
-      - type: add
-        field: attributes.service.name
-        value: cpp-accelerator
-
-  filelog/go:
-    include: ["/tmp/goserver.log"]
-    start_at: beginning
-    operators:
-      # Filter: only process lines that start with {
-      - type: filter
-        expr: 'body matches "^\\{"'
-      # Parse JSON
-      - type: json_parser
-        parse_from: body
-        severity:
-          parse_from: attributes.level
-          mapping:
-            info: info
-            debug: debug
-            warn: warn
-            error: error
-      - type: add
-        field: attributes.source
-        value: go
-      - type: add
-        field: attributes.service.name
-        value: cuda-learning-app
 
 processors:
   batch:
@@ -81,29 +24,21 @@ processors:
     check_interval: 1s
     limit_mib: 512
 
-  attributes/unified:
-    actions:
-      - key: service.name
-        value: cuda-learning-app
-        action: insert
-      - key: service.version
-        value: "2.0.0"
-        action: insert
-      - key: environment
-        value: unified
-        action: insert
+  resource:
+    attributes:
+      - action: insert
+        key: loki.resource.labels
+        value: environment,service.name,service.version
   
-  attributes/labels:
-    actions:
-      - key: source
-        from_attribute: source
-        action: insert
-      - key: job
-        from_attribute: job
-        action: insert
-      - key: level
-        from_attribute: level
-        action: insert
+  transform/logs_to_resource:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["level"], attributes["level"]) where attributes["level"] != nil
+          - set(attributes["environment"], resource.attributes["environment"]) where resource.attributes["environment"] != nil
+          - set(attributes["service_name"], resource.attributes["service.name"]) where resource.attributes["service.name"] != nil
+          - set(attributes["service_version"], resource.attributes["service.version"]) where resource.attributes["service.version"] != nil
+
 
 exporters:
   otlp:
@@ -112,12 +47,13 @@ exporters:
       insecure: true
   
   loki:
-    endpoint: http://loki:3100/loki/api/v1/push
+    endpoint: http://loki-cloud:3100/loki/api/v1/push
     default_labels_enabled:
       exporter: true
-      job: true
       level: true
-      source: true
+      environment: true
+      service_name: true
+      service_version: true
   
   logging:
     loglevel: debug
@@ -131,7 +67,7 @@ service:
       exporters: [otlp, logging]
     
     logs:
-      receivers: [otlp, filelog/cpp, filelog/go]
-      processors: [memory_limiter, attributes/unified, attributes/labels, batch]
+      receivers: [otlp]
+      processors: [memory_limiter, resource, transform/logs_to_resource, batch]
       exporters: [loki, logging]
 

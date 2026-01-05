@@ -71,7 +71,7 @@ func probeVideo(videoPath string) (width, height int, fps float64, err error) {
 
 // Play starts video playback and calls the frameCallback for each decoded frame
 // The callback receives the raw RGB image data
-func (p *FFmpegVideoPlayer) Play(ctx context.Context, frameCallback func(*domain.Image, int, time.Duration) error) error {
+func (p *FFmpegVideoPlayer) Play(ctx context.Context, frameCallback func(*domain.Image, int, time.Duration) error) error { //nolint:gocyclo // Complex due to video frame processing pipeline with context management
 	log.Info().
 		Str("video", p.videoPath).
 		Int("width", p.width).
@@ -129,8 +129,16 @@ func (p *FFmpegVideoPlayer) Play(ctx context.Context, frameCallback func(*domain
 		case <-ctx.Done():
 			log.Info().Msg("Video playback stopped by context")
 			if cmd.Process != nil {
-				_ = cmd.Process.Kill() //nolint:errcheck // Best effort cleanup on context cancellation
+				// Fixed: Check kill error to detect zombie processes
+				// If kill fails, log the error but don't fail the context cancellation
+				if err := cmd.Process.Kill(); err != nil && !isProcessFinished(err) {
+					log.Warn().Err(err).Msg("Failed to kill ffmpeg process, may be zombie")
+					// Note: Process may have already exited, which is acceptable
+				}
 			}
+			// Clean up pipes
+			_ = stdout.Close()
+			_ = stderr.Close()
 			return ctx.Err()
 		default:
 			// Read one complete frame
@@ -188,4 +196,31 @@ func (p *FFmpegVideoPlayer) GetDimensions() (width, height int) {
 // GetFPS returns the video frame rate
 func (p *FFmpegVideoPlayer) GetFPS() float64 {
 	return p.fps
+}
+
+// isProcessFinished checks if an error from Process.Kill indicates the process was already finished
+func isProcessFinished(err error) bool {
+	// Process.Signal and Process.Kill return an error if the process has already exited.
+	// On Unix systems, this is typically os.ErrProcessDone.
+	// On Windows, the error message may contain "already finished".
+	// For now, we check common patterns indicating the process was done.
+	return err != nil && (err.Error() == "os: process already finished" ||
+		err.Error() == "wait: no child processes" ||
+		containsString(err.Error(), "already finished"))
+}
+
+// containsString is a simple helper for substring check
+func containsString(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr ||
+		len(s) > len(substr) && contains(s, substr))
+}
+
+// contains checks if substr is in s
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

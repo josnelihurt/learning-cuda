@@ -175,9 +175,20 @@
         mode: "0644"
         content: |
           [Service]
+          User=root
           Restart=always
           RestartSec=5
           StartLimitIntervalSec=0
+      when: runner_state == 'present'
+
+    - name: Ensure main service file has correct user
+      ansible.builtin.lineinfile:
+        path: "{{ runner_service_path }}"
+        regexp: '^User='
+        line: 'User=root'
+        owner: root
+        group: root
+        mode: "0644"
       when: runner_state == 'present'
 
     - name: Reload systemd after runner override
@@ -189,6 +200,18 @@
       ansible.builtin.systemd:
         name: "{{ runner_service_name }}.service"
         enabled: true
+      when: runner_state == 'present'
+
+    - name: Ensure sensitive files have correct permissions
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: file
+        owner: root
+        group: root
+        mode: "0600"
+      loop:
+        - "{{ runner_root }}/.credentials"
+        - "{{ runner_root }}/.credentials_rsaparams"
       when: runner_state == 'present'
 
     - name: Ensure runner service is running

@@ -1,443 +1,179 @@
 {
-  "title": "CUDA Learning - Multi-Layer Logs",
-  "tags": ["logs", "cuda", "observability"],
-  "timezone": "browser",
-  "schemaVersion": 38,
-  "version": 19,
-  "refresh": "30s",
-  "uid": "cuda-multi-layer-logs",
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 0,
+  "links": [],
   "panels": [
     {
-      "title": "C++ Layer (CUDA/spdlog) - OTEL Collector",
-      "type": "logs",
+      "datasource": {
+        "type": "loki"
+      },
+      "description": "Application logs with messages from layers",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "gridPos": {
-        "h": 8,
+        "h": 20,
         "w": 24,
         "x": 0,
         "y": 0
       },
       "id": 1,
-      "targets": [
-        {
-          "expr": "{job=\"cpp-logs\"}",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
       "options": {
-        "showTime": true,
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": true,
+        "showControls": false,
         "showLabels": true,
-        "showCommonLabels": true,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
-      }
-    },
-    {
-      "title": "C++ Layer - Errors & Warnings Only",
-      "type": "logs",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 9,
-      "targets": [
-        {
-          "expr": "{job=\"cpp-logs\"} | level=~\"error|warn\"",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "options": {
         "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": true,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          }
-        }
-      }
-    },
-    {
-      "title": "C++ Layer - Info & Debug Logs",
-      "type": "logs",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 8
-      },
-      "id": 10,
+      "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "{job=\"cpp-logs\"} | level=~\"info|debug\"",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": true,
-        "wrapLogMessage": false,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
-      }
-    },
-    {
-      "title": "Go Layer (Webserver/zerolog) - All Levels",
-      "type": "logs",
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 14
-      },
-      "id": 2,
-      "targets": [
-        {
-          "expr": "{job=\"host-logs\"}",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": true,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
-      }
-    },
-    {
-      "title": "Go Layer - Errors & Warnings Only",
-      "type": "logs",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 24
-      },
-      "id": 3,
-      "targets": [
-        {
-          "expr": "{job=\"host-logs\"} | level=~\"error|warn\"",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": true,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          }
-        }
-      }
-    },
-    {
-      "title": "Go Layer - Info Logs",
-      "type": "logs",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 24
-      },
-      "id": 4,
-      "targets": [
-        {
-          "expr": "{job=\"host-logs\"} | level=~\"info|debug\"",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": true,
-        "wrapLogMessage": false,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
-      }
-    },
-    {
-      "title": "C++ Log Volume by Level (Real-time)",
-      "type": "bargauge",
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 0,
-        "y": 30
-      },
-      "id": 11,
-      "targets": [
-        {
-          "expr": "sum by (level) (count_over_time({job=\"cpp-logs\"} | level != \"\" [$__auto]))",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "showUnfilled": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {"color": "green", "value": 0},
-              {"color": "yellow", "value": 5},
-              {"color": "red", "value": 20}
-            ]
-          },
-          "unit": "short"
-        }
-      }
-    },
-    {
-      "title": "Go Logs Rate Over Time",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 8,
-        "y": 30
-      },
-      "id": 6,
-      "targets": [
-        {
-          "expr": "sum by (level) (rate({job=\"host-logs\"} | level != \"\" [$__auto]))",
-          "refId": "A",
           "datasource": {
             "type": "loki",
             "uid": "P8E80F9AEF21F6940"
           },
-          "legendFormat": "{{level}}"
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{service_name=~\"${service_name}\", level=~\"$level\"} |~ \"$message\"",
+          "maxLines": 1000,
+          "queryType": "range",
+          "refId": "A"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 10
-          },
-          "unit": "reqps"
-        }
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        }
-      }
-    },
-    {
-      "title": "C++ Logs Rate Over Time",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 16,
-        "y": 30
-      },
-      "id": 12,
-      "targets": [
-        {
-          "expr": "sum by (level) (rate({job=\"cpp-logs\"} | level != \"\" [$__auto]))",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          },
-          "legendFormat": "C++ {{level}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 10
-          },
-          "unit": "reqps"
-        }
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        }
-      }
-    },
-    {
-      "title": "Recent Traces with Logs",
-      "type": "table",
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 36
-      },
-      "id": 7,
-      "targets": [
-        {
-          "expr": "{job=\"host-logs\"} | trace_id != \"\"",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns",
-            "keepLabels": ["trace_id", "level", "caller", "message"]
-          }
-        }
-      ],
-      "options": {
-        "showHeader": true,
-        "footer": {
-          "show": false
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "filterable": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "trace_id"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "View in Jaeger",
-                    "url": "http://localhost:16686/trace/${__value.raw}"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "title": "Frontend Layer (OpenTelemetry/WebSocket)",
-      "type": "logs",
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 44
-      },
-      "id": 8,
-      "targets": [
-        {
-          "expr": "{job=\"host-logs\"} | json | message=~\"Received OTLP logs|Forwarding browser traces|Traces forwarded successfully\" | line_format \"[{{.level}}] {{.message}}{{if .bytes}} | bytes={{.bytes}}{{end}}{{if .status_code}} | status={{.status_code}}{{end}}\"",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "P8E80F9AEF21F6940"
-          }
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "showLabels": false,
-        "showCommonLabels": true,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
-      }
+      "title": "Application Logs",
+      "type": "logs"
     }
   ],
+  "preload": false,
+  "refresh": "5m",
+  "schemaVersion": 42,
+  "tags": [
+    "observability",
+    "logs",
+    "MCP"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".+",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "P8E80F9AEF21F6940"
+        },
+        "definition": "",
+        "includeAll": true,
+        "label": "Level",
+        "multi": true,
+        "name": "level",
+        "options": [],
+        "query": {
+          "label": "level",
+          "refId": "LokiVariableQueryEditor-VariableQuery",
+          "stream": "",
+          "type": 1
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".+",
+        "current": {
+          "text": [
+            "cuda-image-processor"
+          ],
+          "value": [
+            "cuda-image-processor"
+          ]
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "P8E80F9AEF21F6940"
+        },
+        "definition": "",
+        "description": "",
+        "includeAll": true,
+        "label": "Service Name",
+        "multi": true,
+        "name": "service_name",
+        "options": [],
+        "query": {
+          "label": "service_name",
+          "refId": "LokiVariableQueryEditor-VariableQuery",
+          "stream": "",
+          "type": 1
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "forwarded",
+          "value": "forwarded"
+        },
+        "label": "Line contains",
+        "name": "message",
+        "options": [
+          {
+            "selected": true,
+            "text": "forwarded",
+            "value": "forwarded"
+          }
+        ],
+        "query": "forwarded",
+        "type": "textbox"
+      }
+    ]
+  },
   "time": {
     "from": "now-6h",
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
-  }
+    "refresh_intervals": [
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  },
+  "timezone": "browser",
+  "title": "CUDA Learning - Logs Dashboard",
+  "uid": "cuda-logs-filtered",
+  "version": 16
 }

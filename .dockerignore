@@ -9,6 +9,10 @@ webserver/web/node_modules/
 *.log
 caddy.log
 
+# Exclude test data from production image
+data/test-data/
+data/test-data/**
+
 scripts/setup-ssl.sh
 scripts/kill-services.sh
 scripts/start-dev.sh

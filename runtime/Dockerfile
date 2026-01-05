@@ -1,32 +1,15 @@
-ARG UBUNTU_VERSION=24.04
+ARG DEBIAN_VERSION=bookworm-slim
 
-FROM ubuntu:${UBUNTU_VERSION} AS runtime-base
+FROM debian:${DEBIAN_VERSION} AS runtime-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     ffmpeg \
-    libavcodec-dev \
-    libavformat-dev \
-    libavutil-dev \
-    libswscale-dev \
-    libavfilter-dev \
-    libavdevice-dev \
-    || (echo "Retrying with GPG fix..." && \
-        apt-get install -y --no-install-recommends --allow-unauthenticated \
-        ca-certificates \
-        curl \
-        ffmpeg \
-        libavcodec-dev \
-        libavformat-dev \
-        libavutil-dev \
-        libswscale-dev \
-        libavfilter-dev \
-        libavdevice-dev) && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

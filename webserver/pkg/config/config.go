@@ -101,7 +101,7 @@ func setDefaults(v *viper.Viper) {
 		"observability.service_name":                 "cuda-image-processor",
 		"observability.service_version":              "1.0.0",
 		"observability.otel_collector_grpc_endpoint": "localhost:4317",
-		"observability.otel_collector_http_endpoint": "localhost:4318",
+		"observability.otel_collector_http_endpoint": "http://localhost:4318",
 		"observability.trace_sampling_rate":          1.0,
 
 		"flipt.enabled":         true,

@@ -196,8 +196,10 @@ COPY --from=golang-built-ref /artifacts/bin/server /app/server
 COPY --from=frontend-builder /build/webserver/web/static/ /app/web/static/
 COPY --from=frontend-builder /build/webserver/web/templates/ /app/web/templates/
 
-# Copy runtime data and configuration
-COPY data/ /app/data/
+# Copy runtime data and configuration (exclude test-data to reduce image size)
+COPY data/static_images/ /app/data/static_images/
+COPY data/videos/ /app/data/videos/
+COPY data/lena.png data/lena_grayscale.png data/with_expected.png /app/data/
 COPY config/config.yaml /app/config/config.yaml
 
 # Create production configuration

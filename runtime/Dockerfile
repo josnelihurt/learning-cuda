@@ -1,32 +1,11 @@
-ARG UBUNTU_VERSION=24.04
+ARG ALPINE_VERSION=3.20
 
-FROM ubuntu:${UBUNTU_VERSION} AS runtime-base
+FROM alpine:${ALPINE_VERSION} AS runtime-base
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
-    apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     ca-certificates \
     curl \
-    ffmpeg \
-    libavcodec-dev \
-    libavformat-dev \
-    libavutil-dev \
-    libswscale-dev \
-    libavfilter-dev \
-    libavdevice-dev \
-    || (echo "Retrying with GPG fix..." && \
-        apt-get install -y --no-install-recommends --allow-unauthenticated \
-        ca-certificates \
-        curl \
-        ffmpeg \
-        libavcodec-dev \
-        libavformat-dev \
-        libavutil-dev \
-        libswscale-dev \
-        libavfilter-dev \
-        libavdevice-dev) && \
-    rm -rf /var/lib/apt/lists/*
+    ffmpeg
 
 WORKDIR /app
 

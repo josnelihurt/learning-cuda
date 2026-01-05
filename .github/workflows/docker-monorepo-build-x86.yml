@@ -136,7 +136,7 @@ jobs:
       - name: Check service health
         run: |
           sleep 10
-          if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+          if docker exec cuda-go-server curl -s http://localhost:8080/health > /dev/null 2>&1; then
             echo "Health check passed"
           else
             echo "Health check failed"

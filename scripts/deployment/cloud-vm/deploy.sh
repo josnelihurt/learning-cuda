@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
-APP_IMAGE="ghcr.io/josnelihurt/learning-cuda/app:rc-amd64"
+# Default image tag - can be overridden by setting APP_IMAGE env var before running
+APP_IMAGE="${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda/app:latest-amd64}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 echo "PROJECT_ROOT: ${PROJECT_ROOT}"
@@ -14,7 +15,7 @@ if [ -z "${CLOUD_VM_HOST:-}" ] || [ -z "${CLOUD_VM_USER:-}" ]; then
     . "${PROJECT_ROOT}/.secrets/production.env"
 fi
 
-export CLOUD_VM_HOST CLOUD_VM_USER CLOUD_VM_SUDO_PASSWORD
+export CLOUD_VM_HOST CLOUD_VM_USER CLOUD_VM_SUDO_PASSWORD APP_IMAGE
 
 # Debug: Show environment variables (without sensitive data)
 echo "Deployment configuration:"

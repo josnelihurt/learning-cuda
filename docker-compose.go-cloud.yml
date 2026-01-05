@@ -1,6 +1,6 @@
 services:
   go-server:
-    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda/app:rc-amd64}
+    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda/app:latest-amd64}
     container_name: cuda-go-server
     restart: unless-stopped
     

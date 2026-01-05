@@ -20,7 +20,7 @@ COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
 WORKDIR /build/webserver
 
-ARG CGO_ENABLED=1
+ARG CGO_ENABLED=0
 ENV CGO_ENABLED=${CGO_ENABLED}
 
 # Build-time information for ldflags

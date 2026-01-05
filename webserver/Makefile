@@ -22,7 +22,7 @@ build:
 	else \
 		BRANCH=$$BRANCH; \
 	fi; \
-	cd cmd/server && CGO_ENABLED=1 go build \
+	cd cmd/server && CGO_ENABLED=0 go build \
 		-ldflags "-X github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build.branch=$$BRANCH \
 		           -X github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build.buildTime=$$BUILD_TIME \
 		           -X github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build.commitHash=$$COMMIT_HASH" \

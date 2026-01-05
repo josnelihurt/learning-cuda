@@ -1,15 +1,11 @@
-ARG DEBIAN_VERSION=bookworm-slim
+ARG ALPINE_VERSION=3.20
 
-FROM debian:${DEBIAN_VERSION} AS runtime-base
+FROM alpine:${ALPINE_VERSION} AS runtime-base
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     ca-certificates \
     curl \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+    ffmpeg
 
 WORKDIR /app
 

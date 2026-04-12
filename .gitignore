@@ -110,6 +110,5 @@ server
 .venv-mcp/
 
 .claude/
-.planning/
 .kilo/
 .opencode/

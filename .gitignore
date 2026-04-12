@@ -108,3 +108,8 @@ server
 **/*.tfstate
 **/*.tfstate.backup
 .venv-mcp/
+
+.claude/
+.planning/
+.kilo/
+.opencode/

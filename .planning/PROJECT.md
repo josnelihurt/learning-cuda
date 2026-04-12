@@ -95,6 +95,20 @@ A learning-focused project to rebuild the frontend using React while maintaining
 | Zero backend changes | Reduces risk, allows frontend-focused learning, easier rollback | ✓ Good |
 | Migrate to React Testing Library | Standard React testing approach, better component testing practices | — Pending |
 
+## Current Milestone: v1.0 React Frontend Migration
+
+**Goal:** Build a production-ready React frontend with full feature parity to the existing Lit frontend, serving as a hands-on React learning project.
+
+**Target features:**
+- React + Vite + TypeScript scaffold with dual routing (/lit and /react)
+- Clean component architecture (presentational vs container, no prop drilling)
+- Custom hooks for business logic (useImageProcessing, useVideoStream, useFilters)
+- Context-based global state management
+- Reuse existing CSS and ConnectRPC/protobuf gRPC client
+- Full feature parity: image processing, video streaming, filter management, file upload, settings, health monitoring
+- React Testing Library — migrate existing Vitest frontend tests
+- End state: React-only frontend after parity confirmed
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -113,4 +127,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-12 after initialization*
+*Last updated: 2026-04-12 after milestone v1.0 started*

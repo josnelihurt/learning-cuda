@@ -16,7 +16,8 @@ import (
 type StaticHandler struct {
 	webRootPath      string
 	hotReloadEnabled bool
-	tmpl             *template.Template
+	litTmpl          *template.Template
+	reactTmpl        *template.Template
 	wsHandler        *websocket.Handler
 	assetHandler     AssetHandler
 	fliptURL         string
@@ -34,10 +35,12 @@ type StaticHandlerDeps struct {
 }
 
 func NewStaticHandler(deps *StaticHandlerDeps) *StaticHandler {
-	var tmpl *template.Template
+	var litTmpl, reactTmpl *template.Template
 	if !deps.ServerConfig.HotReloadEnabled {
-		templatePath := filepath.Join(deps.ServerConfig.WebRootPath, "templates", "index.html")
-		tmpl = template.Must(template.ParseFiles(templatePath))
+		litTemplatePath := filepath.Join(deps.ServerConfig.WebRootPath, "templates", "index.html")
+		reactTemplatePath := filepath.Join(deps.ServerConfig.WebRootPath, "templates", "react.html")
+		litTmpl = template.Must(template.ParseFiles(litTemplatePath))
+		reactTmpl = template.Must(template.ParseFiles(reactTemplatePath))
 	}
 
 	var assetHandler AssetHandler
@@ -53,7 +56,8 @@ func NewStaticHandler(deps *StaticHandlerDeps) *StaticHandler {
 	return &StaticHandler{
 		webRootPath:      deps.ServerConfig.WebRootPath,
 		hotReloadEnabled: deps.ServerConfig.HotReloadEnabled,
-		tmpl:             tmpl,
+		litTmpl:          litTmpl,
+		reactTmpl:        reactTmpl,
 		wsHandler:        websocket.NewHandler(deps.UseCase, deps.StreamConfig, deps.VideoRepo, deps.EvaluateFFUC, deps.GRPCProcessor),
 		assetHandler:     assetHandler,
 		fliptURL:         deps.FliptURL,
@@ -96,6 +100,12 @@ func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine which frontend to serve based on URL path
+	route := "lit"
+	if strings.HasPrefix(r.URL.Path, "/react") {
+		route = "react"
+	}
+
 	// Get build information
 	buildInfo := build.NewBuildInfo()
 
@@ -106,21 +116,32 @@ func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 		Branch     string
 		BuildTime  string
 	}{
-		ScriptTags: h.assetHandler.GetScriptTags("lit"),
+		ScriptTags: h.assetHandler.GetScriptTags(route),
 		CommitHash: buildInfo.CommitHash,
 		Version:    buildInfo.Version,
 		Branch:     buildInfo.Branch,
 		BuildTime:  buildInfo.BuildTime,
 	}
 
-	tmpl := h.tmpl
+	// Select template based on route
+	var tmpl *template.Template
 	if h.hotReloadEnabled {
-		templatePath := filepath.Join(h.webRootPath, "templates", "index.html")
+		templateName := "index.html"
+		if route == "react" {
+			templateName = "react.html"
+		}
+		templatePath := filepath.Join(h.webRootPath, "templates", templateName)
 		var err error
 		tmpl, err = template.ParseFiles(templatePath)
 		if err != nil {
 			http.Error(w, "Template error", http.StatusInternalServerError)
 			return
+		}
+	} else {
+		if route == "react" {
+			tmpl = h.reactTmpl
+		} else {
+			tmpl = h.litTmpl
 		}
 	}
 

@@ -35,6 +35,8 @@
     "@connectrpc/protoc-gen-connect-es": "^1.7.0",
     "@open-wc/testing-helpers": "^2.3.1",
     "@playwright/test": "^1.40.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/webrtc": "^0.0.46",

@@ -547,7 +547,7 @@ The frontend uses:
 ```bash
 cd ../front-end
 npm install
-npm run dev  # Vite dev server (see ../scripts/dev/start-frontend.sh)
+npm run dev  # Vite dev server (full stack: ../scripts/dev/start.sh)
 ```
 
 **Build:**

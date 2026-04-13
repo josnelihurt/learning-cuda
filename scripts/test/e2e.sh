@@ -214,7 +214,7 @@ else
     fi
     if ! curl -k -s -o /dev/null -w "%{http_code}" https://localhost:3000 | grep -qE '200|304'; then
         echo "ERROR: Frontend dev server is not reachable at https://localhost:3000"
-        echo "Start it with: ./scripts/dev/start-frontend.sh"
+        echo "Start the stack with: ./scripts/dev/start.sh"
         exit 1
     fi
 fi

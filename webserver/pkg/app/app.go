@@ -279,7 +279,13 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 			return
 		}
 
-		// For all other routes, serve the SPA index
+		// Root redirects to React (React is the default experience)
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/react", http.StatusFound)
+			return
+		}
+
+		// All other routes serve the SPA index (ServeIndex determines lit vs react)
 		serveIndex(w, r)
 	})
 

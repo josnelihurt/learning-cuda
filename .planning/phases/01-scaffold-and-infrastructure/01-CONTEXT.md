@@ -11,7 +11,11 @@ Developer can load React frontend at `/react` and Lit frontend at `/lit` simulta
 **Production Architecture:**
 - Traefik (edge) → Nginx (static file server) → Go (API/gRPC/WebSocket)
 - Frontend files are served directly by Nginx — Go does NOT handle frontend routing in production
-- Dev mode: Go dev proxy serves Vite HMR with route awareness
+
+**Development Architecture:**
+- UI: Vite HTTPS on `https://localhost:3000` via `scripts/dev/start-frontend.sh` (HMR, pretty paths `/react` and `/lit` from `vite.config.ts`)
+- API/WebSocket/Connect: Go TLS on `https://localhost:8443` (`./scripts/dev/start.sh`); `VITE_API_ORIGIN` points Vite’s dev proxy at Go
+- Go does **not** serve frontend HTML and does **not** reverse-proxy the UI to Vite
 </domain>
 
 <decisions>
@@ -24,10 +28,10 @@ Developer can load React frontend at `/react` and Lit frontend at `/lit` simulta
 - **D-04:** React imports shared code via relative paths from `../gen/` and `../infrastructure/`
 
 ### Vite MPA Configuration
-- **D-05:** Single `vite.config.ts` with `rollupOptions.input` pointing to two HTML files (`templates/index.html` for Lit, `templates/react.html` for React)
+- **D-05:** Single `vite.config.ts` with `rollupOptions.input` pointing to repo-root `front-end/index.html` (Lit) and `front-end/react.html` (React)
 - **D-06:** Vite manifest uses HTML paths as keys (`index.html`, `react.html`) — these match Nginx static file structure
 - **D-07:** Split tsconfigs: `tsconfig.lit.json` (with `experimentalDecorators: true`) and `tsconfig.react.json` (clean, no decorators)
-- **D-08:** Both Lit and React bundles output to same `static/js/dist/` directory under Nginx root
+- **D-08:** Both Lit and React bundles output into the same `front-end/dist/` tree (single `outDir`), with separate HTML entry artifacts and shared chunks — copied to Nginx document root in the `web-frontend` image
 
 ### Production Serving Architecture
 - **D-09:** Nginx serves static files directly from `/usr/share/nginx/html` — NO Go template parsing in production
@@ -36,9 +40,9 @@ Developer can load React frontend at `/react` and Lit frontend at `/lit` simulta
 - **D-12:** Path-based routing via Nginx rewrite rules: `/` → `/index.html`, `/react.html` → `/react.html`
 
 ### Development Architecture
-- **D-13:** Go dev server proxies all non-API requests to Vite dev server at `localhost:3000`
-- **D-14:** Vite dev server serves both HTML entry points automatically via HMR
-- **D-15:** Go dev handler is route-aware: returns correct Vite entry script tags for `/lit` and `/react`
+- **D-13:** Split-port dev: run Vite (`scripts/dev/start-frontend.sh`, `https://localhost:3000`) for UI and Go (`scripts/dev/start.sh`, `https://localhost:8443`) for API/WebSocket/Connect. Configure `VITE_API_ORIGIN` so Vite proxies backend paths to Go. **No** Go-served HTML and **no** Go reverse proxy of static/HMR to Vite.
+- **D-14:** Vite dev server serves both HTML entries with HMR; `/react` and `/lit` pretty paths are implemented in `vite.config.ts` (dev + preview middleware) to mirror production Nginx.
+- **D-15:** Pretty-path routing for `/lit` and `/react` is implemented by **Nginx** in production (`front-end/nginx.conf`) and by **Vite** in local dev/preview — not by Go handlers or Go template injection.
 
 ### React App Shell
 - **D-16:** Minimal shell with navbar matching Lit's branding ("CUDA Image Processor")
@@ -85,13 +89,13 @@ Developer can load React frontend at `/react` and Lit frontend at `/lit` simulta
 - `front-end/package.json` — Frontend dependencies, build scripts, Vite config
 
 ### Go Backend Integration
-- `webserver/pkg/app/app.go` — Go app bootstrap with catch-all handler removed from production serving
-- `webserver/pkg/interfaces/statichttp/development_handler.go` — Dev proxy to Vite with route-aware script tags
-- Note: Production Go handlers are NOT used for frontend routing — Nginx serves static files directly
+- `webserver/pkg/app/app.go` — Go app bootstrap; API/WebSocket/Connect registration (no frontend HTML serving)
+- `webserver/pkg/interfaces/statichttp/handler.go` — Static/data routes used by the backend; **not** used to serve the React/Lit MPA HTML
+- Note: There is **no** `development_handler.go` in-tree; dev UI is Vite-only on `:3000`
 
 ### Frontend Entry Points
-- `front-end/public/index.html` — Lit HTML template (reference only)
-- `front-end/public/react.html` — React HTML template
+- `front-end/index.html` — Lit MPA HTML entry
+- `front-end/react.html` — React MPA HTML entry
 - `front-end/src/test-setup.ts` — Test setup with WebRTC global stubs
 
 ### Project-Level Constraints
@@ -119,7 +123,7 @@ Developer can load React frontend at `/react` and Lit frontend at `/lit` simulta
 ### Established Patterns
 - **Vite MPA**: Single config with HTML-based `rollupOptions.input` → produces `index.html`, `react.html` + manifest with HTML path keys
 - **Production serving**: Nginx serves static files directly, Traefik routes edge traffic, Go handles only backend logic
-- **Dev serving**: Go dev proxy routes to Vite HMR server, handles `/api/*` and `/ws` to backend
+- **Dev serving**: Vite on `:3000` serves UI + proxies API paths to Go on `:8443` per `vite.config.ts` and `VITE_API_ORIGIN`
 - **TypeScript configs**: Split configs allow Lit (decorators) and React (clean) to coexist in same frontend
 
 ### Integration Points
@@ -127,16 +131,16 @@ Developer can load React frontend at `/react` and Lit frontend at `/lit` simulta
 - **`nginx.conf`** — Proxy rules to Go backend for `/api/*`, `/ws`, path rewrites for frontend routing
 - **`docker-compose.yml`** — Traefik → Nginx → Go service mesh
 - **`test-setup.ts`** — WebRTC stubs added for React test compatibility
-- **Go app routing** — Production no longer handles frontend; dev server has route-aware proxy
+- **Go app routing** — Go never serves the MPA HTML; UI routing is Nginx (prod) or Vite (dev)
 
 </code_context>
 
 <specifics>
 ## Specific Ideas
 
-- React is default experience — root `/` redirects to `/react.html` via Nginx rewrite rule
+- Default landing remains Lit at `/` via Nginx `try_files` / Vite root unless a future requirement changes the product default
 - Production uses Nginx static serving, not Go templates — Go only handles API/gRPC/WebSocket
-- Dev mode uses Go dev proxy with route-aware Vite HMR script tags
+- Dev mode uses split ports: Vite for UI and HMR, Go for backend; pretty `/react` and `/lit` match prod via Vite middleware
 - The split tsconfig approach lets React use modern TypeScript defaults without Lit's decorator legacy
 - Frontend is a separate service (`front-end/`) with its own deployment (Nginx) and build pipeline
 

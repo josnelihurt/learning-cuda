@@ -16,10 +16,10 @@
 - **D-04:** React imports shared code via relative paths from `../gen/` and `../infrastructure/`
 
 #### Vite MPA Configuration
-- **D-05:** Single `vite.config.ts` with `rollupOptions.input` pointing to two HTML files (`templates/index.html` for Lit, `templates/react.html` for React)
+- **D-05:** Single `vite.config.ts` with `rollupOptions.input` pointing to `front-end/index.html` (Lit) and `front-end/react.html` (React)
 - **D-06:** Vite manifest uses HTML paths as keys (`index.html`, `react.html`) — these match Nginx static file structure
 - **D-07:** Split tsconfigs: `tsconfig.lit.json` (with `experimentalDecorators: true`) and `tsconfig.react.json` (clean, no decorators)
-- **D-08:** Both Lit and React bundles output to same `static/js/dist/` directory under Nginx root
+- **D-08:** Both Lit and React bundles output into the same `front-end/dist/` tree (single `outDir`), with two HTML entry artifacts and shared chunks
 
 #### Production Serving Architecture
 - **D-09:** Nginx serves static files directly from `/usr/share/nginx/html` — NO Go template parsing in production
@@ -28,9 +28,9 @@
 - **D-12:** Path-based routing via Nginx rewrite rules: `/` → `/index.html`, `/react.html` → `/react.html`
 
 #### Development Architecture
-- **D-13:** Go dev server proxies all non-API requests to Vite dev server at `localhost:3000`
-- **D-14:** Vite dev server serves both HTML entry points automatically via HMR
-- **D-15:** Go dev handler is route-aware: returns correct Vite entry script tags for `/lit` and `/react`
+- **D-13:** Local UI runs on Vite HTTPS at `https://localhost:3000` (see `scripts/dev/start-frontend.sh`); Go serves API/WebSocket/Connect only at `https://localhost:8443`. The browser uses `VITE_API_ORIGIN` so the UI origin can proxy `/api`, `/ws`, etc. to Go — **no** Go-served HTML and **no** Go→Vite reverse proxy for static/HMR.
+- **D-14:** Vite dev server serves both HTML entry points via HMR; pretty paths `/react` and `/lit` are implemented in `vite.config.ts` (Plan 01) to mirror Nginx production rewrites.
+- **D-15:** Route-aware HTML for `/lit` and `/react` is owned by **Vite** (dev + `vite preview` middleware) and **Nginx** (`front-end/nginx.conf` in `web-frontend`); Go does not inject or select entry HTML in dev or prod.
 
 #### React App Shell
 - **D-16:** Minimal shell with navbar matching Lit's branding ("CUDA Image Processor")
@@ -68,7 +68,7 @@ None — discussion stayed within phase scope
 
 | ID | Description | Research Support |
 |----|-------------|------------------|
-| SCAF-01 | Developer can run React frontend at `/react` and Lit frontend at `/lit` from the same Go server simultaneously | **Current repo:** Go (`webserver/pkg/app/app.go`) registers API, `/ws`, `/data/`, Flipt — **no** HTML/static frontend routes [VERIFIED: codebase]. Production path is Traefik → `web-frontend` (Nginx) → static `dist`; `front-end/nginx.conf` has `location = /react` → `react.html`, but **no** `/lit` alias yet (Lit is served via `/` → `try_files` → `index.html`) [VERIFIED: codebase]. CONTEXT D-13/D-15 describe a Go→Vite dev proxy **not present** in current Go code — planner must either implement it or redefine “same server” as “same logical app URL” (e.g. Nginx or Traefik in dev) with explicit success criteria. |
+| SCAF-01 | Developer can use React at `/react` and Lit at `/lit` per **REQUIREMENTS.md** (prod same user-facing origin; dev split origins documented) | **Production (Docker / Traefik):** One browser origin → Nginx (`web-frontend`) serves static UI including `/react` and `/lit` rewrites; same host reaches Go for `/api`, `/ws`, Connect paths via Nginx `proxy_pass` [VERIFIED: `front-end/nginx.conf`, compose]. **Local dev:** UI at `https://localhost:3000` (Vite), API at `https://localhost:8443` (Go); pretty paths on Vite from Plan 01 plugin. **Resolved:** “same server” = same **user-visible product URL** in prod (Nginx + Go behind Traefik); dev uses a documented two-origin matrix, not Go serving HTML. |
 | SCAF-02 | Vite is configured as a multi-page app (MPA) with separate entry points for Lit and React builds | **Implemented:** `front-end/vite.config.ts` sets `build.rollupOptions.input` to `index.html` and `react.html`, `build.manifest: true`, single `outDir: 'dist'` [VERIFIED: codebase]. Vite documents MPA via multiple HTML files in `rollupOptions.input` [CITED: https://github.com/vitejs/vite/blob/v5.4.21/docs/guide/build.md]. Vite **ignores** the object keys for HTML entries and uses resolved file paths for output names [CITED: same doc]. |
 </phase_requirements>
 
@@ -76,9 +76,9 @@ None — discussion stayed within phase scope
 
 The repository already matches the **separate `front-end/`** layout: dual HTML entries (`front-end/index.html`, `front-end/react.html`), `vite.config.ts` MPA input, `@vitejs/plugin-react`, split TypeScript configs (`tsconfig.json` for Lit decorators vs `tsconfig.react.json` for React), React shell under `src/react/`, and Vitest `setupFiles` pointing at `src/test-setup.ts` with WebRTC globals stubbed.
 
-**Gaps vs written plans and CONTEXT:** (1) CONTEXT still references HTML under `templates/` and output under `static/js/dist/` — the **live** project uses repo-root `index.html` / `react.html` and `build.outDir: 'dist'` (copied to Nginx root by `front-end/Dockerfile`) [VERIFIED: codebase]. (2) **SCAF-01** requires `/lit` and “same Go server”; **current** dev workflow is **split**: `./scripts/dev/start.sh` → Go on `:8443`, `./scripts/dev/start-frontend.sh` → Vite on `:3000` [VERIFIED: `scripts/dev/start.sh`, `start-frontend.sh`]. Go does not proxy the UI. (3) Nginx serves `/react` via rewrite to `react.html` but has **no** `location = /lit` — today Lit is the default app at `/` [VERIFIED: `front-end/nginx.conf`]. (4) Roadmap success criterion #3 mentions “separate output directories”; the **implemented** Vite pattern is **one** `dist/` with two HTML entry outputs — interpret as “separate entry artifacts,” not two `outDir`s, unless the user changes D-08.
+**Gaps vs written plans and CONTEXT:** (1) CONTEXT still references HTML under `templates/` and output under `static/js/dist/` — the **live** project uses repo-root `index.html` / `react.html` and `build.outDir: 'dist'` (copied to Nginx root by `front-end/Dockerfile`) [VERIFIED: codebase]. (2) **SCAF-01** requires `/lit` and “same Go server”; **current** dev workflow is **split**: `./scripts/dev/start.sh` → Go on `:8443`, `./scripts/dev/start-frontend.sh` → Vite on `:3000` [VERIFIED: `scripts/dev/start.sh`, `start-frontend.sh`]. Go does not proxy the UI. (3) Nginx serves `/react` via rewrite to `react.html` but has **no** `location = /lit` — today Lit is the default app at `/` [VERIFIED: `front-end/nginx.conf`]. (4) Roadmap success criterion #3 is phrased as **separate HTML entry artifacts** under one `front-end/dist/` (not two `outDir`s) — aligned with D-08 and the live Vite config.
 
-**Primary recommendation:** Treat **Nginx (production)** and **Vite dev (development)** as the owners of `/react` and `/lit` path semantics; add explicit **dev** rewrites (Vite plugin or `server` middleware) so `/react` and `/lit` work without `.html` suffix, mirroring Nginx. Reconcile “same Go server” with either a **small Go reverse proxy** for dev only or an **updated requirement** that the unified entry is Traefik/Nginx in compose — document the choice in PLAN.md.
+**Primary recommendation (locked):** **Nginx (production)** and **Vite (local dev/preview)** own `/react` and `/lit` path semantics with explicit rewrites/middleware mirroring each other. **REQUIREMENTS.md** SCAF-01 documents prod same-origin vs dev split ports; no Go UI proxy.
 
 ## Project Constraints (from .cursor/rules/)
 
@@ -220,9 +220,9 @@ export default defineConfig({
 
 **Why it happens:** CONTEXT mixes production (Nginx) with a Go dev proxy (D-13) that is not implemented in `webserver/`.
 
-**How to avoid:** Define the **single URL** developers use (e.g. `https://localhost:8443` vs `https://localhost:3000`) and implement the missing proxy or update the requirement.
+**How to avoid:** Document the **dev matrix** (`https://localhost:3000` UI, `https://localhost:8443` API) and prod Traefik→Nginx+Go; do not assume Go serves HTML.
 
-**Warning signs:** No `vite` or `reverse` references under `webserver/pkg/`.
+**Warning signs:** Planning text that reintroduces a Go→Vite reverse proxy for static assets (contradicts D-13 after amendment).
 
 ## Code Examples
 
@@ -262,17 +262,14 @@ location = /react {
 
 **If this table is empty:** N/A — assumptions listed above need confirmation where marked.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **What is the canonical “single server” URL for SCAF-01 in local dev?**
-   - What we know: Go `:8443` and Vite `:3000` are separate today [VERIFIED: scripts].
-   - What’s unclear: Whether to implement Go→Vite proxy (D-13) or standardize on Traefik/Nginx for local full stack.
-   - Recommendation: Pick one URL for acceptance tests and document in PLAN.md.
+1. **What is the canonical URL topology for SCAF-01?** **RESOLVED.**
+   - **Production:** User hits the Traefik front door; Nginx serves `/react` and `/lit` (and static assets) on that host; API/WebSocket traffic to Go stays on the same host via Nginx proxies. Automated proof: Playwright against `vite preview` (Plan 02) exercises the same path→HTML mapping as Nginx; full Docker E2E is optional beyond phase scope.
+   - **Local dev:** Canonical UI base is **`https://localhost:3000`** (Vite, `scripts/dev/start-frontend.sh`). API/WebSocket default **`https://localhost:8443`** (Go). There is **no** single-process “Go serves both UIs”; developers use the documented matrix and `VITE_API_ORIGIN`.
 
-2. **Should `/` redirect to `/react` (per CONTEXT “Specific Ideas”) while Lit lives at `/lit`?**
-   - What we know: Nginx currently uses `try_files` → `index.html` for `/` [VERIFIED: `nginx.conf`].
-   - What’s unclear: Whether root redirect would break existing bookmarks or E2E that assume Lit at `/`.
-   - Recommendation: Align with REQUIREMENTS success criteria and E2E base URLs before changing rewrites.
+2. **Root `/` vs `/lit` vs `/react` — what is locked?** **RESOLVED.**
+   - **`/react`** and **`/lit`** are the required pretty paths for the two shells (Nginx + Vite middleware). **No change** to root `/` is required for SCAF-01: Lit remains the default app at `/` via existing `try_files` → `index.html` unless a future phase explicitly changes product default. Any “root redirects to React” idea stays **out of scope** for Phase 1 unless added to REQUIREMENTS.
 
 ## Environment Availability
 
@@ -323,8 +320,8 @@ location = /react {
 
 ### Wave 0 Gaps
 
-- [ ] E2E or scripted HTTP checks for `/react` and `/lit` on the **same origin** as required by finalized SCAF-01 interpretation.
-- [ ] Minimal React unit test proving `test-setup.ts` stubs allow importing a module that references `RTCPeerConnection` (if not already covered).
+- [ ] Playwright (Plan 02) against `vite preview` for `/react` and `/lit` shells; production same-origin behavior is Nginx + Traefik (full compose E2E optional).
+- [ ] Minimal React unit test proving `test-setup.ts` stubs allow importing a module that references `RTCPeerConnection` (Plan 01 Task 1).
 
 *(Build verification for dual HTML: `npm run build` + assert `dist/react.html` and `dist/index.html` exist.)*
 

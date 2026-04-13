@@ -7,7 +7,7 @@
 
 ### Scaffold
 
-- [ ] **SCAF-01**: Developer can run React frontend at `/react` and Lit frontend at `/lit` from the same Go server simultaneously
+- [ ] **SCAF-01**: On the **production** user-facing host (Traefik → `web-frontend` / Nginx), `/react` and `/lit` resolve to the correct React and Lit shells on the **same origin** as `/api` and `/ws` (proxied to Go). **Local development** uses a documented split: Vite HTTPS on port 3000 for UI (including `/react` and `/lit` via Vite middleware), Go TLS on port 8443 for API/WebSocket/Connect (`VITE_API_ORIGIN`); Go does not serve the MPA HTML.
 - [ ] **SCAF-02**: Vite is configured as a multi-page app (MPA) with separate entry points for Lit and React builds
 
 ### Core Hooks

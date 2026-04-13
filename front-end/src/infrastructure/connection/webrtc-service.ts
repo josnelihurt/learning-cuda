@@ -4,7 +4,7 @@ import type { IWebRTCService } from '../../domain/interfaces/IWebRTCService';
 import { WebRTCSession } from '../../domain/value-objects/WebRTCSession';
 import { SignalingMessage } from '../../gen/webrtc_signal_pb';
 
-class WebRTCService implements IWebRTCService {
+export class WebRTCService implements IWebRTCService {
   private initialized: boolean = false;
   private initPromise: Promise<void> | null = null;
   private signalingWebSockets: Map<string, WebSocket> = new Map();

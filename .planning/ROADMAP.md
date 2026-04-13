@@ -2,7 +2,7 @@
 
 ## Overview
 
-Five phases take the project from zero React code to a production-ready frontend with full feature parity to the existing Lit frontend. Phase 1 establishes the Vite MPA scaffold and Go routing so both frontends coexist from day one. Phase 2 builds the shared hook and context infrastructure every component depends on. Phase 3 implements all static UI features (image processing, file management, settings, health). Phase 4 adds the WebRTC video streaming path — the most complex part. Phase 5 validates parity between the two routes and closes any gaps.
+Five phases take the project from zero React code to a production-ready frontend with full feature parity to the existing Lit frontend. Phase 1 establishes the Vite MPA scaffold and static/proxy routing (Nginx + Traefik in production, Vite + Go split ports in dev) so both frontends coexist from day one. Phase 2 builds the shared hook and context infrastructure every component depends on. Phase 3 implements all static UI features (image processing, file management, settings, health). Phase 4 adds the WebRTC video streaming path — the most complex part. Phase 5 validates parity between the two routes and closes any gaps.
 
 ## Phases
 
@@ -21,18 +21,18 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Scaffold and Infrastructure
-**Goal**: Developer can load the React frontend at `/react` and the Lit frontend at `/lit` simultaneously from a single Vite build and Go server
+**Goal**: Developer can load the React frontend at `/react` and the Lit frontend at `/lit` simultaneously from a single Vite MPA build; production serves both routes on one user-facing origin via Nginx (with Go for API/WebSocket behind the same host), and local dev uses Vite for UI plus Go for backend per REQUIREMENTS SCAF-01
 **Depends on**: Nothing (first phase)
 **Requirements**: SCAF-01, SCAF-02
 **Success Criteria** (what must be TRUE):
   1. Developer visits `/react` in the browser and gets a React app shell (not a 404 or the Lit page)
   2. Developer visits `/lit` and gets the existing Lit frontend unchanged
-  3. `npm run dev` and `npm run build` both succeed with dual entry points producing separate output directories
+  3. `npm run dev` and `npm run build` both succeed with dual entry points producing **separate HTML entry artifacts** (and shared chunks) under `front-end/dist/`
   4. WebRTC APIs (`RTCPeerConnection`, `navigator.mediaDevices`) are stubbed in `test-setup.ts` so React tests can import WebRTC-using modules without crashing
 **Plans**: 2 plans
 Plans:
-- [x] 01-01-PLAN.md — Frontend build infrastructure: Vite MPA config, split tsconfigs, React deps, React shell, WebRTC stubs
-- [x] 01-02-PLAN.md — Go dual route serving: route-aware manifest, dual-template handler, /lit /react / redirect
+- [x] 01-01-PLAN.md — Frontend build infrastructure: Vite MPA config, dev/preview `/react` and `/lit` middleware, React shell, WebRTC stubs, build/manifest checks
+- [x] 01-02-PLAN.md — Production-style Nginx `/lit` + `/react`, Playwright on `vite preview`, dev topology in `start-frontend.sh`
 **UI hint**: yes
 
 ### Phase 2: Core Hook Infrastructure

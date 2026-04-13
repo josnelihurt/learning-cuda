@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { createPromiseClient, PromiseClient, Interceptor, ConnectError } from '@connectrpc/connect';
+import { createPromiseClient, PromiseClient, ConnectError } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '../../gen/config_service_connect';
 import { GetProcessorStatusResponse } from '../../gen/config_service_pb';
@@ -12,16 +12,9 @@ import {
 } from '../../gen/remote_management_service_pb';
 import { telemetryService } from '../../infrastructure/observability/telemetry-service';
 import { logger } from '../../infrastructure/observability/otel-logger';
+import { tracingInterceptor } from '../../infrastructure/grpc/tracing-interceptor';
 import { processorCapabilitiesService } from '../../services/processor-capabilities-service';
 import { remoteManagementService, StartJetsonNanoEvent } from '../../infrastructure/external/remote-management-service';
-
-const tracingInterceptor: Interceptor = (next) => async (req) => {
-  const headers = telemetryService.getTraceHeaders();
-  for (const [key, value] of Object.entries(headers)) {
-    req.header.set(key, value);
-  }
-  return await next(req);
-};
 
 @customElement('grpc-status-modal')
 export class GrpcStatusModal extends LitElement {

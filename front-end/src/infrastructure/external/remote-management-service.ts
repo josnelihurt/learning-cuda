@@ -1,4 +1,4 @@
-import { createPromiseClient, Interceptor } from '@connectrpc/connect';
+import { createPromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { RemoteManagementService as RemoteManagementServiceClient } from '../../gen/remote_management_service_connect';
 import { 
@@ -11,15 +11,7 @@ import {
   MonitorJetsonNanoResponse
 } from '../../gen/remote_management_service_pb';
 import { logger } from '../observability/otel-logger';
-import { telemetryService } from '../observability/telemetry-service';
-
-const tracingInterceptor: Interceptor = (next) => async (req) => {
-  const headers = telemetryService.getTraceHeaders();
-  for (const [key, value] of Object.entries(headers)) {
-    req.header.set(key, value);
-  }
-  return await next(req);
-};
+import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 
 export interface StartJetsonNanoEvent {
   status: string;

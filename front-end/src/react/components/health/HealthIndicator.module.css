@@ -1,0 +1,81 @@
+/* Health Indicator Styles */
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+  cursor: default;
+}
+
+.indicator.clickable {
+  cursor: pointer;
+}
+
+.indicator.clickable:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Status Dot */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+/* Healthy State */
+.indicator.healthy .dot {
+  background-color: #66ff66;
+  box-shadow: 0 0 8px rgba(102, 255, 102, 0.6);
+}
+
+/* Unhealthy State */
+.indicator.unhealthy .dot {
+  background-color: #ff6666;
+  box-shadow: 0 0 8px rgba(255, 102, 102, 0.6);
+}
+
+/* Loading State */
+.indicator.loading .dot {
+  background-color: #ffaa00;
+  box-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Label Text */
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #e0e0e0;
+  white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .indicator {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .label {
+    font-size: 11px;
+  }
+}

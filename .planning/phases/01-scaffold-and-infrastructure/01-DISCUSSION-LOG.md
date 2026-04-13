@@ -3,7 +3,7 @@
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
 
-**Date:** 2026-04-12
+**Date:** 2026-04-12 (updated)
 **Phase:** 01-scaffold-and-infrastructure
 **Areas discussed:** React file layout, Vite MPA config, Go routing strategy, React app shell content, WebRTC test stubs, Dev server proxy config, Build validation scope
 
@@ -160,9 +160,24 @@
 
 ---
 
+## Context Update Review (2026-04-12)
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Vite MPA approach | D-04 revision: current config uses TS entry, not HTML. Revisit the approach? | |
+| Go handler multi-entry | Dev mode script tags and template parsing hard-coded for single entry. How should dual-route serving work? | |
+| Context looks good | Existing decisions hold. Nuances are the agent's discretion. No changes needed. | ✓ |
+
+**User's choice:** Context looks good — existing 17 decisions verified against codebase, no revisions needed
+**Notes:** Codebase scout confirmed all decisions valid. Added evidence for agent's discretion items: manifest key change (`asset_manifest.go:21`), dev handler hard-coded tags (`development_handler.go:47-52`), template parsing strategy (`handler.go:39`).
+
+---
+
 ## the agent's Discretion
 
 - Exact `asset_manifest.go` refactoring to support multiple manifest keys
+- Multi-entry dev handler: `DevelopmentAssetHandler.GetScriptTags()` currently returns hard-coded script tags — needs route-aware selection
+- Template parsing strategy: `NewStaticHandler` parses single template at construction — needs dual-template support
 - React HTML template boilerplate (meta tags, font imports, etc.)
 - Error states for `/react` route (e.g., build missing)
 - How to structure `tsconfig.base.json` shared settings

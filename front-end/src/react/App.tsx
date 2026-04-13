@@ -1,11 +1,13 @@
-import { useHealthMonitor } from './hooks/useHealthMonitor';
+import { VideoStreamer } from './components/video/VideoStreamer';
 import { HealthIndicator } from './components/health/HealthIndicator';
+import { useHealthMonitor } from './hooks/useHealthMonitor';
+import styles from './App.module.css';
 
-function App() {
+export function App() {
   const { isHealthy, loading } = useHealthMonitor();
 
   return (
-    <div>
+    <div className={styles.app}>
       <header className="navbar">
         <div className="navbar-container">
           <div className="navbar-left">
@@ -20,7 +22,7 @@ function App() {
         </div>
       </header>
       <main className="main-content">
-        <p>React app loaded. Features coming in Phase 3.</p>
+        <VideoStreamer />
       </main>
     </div>
   );

@@ -203,17 +203,13 @@ page.on('console', (msg) => {
 
 **Note:** Claims not listed here were verified in-session or cited above.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should Phase 5 standardize artifact paths on `05-polish-and-parity-validation/` vs existing `05-polish-parity/` draft plans?**
-   - What we know: Draft plans live under `05-polish-parity/` [VERIFIED: glob]; this research file targets `05-polish-and-parity-validation/` per orchestrator.
-   - What’s unclear: Which directory is canonical for execution.
-   - Recommendation: Pick one folder before writing reports; symlink or move with `git mv` to avoid duplication [user preference: `mv` over delete/create].
+1. **Canonical artifact directory (`05-polish-and-parity-validation/` vs `05-polish-parity/` draft folder)**  
+   **Resolution:** Execution and new reports use **`.planning/phases/05-polish-and-parity-validation/`** only. Any material under `05-polish-parity/` is non-canonical draft; consolidate with `git mv` if those files are still needed [LOCKED for Phase 5 planning].
 
-2. **Is automated visual regression desired for CSS parity, or manual screenshot checklist only?**
-   - What we know: Roadmap asks for CSS match without prescribing tooling [VERIFIED: ROADMAP].
-   - What’s unclear: Tolerance for false positives from font rendering.
-   - Recommendation: Start manual side-by-side + token audit; add Playwright `toHaveScreenshot` only if stable in CI [ASSUMED].
+2. **Automated visual regression vs manual for CSS parity**  
+   **Resolution:** **Manual** side-by-side and token/CSS audit first (Plans 05-02 / PAR-01). Optional Playwright screenshots only if CI-stable later; not required for PAR-01 [LOCKED].
 
 ## Environment Availability
 
@@ -343,10 +339,10 @@ page.on('console', (msg) => {
 | Architecture | HIGH | Matches codebase + e2e |
 | Pitfalls | MEDIUM-HIGH | `tsc` run captured; QA subjectivity remains |
 
-### Open Questions
+### Resolved decisions
 
-- Canonical artifact directory (`05-polish-parity` vs `05-polish-and-parity-validation`).  
-- Level of automated visual regression (if any) for CSS parity.
+- Canonical path: `05-polish-and-parity-validation/` (draft `05-polish-parity/` superseded for execution).
+- CSS parity: manual + audit first; no mandatory pixel-diff tooling for v1.0.
 
 ### Ready for Planning
 

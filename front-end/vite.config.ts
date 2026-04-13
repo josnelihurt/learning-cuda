@@ -1,7 +1,40 @@
+/**
+ * Vite MPA (Lit + React): build emits dist/index.html and dist/react.html.
+ * dist/.vite/manifest.json uses HTML path keys index.html / react.html for Nginx static copies.
+ */
 import { defineConfig, loadEnv } from 'vite';
+import type { Connect, Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
 import react from '@vitejs/plugin-react';
+
+function prettyFrontendRoutesPlugin(): Plugin {
+  const rewrite: Connect.NextHandleFunction = (req, _res, next) => {
+    if (req.method !== 'GET' || !req.url) {
+      next();
+      return;
+    }
+    const q = req.url.indexOf('?');
+    const pathname = q === -1 ? req.url : req.url.slice(0, q);
+    const search = q === -1 ? '' : req.url.slice(q);
+    if (pathname === '/react') {
+      req.url = '/react.html' + search;
+    } else if (pathname === '/lit') {
+      req.url = '/index.html' + search;
+    }
+    next();
+  };
+
+  return {
+    name: 'pretty-frontend-routes',
+    configureServer(server) {
+      server.middlewares.use(rewrite);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(rewrite);
+    },
+  };
+}
 
 function gitVersionPlugin() {
   let version = 'dev';
@@ -65,7 +98,7 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
     },
 
-    plugins: [gitVersionPlugin(), react()],
+    plugins: [gitVersionPlugin(), prettyFrontendRoutesPlugin(), react()],
 
     optimizeDeps: {
       include: [
@@ -115,6 +148,13 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+    },
+
+    preview: {
+      host: '127.0.0.1',
+      port: 4173,
+      strictPort: true,
+      https: false,
     },
 
     resolve: {

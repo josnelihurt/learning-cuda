@@ -10,7 +10,7 @@ export function useFiles() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const requestGenRef = useRef(0);
-  const { error: showError } = useToast();
+  const toast = useToast();
 
   const fetchImages = useCallback(() => {
     abortRef.current?.abort();
@@ -36,7 +36,7 @@ export function useFiles() {
         const conn = ConnectError.from(e);
         const errorMessage = conn.message || 'Failed to load images';
         setError(errorMessage);
-        showError('Error', errorMessage);
+        toast.error('Error', errorMessage);
       } finally {
         if (gen === requestGenRef.current) {
           setLoading(false);

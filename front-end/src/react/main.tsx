@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { GrpcClientsProvider } from './providers/grpc-clients-provider';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -9,6 +10,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <GrpcClientsProvider>
+      <App />
+    </GrpcClientsProvider>
   </StrictMode>
 );

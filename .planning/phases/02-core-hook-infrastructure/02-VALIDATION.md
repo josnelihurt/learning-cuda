@@ -38,11 +38,11 @@ created: 2026-04-12
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | 01 | 1 | HOOK-01 | T-02-01 / — | Same-origin transport; clients only from context | unit | `cd front-end && npx vitest run src/react` | Wave 0 | pending |
-| TBD | 01 | 1 | HOOK-02 | — | N/A unary RPC surface | unit | `cd front-end && npx vitest run src/react` | Wave 0 | pending |
-| TBD | 02 | 1 | HOOK-03 | — | Toast bridge; no XSS in hook API | unit | `cd front-end && npx vitest run src/react` | Wave 0 | pending |
-| TBD | 02 | 1 | HOOK-04 | — | ListFilters only via generated client | unit | `cd front-end && npx vitest run src/react` | Wave 0 | pending |
-| TBD | 02 | 2 | HOOK-05 | — | Health RPC only; interval cleanup | unit | `cd front-end && npx vitest run src/react` | Wave 0 | pending |
+| TBD | 01 | 1 | HOOK-01 | T-02-01 / — | Same-origin transport; clients only from context | unit | `cd front-end && npx vitest run src/react` | with plan 01 | pending |
+| TBD | 01 | 1 | HOOK-02 | — | Unary RPC via PromiseClient | unit | `cd front-end && npx vitest run src/react` | with plan 01 | pending |
+| TBD | 01 | 1 | HOOK-03 | — | Toast bridge; DOM host on react.html | unit | `cd front-end && npx vitest run src/react` | with plan 01 | pending |
+| TBD | 02 | 2 | HOOK-04 | T-02-05 / — | ListFilters only via generated client | unit | `cd front-end && npx vitest run src/react` | with plan 02 | pending |
+| TBD | 02 | 2 | HOOK-05 | — | Health RPC only; interval cleanup | unit | `cd front-end && npx vitest run src/react` | with plan 02 | pending |
 
 *Status: pending / green / red / flaky*
 
@@ -50,8 +50,10 @@ created: 2026-04-12
 
 ## Wave 0 Requirements
 
-- [ ] `front-end/src/react/**/*.test.tsx` — stubs or full tests for HOOK-01 through HOOK-05
-- [ ] `renderWithGrpcProviders` (or equivalent) — shared test helper for context-wrapped renders
+Tests and `renderWithGrpcProviders` (or equivalent) are **created inside** `02-01-PLAN.md` and `02-02-PLAN.md` tasks — no separate Wave 0 plan. Before sign-off, all listed automated commands must pass.
+
+- [ ] `front-end/src/react/**/*.test.tsx` — coverage for HOOK-01 through HOOK-05 (delivered by phase plans)
+- [ ] Shared test helper for context-wrapped renders (delivered by plan 01 tasks)
 
 ---
 

@@ -44,7 +44,10 @@ Plans:
   2. Any component can call `useToast` to display a toast notification visible in the UI
   3. A component using `useFilters` receives a list of available processing filters fetched from the backend
   4. `useHealthMonitor` continuously reflects backend health — status changes within one poll cycle when the backend goes up or down
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Shared gRPC transport + tracing interceptor, ServiceContext/GrpcClientsProvider, useAsyncGRPC, toast bridge + react.html host, Vitest HOOK-01–03
+- [ ] 02-02-PLAN.md — useFilters (listFilters), useHealthMonitor (checkAcceleratorHealth, visibility pause), Vitest HOOK-04–05
 
 ### Phase 3: Static Feature UI (Image Processing Path)
 **Goal**: Users can upload images, apply filters, view processed results, manage files, view and modify system settings, and see backend health status — all from the React frontend
@@ -89,7 +92,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Scaffold and Infrastructure | 2/2 | Complete | 2026-04-13 |
-| 2. Core Hook Infrastructure | 0/? | Not started | - |
+| 2. Core Hook Infrastructure | 0/2 | Not started | - |
 | 3. Static Feature UI | 0/? | Not started | - |
 | 4. Video Streaming and WebRTC | 0/? | Not started | - |
 | 5. Polish and Parity Validation | 0/? | Not started | - |

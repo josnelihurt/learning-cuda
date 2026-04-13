@@ -1,0 +1,5 @@
+.app {
+  min-height: 100vh;
+  background: var(--dominant-color, #fff);
+  padding: var(--spacing-lg, 24px);
+}

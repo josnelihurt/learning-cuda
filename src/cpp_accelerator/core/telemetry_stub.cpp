@@ -1,4 +1,4 @@
-#include "cpp_accelerator/core/telemetry.h"
+#include "src/cpp_accelerator/core/telemetry.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"

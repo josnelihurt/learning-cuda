@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	gen "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/webserver/pkg/interfaces/adapters"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/adapters"
 )
 
 type GRPCRepository struct {

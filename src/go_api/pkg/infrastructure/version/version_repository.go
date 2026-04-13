@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 )
 
 const (
@@ -26,8 +26,8 @@ func findProjectRoot() string {
 
 	dir := wd
 	for {
-		webserverVersionPath := filepath.Join(dir, "webserver", "VERSION")
-		if _, err := os.Stat(webserverVersionPath); err == nil {
+		goAPIVersionPath := filepath.Join(dir, "src", "go_api", "VERSION")
+		if _, err := os.Stat(goAPIVersionPath); err == nil {
 			return dir
 		}
 
@@ -44,8 +44,8 @@ func findProjectRoot() string {
 func NewVersionRepository() interfaces.VersionRepository {
 	projectRoot := findProjectRoot()
 	return &RepositoryImpl{
-		goVersionPath:    filepath.Join(projectRoot, "webserver", "VERSION"),
-		cppVersionPath:   filepath.Join(projectRoot, "cpp_accelerator", "VERSION"),
+		goVersionPath:    filepath.Join(projectRoot, "src", "go_api", "VERSION"),
+		cppVersionPath:   filepath.Join(projectRoot, "src", "cpp_accelerator", "VERSION"),
 		protoVersionPath: filepath.Join(projectRoot, "proto", "VERSION"),
 	}
 }

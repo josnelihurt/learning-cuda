@@ -16,7 +16,7 @@ cc_library(
         "@io_opentelemetry_cpp//sdk/src/logs:logs",
         "@io_opentelemetry_cpp//sdk/src/resource:resource",
         "@curl//:curl",
-        "//cpp_accelerator/ports/shared_lib:library_version",
+        "//src/cpp_accelerator/ports/shared_lib:library_version",
     ],
 )
 

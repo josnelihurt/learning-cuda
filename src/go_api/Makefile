@@ -1,7 +1,7 @@
 .PHONY: build test run clean install-deps
 
 BINARY_NAME=server
-BUILD_DIR=../bin
+BUILD_DIR=../../bin
 GO_FILES=$(shell find . -name '*.go' -type f)
 
 build:
@@ -23,9 +23,9 @@ build:
 		BRANCH=$$BRANCH; \
 	fi; \
 	cd cmd/server && CGO_ENABLED=0 go build \
-		-ldflags "-X github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build.branch=$$BRANCH \
-		           -X github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build.buildTime=$$BUILD_TIME \
-		           -X github.com/jrb/cuda-learning/webserver/pkg/infrastructure/build.commitHash=$$COMMIT_HASH" \
+		-ldflags "-X github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/build.branch=$$BRANCH \
+		           -X github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/build.buildTime=$$BUILD_TIME \
+		           -X github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/build.commitHash=$$COMMIT_HASH" \
 		-o ../../$(BUILD_DIR)/$(BINARY_NAME)
 	@echo "✓ Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
@@ -39,7 +39,7 @@ test-short:
 
 run: build
 	@echo "Starting webserver..."
-	$(BUILD_DIR)/$(BINARY_NAME) -config=../config/config.yaml
+	$(BUILD_DIR)/$(BINARY_NAME) -config=../../config/config.yaml
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -58,5 +58,5 @@ lint:
 
 dev:
 	@echo "Running in development mode..."
-	go run cmd/server/main.go -config=../config/config.dev.yaml
+	go run cmd/server/main.go -config=../../config/config.dev.yaml
 

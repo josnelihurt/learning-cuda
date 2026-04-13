@@ -1,4 +1,4 @@
-#include "cpp_accelerator/infrastructure/image/image_writer.h"
+#include "src/cpp_accelerator/infrastructure/image/image_writer.h"
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>

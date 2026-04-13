@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/version"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/version"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
 )

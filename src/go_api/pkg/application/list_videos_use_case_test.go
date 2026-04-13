@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

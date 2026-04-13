@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::domain::interfaces {
 

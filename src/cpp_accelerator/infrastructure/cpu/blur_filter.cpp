@@ -1,11 +1,11 @@
-#include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
+#include "src/cpp_accelerator/infrastructure/cpu/blur_filter.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <vector>
-#include "cpp_accelerator/domain/interfaces/filters/i_filter.h"
-#include "cpp_accelerator/domain/interfaces/i_pixel_getter.h"
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
+#include "src/cpp_accelerator/domain/interfaces/i_pixel_getter.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::infrastructure::cpu {
 

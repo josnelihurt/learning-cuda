@@ -1,4 +1,4 @@
-#include "cpp_accelerator/application/commands/command_factory.h"
+#include "src/cpp_accelerator/application/commands/command_factory.h"
 
 namespace jrb::application::commands {
 

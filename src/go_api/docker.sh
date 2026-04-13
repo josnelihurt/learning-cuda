@@ -5,13 +5,13 @@ set -e
 case "$1" in
   build)
     echo "Building Docker image..."
-    bazel build //webserver:server_image
+    bazel build //src/go_api:server_image
     echo "Build complete"
     ;;
     
   load)
     echo "Loading image into Docker..."
-    bazel run //webserver:server_load
+    bazel run //src/go_api:server_load
     echo "Image loaded as cuda-webserver:latest"
     ;;
     
@@ -30,9 +30,9 @@ case "$1" in
     
   all)
     echo "Building and loading image..."
-    bazel build //webserver:server_image
-    bazel run //webserver:server_load
-    echo "Ready. Run with: ./webserver/docker.sh run"
+    bazel build //src/go_api:server_image
+    bazel run //src/go_api:server_load
+    echo "Ready. Run with: ./src/go_api/docker.sh run"
     ;;
     
   *)

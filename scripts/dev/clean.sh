@@ -20,7 +20,7 @@ echo "  Cleaning Go cache..."
 go clean -cache -modcache -testcache
 
 echo "  Cleaning build outputs..."
-rm -f webserver/cmd/server/server
+rm -f src/go_api/cmd/server/server
 rm -f bin/server
 
 echo "  Cleaning generated proto files..."
@@ -30,18 +30,18 @@ echo "  Cleaning test results..."
 rm -rf .ignore/front-end/
 # Legacy cleanup for deprecated locations
 rm -rf .ignore/webserver/web/
-rm -rf front-end/.ignore/
-rm -rf front-end/test-results/
-rm -rf front-end/playwright-report/
-sudo rm -rf integration/tests/acceptance/.ignore/ 2>/dev/null || rm -rf integration/tests/acceptance/.ignore/
+rm -rf src/front-end/.ignore/
+rm -rf src/front-end/test-results/
+rm -rf src/front-end/playwright-report/
+sudo rm -rf test/integration/tests/acceptance/.ignore/ 2>/dev/null || rm -rf test/integration/tests/acceptance/.ignore/
 
 echo "  Cleaning test data (video frames)..."
 rm -rf data/test-data/video-frames/
 
 echo "  Cleaning coverage reports..."
-rm -rf coverage/frontend/
-rm -rf coverage/golang/
-rm -rf coverage/cpp/
+rm -rf test/coverage/frontend/
+rm -rf test/coverage/golang/
+rm -rf test/coverage/cpp/
 
 if [ "$CLEAN_ALL" = true ]; then
     echo "  Cleaning SSL certificates (--all flag)..."

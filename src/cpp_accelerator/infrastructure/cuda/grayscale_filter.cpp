@@ -1,13 +1,13 @@
-#include "cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/core/telemetry.h"
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "cpp_accelerator/infrastructure/cuda/grayscale_kernel.h"
+#include "src/cpp_accelerator/core/telemetry.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/infrastructure/cuda/grayscale_kernel.h"
 
 namespace jrb::infrastructure::cuda {
 

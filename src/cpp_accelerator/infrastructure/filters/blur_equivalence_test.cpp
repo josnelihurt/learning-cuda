@@ -1,12 +1,12 @@
-#include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
-#include "cpp_accelerator/infrastructure/cuda/blur_processor.h"
+#include "src/cpp_accelerator/infrastructure/cpu/blur_filter.h"
+#include "src/cpp_accelerator/infrastructure/cuda/blur_processor.h"
 
 #include <gtest/gtest.h>
 #include <cmath>
 #include <vector>
 
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "cpp_accelerator/infrastructure/image/image_loader.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/infrastructure/image/image_loader.h"
 
 namespace jrb::infrastructure {
 namespace {

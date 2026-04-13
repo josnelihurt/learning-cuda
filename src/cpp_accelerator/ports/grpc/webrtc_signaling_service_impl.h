@@ -10,7 +10,7 @@
 #include <grpcpp/grpcpp.h>
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/ports/grpc/webrtc_manager.h"
+#include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
 #include "proto/_virtual_imports/webrtc_signal_proto/webrtc_signal.grpc.pb.h"
 
 namespace jrb::ports::grpc_service {

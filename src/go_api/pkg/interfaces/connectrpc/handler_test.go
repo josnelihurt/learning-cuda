@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/webserver/pkg/application"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

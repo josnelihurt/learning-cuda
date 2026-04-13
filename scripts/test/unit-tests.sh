@@ -51,7 +51,7 @@ if [ "$SKIP_GOLANG" = false ]; then
   cd "$PROJECT_ROOT"
 
   # Run tests excluding CGO packages that require hardware and test directories
-  go test -race $(go list ./... | grep -v "webserver/pkg/infrastructure/processor/loader" | grep -v "integration/tests" | grep -v "cmd/generate-video-metadata" | grep -v "proto/gen") || {
+  go test -race $(go list ./... | grep -v "src/go_api/pkg/infrastructure/processor/loader" | grep -v "test/integration/tests" | grep -v "cmd/generate-video-metadata" | grep -v "proto/gen") || {
       echo "FAILED: Go unit tests"
       exit 1
   }
@@ -67,7 +67,7 @@ fi
 if [ "$SKIP_FRONTEND" = false ]; then
   echo "[2/3] Running Frontend Unit Tests..."
   echo "====================================="
-  cd "$PROJECT_ROOT/front-end"
+  cd "$PROJECT_ROOT/src/front-end"
   
   npm run test -- --run || {
       echo "FAILED: Frontend unit tests"

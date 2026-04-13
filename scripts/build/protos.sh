@@ -24,7 +24,7 @@ if ! $CONTAINER_CMD image exists "$IMAGE_NAME" 2>/dev/null; then
 fi
 
 echo "Generating proto files..."
-mkdir -p "$PROJECT_ROOT/proto/gen/genconnect" "$PROJECT_ROOT/front-end/src/gen"
+mkdir -p "$PROJECT_ROOT/proto/gen/genconnect" "$PROJECT_ROOT/src/front-end/src/gen"
 CACHE_DIR="$PROJECT_ROOT/.cache/buf-$(id -u)"
 mkdir -p "$CACHE_DIR"
 chmod -R 755 "$PROJECT_ROOT/proto/gen" "$CACHE_DIR" 2>/dev/null || true
@@ -38,9 +38,9 @@ $CONTAINER_CMD run --rm \
     echo "FAILED: Proto generation failed"
     exit 1
 }
-chown -R $(id -u):$(id -g) "$PROJECT_ROOT/proto/gen" "$PROJECT_ROOT/front-end/src/gen" 2>/dev/null || true
+chown -R $(id -u):$(id -g) "$PROJECT_ROOT/proto/gen" "$PROJECT_ROOT/src/front-end/src/gen" 2>/dev/null || true
 
 echo "Proto files generated successfully"
 echo "  Go:         proto/gen/*.pb.go"
-echo "  TypeScript: front-end/src/gen/*.ts"
+echo "  TypeScript: src/front-end/src/gen/*.ts"
 

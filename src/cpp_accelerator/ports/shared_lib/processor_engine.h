@@ -10,7 +10,7 @@
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
+#include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
 #include "processor_api.h"
 
 namespace jrb::ports::shared_lib {

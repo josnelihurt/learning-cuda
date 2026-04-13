@@ -1,4 +1,4 @@
-#include "cpp_accelerator/infrastructure/image/image_loader.h"
+#include "src/cpp_accelerator/infrastructure/image/image_loader.h"
 #include <gtest/gtest.h>
 
 namespace jrb::infrastructure::image {

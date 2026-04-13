@@ -16,7 +16,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":processor_engine_contract",
-        "//cpp_accelerator/ports/shared_lib:processor_engine",
+        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
     ],
 )
 
@@ -68,7 +68,7 @@ cc_binary(
         ":processor_engine_adapter_lib",
         ":webrtc_signaling_service_impl_lib",
         ":webrtc_manager_lib",
-        "//cpp_accelerator/ports/shared_lib:processor_engine",
+        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
         "//proto:image_processor_service_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@spdlog",

@@ -27,9 +27,9 @@ kill_from_pid_file() {
     rm -f "$pid_file"
 }
 
-kill_from_pid_file "$DEV_PID_GRPC" "gRPC server"
-kill_from_pid_file "$DEV_PID_GO" "Go server"
-kill_from_pid_file "$DEV_PID_VITE" "Vite"
+kill_from_pid_file "$DEV_PID_GRPC" " gRPC server"
+kill_from_pid_file "$DEV_PID_GO" " Go server"
+kill_from_pid_file "$DEV_PID_VITE" " Vite"
 
 pkill -f "image_processor_grpc_server" 2>/dev/null && echo "gRPC server stopped (fallback)" || true
 fuser -k 60061/tcp 2>/dev/null || true

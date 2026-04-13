@@ -1,4 +1,4 @@
-#include "cpp_accelerator/ports/grpc/image_processor_service_impl.h"
+#include "src/cpp_accelerator/ports/grpc/image_processor_service_impl.h"
 
 #include <memory>
 #include <string>
@@ -15,7 +15,7 @@
 
 #include "absl/strings/str_cat.h"
 
-#include "cpp_accelerator/ports/grpc/processor_engine_provider.h"
+#include "src/cpp_accelerator/ports/grpc/processor_engine_provider.h"
 
 namespace jrb::ports::grpc_service {
 

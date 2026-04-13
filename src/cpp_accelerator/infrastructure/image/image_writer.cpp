@@ -1,4 +1,4 @@
-#include "cpp_accelerator/infrastructure/image/image_writer.h"
+#include "src/cpp_accelerator/infrastructure/image/image_writer.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"

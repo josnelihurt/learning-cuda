@@ -1,13 +1,13 @@
-#include "cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
-#include "cpp_accelerator/infrastructure/image/image_loader.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/image/image_loader.h"
 
 namespace jrb::infrastructure::cuda {
 namespace {

@@ -1,4 +1,4 @@
-#include "cpp_accelerator/ports/grpc/image_processor_service_impl.h"
+#include "src/cpp_accelerator/ports/grpc/image_processor_service_impl.h"
 
 #include <fstream>
 #include <string>
@@ -196,7 +196,7 @@ void ImageProcessorServiceImpl::PopulateListFiltersResponse(
   CopyTraceContext(request->trace_context(), response->mutable_trace_context());
 
   std::string server_version;
-  static const char* version_file_paths[] = {"cpp_accelerator/VERSION",
+  static const char* version_file_paths[] = {"src/cpp_accelerator/VERSION",
                                              "../cpp_accelerator/VERSION",
                                              "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
 

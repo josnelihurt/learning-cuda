@@ -213,22 +213,22 @@ run_proto_tools() {
 
 run_go_builder() {
   local version
-  version="$(read_version "webserver/builder/VERSION")"
+  version="$(read_version "src/go_api/builder/VERSION")"
   local version_tag="${IMAGE_BASE}/base:go-builder-${version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/base:go-builder-latest-${ARCH}"
 
   print_stage_header "Building go builder base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "webserver/builder/Dockerfile" "true"
+  build_and_tag "${version_tag}" "${latest_tag}" "src/go_api/builder/Dockerfile" "true"
 }
 
 run_bazel_base() {
   local version
-  version="$(read_version "cpp_accelerator/docker-build-base/VERSION")"
+  version="$(read_version "src/cpp_accelerator/docker-build-base/VERSION")"
   local version_tag="${IMAGE_BASE}/base:bazel-base-${version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
 
   print_stage_header "Building bazel base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "cpp_accelerator/docker-build-base/Dockerfile" "true"
+  build_and_tag "${version_tag}" "${latest_tag}" "src/cpp_accelerator/docker-build-base/Dockerfile" "true"
 }
 
 run_runtime_base() {
@@ -243,12 +243,12 @@ run_runtime_base() {
 
 run_integration_base() {
   local version
-  version="$(read_version "integration/VERSION")"
+  version="$(read_version "test/integration/VERSION")"
   local version_tag="${IMAGE_BASE}/base:integration-tests-base-${version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/base:integration-tests-base-latest-${ARCH}"
 
   print_stage_header "Building integration base (${version})"
-  build_and_tag "${version_tag}" "${latest_tag}" "integration/Dockerfile" "true"
+  build_and_tag "${version_tag}" "${latest_tag}" "test/integration/Dockerfile" "true"
 }
 
 run_proto_generated() {
@@ -272,7 +272,7 @@ run_cpp_built() {
   local proto_version
   local cpp_version
   proto_version="$(read_version "proto/VERSION")"
-  cpp_version="$(read_version "cpp_accelerator/VERSION")"
+  cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
   
@@ -315,7 +315,7 @@ run_cpp_built() {
     "${docker_build_args[@]}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
     "${build_args[@]}" \
-    -f "cpp_accelerator/Dockerfile.build" \
+    -f "src/cpp_accelerator/Dockerfile.build" \
     -t "${version_tag}" \
     -t "${latest_tag}" \
     "${REPO_ROOT}"
@@ -334,7 +334,7 @@ run_golang_built() {
   local proto_version
   local golang_version
   proto_version="$(read_version "proto/VERSION")"
-  golang_version="$(read_version "webserver/VERSION")"
+  golang_version="$(read_version "src/go_api/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:golang-built-${golang_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:golang-built-latest-${ARCH}"
 
@@ -342,7 +342,7 @@ run_golang_built() {
   build_and_tag \
     "${version_tag}" \
     "${latest_tag}" \
-    "webserver/Dockerfile.build" \
+    "src/go_api/Dockerfile.build" \
     "true" \
     "--target" "artifacts" \
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
@@ -355,8 +355,8 @@ run_app_image() {
   local cpp_version
   local golang_version
   proto_version="$(read_version "proto/VERSION")"
-  cpp_version="$(read_version "cpp_accelerator/VERSION")"
-  golang_version="$(read_version "webserver/VERSION")"
+  cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
+  golang_version="$(read_version "src/go_api/VERSION")"
   local app_tag="${golang_version}"
   local version_tag="${IMAGE_BASE}/app:${app_tag}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/app:latest-${ARCH}"
@@ -378,7 +378,7 @@ run_grpc_server_image() {
   local proto_version
   local cpp_version
   proto_version="$(read_version "proto/VERSION")"
-  cpp_version="$(read_version "cpp_accelerator/VERSION")"
+  cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
 
   local app_tag="grpc-${cpp_version}-proto${proto_version}"
   local version_tag="${IMAGE_BASE}/grpc-server:${app_tag}-${ARCH}"
@@ -416,7 +416,7 @@ run_grpc_server_image() {
   build_and_tag \
     "${version_tag}" \
     "${latest_tag}" \
-    "cpp_accelerator/Dockerfile.build" \
+    "src/cpp_accelerator/Dockerfile.build" \
     "false" \
     "${build_args[@]}" \
     "--build-arg" "TARGETARCH=${TARGETARCH}"

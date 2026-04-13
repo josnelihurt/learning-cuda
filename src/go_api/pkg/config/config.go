@@ -84,11 +84,11 @@ func setDefaults(v *viper.Viper) {
 		"environment":         "development",
 		"http_client_timeout": "10s",
 
-		"server.http_port":   ":8080",
-		"server.https_port":  ":8443",
-		"server.tls.enabled": true,
-		"server.tls.cert_file":      ".secrets/localhost+2.pem",
-		"server.tls.key_file":       ".secrets/localhost+2-key.pem",
+		"server.http_port":     ":8080",
+		"server.https_port":    ":8443",
+		"server.tls.enabled":   true,
+		"server.tls.cert_file": ".secrets/localhost+2.pem",
+		"server.tls.key_file":  ".secrets/localhost+2-key.pem",
 
 		"stream.transport_format":   "json",
 		"stream.websocket_endpoint": "/ws",

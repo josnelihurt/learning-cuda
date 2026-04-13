@@ -1,4 +1,4 @@
-#include "cpp_accelerator/core/result.h"
+#include "src/cpp_accelerator/core/result.h"
 
 #include <gtest/gtest.h>
 #include <string>

@@ -1,12 +1,12 @@
-#include "cpp_accelerator/application/pipeline/filter_pipeline.h"
+#include "src/cpp_accelerator/application/pipeline/filter_pipeline.h"
 
 #include <algorithm>
 #include <memory>
 #include <vector>
 
-#include "cpp_accelerator/application/pipeline/buffer_pool.h"
-#include "cpp_accelerator/domain/interfaces/filters/i_filter.h"
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/application/pipeline/buffer_pool.h"
+#include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::application::pipeline {
 

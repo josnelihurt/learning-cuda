@@ -1,4 +1,4 @@
-#include "cpp_accelerator/core/logger.h"
+#include "src/cpp_accelerator/core/logger.h"
 
 #include <cstdlib>
 #include <fstream>
@@ -12,7 +12,7 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/core/otel_log_sink.h"
+#include "src/cpp_accelerator/core/otel_log_sink.h"
 
 namespace jrb::core {
 

@@ -9,7 +9,7 @@
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.grpc.pb.h"
 
-#include "cpp_accelerator/ports/grpc/processor_engine_provider.h"
+#include "src/cpp_accelerator/ports/grpc/processor_engine_provider.h"
 
 namespace jrb::ports::grpc_service {
 

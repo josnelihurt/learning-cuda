@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { fileService } from '@/infrastructure/data/file-service';
-import { useToast } from './useToast';
-import type { StaticImage } from '@/gen/config_service_pb';
+import { useToast, type ToastApi } from './useToast';
+import type { StaticImage } from '@/gen/common_pb';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -16,7 +16,7 @@ export function useImageUpload(): UseImageUploadReturn {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const { error: showError } = useToast();
+  const toastApi = useToast() as ToastApi;
 
   const uploadFile = useCallback(
     async (file: File): Promise<StaticImage | undefined> => {
@@ -28,7 +28,7 @@ export function useImageUpload(): UseImageUploadReturn {
       if (!file.name.toLowerCase().endsWith('.png')) {
         const errorMsg = 'Only PNG files are supported';
         setError(errorMsg);
-        showError('Invalid File', errorMsg);
+        toastApi.error('Invalid File', errorMsg);
         return undefined;
       }
 
@@ -36,7 +36,7 @@ export function useImageUpload(): UseImageUploadReturn {
       if (file.size > MAX_FILE_SIZE) {
         const errorMsg = 'File size exceeds 10MB limit';
         setError(errorMsg);
-        showError('File Too Large', errorMsg);
+        toastApi.error('File Too Large', errorMsg);
         return undefined;
       }
 
@@ -72,12 +72,12 @@ export function useImageUpload(): UseImageUploadReturn {
 
         const errorMsg = err instanceof Error ? err.message : 'Upload failed';
         setError(errorMsg);
-        showError('Upload Failed', errorMsg);
+        toastApi.error('Upload Failed', errorMsg);
 
         return undefined;
       }
     },
-    [showError]
+    [toastApi]
   );
 
   return {

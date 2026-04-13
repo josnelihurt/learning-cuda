@@ -2,6 +2,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { VideoStreamer } from './VideoStreamer';
 
+// Mock HTMLCanvasElement.getContext for all tests
+beforeEach(() => {
+  const mockContext = {
+    willReadFrequently: true,
+    clearRect: vi.fn(),
+    drawImage: vi.fn(),
+  };
+
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => mockContext);
+});
+
 // Mock dependencies
 vi.mock('../../hooks/useWebRTCStream', () => ({
   useWebRTCStream: vi.fn(),
@@ -253,7 +264,8 @@ describe('VideoStreamer', () => {
       render(<VideoStreamer />);
 
       const stopButton = screen.getByRole('button', { name: /stop stream/i });
-      expect(stopButton).toHaveClass('stopButton');
+      // CSS Modules generate hash-based class names, so we check if it contains the base name
+      expect(stopButton.className).toContain('stopButton');
     });
   });
 });

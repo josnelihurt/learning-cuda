@@ -55,7 +55,7 @@ print_help() {
     echo "Nginx serves /react and /lit; Go does not serve frontend HTML in production."
     echo ""
     echo "VITE_API_ORIGIN defaults to https://localhost:8443 when unset."
-    echo "Vite only (Go already running): cd front-end && npm run dev (needs .secrets/localhost+2*.pem)."
+    echo "Vite only (Go already running): cd src/front-end && npm run dev (needs .secrets/localhost+2*.pem)."
     echo ""
     echo "Options:"
     echo "  --build, -b    Build C++ gRPC server and Go backend before starting"
@@ -99,14 +99,14 @@ run_optional_build() {
     fi
 
     echo "Building gRPC processor server..."
-    bazel build //cpp_accelerator/ports/grpc:image_processor_grpc_server
+    bazel build //src/cpp_accelerator/ports/grpc:image_processor_grpc_server
 
     echo "Building backend with Go..."
-    (cd webserver && make build)
+    (cd src/go_api && make build)
 }
 
 require_grpc_binary() {
-    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server"
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/image_processor_grpc_server"
     if [ ! -x "$GRPC_SERVER_BIN" ]; then
         echo "Error: gRPC server binary not found at ${GRPC_SERVER_BIN}" >&2
         echo "       Run './scripts/dev/start.sh --build' to build it." >&2
@@ -115,7 +115,7 @@ require_grpc_binary() {
 }
 
 start_grpc() {
-    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server"
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/image_processor_grpc_server"
     echo "Starting gRPC (C++) server..."
     "$GRPC_SERVER_BIN" --listen_addr=0.0.0.0:60061 >"$DEV_LOG_GRPC" 2>&1 &
     GRPC_PID=$!
@@ -125,7 +125,7 @@ start_grpc() {
 start_go() {
     echo "Starting Go server..."
     echo "Building Go server..."
-    (cd "$PROJECT_ROOT/webserver" && make build) || die "Go build failed"
+    (cd "$PROJECT_ROOT/src/go_api" && make build) || die "Go build failed"
 
     [ -f "$PROJECT_ROOT/bin/server" ] || die "Go build did not produce bin/server"
 
@@ -137,7 +137,7 @@ start_go() {
 }
 
 start_vite() {
-    cd "$PROJECT_ROOT/front-end"
+    cd "$PROJECT_ROOT/src/front-end"
     [ ! -d "node_modules" ] && npm install
 
     echo "Dev: UI https://localhost:3000/lit and https://localhost:3000/react | API https://localhost:8443 (VITE_API_ORIGIN) | Prod UI: Nginx, not Go"

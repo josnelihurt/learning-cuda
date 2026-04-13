@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cpp_accelerator/domain/interfaces/image_sink.h"
+#include "src/cpp_accelerator/domain/interfaces/image_sink.h"
 
 namespace jrb::infrastructure::image {
 

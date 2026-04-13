@@ -129,8 +129,8 @@ if [ "$BUILD" = true ]; then
     echo "Step 2: Building final application image..."
     
     PROTO_VERSION=$(cat "$PROJECT_ROOT/proto/VERSION" | tr -d '[:space:]')
-    CPP_VERSION=$(cat "$PROJECT_ROOT/cpp_accelerator/VERSION" | tr -d '[:space:]')
-    GOLANG_VERSION=$(cat "$PROJECT_ROOT/webserver/VERSION" | tr -d '[:space:]')
+    CPP_VERSION=$(cat "$PROJECT_ROOT/src/cpp_accelerator/VERSION" | tr -d '[:space:]')
+    GOLANG_VERSION=$(cat "$PROJECT_ROOT/src/go_api/VERSION" | tr -d '[:space:]')
     
     export BASE_REGISTRY="local"
     export BASE_TAG="latest"

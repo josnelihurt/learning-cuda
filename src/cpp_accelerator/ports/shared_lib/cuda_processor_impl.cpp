@@ -14,11 +14,11 @@
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/core/logger.h"
-#include "cpp_accelerator/core/telemetry.h"
-#include "cpp_accelerator/ports/shared_lib/library_version.h"
-#include "cpp_accelerator/ports/shared_lib/processor_api.h"
-#include "cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/core/logger.h"
+#include "src/cpp_accelerator/core/telemetry.h"
+#include "src/cpp_accelerator/ports/shared_lib/library_version.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_api.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 #include "image_buffer_adapter.h"
 
 namespace {

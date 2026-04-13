@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "cpp_accelerator/domain/interfaces/image_sink.h"
-#include "cpp_accelerator/domain/interfaces/image_source.h"
+#include "src/cpp_accelerator/domain/interfaces/image_sink.h"
+#include "src/cpp_accelerator/domain/interfaces/image_source.h"
 
 namespace jrb::ports::cgo {
 

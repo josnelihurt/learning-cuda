@@ -4,7 +4,7 @@ import "net/http"
 
 type AssetHandler interface {
 	ServeAsset(w http.ResponseWriter, r *http.Request)
-	GetScriptTags() []ScriptTag
+	GetScriptTags(route string) []ScriptTag
 	ShouldCacheAssets() bool
 }
 

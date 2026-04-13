@@ -106,7 +106,7 @@ func (h *StaticHandler) ServeIndex(w http.ResponseWriter, r *http.Request) {
 		Branch     string
 		BuildTime  string
 	}{
-		ScriptTags: h.assetHandler.GetScriptTags(),
+		ScriptTags: h.assetHandler.GetScriptTags("lit"),
 		CommitHash: buildInfo.CommitHash,
 		Version:    buildInfo.Version,
 		Branch:     buildInfo.Branch,

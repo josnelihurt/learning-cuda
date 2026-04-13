@@ -1,6 +1,6 @@
 # Phase 1: Scaffold and Infrastructure - Context
 
-**Gathered:** 2026-04-12
+**Gathered:** 2026-04-12 (updated 2026-04-12)
 **Status:** Ready for planning
 
 <domain>
@@ -19,7 +19,7 @@ Developer can load the React frontend at `/react` and the Lit frontend at `/lit`
 - **D-03:** React tests are co-located with source files (e.g., `src/react/components/Button.test.tsx` next to `Button.tsx`)
 
 ### Vite MPA Configuration
-- **D-04:** Single `vite.config.ts` with `rollupOptions.input` pointing to two HTML files (`templates/index.html` for Lit, `templates/react.html` for React)
+- **D-04:** Single `vite.config.ts` with `rollupOptions.input` pointing to two HTML files (`templates/index.html` for Lit, `templates/react.html` for React). Current config uses `src/main.ts` as TS entry — switching to HTML-based MPA changes manifest keys from `"src/main.ts"` to HTML paths
 - **D-05:** Split tsconfigs: `tsconfig.lit.json` (with `experimentalDecorators: true`, `useDefineForClassFields: false`) and `tsconfig.react.json` (clean, no decorator options). Shared `tsconfig.base.json` for common settings
 - **D-06:** Both Lit and React bundles output to the same `static/js/dist/` directory. `asset_manifest.go` must read multiple manifest keys (currently keys on `"src/main.ts"`)
 - **D-07:** `@vitejs/plugin-react@^4` is added to the single Vite config alongside existing Lit support (no plugin conflict expected — JSX transform is handled by the plugin, decorators by tsconfig)
@@ -43,7 +43,9 @@ Developer can load the React frontend at `/react` and the Lit frontend at `/lit`
 - **D-17:** All 4 success criteria are hard blockers: (1) `/react` loads React shell, (2) `/lit` loads Lit unchanged, (3) `npm run dev` + `npm run build` both succeed with dual entries, (4) WebRTC stubs allow React test imports
 
 ### the agent's Discretion
-- Exact `asset_manifest.go` refactoring to support multiple manifest keys
+- Exact `asset_manifest.go` refactoring to support multiple manifest keys — confirmed blocker: current code hard-codes `m["src/main.ts"]`; HTML-based MPA changes keys to HTML paths
+- Multi-entry dev handler: `DevelopmentAssetHandler.GetScriptTags()` currently returns hard-coded `["/@vite/client", "/src/main.ts"]` — needs route-aware script tag selection for Lit vs React entries
+- Template parsing strategy: `NewStaticHandler` currently parses one template at construction; dual routing needs two pre-parsed templates or on-demand selection
 - React HTML template boilerplate (meta tags, font imports, etc.)
 - Error states for `/react` route (e.g., build missing)
 - How to structure `tsconfig.base.json` shared settings
@@ -56,22 +58,22 @@ Developer can load the React frontend at `/react` and the Lit frontend at `/lit`
 **Downstream agents MUST read these before planning or implementing.**
 
 ### Vite and Build Configuration
-- `webserver/web/vite.config.ts` — Current single-entry Vite config, build output settings, dev proxy config
-- `webserver/web/tsconfig.json` — Current TypeScript config with Lit decorator settings
+- `webserver/web/vite.config.ts` — Current single-entry Vite config (`input: resolve(__dirname, 'src/main.ts')`), build output settings, dev proxy config
+- `webserver/web/tsconfig.json` — Current TypeScript config with Lit decorator settings (`experimentalDecorators: true`, `useDefineForClassFields: false`)
 - `webserver/web/package.json` — Frontend dependencies (no React yet), build scripts
 
 ### Go Static Serving
-- `webserver/pkg/interfaces/statichttp/asset_manifest.go` — Manifest parsing, entry file resolution (keys on `"src/main.ts"`)
+- `webserver/pkg/interfaces/statichttp/asset_manifest.go` — Manifest parsing, entry file resolution (hard-codes `m["src/main.ts"]` key — must change for HTML-based MPA)
 - `webserver/pkg/interfaces/statichttp/handler.go` — Static handler, route registration, ServeIndex, template execution
-- `webserver/pkg/interfaces/statichttp/production_handler.go` — Production asset handler, script tag generation
-- `webserver/pkg/interfaces/statichttp/development_handler.go` — Dev proxy handler, script tags for HMR
+- `webserver/pkg/interfaces/statichttp/production_handler.go` — Production asset handler, script tag generation from manifest
+- `webserver/pkg/interfaces/statichttp/development_handler.go` — Dev proxy handler, hard-coded script tags (`/@vite/client`, `/src/main.ts`)
 - `webserver/pkg/interfaces/statichttp/asset_handler.go` — AssetHandler interface definition
-- `webserver/pkg/app/app.go` — Go app bootstrap, route setup, catch-all handler (lines 251-290)
+- `webserver/pkg/app/app.go` — Go app bootstrap, route setup, catch-all handler (lines 263-284)
 
 ### Frontend Entry Points
 - `webserver/web/templates/index.html` — Current Lit HTML template (reference for React template)
 - `webserver/web/src/main.ts` — Current Lit entry point (reference only, not modified)
-- `webserver/web/src/test-setup.ts` — Current test setup (WebRTC stubs added here)
+- `webserver/web/src/test-setup.ts` — Current test setup with logger mock (WebRTC stubs added here)
 
 ### Project-Level Constraints
 - `.planning/ROADMAP.md` §Phase 1 — Phase goal, success criteria, requirements SCAF-01/SCAF-02
@@ -90,16 +92,16 @@ Developer can load the React frontend at `/react` and the Lit frontend at `/lit`
 - `webserver/web/src/application/di/Container.ts` — Lit DI container. React does NOT use this (Context providers instead, per roadmap decision)
 
 ### Established Patterns
-- **Vite build**: Single entry `src/main.ts` → output `static/js/dist/app.[hash].js`. MPA needs to add a second input
-- **Go template serving**: `StaticHandler` parses `templates/index.html`, injects `ScriptTags` from asset handler, executes template
-- **Asset manifest**: `loadAssetManifest()` reads `.vite/manifest.json`, looks up `src/main.ts` key. Must handle multiple keys after MPA change
-- **Dev mode**: `DevelopmentAssetHandler` proxies to Vite dev server at `localhost:3000`, returns HMR script tags
-- **Production mode**: `ProductionAssetHandler` reads manifest, returns hashed bundle script tags
+- **Vite build**: Single entry `src/main.ts` → output `static/js/dist/app.[hash].js`. MPA needs HTML-based input which changes manifest key structure
+- **Go template serving**: `StaticHandler` parses `templates/index.html`, injects `ScriptTags` from asset handler, executes template. Single template at construction time
+- **Asset manifest**: `loadAssetManifest()` reads `.vite/manifest.json`, looks up `src/main.ts` key. Must handle HTML-path keys after MPA change
+- **Dev mode**: `DevelopmentAssetHandler` proxies to Vite dev server at `localhost:3000`, returns hard-coded HMR script tags. Needs route-aware tags for dual entry
+- **Production mode**: `ProductionAssetHandler` reads manifest, returns hashed bundle script tags from manifest entry
 
 ### Integration Points
-- **`vite.config.ts`** — Add `templates/react.html` to `rollupOptions.input`, add `@vitejs/plugin-react` plugin
-- **`asset_manifest.go`** — `GetEntryFile()` must support multiple entry points (Lit + React)
-- **`handler.go`** — `RegisterRoutes()` needs `/lit/` and `/react/` routes, `ServeIndex()` needs template selection
+- **`vite.config.ts`** — Change `rollupOptions.input` from `src/main.ts` to `[templates/index.html, templates/react.html]`, add `@vitejs/plugin-react` plugin
+- **`asset_manifest.go`** — `GetEntryFile()` must support multiple entry points with HTML-path keys instead of `"src/main.ts"`
+- **`handler.go`** — `RegisterRoutes()` needs `/lit/` and `/react/` routes, `ServeIndex()` needs template selection based on route
 - **`app.go`** — Catch-all handler (line 263) currently serves Lit index for all non-API routes. Must route `/lit/` → Lit, `/react/` → React, `/` → redirect to `/react`
 - **`test-setup.ts`** — Add WebRTC global stubs after existing logger mock
 
@@ -110,7 +112,8 @@ Developer can load the React frontend at `/react` and the Lit frontend at `/lit`
 
 - React is the default experience — root `/` redirects to `/react`, not `/lit`
 - The split tsconfig approach lets React use modern defaults without Lit's decorator legacy
-- `asset_manifest.go` is the key risk — verify how it uses the manifest `name` field before restructuring
+- `asset_manifest.go` is the key risk — verified that it hard-codes `m["src/main.ts"]`; HTML-based MPA changes this key
+- Current `DevelopmentAssetHandler.GetScriptTags()` is hard-coded for Lit entry — needs refactoring for route-aware dual entry
 
 </specifics>
 

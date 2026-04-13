@@ -5,7 +5,7 @@ module(
 
 # Core Bazel modules
 bazel_dep(name = "platforms", version = "0.0.11")
-bazel_dep(name = "bazel_features", version = "1.38.0")
+bazel_dep(name = "bazel_features", version = "1.45.0")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 
 # Build/toolchain rules
@@ -53,13 +53,6 @@ archive_override(
     integrity = "sha256-icbW5lI4Au5/EhA0Cmn6tO4LR1VJU6HsvjWTGf0/k9w=",
     strip_prefix = "rules_buf-0.3.0",
     urls = ["https://github.com/bufbuild/rules_buf/archive/refs/tags/v0.3.0.tar.gz"],
-)
-
-archive_override(
-    module_name = "bazel_features",
-    integrity = "sha256-BycdD2sSYzd3tpAgxMsetnsZOcDPhLs5RNyFzCUMDAE=",
-    strip_prefix = "bazel_features-1.38.0",
-    urls = ["https://github.com/bazel-contrib/bazel_features/archive/refs/tags/v1.38.0.tar.gz"],
 )
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")

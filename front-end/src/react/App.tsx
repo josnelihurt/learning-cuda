@@ -1,4 +1,9 @@
+import { useHealthMonitor } from './hooks/useHealthMonitor';
+import { HealthIndicator } from './components/health/HealthIndicator';
+
 function App() {
+  const { isHealthy, loading } = useHealthMonitor();
+
   return (
     <div>
       <header className="navbar">
@@ -9,6 +14,7 @@ function App() {
             </a>
           </div>
           <div className="navbar-services">
+            <HealthIndicator isHealthy={isHealthy} loading={loading} />
             <span className="navbar-badge">React</span>
           </div>
         </div>

@@ -77,12 +77,14 @@ Plans:
   2. User can switch the video source (camera vs file) before starting a stream
   3. User can stop the stream and the camera indicator light turns off, confirming all WebRTC resources were released
   4. User receives an error toast notification if the WebRTC connection fails or drops mid-stream
-**Plans**: 4 plans
+**Plans**: 6 plans
 Plans:
-- [ ] 04-01-PLAN.md — Core WebRTC Service: ReactWebRTCService class with peer connection, data channel, WebSocket signaling, heartbeat, and session management
-- [ ] 04-02-PLAN.md — useWebRTCStream Hook: Hook wrapping ReactWebRTCService with connection state, streaming control, and error handling
-- [ ] 04-03-PLAN.md — Video Streaming Components: VideoCanvas (frame rendering), VideoSourceSelector (source selection), VideoStreamer (orchestration)
-- [ ] 04-04-PLAN.md — Integration & Verification: Mount VideoStreamer in App, end-to-end testing, manual verification checklist
+- [x] 04-01-PLAN.md — Core WebRTC Service: ReactWebRTCService class with peer connection, data channel, WebSocket signaling, heartbeat, and session management
+- [x] 04-02-PLAN.md — useWebRTCStream Hook: Hook wrapping ReactWebRTCService with connection state, streaming control, and error handling
+- [x] 04-03-PLAN.md — Video Streaming Components: VideoCanvas (frame rendering), VideoSourceSelector (source selection), VideoStreamer (orchestration)
+- [x] 04-04-PLAN.md — Integration & Verification: Mount VideoStreamer in App, end-to-end testing, manual verification checklist
+- [ ] 04-05-PLAN.md — Frame Transport Service: ReactFrameTransportService for WebSocket-based frame transmission (gap closure)
+- [ ] 04-06-PLAN.md — Frame Flow Integration: ReactCameraCapture and VideoStreamer integration (gap closure)
 **UI hint**: yes
 
 ### Phase 5: Polish and Parity Validation
@@ -109,5 +111,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Scaffold and Infrastructure | 2/2 | Complete | 2026-04-13 |
 | 2. Core Hook Infrastructure | 2/2 | Complete | 2026-04-12 |
 | 3. Static Feature UI | 5/5 | Complete | 2026-04-13 |
-| 4. Video Streaming and WebRTC | 0/4 | Not started | - |
+| 4. Video Streaming and WebRTC | 4/6 | Gap Closure | 2026-04-13 (partial) |
 | 5. Polish and Parity Validation | 0/3 | Not started | - |

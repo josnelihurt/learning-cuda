@@ -22,7 +22,7 @@ services:
   web-frontend:
     build:
       context: .
-      dockerfile: front-end/Dockerfile
+      dockerfile: src/front-end/Dockerfile
       args:
         BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
         BASE_TAG: ${BASE_TAG:-latest}

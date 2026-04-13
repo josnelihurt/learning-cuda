@@ -45,17 +45,17 @@ COPY --from=cpp-built-ref /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
-RUN mkdir -p /workspace/integration/tests/acceptance/.ignore/test-results && \
+RUN mkdir -p /workspace/test/integration/tests/acceptance/.ignore/test-results && \
     mkdir -p /home/testuser/.cache && \
     groupadd -g ${GROUP_ID} testuser || true && \
     useradd -u ${USER_ID} -g testuser -m -s /bin/bash testuser 2>/dev/null || true && \
-    chown -R ${USER_ID}:${GROUP_ID} /workspace/integration/tests/acceptance/.ignore /home/testuser /workspace/bin /workspace/.ignore
+    chown -R ${USER_ID}:${GROUP_ID} /workspace/test/integration/tests/acceptance/.ignore /home/testuser /workspace/bin /workspace/.ignore
 
 USER ${USER_ID}:${GROUP_ID}
 ENV HOME=/home/testuser
 ENV LD_LIBRARY_PATH=/workspace/.ignore/lib/cuda_learning
 
-WORKDIR /workspace/integration/tests/acceptance
+WORKDIR /workspace/test/integration/tests/acceptance
 
 CMD ["sh", "-c", "go test . -run TestFeatures -v"]
 
@@ -77,11 +77,11 @@ ARG GROUP_ID=1000
 WORKDIR /workspace
 
 # Install Node.js dependencies only
-COPY front-end/package*.json ./front-end/
-RUN cd front-end && npm ci
+COPY src/front-end/package*.json ./src/front-end/
+RUN cd src/front-end && npm ci
 
 # Install Playwright browsers
-RUN cd front-end && npx playwright install chromium firefox webkit
+RUN cd src/front-end && npx playwright install chromium firefox webkit
 
 # Create user with same UID/GID as host
 RUN groupadd -g ${GROUP_ID} testuser || true && \
@@ -95,7 +95,7 @@ ENV HOME=/home/testuser
 ENV NODE_ENV=test
 ENV PLAYWRIGHT_BASE_URL=https://localhost:3000
 
-WORKDIR /workspace/front-end
+WORKDIR /workspace/src/front-end
 
 ENTRYPOINT ["sh", "-c", "npx playwright test ${PLAYWRIGHT_OPTS}"]
 
@@ -113,7 +113,7 @@ WORKDIR /app
 
 RUN mkdir -p /app/input /app/reports
 
-COPY --from=integration-tests /workspace/integration/tests/acceptance/.ignore/test-results/ /app/input/
+COPY --from=integration-tests /workspace/test/integration/tests/acceptance/.ignore/test-results/ /app/input/
 
 RUN npm install multiple-cucumber-html-reporter && \
     node -e "const report = require('multiple-cucumber-html-reporter'); \
@@ -161,7 +161,7 @@ COPY config/config.yaml /app/config/config.yaml
 COPY config/config.production.yaml /app/config/config.production.yaml
 
 # Copy VERSION files for version detection
-COPY webserver/VERSION /app/webserver/VERSION
+COPY src/go_api/VERSION /app/src/go_api/VERSION
 COPY proto/VERSION /app/proto/VERSION
 
 EXPOSE 8080 8443

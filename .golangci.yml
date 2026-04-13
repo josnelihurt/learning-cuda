@@ -115,7 +115,7 @@ linters-settings:
 
 issues:
   exclude-dirs:
-    - webserver/pkg/infrastructure/processor/loader
+    - src/go_api/pkg/infrastructure/processor/loader
   exclude-rules:
     - path: _test\.go
       linters:
@@ -125,7 +125,7 @@ issues:
     - path: proto/
       linters:
         - all
-    - path: integration/
+    - path: test/integration/
       linters:
         - errcheck
         - goconst

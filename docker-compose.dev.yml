@@ -93,7 +93,7 @@ services:
     container_name: integration-tests
     network_mode: host
     volumes:
-      - ./integration/tests/acceptance/.ignore/test-results:/workspace/integration/tests/acceptance/.ignore/test-results
+      - ./test/integration/tests/acceptance/.ignore/test-results:/workspace/test/integration/tests/acceptance/.ignore/test-results
     profiles:
       - testing
 
@@ -120,10 +120,10 @@ services:
       - PLAYWRIGHT_TRACE=${PLAYWRIGHT_TRACE:-true}
     
     volumes:
-      - ./front-end/src:/workspace/front-end/src:ro
-      - ./front-end/tests:/workspace/front-end/tests
-      - ./front-end/playwright.config.ts:/workspace/front-end/playwright.config.ts:ro
-      - ./front-end/tsconfig.json:/workspace/front-end/tsconfig.json:ro
+      - ./src/front-end/src:/workspace/src/front-end/src:ro
+      - ./src/front-end/tests:/workspace/src/front-end/tests
+      - ./src/front-end/playwright.config.ts:/workspace/src/front-end/playwright.config.ts:ro
+      - ./src/front-end/tsconfig.json:/workspace/src/front-end/tsconfig.json:ro
       - ./.ignore/front-end:/workspace/.ignore/front-end
       - ./data:/workspace/data:ro
     
@@ -158,8 +158,8 @@ services:
     ports:
       - "5050:8080"
     volumes:
-      - ./integration/tests/acceptance/.ignore/test-results:/app/input:ro
-      - ./integration/tests/acceptance/.ignore/reports:/app/output
+      - ./test/integration/tests/acceptance/.ignore/test-results:/app/input:ro
+      - ./test/integration/tests/acceptance/.ignore/reports:/app/output
     command: >
       sh -c "npm init -y &&
              npm install multiple-cucumber-html-reporter http-server && 
@@ -178,7 +178,7 @@ services:
     ports:
       - "5052:8080"
     volumes:
-      - ./coverage:/app:ro
+      - ./test/coverage:/app:ro
     command: npx http-server /app -p 8080
     networks:
       - dev-network
@@ -193,7 +193,7 @@ services:
       - "5053:8080"
     volumes:
       - .:/app:ro
-    command: --root /app/webserver --gomod /app/go.mod --skip-browser --addr :8080
+    command: --root /app/src/go_api --gomod /app/go.mod --skip-browser --addr :8080
     networks:
       - dev-network
     profiles:
@@ -203,9 +203,9 @@ services:
     image: node:20-alpine
     container_name: lint-frontend
     user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
-    working_dir: /workspace/front-end
+    working_dir: /workspace/src/front-end
     volumes:
-      - ./front-end:/workspace/front-end
+      - ./src/front-end:/workspace/src/front-end
     command: sh -c "npm install && npm run lint && npm run format:check"
     profiles:
       - lint
@@ -225,7 +225,7 @@ services:
       go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest &&
       export PATH=$$PATH:$$(go env GOPATH)/bin &&
       export CGO_ENABLED=1 &&
-      golangci-lint run --timeout 5m --skip-dirs='integration/tests,cmd/generate-video-metadata,proto/gen'
+      golangci-lint run --timeout 5m --skip-dirs='test/integration/tests,cmd/generate-video-metadata,proto/gen'
       "
     profiles:
       - lint
@@ -241,7 +241,7 @@ services:
     command: >
       sh -c "apt-get update -qq 2>&1 | grep -v 'Permission denied' || true && 
              apt-get install -y -qq clang-tidy clang-format > /dev/null 2>&1 && 
-             find cpp_accelerator -name '*.cpp' -o -name '*.h' | grep -v BUILD | xargs clang-format --dry-run -Werror || echo 'Format check complete' &&
+             find src/cpp_accelerator -name '*.cpp' -o -name '*.h' | grep -v BUILD | xargs clang-format --dry-run -Werror || echo 'Format check complete' &&
              echo 'C++ linting complete'"
     profiles:
       - lint

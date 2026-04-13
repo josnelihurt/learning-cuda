@@ -179,8 +179,8 @@ The system uses gRPC for all communication with the C++/CUDA accelerator library
 - Enables remote GPU processing and microservices architecture
 - Better for distributed deployments where Go server runs in cloud and GPU processing on dedicated hardware
 - Supports version information queries and bidirectional streaming for video processing
-- Implemented in: `webserver/pkg/infrastructure/processor/grpc_processor.go`
-- Client: `webserver/pkg/infrastructure/processor/grpc_client.go`
+- Implemented in: `src/go_api/pkg/infrastructure/processor/grpc_processor.go`
+- Client: `src/go_api/pkg/infrastructure/processor/grpc_client.go`
 - Uses `grpc.NewClient` (modern gRPC API) with context propagation
 
 **Connection Flow:**
@@ -399,14 +399,15 @@ See [Testing & Coverage Documentation](docs/testing-and-coverage.md) for detaile
 ## Code structure
 
 ```
-cpp_accelerator/
+src/cpp_accelerator/
   infrastructure/cuda/  - GPU kernels
   infrastructure/cpu/   - CPU versions
   ports/grpc/          - gRPC service implementation
 
-webserver/
+src/go_api/
   cmd/server/          - main.go
-  web/                 - static files
+
+src/front-end/         - Lit + React (Vite)
 
 scripts/               - organized scripts (dev/, test/, docker/, tools/, hooks/)
 ```

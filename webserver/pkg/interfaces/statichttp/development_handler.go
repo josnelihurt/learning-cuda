@@ -44,10 +44,14 @@ func (h *DevelopmentAssetHandler) ServeAsset(w http.ResponseWriter, r *http.Requ
 	h.proxy.ServeHTTP(w, r)
 }
 
-func (h *DevelopmentAssetHandler) GetScriptTags() []ScriptTag {
+func (h *DevelopmentAssetHandler) GetScriptTags(route string) []ScriptTag {
+	entry := "/src/main.ts"
+	if route == "react" {
+		entry = "/src/react/main.tsx"
+	}
 	return []ScriptTag{
 		{Type: "module", Src: "/@vite/client", Module: true},
-		{Type: "module", Src: "/src/main.ts", Module: true},
+		{Type: "module", Src: entry, Module: true},
 	}
 }
 

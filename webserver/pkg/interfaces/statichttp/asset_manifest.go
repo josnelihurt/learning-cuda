@@ -7,7 +7,7 @@ import (
 )
 
 type AssetManifest interface {
-	GetEntryFile() string
+	GetEntryFile(route string) string
 }
 
 type ViteManifestEntry struct {
@@ -17,8 +17,12 @@ type ViteManifestEntry struct {
 
 type ViteManifest map[string]ViteManifestEntry
 
-func (m ViteManifest) GetEntryFile() string {
-	if entry, ok := m["src/main.ts"]; ok {
+func (m ViteManifest) GetEntryFile(route string) string {
+	key := "templates/index.html"
+	if route == "react" {
+		key = "templates/react.html"
+	}
+	if entry, ok := m[key]; ok {
 		return entry.File
 	}
 	return "app.js"

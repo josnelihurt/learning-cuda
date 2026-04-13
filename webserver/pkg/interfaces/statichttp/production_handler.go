@@ -31,11 +31,11 @@ func (h *ProductionAssetHandler) ServeAsset(w http.ResponseWriter, r *http.Reque
 	http.ServeFile(w, r, fullPath)
 }
 
-func (h *ProductionAssetHandler) GetScriptTags() []ScriptTag {
+func (h *ProductionAssetHandler) GetScriptTags(route string) []ScriptTag {
 	return []ScriptTag{
 		{
 			Type:   "module",
-			Src:    "/static/js/dist/" + h.manifest.GetEntryFile(),
+			Src:    "/static/js/dist/" + h.manifest.GetEntryFile(route),
 			Module: true,
 		},
 	}

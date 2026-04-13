@@ -29,7 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Developer visits `/lit` and gets the existing Lit frontend unchanged
   3. `npm run dev` and `npm run build` both succeed with dual entry points producing separate output directories
   4. WebRTC APIs (`RTCPeerConnection`, `navigator.mediaDevices`) are stubbed in `test-setup.ts` so React tests can import WebRTC-using modules without crashing
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — Frontend build infrastructure: Vite MPA config, split tsconfigs, React deps, React shell, WebRTC stubs
+- [ ] 01-02-PLAN.md — Go dual route serving: route-aware manifest, dual-template handler, /lit /react / redirect
 **UI hint**: yes
 
 ### Phase 2: Core Hook Infrastructure
@@ -85,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold and Infrastructure | 0/? | Not started | - |
+| 1. Scaffold and Infrastructure | 0/2 | Planned | - |
 | 2. Core Hook Infrastructure | 0/? | Not started | - |
 | 3. Static Feature UI | 0/? | Not started | - |
 | 4. Video Streaming and WebRTC | 0/? | Not started | - |

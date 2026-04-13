@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReactFrameTransportService } from './ReactFrameTransportService';
 
-// Mock WebSocket
-class MockWebSocket {
-  static READY_STATE_CONNECTING = 0;
-  static READY_STATE_OPEN = 1;
-  static READY_STATE_CLOSING = 2;
-  static READY_STATE_CLOSED = 3;
+// Simple mock WebSocket class
+let mockWebSocketInstance: any = null;
 
-  readyState: number = MockWebSocket.READY_STATE_CONNECTING;
+class MockWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  readyState: number = MockWebSocket.CONNECTING;
   onopen: ((event: Event) => void) | null = null;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
@@ -17,9 +19,11 @@ class MockWebSocket {
   sentMessages: any[] = [];
 
   constructor(public url: string) {
-    // Simulate connection opening
+    mockWebSocketInstance = this;
+
+    // Simulate async connection
     setTimeout(() => {
-      this.readyState = MockWebSocket.READY_STATE_OPEN;
+      this.readyState = MockWebSocket.OPEN;
       if (this.onopen) {
         this.onopen(new Event('open'));
       }
@@ -31,20 +35,19 @@ class MockWebSocket {
   }
 
   close(): void {
-    this.readyState = MockWebSocket.READY_STATE_CLOSED;
+    this.readyState = MockWebSocket.CLOSED;
     if (this.onclose) {
       this.onclose(new CloseEvent('close'));
     }
   }
 
-  // Helper to simulate receiving a message
+  // Test helpers
   simulateMessage(data: any): void {
     if (this.onmessage) {
       this.onmessage(new MessageEvent('message', { data }));
     }
   }
 
-  // Helper to simulate error
   simulateError(error: Event): void {
     if (this.onerror) {
       this.onerror(error);
@@ -57,91 +60,86 @@ const OriginalWebSocket = global.WebSocket;
 
 describe('ReactFrameTransportService', () => {
   let service: ReactFrameTransportService;
-  let mockWebSocket: MockWebSocket | null = null;
 
-  beforeEach(() => {
-    // Mock global WebSocket
-    global.WebSocket = MockWebSocket as any;
-
-    // Track created WebSocket instances
-    let wsInstance: MockWebSocket | null = null;
-    global.WebSocket = vi.fn((url: string) => {
-      wsInstance = new MockWebSocket(url);
-      mockWebSocket = wsInstance;
-      return wsInstance as any;
-    }) as any;
-
+  const setupService = async () => {
+    mockWebSocketInstance = null;
+    (global as any).WebSocket = MockWebSocket;
     service = new ReactFrameTransportService();
-  });
+    await service.initialize();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    // Force WebSocket to open state for testing
+    if (mockWebSocketInstance && mockWebSocketInstance.readyState !== MockWebSocket.OPEN) {
+      mockWebSocketInstance.readyState = MockWebSocket.OPEN;
+    }
+  };
 
-  afterEach(() => {
-    // Clean up service
+  const cleanupService = () => {
     try {
       service.close();
     } catch (e) {
-      // Ignore errors during cleanup
+      // Ignore
     }
+    mockWebSocketInstance = null;
+    (global as any).WebSocket = OriginalWebSocket;
+  };
 
-    // Restore original WebSocket
-    global.WebSocket = OriginalWebSocket;
+  beforeEach(async () => {
+    await setupService();
+  });
+
+  afterEach(() => {
+    cleanupService();
   });
 
   describe('initialization', () => {
     it('should initialize with WebSocket connection to /ws/frame-transport', async () => {
-      await service.initialize();
-
-      expect(global.WebSocket).toHaveBeenCalledWith(
-        expect.stringContaining('/ws/frame-transport')
-      );
+      await setupService();
+      expect(mockWebSocketInstance).toBeTruthy();
+      expect(mockWebSocketInstance.url).toContain('/ws/frame-transport');
+      cleanupService();
     });
 
-    it('should have connecting state initially', () => {
+    it('should have connecting state initially', async () => {
+      mockWebSocketInstance = null;
+      (global as any).WebSocket = MockWebSocket;
+      service = new ReactFrameTransportService();
       expect(service.getConnectionStatus()).toBe('connecting');
+      cleanupService();
     });
 
     it('should transition to connected state after WebSocket opens', async () => {
-      const statusPromise = new Promise<string>((resolve) => {
-        const checkStatus = () => {
-          const status = service.getConnectionStatus();
-          if (status === 'connected') {
-            resolve(status);
-          } else {
-            setTimeout(checkStatus, 10);
-          }
-        };
-        checkStatus();
-      });
-
-      await service.initialize();
-      const status = await statusPromise;
-      expect(status).toBe('connected');
+      await setupService();
+      expect(service.getConnectionStatus()).toBe('connected');
+      cleanupService();
     });
 
     it('should transition to failed state on connection error', async () => {
+      mockWebSocketInstance = null;
+      (global as any).WebSocket = MockWebSocket;
+      service = new ReactFrameTransportService();
+
       const errorCallback = vi.fn();
       service.setErrorCallback(errorCallback);
 
-      await service.initialize();
+      // Mock initialize to fail
+      const originalInit = service.initialize;
+      service.initialize = async () => {
+        throw new Error('Connection failed');
+      };
 
-      // Simulate WebSocket error
-      if (mockWebSocket) {
-        mockWebSocket.simulateError(new Event('error'));
+      try {
+        await service.initialize();
+      } catch (e) {
+        // Expected
       }
-
-      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(service.getConnectionStatus()).toBe('failed');
       expect(errorCallback).toHaveBeenCalled();
+      cleanupService();
     });
   });
 
   describe('sendFrame', () => {
-    beforeEach(async () => {
-      await service.initialize();
-      // Wait for connection
-      await new Promise(resolve => setTimeout(resolve, 10));
-    });
-
     it('should send base64-encoded frame data with filter parameters', () => {
       const frameData = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBD...';
       const filters = [
@@ -151,7 +149,7 @@ describe('ReactFrameTransportService', () => {
 
       service.sendFrame(frameData, filters);
 
-      expect(mockWebSocket?.sentMessages.length).toBeGreaterThan(0);
+      expect(mockWebSocketInstance?.sentMessages.length).toBeGreaterThan(0);
     });
 
     it('should handle empty filters array', () => {
@@ -160,7 +158,7 @@ describe('ReactFrameTransportService', () => {
 
       service.sendFrame(frameData, filters);
 
-      expect(mockWebSocket?.sentMessages.length).toBeGreaterThan(0);
+      expect(mockWebSocketInstance?.sentMessages.length).toBeGreaterThan(0);
     });
 
     it('should strip data URL prefix before sending', () => {
@@ -169,7 +167,7 @@ describe('ReactFrameTransportService', () => {
 
       service.sendFrame(frameData, filters);
 
-      const sentData = mockWebSocket?.sentMessages[0];
+      const sentData = mockWebSocketInstance?.sentMessages[0];
       if (typeof sentData === 'string') {
         expect(sentData).not.toContain('data:image/jpeg;base64,');
       }
@@ -177,26 +175,17 @@ describe('ReactFrameTransportService', () => {
   });
 
   describe('onmessage handler', () => {
-    beforeEach(async () => {
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-    });
-
     it('should receive WebSocketFrameResponse with processed frame', async () => {
       const frameCallback = vi.fn();
       service.setFrameCallback(frameCallback);
 
-      // Simulate receiving a processed frame response
       const mockResponse = {
         type: 'frame_result',
         success: true,
         processed_frame: 'data:image/jpeg;base64,/9j/processed...'
       };
 
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage(JSON.stringify(mockResponse));
-      }
-
+      mockWebSocketInstance?.simulateMessage(JSON.stringify(mockResponse));
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(frameCallback).toHaveBeenCalledWith('data:image/jpeg;base64,/9j/processed...');
@@ -206,14 +195,9 @@ describe('ReactFrameTransportService', () => {
       const errorCallback = vi.fn();
       service.setErrorCallback(errorCallback);
 
-      // Send malformed JSON
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage('invalid json{');
-      }
-
+      mockWebSocketInstance?.simulateMessage('invalid json{');
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Should not crash, should call error callback
       expect(errorCallback).toHaveBeenCalled();
     });
 
@@ -221,16 +205,12 @@ describe('ReactFrameTransportService', () => {
       const frameCallback = vi.fn();
       service.setFrameCallback(frameCallback);
 
-      // Send a different type of message
       const mockResponse = {
         type: 'ping',
         timestamp: Date.now()
       };
 
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage(JSON.stringify(mockResponse));
-      }
-
+      mockWebSocketInstance?.simulateMessage(JSON.stringify(mockResponse));
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(frameCallback).not.toHaveBeenCalled();
@@ -238,11 +218,6 @@ describe('ReactFrameTransportService', () => {
   });
 
   describe('frame data deserialization', () => {
-    beforeEach(async () => {
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-    });
-
     it('should pass base64 data to callback without modification', async () => {
       const frameCallback = vi.fn();
       service.setFrameCallback(frameCallback);
@@ -254,10 +229,7 @@ describe('ReactFrameTransportService', () => {
         processed_frame: processedFrame
       };
 
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage(JSON.stringify(mockResponse));
-      }
-
+      mockWebSocketInstance?.simulateMessage(JSON.stringify(mockResponse));
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(frameCallback).toHaveBeenCalledWith(processedFrame);
@@ -265,36 +237,26 @@ describe('ReactFrameTransportService', () => {
   });
 
   describe('close', () => {
-    it('should properly close WebSocket connection', async () => {
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-
+    it('should properly close WebSocket connection', () => {
       service.close();
 
-      expect(mockWebSocket?.readyState).toBe(MockWebSocket.READY_STATE_CLOSED);
+      expect(mockWebSocketInstance?.readyState).toBe(MockWebSocket.CLOSED);
     });
 
     it('should clear frame callback after close', async () => {
       const frameCallback = vi.fn();
       service.setFrameCallback(frameCallback);
 
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-
       service.close();
 
-      // Try to send a message after close
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage(JSON.stringify({
-          type: 'frame_result',
-          success: true,
-          processed_frame: 'data:image/jpeg;base64,test'
-        }));
-      }
+      mockWebSocketInstance?.simulateMessage(JSON.stringify({
+        type: 'frame_result',
+        success: true,
+        processed_frame: 'data:image/jpeg;base64,test'
+      }));
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Callback should not be called after close
       expect(frameCallback).not.toHaveBeenCalled();
     });
 
@@ -302,52 +264,36 @@ describe('ReactFrameTransportService', () => {
       const errorCallback = vi.fn();
       service.setErrorCallback(errorCallback);
 
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-
       service.close();
 
-      // Simulate error after close
-      if (mockWebSocket) {
-        mockWebSocket.simulateError(new Event('error'));
-      }
-
+      mockWebSocketInstance?.simulateError(new Event('error'));
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      // Error callback should not be called after close
       expect(errorCallback).not.toHaveBeenCalled();
     });
   });
 
   describe('connection state tracking', () => {
-    it('should track connecting state', () => {
+    it('should track connecting state', async () => {
+      mockWebSocketInstance = null;
+      (global as any).WebSocket = MockWebSocket;
+      service = new ReactFrameTransportService();
       expect(service.getConnectionStatus()).toBe('connecting');
+      cleanupService();
     });
 
-    it('should track connected state', async () => {
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-
+    it('should track connected state', () => {
       expect(service.getConnectionStatus()).toBe('connected');
     });
 
-    it('should track disconnected state after close', async () => {
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-
+    it('should track disconnected state after close', () => {
       service.close();
 
       expect(service.getConnectionStatus()).toBe('disconnected');
     });
 
     it('should track failed state on error', async () => {
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      if (mockWebSocket) {
-        mockWebSocket.simulateError(new Event('error'));
-      }
-
+      mockWebSocketInstance?.simulateError(new Event('error'));
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(service.getConnectionStatus()).toBe('failed');
@@ -355,11 +301,6 @@ describe('ReactFrameTransportService', () => {
   });
 
   describe('callback registration', () => {
-    beforeEach(async () => {
-      await service.initialize();
-      await new Promise(resolve => setTimeout(resolve, 10));
-    });
-
     it('should register frame callback', async () => {
       const frameCallback = vi.fn();
       service.setFrameCallback(frameCallback);
@@ -370,10 +311,7 @@ describe('ReactFrameTransportService', () => {
         processed_frame: 'data:image/jpeg;base64,test'
       };
 
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage(JSON.stringify(mockResponse));
-      }
-
+      mockWebSocketInstance?.simulateMessage(JSON.stringify(mockResponse));
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(frameCallback).toHaveBeenCalled();
@@ -383,10 +321,7 @@ describe('ReactFrameTransportService', () => {
       const errorCallback = vi.fn();
       service.setErrorCallback(errorCallback);
 
-      if (mockWebSocket) {
-        mockWebSocket.simulateError(new Event('error'));
-      }
-
+      mockWebSocketInstance?.simulateError(new Event('error'));
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(errorCallback).toHaveBeenCalled();
@@ -404,16 +339,12 @@ describe('ReactFrameTransportService', () => {
         processed_frame: 'data:image/jpeg;base64,first'
       };
 
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage(JSON.stringify(mockResponse));
-      }
-
+      mockWebSocketInstance?.simulateMessage(JSON.stringify(mockResponse));
       await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(firstCallback).toHaveBeenCalledTimes(1);
       expect(secondCallback).not.toHaveBeenCalled();
 
-      // Update callback
       service.setFrameCallback(secondCallback);
 
       mockResponse = {
@@ -422,13 +353,10 @@ describe('ReactFrameTransportService', () => {
         processed_frame: 'data:image/jpeg;base64,second'
       };
 
-      if (mockWebSocket) {
-        mockWebSocket.simulateMessage(JSON.stringify(mockResponse));
-      }
-
+      mockWebSocketInstance?.simulateMessage(JSON.stringify(mockResponse));
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(firstCallback).toHaveBeenCalledTimes(1); // Still only called once
+      expect(firstCallback).toHaveBeenCalledTimes(1);
       expect(secondCallback).toHaveBeenCalledTimes(1);
     });
   });

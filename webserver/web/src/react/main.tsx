@@ -1,3 +1,14 @@
-// Temporary stub - will be replaced by Task 2
-console.log('React entry point stub - to be implemented in Task 2');
-export {};
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error('Root element not found');
+}
+
+createRoot(rootElement).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);

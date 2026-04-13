@@ -15,8 +15,11 @@ function prettyFrontendRoutesPlugin(): Plugin {
       return;
     }
     const q = req.url.indexOf('?');
-    const pathname = q === -1 ? req.url : req.url.slice(0, q);
+    let pathname = q === -1 ? req.url : req.url.slice(0, q);
     const search = q === -1 ? '' : req.url.slice(q);
+    if (pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1);
+    }
     if (pathname === '/react') {
       req.url = '/react.html' + search;
     } else if (pathname === '/lit') {

@@ -125,6 +125,7 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       proxy: {
         '/api': backendHTTP,
+        '/data': backendHTTP,
         '/flipt': backendHTTP,
         '/cuda_learning': backendHTTP,
         '/com.jrb': backendHTTP,
@@ -158,6 +159,35 @@ export default defineConfig(({ mode }) => {
       port: 4173,
       strictPort: true,
       https: false,
+      proxy: {
+        '/api': backendHTTP,
+        '/data': backendHTTP,
+        '/flipt': backendHTTP,
+        '/cuda_learning': backendHTTP,
+        '/com.jrb': backendHTTP,
+        '/ws': backendWS,
+        '/grpc': {
+          target: 'http://localhost:60061',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/grpc/, ''),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              const contentType = req.headers['content-type'];
+              if (contentType?.includes('application/grpc-web')) {
+                proxyReq.setHeader('Content-Type', 'application/grpc');
+                proxyReq.setHeader('grpc-encoding', 'identity');
+                proxyReq.setHeader('grpc-accept-encoding', 'identity,deflate,gzip');
+              }
+            });
+            proxy.on('proxyRes', (proxyRes, req) => {
+              if (req.headers['accept']?.includes('application/grpc-web')) {
+                proxyRes.headers['content-type'] = 'application/grpc-web+proto';
+              }
+            });
+          },
+        },
+      },
     },
 
     resolve: {

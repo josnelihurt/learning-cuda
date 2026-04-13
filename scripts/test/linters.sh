@@ -22,7 +22,7 @@ CPP_ERRORS=0
 
 echo "[1/3] Running Frontend Linter (ESLint)..."
 echo "============================================="
-cd "$PROJECT_ROOT/webserver/web"
+cd "$PROJECT_ROOT/front-end"
 if [ -d "node_modules" ]; then
     if [ "$FIX_MODE" = true ]; then
         npm run lint:fix || FRONTEND_ERRORS=$?
@@ -37,7 +37,7 @@ if [ -d "node_modules" ]; then
             echo "FAILED: Frontend linting found issues"
     fi
 else
-        echo "WARNING: Skipping frontend - dependencies not installed (run: cd webserver/web && npm install)"
+        echo "WARNING: Skipping frontend - dependencies not installed (run: cd front-end && npm install)"
 fi
 echo ""
 

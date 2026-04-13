@@ -25,8 +25,8 @@ bazel build //cpp_accelerator/...
 # Go (from webserver/)
 cd webserver && make build
 
-# Frontend (from webserver/web/)
-cd webserver/web && npm install && npm run dev
+# Frontend (from front-end/)
+cd front-end && npm install && npm run dev
 ```
 
 ### Testing
@@ -41,7 +41,7 @@ cd webserver/web && npm install && npm run dev
 
 # Individual test suites
 go test -race ./webserver/pkg/...                    # Go tests
-cd webserver/web && npm run test                     # Frontend (Vitest)
+cd front-end && npm run test                         # Frontend (Vitest)
 bazel test //cpp_accelerator/...                     # C++ tests
 
 # Specific C++ test

@@ -39,7 +39,7 @@ test-short:
 
 run: build
 	@echo "Starting webserver..."
-	$(BUILD_DIR)/$(BINARY_NAME) -webroot=web
+	$(BUILD_DIR)/$(BINARY_NAME) -config=../config/config.yaml
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -58,5 +58,5 @@ lint:
 
 dev:
 	@echo "Running in development mode..."
-	go run cmd/server/main.go -webroot=web
+	go run cmd/server/main.go -config=../config/config.dev.yaml
 

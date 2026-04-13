@@ -38,14 +38,13 @@ services:
     
     volumes:
       - ./bin/server:/app/server:ro
-      - ./webserver/web:/app/webserver/web:ro
       - ./data:/app/data:ro
       - ./.secrets:/app/.secrets:ro
       - ./config/config.dev.yaml:/app/config/config.yaml:ro
     
     working_dir: /app
     
-    command: ["/app/server", "-webroot=webserver/web"]
+    command: ["/app/server", "-config=/app/config/config.yaml"]
     
     depends_on:
       flipt:
@@ -121,11 +120,11 @@ services:
       - PLAYWRIGHT_TRACE=${PLAYWRIGHT_TRACE:-true}
     
     volumes:
-      - ./webserver/web/src:/workspace/webserver/web/src:ro
-      - ./webserver/web/tests:/workspace/webserver/web/tests
-      - ./webserver/web/playwright.config.ts:/workspace/webserver/web/playwright.config.ts:ro
-      - ./webserver/web/tsconfig.json:/workspace/webserver/web/tsconfig.json:ro
-      - ./.ignore/webserver/web:/workspace/.ignore/webserver/web
+      - ./front-end/src:/workspace/front-end/src:ro
+      - ./front-end/tests:/workspace/front-end/tests
+      - ./front-end/playwright.config.ts:/workspace/front-end/playwright.config.ts:ro
+      - ./front-end/tsconfig.json:/workspace/front-end/tsconfig.json:ro
+      - ./.ignore/front-end:/workspace/.ignore/front-end
       - ./data:/workspace/data:ro
     
     depends_on:
@@ -142,7 +141,7 @@ services:
       - "5051:8080"
     
     volumes:
-      - ./.ignore/webserver/web/playwright-report:/app
+      - ./.ignore/front-end/playwright-report:/app
     
     command: npx http-server /app -p 8080
     
@@ -204,9 +203,9 @@ services:
     image: node:20-alpine
     container_name: lint-frontend
     user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
-    working_dir: /workspace/webserver/web
+    working_dir: /workspace/front-end
     volumes:
-      - ./webserver/web:/workspace/webserver/web
+      - ./front-end:/workspace/front-end
     command: sh -c "npm install && npm run lint && npm run format:check"
     profiles:
       - lint

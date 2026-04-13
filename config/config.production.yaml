@@ -3,8 +3,6 @@ environment: "production"
 server:
   http_port: "0.0.0.0:8080"
   https_port: "0.0.0.0:8443"
-  hot_reload_enabled: false
-  web_root_path: "/app/web"
   tls:
     enabled: false
 

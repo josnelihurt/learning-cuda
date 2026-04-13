@@ -67,7 +67,7 @@ fi
 if [ "$SKIP_FRONTEND" = false ]; then
   echo "[2/3] Running Frontend Unit Tests..."
   echo "====================================="
-  cd "$PROJECT_ROOT/webserver/web"
+  cd "$PROJECT_ROOT/front-end"
   
   npm run test -- --run || {
       echo "FAILED: Frontend unit tests"

@@ -23,49 +23,6 @@ FROM ${BASE_REGISTRY}/intermediate:cpp-built-${CPP_VERSION}-${TARGETARCH} AS cpp
 FROM ${BASE_REGISTRY}/intermediate:golang-built-${GOLANG_VERSION}-${TARGETARCH} AS golang-built-ref
 
 #################################################################################
-#                            FRONTEND BUILDER STAGE                             #
-#################################################################################
-# Build TypeScript/Vite frontend into static assets
-# Step 1: Generate TypeScript protobufs using buf + node plugins
-# Step 2: Build frontend with Vite
-# Output: Compiled JS/CSS in /build/static and HTML templates
-#################################################################################
-
-FROM ${BASE_REGISTRY}/base:proto-tools-${BASE_TAG}-${TARGETARCH} AS proto-gen-builder
-
-FROM node:${NODE_VERSION}-alpine AS frontend-builder
-
-WORKDIR /build
-
-# Install protoc and buf for protobuf generation
-RUN apk add --no-cache protobuf-dev
-
-# Copy buf and Go protobuf plugins from proto-tools base image
-COPY --from=proto-gen-builder /go/bin/buf /usr/local/bin/buf
-COPY --from=proto-gen-builder /go/bin/protoc-gen-go /usr/local/bin/protoc-gen-go
-COPY --from=proto-gen-builder /go/bin/protoc-gen-connect-go /usr/local/bin/protoc-gen-connect-go
-COPY --from=proto-gen-builder /go/bin/protoc-gen-go-grpc /usr/local/bin/protoc-gen-go-grpc
-
-# Install npm dependencies (includes TypeScript protobuf plugins)
-COPY webserver/web/package*.json ./webserver/web/
-RUN cd webserver/web && npm ci
-
-# Copy protobuf definitions and config
-COPY buf.yaml buf.lock buf.gen.yaml ./
-COPY proto/*.proto ./proto/
-
-# Copy webserver source (needed for protobuf generation paths)
-COPY webserver/web/ ./webserver/web/
-
-# Generate TypeScript protobufs
-RUN buf generate
-
-# Build frontend with Vite (includes generated protobufs)
-WORKDIR /build/webserver/web
-RUN npm run build
-
-
-#################################################################################
 #                        INTEGRATION TESTS STAGE                                #
 #################################################################################
 # Run BDD acceptance tests using Godog
@@ -120,25 +77,25 @@ ARG GROUP_ID=1000
 WORKDIR /workspace
 
 # Install Node.js dependencies only
-COPY webserver/web/package*.json ./webserver/web/
-RUN cd webserver/web && npm ci
+COPY front-end/package*.json ./front-end/
+RUN cd front-end && npm ci
 
 # Install Playwright browsers
-RUN cd webserver/web && npx playwright install chromium firefox webkit
+RUN cd front-end && npx playwright install chromium firefox webkit
 
 # Create user with same UID/GID as host
 RUN groupadd -g ${GROUP_ID} testuser || true && \
     useradd -u ${USER_ID} -g testuser -m -s /bin/bash testuser 2>/dev/null || true && \
-    mkdir -p /workspace/.ignore/webserver/web && \
+    mkdir -p /workspace/.ignore/front-end && \
     mkdir -p /home/testuser/.cache && \
     chown -R ${USER_ID}:${GROUP_ID} /workspace /home/testuser
 
 USER ${USER_ID}:${GROUP_ID}
 ENV HOME=/home/testuser
 ENV NODE_ENV=test
-ENV PLAYWRIGHT_BASE_URL=https://localhost:8443
+ENV PLAYWRIGHT_BASE_URL=https://localhost:3000
 
-WORKDIR /workspace/webserver/web
+WORKDIR /workspace/front-end
 
 ENTRYPOINT ["sh", "-c", "npx playwright test ${PLAYWRIGHT_OPTS}"]
 
@@ -193,8 +150,6 @@ WORKDIR /app
 
 # Copy compiled artifacts from intermediate images
 COPY --from=golang-built-ref /artifacts/bin/server /app/server
-COPY --from=frontend-builder /build/webserver/web/static/ /app/web/static/
-COPY --from=frontend-builder /build/webserver/web/templates/ /app/web/templates/
 
 # Copy runtime data and configuration (exclude test-data to reduce image size)
 COPY data/static_images/ /app/data/static_images/

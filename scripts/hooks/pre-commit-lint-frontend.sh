@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 echo "Frontend Linter..."
-cd "$PROJECT_ROOT/webserver/web"
+cd "$PROJECT_ROOT/front-end"
 if [ -d "node_modules" ]; then
     npm run lint || {
         echo "FAILED: Frontend linter"

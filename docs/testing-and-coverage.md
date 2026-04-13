@@ -20,7 +20,7 @@ Fast, isolated tests that verify individual components work correctly.
 
 #### Frontend Unit Tests (Vitest)
 
-**Location:** `webserver/web/`
+**Location:** `front-end/`
 
 **Technology:** Vitest + TypeScript
 
@@ -32,7 +32,7 @@ Fast, isolated tests that verify individual components work correctly.
 
 **Run:**
 ```bash
-cd webserver/web
+cd front-end
 npm run test
 ```
 
@@ -191,7 +191,7 @@ docker compose -f docker-compose.dev.yml --profile testing up -d cucumber-report
 
 Browser-based tests using Playwright.
 
-**Location:** `webserver/web/`
+**Location:** `front-end/`
 
 **Technology:** Playwright + TypeScript
 
@@ -373,7 +373,7 @@ git push --no-verify
 **Individual linters:**
 ```bash
 # Frontend
-cd webserver/web
+cd front-end
 npm run lint
 npm run lint:fix
 
@@ -425,7 +425,7 @@ integration/tests/acceptance/
 ├── testdata/             # Test data and checksums
 └── scripts/              # Setup and utilities
 
-webserver/web/
+front-end/
 ├── src/                  # Source code
 └── tests/                # E2E and unit tests
 

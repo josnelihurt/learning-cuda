@@ -57,13 +57,13 @@ mkdir -p "$COVERAGE_DIR"/{frontend,golang,cpp}
 if [ "$SKIP_FRONTEND" = false ]; then
     echo "[1/3] Running Frontend Tests with Coverage..."
     echo "================================================"
-    cd "$PROJECT_ROOT/webserver/web"
+    cd "$PROJECT_ROOT/front-end"
     if [ -d "node_modules" ]; then
         npm run test:coverage
         echo "OK: Frontend coverage complete"
         echo "   Report: $COVERAGE_DIR/frontend/index.html"
     else
-        echo "WARNING: Skipping frontend - dependencies not installed (run: cd webserver/web && npm install)"
+        echo "WARNING: Skipping frontend - dependencies not installed (run: cd front-end && npm install)"
     fi
 else
     echo "[SKIPPED] Frontend Tests"

@@ -17,6 +17,7 @@ $COMPOSE_CMD -f docker-compose.dev.yml stop app-dev 2>/dev/null && echo "Go serv
 pkill -f "vite" 2>/dev/null && echo "Vite stopped" || echo "Vite not running"
 
 fuser -k 2019/tcp 2>/dev/null || true
+fuser -k 3000/tcp 2>/dev/null || true
 fuser -k 8443/tcp 2>/dev/null || true
 
 # Stop test report viewers

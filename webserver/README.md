@@ -84,7 +84,7 @@ graph TB
     subgraph "Go Interfaces Layer"
         ConnectRPC[Connect-RPC Handlers]
         WebSocket[WebSocket Handlers]
-        StaticHTTP[Static HTTP Handler]
+        AuxHTTP[Aux HTTP: data, ws, flipt proxy]
         Vanguard[Vanguard Transcoder]
     end
     
@@ -112,8 +112,10 @@ graph TB
         CppBackend[C++ CUDA Accelerator<br/>gRPC Server]
     end
     
-    Browser --> StaticHTTP
+    Browser --> AuxHTTP
     Browser --> WebSocket
+    Browser --> ConnectRPC
+    Browser --> Vanguard
     API --> ConnectRPC
     API --> Vanguard
     
@@ -166,17 +168,15 @@ webserver/
 │   ├── interfaces/      # HTTP/WebSocket/Connect-RPC handlers
 │   │   ├── connectrpc/  # Connect-RPC handlers
 │   │   ├── websocket/   # WebSocket handlers
-│   │   ├── statichttp/  # Static file serving
+│   │   ├── statichttp/  # /data, /ws, Flipt proxy (UI lives in ../front-end)
 │   │   └── adapters/   # Protocol adapters
 │   ├── config/          # Configuration management
 │   ├── container/       # Dependency injection
 │   ├── app/             # Application setup
 │   └── telemetry/       # OpenTelemetry integration
-└── web/
-    ├── src/             # TypeScript source (Lit Web Components)
-    ├── templates/       # HTML templates
-    └── static/          # Static assets (CSS, images)
 ```
+
+Frontend source: `../front-end/` (Vite in development, Nginx image in production).
 
 ## Key Components
 
@@ -193,10 +193,9 @@ webserver/
 - Session management for multiple concurrent connections
 - Streams processing results back to clients
 
-**Static HTTP Handler** (`pkg/interfaces/statichttp/`):
-- Serves frontend SPA (Single Page Application)
-- Handles development mode (Vite proxy) and production mode (embedded assets)
-- Template rendering and static asset serving
+**Auxiliary HTTP** (`pkg/interfaces/statichttp/`):
+- Serves `/data/` image assets, `/ws` streaming WebSocket, and `/flipt/` admin proxy
+- The browser UI is built and served from `front-end/` (dev: Vite; prod: Nginx)
 
 ### Application Layer
 
@@ -546,14 +545,14 @@ The frontend uses:
 
 **Development:**
 ```bash
-cd webserver/web
+cd ../front-end
 npm install
-npm run dev  # Vite dev server
+npm run dev  # Vite dev server (see ../scripts/dev/start-frontend.sh)
 ```
 
 **Build:**
 ```bash
-npm run build
+cd ../front-end && npm run build
 ```
 
 ## See Also

@@ -6,7 +6,7 @@ compile_commands.json
 
 # External dependencies symlink
 external
-!webserver/web/src/infrastructure/external
+!front-end/src/infrastructure/external
 
 # Editor and caches
 .vscode/
@@ -36,9 +36,9 @@ Thumbs.db
 .ignore/
 
 # E2E test artifacts
-webserver/web/.ignore/
-webserver/web/test-results/
-webserver/web/playwright-report/
+front-end/.ignore/
+front-end/test-results/
+front-end/playwright-report/
 
 proto/gen/
 
@@ -62,7 +62,7 @@ data/test-data/video-frames/
 .tmp/
 
 #TODO: do I still need this?
-webserver/web/static/js/version.js
+front-end/dist/
 bin/server
 bin/webserver
 
@@ -89,7 +89,7 @@ deployment/ansible/.vault_pass
 !.secrets/*.example
 
 # Playwright environment files (keep .env.* templates)
-webserver/web/.env.local
+front-end/.env.local
 
 # Root environment files (consolidated into .secrets/)
 # .env files are now consolidated into .secrets/development.env and .secrets/production.env

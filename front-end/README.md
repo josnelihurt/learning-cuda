@@ -329,7 +329,7 @@ From project root:
 ### Manual Development
 
 ```bash
-cd webserver/web
+cd front-end
 npm install
 npm run dev  # Vite dev server with hot reload
 ```
@@ -378,7 +378,7 @@ npm run test:coverage  # Generate coverage report
 ## Directory Structure
 
 ```
-webserver/web/
+front-end/
 ├── src/
 │   ├── components/          # LitElement components
 │   │   ├── app/            # Core application components

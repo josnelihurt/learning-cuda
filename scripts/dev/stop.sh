@@ -3,27 +3,42 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-cd "$PROJECT_ROOT"
+CUDA_LEARNING_RUNTIME_DIR="${CUDA_LEARNING_RUNTIME_DIR:-/tmp/cuda-learning}"
+DEV_PID_DIR="${CUDA_LEARNING_RUNTIME_DIR}/PIDs"
+DEV_PID_GRPC="${DEV_PID_DIR}/grpc.pid"
+DEV_PID_GO="${DEV_PID_DIR}/go.pid"
+DEV_PID_VITE="${DEV_PID_DIR}/vite.pid"
 
-# Compose command configuration
-COMPOSE_CMD="podman compose"
-# COMPOSE_CMD="docker compose"
+cd "$PROJECT_ROOT"
 
 echo "Stopping services..."
 
-# Stop app-dev container
-$COMPOSE_CMD -f docker-compose.dev.yml stop app-dev 2>/dev/null && echo "Go server container stopped" || echo "Go server container not running"
+kill_from_pid_file() {
+    local pid_file=$1
+    local label=$2
+    local pid
+    if [ ! -f "$pid_file" ]; then
+        return 0
+    fi
+    IFS= read -r pid <"$pid_file" || pid=
+    if [ -n "$pid" ] && kill "$pid" 2>/dev/null; then
+        echo "$label stopped (pid $pid)"
+    fi
+    rm -f "$pid_file"
+}
 
-pkill -f "vite" 2>/dev/null && echo "Vite stopped" || echo "Vite not running"
+kill_from_pid_file "$DEV_PID_GRPC" "gRPC server"
+kill_from_pid_file "$DEV_PID_GO" "Go server"
+kill_from_pid_file "$DEV_PID_VITE" "Vite"
+
+pkill -f "image_processor_grpc_server" 2>/dev/null && echo "gRPC server stopped (fallback)" || true
+fuser -k 60061/tcp 2>/dev/null || true
+
+pkill -f "vite" 2>/dev/null && echo "Vite stopped (fallback)" || echo "Vite not running"
 
 fuser -k 2019/tcp 2>/dev/null || true
 fuser -k 3000/tcp 2>/dev/null || true
 fuser -k 8443/tcp 2>/dev/null || true
-
-# Stop test report viewers
-$COMPOSE_CMD -f docker-compose.dev.yml --profile testing stop e2e-report-viewer cucumber-report 2>/dev/null || true
-$COMPOSE_CMD -f docker-compose.dev.yml --profile coverage stop coverage-report-viewer 2>/dev/null || true
-echo "Test report viewers stopped"
 
 sleep 1
 echo "Services stopped"

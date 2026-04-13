@@ -4,247 +4,199 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+CUDA_LEARNING_RUNTIME_DIR="${CUDA_LEARNING_RUNTIME_DIR:-/tmp/cuda-learning}"
+DEV_PID_DIR="${CUDA_LEARNING_RUNTIME_DIR}/PIDs"
+DEV_LOG_DIR="${CUDA_LEARNING_RUNTIME_DIR}/logs"
+
+DEV_PID_GRPC="${DEV_PID_DIR}/grpc.pid"
+DEV_PID_GO="${DEV_PID_DIR}/go.pid"
+DEV_PID_VITE="${DEV_PID_DIR}/vite.pid"
+
+DEV_LOG_GRPC="${DEV_LOG_DIR}/grpc-server.log"
+DEV_LOG_GO="${DEV_LOG_DIR}/goserver.log"
+DEV_LOG_VITE="${DEV_LOG_DIR}/vite.log"
+
 cd "$PROJECT_ROOT"
-
-# Compose command configuration
-COMPOSE_CMD="podman compose"
-# COMPOSE_CMD="docker compose"
-
-wait_for_grpc() {
-    echo "Waiting for gRPC dev server on localhost:60061..."
-    local timeout=30
-
-    while [ "$timeout" -gt 0 ]; do
-        if bash -c ">/dev/tcp/localhost/60061" 2>/dev/null; then
-            echo "gRPC dev server is reachable on localhost:60061"
-            return 0
-        fi
-
-        sleep 1
-        timeout=$((timeout - 1))
-    done
-
-    echo "Error: gRPC dev server is not reachable on localhost:60061"
-    echo "       Make sure the 'grpc-server-dev' service is healthy (docker-compose.dev.yml)"
-    exit 1
-}
-
-ensure_writable() {
-    local relative_path="$1"
-    local absolute_path="${PROJECT_ROOT}/${relative_path}"
-    local uid gid owner group
-    uid="$(id -u)"
-    gid="$(id -g)"
-
-    if [ ! -d "$absolute_path" ]; then
-        if ! mkdir -p "$absolute_path" 2>/dev/null; then
-            if command -v docker >/dev/null 2>&1; then
-                docker run --rm -v "${PROJECT_ROOT}:/workspace" alpine:3.19 \
-                    sh -c "mkdir -p \"/workspace/${relative_path}\" && chown -R ${uid}:${gid} \"/workspace/${relative_path}\" && chmod -R u+rwX,g+rwX \"/workspace/${relative_path}\""
-            else
-                echo "Unable to create ${absolute_path}. Run 'sudo mkdir -p ${absolute_path}' and ensure it is owned by ${uid}:${gid}."
-                exit 1
-            fi
-        fi
-    fi
-
-    if owner="$(stat -c '%u' "$absolute_path" 2>/dev/null)"; then
-        group="$(stat -c '%g' "$absolute_path" 2>/dev/null)"
-    else
-        owner="$(stat -f '%u' "$absolute_path")"
-        group="$(stat -f '%g' "$absolute_path")"
-    fi
-    if [ "$owner" != "$uid" ] || [ "$group" != "$gid" ] || [ ! -w "$absolute_path" ]; then
-        if command -v docker >/dev/null 2>&1; then
-            docker run --rm -v "${absolute_path}:/target" alpine:3.19 \
-                sh -c "chown -R ${uid}:${gid} /target && chmod -R u+rwX,g+rwX /target"
-        else
-            echo "Unable to adjust permissions for ${absolute_path}. Run 'sudo chown -R ${uid}:${gid} ${absolute_path}'."
-            exit 1
-        fi
-    fi
-}
-
-# Load development secrets
-if [ -f ".secrets/development.env" ]; then
-    echo "Loading development secrets from .secrets/development.env"
-    source .secrets/development.env
-else
-    echo "WARNING: Development secrets file not found at .secrets/development.env"
-    echo "Creating template file..."
-    mkdir -p .secrets
-    cp .secrets/development.env.example .secrets/development.env
-    echo "Please edit .secrets/development.env with your actual development secrets"
-fi
 
 BUILD_FIRST=false
 SHOW_HELP=false
+GRPC_PID=
+GO_PID=
+VITE_PID=
 
-for arg in "$@"; do
-    case "$arg" in
-        --build|-b)
-            BUILD_FIRST=true
-            ;;
-        --help|-h)
-            SHOW_HELP=true
-            ;;
-    esac
-done
+die() {
+    echo "Error: $*" >&2
+    exit 1
+}
 
-if [ "$SHOW_HELP" = true ]; then
+parse_args() {
+    for arg in "$@"; do
+        case "$arg" in
+            --build|-b)
+                BUILD_FIRST=true
+                ;;
+            --help|-h)
+                SHOW_HELP=true
+                ;;
+        esac
+    done
+}
+
+print_help() {
     echo "Usage: ./scripts/dev/start.sh [OPTIONS]"
     echo ""
-    echo "Starts the Go API (HTTPS), gRPC processor, and Flipt. The UI runs separately:"
-    echo "  ./scripts/dev/start-frontend.sh"
+    echo "Starts the C++ gRPC processor, Go API (HTTPS), and Vite dev server."
+    echo ""
+    echo "Local dev (split ports):"
+    echo "  - UI:  https://localhost:3000/react and https://localhost:3000/lit (Vite pretty paths)"
+    echo "  - API: https://localhost:8443 — REST, WebSocket, Connect (Vite proxies to Go via VITE_API_ORIGIN)"
+    echo ""
+    echo "Production: Traefik routes to Nginx (web-frontend) for static HTML; the Go app serves /api, /ws, etc."
+    echo "Nginx serves /react and /lit; Go does not serve frontend HTML in production."
+    echo ""
+    echo "VITE_API_ORIGIN defaults to https://localhost:8443 when unset."
+    echo "Vite only (Go already running): cd front-end && npm run dev (needs .secrets/localhost+2*.pem)."
     echo ""
     echo "Options:"
-    echo "  --build, -b    Build C++ libraries and Go backend before starting"
+    echo "  --build, -b    Build C++ gRPC server and Go backend before starting"
     echo "  --help, -h     Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/dev/start.sh         # Start backend only"
-    echo "  ./scripts/dev/start.sh --build # Build + start backend"
+    echo "  ./scripts/dev/start.sh         # Full stack"
+    echo "  ./scripts/dev/start.sh --build # Build + full stack"
     exit 0
-fi
+}
 
-if [ ! -f ".secrets/localhost+2.pem" ]; then
-    echo "SSL certificates not found, generating with Docker..."
-    ./scripts/docker/generate-certs.sh
-    echo ""
-fi
+require_secrets() {
+    [ -f ".secrets/development.env" ] || {
+        echo "Error: .secrets/development.env not found." >&2
+        echo "      Copy .secrets/development.env.example to .secrets/development.env and fill in values." >&2
+        exit 1
+    }
+    echo "Loading development secrets from .secrets/development.env"
+    source .secrets/development.env
+}
 
-if [[ "$COMPOSE_CMD" == "podman compose"* ]]; then
-    if ! systemctl --user is-active --quiet podman.socket 2>/dev/null; then
-        echo "Starting Podman user socket..."
-        systemctl --user start podman.socket 2>/dev/null || {
-            echo "Warning: Could not start podman.socket. Trying to continue..."
-        }
-        sleep 1
+ensure_tls_certs() {
+    if [ ! -f ".secrets/localhost+2.pem" ]; then
+        echo "SSL certificates not found, generating..."
+        ./scripts/docker/generate-certs.sh
+        echo ""
     fi
-fi
+}
 
-echo "Checking services (Flipt)..."
-if ! docker ps --format '{{.Names}}' | grep -q 'flipt'; then
-    echo "Starting services..."
-    $COMPOSE_CMD -f docker-compose.dev.yml up -d flipt
-    
-    echo "Waiting for Flipt to be ready..."
-    timeout=30
-    while [ $timeout -gt 0 ]; do
-        if curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
-            echo "Flipt health check passed, waiting for full initialization..."
-            sleep 3
-            echo "Flipt is ready!"
-            break
-        fi
-        sleep 1
-        timeout=$((timeout - 1))
-    done
-    if [ $timeout -eq 0 ]; then
-        echo "Warning: Flipt is not responding. Flag sync may fail..."
+ensure_state_dirs() {
+    mkdir -p "$DEV_PID_DIR" "$DEV_LOG_DIR"
+}
+
+run_optional_build() {
+    if [ "$BUILD_FIRST" != true ]; then
+        return 0
     fi
-else
-    echo "Services already running"
-    
-    # Verify Flipt is accessible
-    if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
-        echo "Warning: Flipt is not responding at http://localhost:8081"
-        echo "   Starting Flipt..."
-        $COMPOSE_CMD -f docker-compose.dev.yml up -d flipt
-        sleep 5
-    fi
-fi
-
-echo "Stopping previous application services..."
-./scripts/dev/stop.sh 2>/dev/null || true
-
-[ "$BUILD_FIRST" = true ] && {
     echo "Checking proto files..."
     if [ ! -f "proto/gen/image_processor_service.pb.go" ]; then
         ./scripts/build/protos.sh
     fi
-    
+
     echo "Building gRPC processor server..."
     bazel build //cpp_accelerator/ports/grpc:image_processor_grpc_server
 
     echo "Building backend with Go..."
-    cd webserver && make build && cd ..
+    (cd webserver && make build)
 }
 
-GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server"
-
-if [ ! -x "$GRPC_SERVER_BIN" ]; then
-    echo "Error: gRPC server binary not found at ${GRPC_SERVER_BIN}"
-    echo "       Run './scripts/dev/start.sh --build' to build it."
-    exit 1
-fi
-
-echo "Starting local gRPC server..."
-"$GRPC_SERVER_BIN" --listen_addr=0.0.0.0:60061 > /tmp/grpc-server.log 2>&1 &
-GRPC_PID=$!
-
-wait_for_grpc
-
-cleanup_on_error() {
-    echo "Error detected, stopping services..."
-    if [ -n "${GO_PID:-}" ]; then
-        kill "$GO_PID" 2>/dev/null || true
+require_grpc_binary() {
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server"
+    if [ ! -x "$GRPC_SERVER_BIN" ]; then
+        echo "Error: gRPC server binary not found at ${GRPC_SERVER_BIN}" >&2
+        echo "       Run './scripts/dev/start.sh --build' to build it." >&2
+        exit 1
     fi
-    if [ -n "${GRPC_PID:-}" ]; then
-        kill "$GRPC_PID" 2>/dev/null || true
-    fi
-    wait ${GO_PID:-} ${GRPC_PID:-} 2>/dev/null || true
 }
 
-trap cleanup_on_error INT TERM
-
-echo "Starting Go server..."
-echo "Building Go server (always compile)..."
-cd "$PROJECT_ROOT/webserver" && make build && cd ..
-
-# Check if build was successful
-if [ ! -f "$PROJECT_ROOT/bin/server" ]; then
-    echo "Build failed, exiting..."
-    exit 1
-fi
-
-"$PROJECT_ROOT/bin/server" -config=config/config.dev.yaml > /tmp/goserver.log 2>&1 &
-GO_PID=$!
-
-sleep 2
-
-! kill -0 $GO_PID 2>/dev/null && {
-    echo "Error: Go server failed to start"
-    exit 1
+start_grpc() {
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server"
+    echo "Starting gRPC (C++) server..."
+    "$GRPC_SERVER_BIN" --listen_addr=0.0.0.0:60061 >"$DEV_LOG_GRPC" 2>&1 &
+    GRPC_PID=$!
+    echo "$GRPC_PID" >"$DEV_PID_GRPC"
 }
 
-echo ""
-echo "Starting test report viewers..."
-$COMPOSE_CMD -f docker-compose.dev.yml --profile testing up -d e2e-report-viewer cucumber-report 2>/dev/null || true
-$COMPOSE_CMD -f docker-compose.dev.yml --profile coverage up -d coverage-report-viewer gopkgview 2>/dev/null || true
-sleep 2
+start_go() {
+    echo "Starting Go server..."
+    echo "Building Go server..."
+    (cd "$PROJECT_ROOT/webserver" && make build) || die "Go build failed"
 
-echo "================================================"
-echo "Backend running:"
-echo "  API (HTTPS): https://localhost:8443"
-echo "  Flipt:       http://localhost:8081"
-echo ""
-echo "Frontend (run in another terminal):"
-echo "  ./scripts/dev/start-frontend.sh  -> https://localhost:3000"
-echo ""
-echo "Test Reports:"
-echo "  BDD:      http://localhost:5050"
-echo "  E2E:      http://localhost:5051"
-echo "  Coverage: http://localhost:5052"
-echo "  Go Deps:  http://localhost:5053"
-echo "================================================"
-echo ""
-echo "Services running in background"
-echo "  Go Server PID: $GO_PID"
-echo "  gRPC Server PID: $GRPC_PID"
-echo ""
-echo "To stop services, run: ./scripts/dev/stop.sh"
-echo "To view logs:"
-echo "  Go Server:  tail -f /tmp/goserver.log"
-echo "  gRPC C++:   tail -f /tmp/grpc-server.log"
+    [ -f "$PROJECT_ROOT/bin/server" ] || die "Go build did not produce bin/server"
 
+    "$PROJECT_ROOT/bin/server" -config=config/config.dev.yaml >"$DEV_LOG_GO" 2>&1 &
+    GO_PID=$!
+    echo "$GO_PID" >"$DEV_PID_GO"
+
+    kill -0 "$GO_PID" 2>/dev/null || die "Go server failed to start"
+}
+
+start_vite() {
+    cd "$PROJECT_ROOT/front-end"
+    [ ! -d "node_modules" ] && npm install
+
+    echo "Dev: UI https://localhost:3000/lit and https://localhost:3000/react | API https://localhost:8443 (VITE_API_ORIGIN) | Prod UI: Nginx, not Go"
+    echo "Starting Vite at https://localhost:3000 (API proxy -> ${VITE_API_ORIGIN:-https://localhost:8443})"
+    npm run dev >"$DEV_LOG_VITE" 2>&1 &
+    VITE_PID=$!
+    echo "$VITE_PID" >"$DEV_PID_VITE"
+    cd "$PROJECT_ROOT"
+}
+
+cleanup_on_signal() {
+    echo "Stopping services..."
+    [ -n "${VITE_PID:-}" ] && kill "$VITE_PID" 2>/dev/null || true
+    [ -n "${GO_PID:-}" ] && kill "$GO_PID" 2>/dev/null || true
+    [ -n "${GRPC_PID:-}" ] && kill "$GRPC_PID" 2>/dev/null || true
+    wait ${VITE_PID:-} ${GO_PID:-} ${GRPC_PID:-} 2>/dev/null || true
+    rm -f "$DEV_PID_GRPC" "$DEV_PID_GO" "$DEV_PID_VITE"
+}
+
+print_summary() {
+    echo "================================================"
+    echo "Dev stack:"
+    echo "  UI (Vite):   https://localhost:3000/lit and https://localhost:3000/react"
+    echo "  API (HTTPS): https://localhost:8443"
+    echo "  gRPC (C++):  localhost:60061"
+    echo "================================================"
+    echo ""
+    echo "  gRPC server PID: $GRPC_PID ($DEV_PID_GRPC)"
+    echo "  Go server PID:   $GO_PID ($DEV_PID_GO)"
+    echo "  Vite PID:        $VITE_PID ($DEV_PID_VITE)"
+    echo ""
+    echo "To stop: ./scripts/dev/stop.sh"
+    echo "Logs:"
+    echo "  tail -f $DEV_LOG_GRPC"
+    echo "  tail -f $DEV_LOG_GO"
+    echo "  tail -f $DEV_LOG_VITE"
+}
+
+main() {
+    parse_args "$@"
+    [ "$SHOW_HELP" = true ] && print_help
+
+    require_secrets
+    ensure_tls_certs
+
+    echo "Stopping previous dev processes..."
+    ./scripts/dev/stop.sh 2>/dev/null || true
+
+    run_optional_build
+    require_grpc_binary
+    ensure_state_dirs
+
+    start_grpc
+    trap cleanup_on_signal INT TERM
+
+    start_go
+    start_vite
+
+    print_summary
+}
+
+main "$@"

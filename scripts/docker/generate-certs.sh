@@ -11,7 +11,7 @@ mkdir -p "$CERTS_DIR"
 
 echo "Generating SSL certificates for local development..."
 
-docker run --rm \
+podman run --rm \
     -v "$PROJECT_ROOT/$CERTS_DIR:/certs" \
     alpine:3.19 \
     sh -c "

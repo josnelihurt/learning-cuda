@@ -1,0 +1,41 @@
+.selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 16px);
+}
+
+.tabs {
+  display: flex;
+  gap: var(--spacing-sm, 8px);
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.tab {
+  padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: var(--font-size-label, 13px);
+  font-weight: 500;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.tab:hover {
+  color: var(--accent-color, #ffa400);
+}
+
+.tabActive {
+  color: var(--accent-color, #ffa400);
+  border-bottom-color: var(--accent-color, #ffa400);
+}
+
+.fileList {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: var(--spacing-sm, 8px);
+  background: var(--secondary-color, #fafafa);
+  border-radius: 8px;
+}

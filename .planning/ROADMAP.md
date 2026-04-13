@@ -46,8 +46,8 @@ Plans:
   4. `useHealthMonitor` continuously reflects backend health — status changes within one poll cycle when the backend goes up or down
 **Plans**: 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — Shared gRPC transport + tracing interceptor, ServiceContext/GrpcClientsProvider, useAsyncGRPC, toast bridge + react.html host, Vitest HOOK-01–03
-- [ ] 02-02-PLAN.md — useFilters (listFilters), useHealthMonitor (checkAcceleratorHealth, visibility pause), Vitest HOOK-04–05
+- [x] 02-01-PLAN.md — Shared gRPC transport + tracing interceptor, ServiceContext/GrpcClientsProvider, useAsyncGRPC, toast bridge + react.html host, Vitest HOOK-01–03
+- [x] 02-02-PLAN.md — useFilters (listFilters), useHealthMonitor (checkAcceleratorHealth, visibility pause), Vitest HOOK-04–05
 
 ### Phase 3: Static Feature UI (Image Processing Path)
 **Goal**: Users can upload images, apply filters, view processed results, manage files, view and modify system settings, and see backend health status — all from the React frontend
@@ -59,7 +59,13 @@ Plans:
   3. User can open a file list, select a previously uploaded file, and use it as processing input without re-uploading
   4. User can view current system configuration values and save changes via the settings UI
   5. User sees a health status indicator that changes appearance when the backend becomes unavailable
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [x] 03-01-PLAN.md — Image upload (drag-and-drop, progress), filter panel (selection, parameters, drag-reorder), useImageUpload hook, Vitest IMG-01–02
+- [x] 03-02-PLAN.md — Image processing orchestrator (ImageProcessor), useImageProcessing hook, progress, result display, Vitest IMG-03–04
+- [x] 03-03-PLAN.md — File list (grid/list), image selector modal, useFiles hook, Vitest FILE-01–02
+- [x] 03-04-PLAN.md — Settings panel (view/edit config), useConfig hook, form validation, Vitest CONF-01–02
+- [x] 03-05-PLAN.md — Health indicator (dot + label), health panel (details), mount in navbar, Vitest HLTH-01–02
 **UI hint**: yes
 
 ### Phase 4: Video Streaming and WebRTC
@@ -71,7 +77,12 @@ Plans:
   2. User can switch the video source (camera vs file) before starting a stream
   3. User can stop the stream and the camera indicator light turns off, confirming all WebRTC resources were released
   4. User receives an error toast notification if the WebRTC connection fails or drops mid-stream
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 04-01-PLAN.md — Core WebRTC Service: ReactWebRTCService class with peer connection, data channel, WebSocket signaling, heartbeat, and session management
+- [ ] 04-02-PLAN.md — useWebRTCStream Hook: Hook wrapping ReactWebRTCService with connection state, streaming control, and error handling
+- [ ] 04-03-PLAN.md — Video Streaming Components: VideoCanvas (frame rendering), VideoSourceSelector (source selection), VideoStreamer (orchestration)
+- [ ] 04-04-PLAN.md — Integration & Verification: Mount VideoStreamer in App, end-to-end testing, manual verification checklist
 **UI hint**: yes
 
 ### Phase 5: Polish and Parity Validation
@@ -92,7 +103,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Scaffold and Infrastructure | 2/2 | Complete | 2026-04-13 |
-| 2. Core Hook Infrastructure | 0/2 | Not started | - |
-| 3. Static Feature UI | 0/? | Not started | - |
-| 4. Video Streaming and WebRTC | 0/? | Not started | - |
+| 2. Core Hook Infrastructure | 2/2 | Complete | 2026-04-12 |
+| 3. Static Feature UI | 5/5 | Complete | 2026-04-13 |
+| 4. Video Streaming and WebRTC | 0/4 | Not started | - |
 | 5. Polish and Parity Validation | 0/? | Not started | - |

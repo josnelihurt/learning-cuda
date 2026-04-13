@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
+import react from '@vitejs/plugin-react';
 
 function gitVersionPlugin() {
   let version = 'dev';
@@ -39,9 +40,12 @@ export default defineConfig({
     manifest: true,
     
     rollupOptions: {
-      input: resolve(__dirname, 'src/main.ts'),
+      input: {
+        lit: resolve(__dirname, 'src/main.ts'),
+        react: resolve(__dirname, 'src/react/main.tsx'),
+      },
       output: {
-        entryFileNames: 'app.[hash].js',
+        entryFileNames: '[name].[hash].js',
         chunkFileNames: 'chunks/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash][extname]',
       },
@@ -51,7 +55,7 @@ export default defineConfig({
     target: 'es2020',
   },
   
-  plugins: [gitVersionPlugin()],
+  plugins: [gitVersionPlugin(), react()],
   
   optimizeDeps: {
     include: [

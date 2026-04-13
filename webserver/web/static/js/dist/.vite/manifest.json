@@ -1,8 +1,14 @@
 {
   "src/main.ts": {
-    "file": "app.4u5JJQ-E.js",
-    "name": "main",
+    "file": "lit.Cn0KsrHK.js",
+    "name": "lit",
     "src": "src/main.ts",
+    "isEntry": true
+  },
+  "src/react/main.tsx": {
+    "file": "react.Cz8h8cJr.js",
+    "name": "react",
+    "src": "src/react/main.tsx",
     "isEntry": true
   }
 }

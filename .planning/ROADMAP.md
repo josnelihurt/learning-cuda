@@ -31,8 +31,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. WebRTC APIs (`RTCPeerConnection`, `navigator.mediaDevices`) are stubbed in `test-setup.ts` so React tests can import WebRTC-using modules without crashing
 **Plans**: 2 plans
 Plans:
-- [ ] 01-01-PLAN.md — Frontend build infrastructure: Vite MPA config, split tsconfigs, React deps, React shell, WebRTC stubs
-- [ ] 01-02-PLAN.md — Go dual route serving: route-aware manifest, dual-template handler, /lit /react / redirect
+- [x] 01-01-PLAN.md — Frontend build infrastructure: Vite MPA config, split tsconfigs, React deps, React shell, WebRTC stubs
+- [x] 01-02-PLAN.md — Go dual route serving: route-aware manifest, dual-template handler, /lit /react / redirect
 **UI hint**: yes
 
 ### Phase 2: Core Hook Infrastructure

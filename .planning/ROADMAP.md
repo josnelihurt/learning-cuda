@@ -95,9 +95,9 @@ Plans:
   3. CSS rendering of the React frontend matches the Lit frontend with no layout gaps or missing styles
 **Plans**: 3 plans
 Plans:
-- [ ] 05-01-PLAN.md — Build validation: TypeScript strict mode check, production build, console error verification
-- [ ] 05-02-PLAN.md — CSS parity: Custom property audit, hardcoded value fixes, visual verification, parity report
-- [ ] 05-03-PLAN.md — Feature parity: Comprehensive checklist, side-by-side testing, gap analysis report
+- [ ] 05-01-PLAN.md — Build validation: `tsc --noEmit` + fixes, `npm run build`, explicit typecheck script, Playwright console-error policy for `/react` and `/lit`
+- [ ] 05-02-PLAN.md — CSS parity: token audit vs Lit, hardcoded value remediation, `05-02-CSS-PARITY-REPORT.md`, visual verification notes
+- [ ] 05-03-PLAN.md — Feature parity: `PAR-01-CHECKLIST.md`, side-by-side procedure, `05-03-GAP-ANALYSIS.md`, optional smoke spec, human PAR-01 checkpoint
 
 ## Progress
 

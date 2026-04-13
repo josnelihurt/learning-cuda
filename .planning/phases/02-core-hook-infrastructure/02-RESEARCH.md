@@ -229,10 +229,11 @@ No new auth/secrets in this phase [ASSUMED: matches existing Lit threat model].
 | A1 | No new backend RPCs or paths for Phase 2 | Hook implementation breaks if protos change out of band |
 | A2 | ASVS scope above is sufficient for “infrastructure only” phase | Security review may ask for more explicit RPC error handling rules in Phase 3 |
 
-## Open questions
+## Open Questions (RESOLVED)
 
-1. **Telemetry bootstrap on `/react`:** Should `main.tsx` call `telemetryService.initialize()` (and optionally `streamConfigService.initialize()`) to mirror Lit, or intentionally defer to a later phase? *Known:* interceptors work without it; traces may be empty until init.
-2. **Context surface area:** One context object vs split `ImageProcessorContext` / `RemoteManagementContext` — trade-off between bundle clarity and ergonomics (planner discretion per D-04).
+1. **Telemetry bootstrap on `/react` — RESOLVED:** **Defer** calling `telemetryService.initialize()` (and Lit-style `streamConfigService.initialize()`) in Phase 2. Interceptors still inject headers per D-02; empty trace headers when telemetry is off are acceptable until a later milestone aligns `/react` bootstrap with `front-end/src/main.ts`.
+
+2. **Context surface area — RESOLVED:** **Single** React context (or one provider object) exposing both `ImageProcessorService` and `RemoteManagementService` clients, per D-03 and `02-01-PLAN.md`; no split contexts in Phase 2.
 
 ## Environment availability
 

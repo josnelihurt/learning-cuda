@@ -135,12 +135,8 @@ func TestServerConfig_Validation(t *testing.T) {
 		{
 			name: "Success_ValidConfig",
 			config: ServerConfig{
-				HTTPPort:         ":8080",
-				HTTPSPort:        ":8443",
-				HotReloadEnabled: false,
-				WebRootPath:      "webserver/web",
-				DevServerURL:     "https://localhost:3000",
-				DevServerPaths:   []string{"/@vite/", "/src/"},
+				HTTPPort:  ":8080",
+				HTTPSPort: ":8443",
 				TLS: TLSConfig{
 					Enabled:  true,
 					CertFile: ".secrets/cert.pem",
@@ -152,10 +148,8 @@ func TestServerConfig_Validation(t *testing.T) {
 		{
 			name: "Success_HTTPOnly",
 			config: ServerConfig{
-				HTTPPort:         ":8080",
-				HTTPSPort:        "",
-				HotReloadEnabled: false,
-				WebRootPath:      "webserver/web",
+				HTTPPort:  ":8080",
+				HTTPSPort: "",
 				TLS: TLSConfig{
 					Enabled: false,
 				},

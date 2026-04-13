@@ -27,11 +27,12 @@ echo "  Cleaning generated proto files..."
 rm -rf proto/gen/*
 
 echo "  Cleaning test results..."
-rm -rf .ignore/webserver/web/
+rm -rf .ignore/front-end/
 # Legacy cleanup for deprecated locations
-rm -rf webserver/web/.ignore/
-rm -rf webserver/web/test-results/
-rm -rf webserver/web/playwright-report/
+rm -rf .ignore/webserver/web/
+rm -rf front-end/.ignore/
+rm -rf front-end/test-results/
+rm -rf front-end/playwright-report/
 sudo rm -rf integration/tests/acceptance/.ignore/ 2>/dev/null || rm -rf integration/tests/acceptance/.ignore/
 
 echo "  Cleaning test data (video frames)..."

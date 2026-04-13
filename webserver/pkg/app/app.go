@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/webserver/pkg/application"
@@ -248,46 +247,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		Interceptors:          a.interceptors,
 	})
 
-	staticHandler := statichttp.NewStaticHandler(&statichttp.StaticHandlerDeps{
-		ServerConfig:  &a.config.Server,
-		StreamConfig:  a.config.Stream,
-		UseCase:       a.useCase,
-		VideoRepo:     a.videoRepository,
-		FliptURL:      a.config.Flipt.URL,
-		EvaluateFFUC:  a.evaluateFFUC,
-		GRPCProcessor: a.grpcProcessor,
-	})
-	serveIndex := staticHandler.GetServeIndex()
-
-	// Register catch-all handler AFTER Connect-RPC handlers to ensure specific routes are matched first
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// REST API routes handled by transcoder
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			transcoder.ServeHTTP(w, r)
-			return
-		}
-
-		// Connect-RPC routes should already be handled by registered handlers above
-		// Vanguard transcoder doesn't support direct Connect-RPC GET requests,
-		// so we should NOT fallback to transcoder for Connect-RPC paths.
-		// The registered Connect-RPC handlers handle both GET and POST.
-		if strings.HasPrefix(r.URL.Path, "/cuda_learning.") ||
-			strings.HasPrefix(r.URL.Path, "/com.jrb.") {
-			// These should be handled by Connect-RPC handlers, not transcoder
-			// If we get here, it means no handler matched - return 404
-			http.NotFound(w, r)
-			return
-		}
-
-		// Root redirects to React (React is the default experience)
-		if r.URL.Path == "/" {
-			http.Redirect(w, r, "/react", http.StatusFound)
-			return
-		}
-
-		// All other routes serve the SPA index (ServeIndex determines lit vs react)
-		serveIndex(w, r)
-	})
+	mux.Handle("/api/", transcoder)
 
 	logger.Global().Info().Msg("Connect-RPC handlers and Vanguard transcoder registered (REST + Connect + gRPC)")
 }
@@ -304,7 +264,6 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 
 func (a *App) setupStaticHandler(mux *http.ServeMux) {
 	staticHandler := statichttp.NewStaticHandler(&statichttp.StaticHandlerDeps{
-		ServerConfig:  &a.config.Server,
 		StreamConfig:  a.config.Stream,
 		UseCase:       a.useCase,
 		VideoRepo:     a.videoRepository,
@@ -353,7 +312,6 @@ func (a *App) Run() error {
 	go func() {
 		log.Info().
 			Str("port", a.config.Server.HTTPPort).
-			Bool("hot_reload", a.config.Server.HotReloadEnabled).
 			Str("transport", a.config.Stream.TransportFormat).
 			Msg("Starting HTTP server")
 		if err := http.ListenAndServe(a.config.Server.HTTPPort, handler); err != nil {

@@ -15,7 +15,7 @@ STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
 # Detect changes by component
 CPP_CHANGED=$(echo "$STAGED_FILES" | grep -E '^cpp_accelerator/|^third_party/|^MODULE\.bazel|^WORKSPACE' || true)
 GO_CHANGED=$(echo "$STAGED_FILES" | grep -E '^webserver/.*\.go$|^proto/|^go\.(mod|sum)$' || true)
-FRONTEND_CHANGED=$(echo "$STAGED_FILES" | grep -E '^webserver/web/' || true)
+FRONTEND_CHANGED=$(echo "$STAGED_FILES" | grep -E '^front-end/' || true)
 
 # Run C++ tests and linting only if changes detected
 if [ -n "$CPP_CHANGED" ]; then

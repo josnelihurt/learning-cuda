@@ -94,13 +94,16 @@ done
 if [ "$SHOW_HELP" = true ]; then
     echo "Usage: ./scripts/dev/start.sh [OPTIONS]"
     echo ""
+    echo "Starts the Go API (HTTPS), gRPC processor, and Flipt. The UI runs separately:"
+    echo "  ./scripts/dev/start-frontend.sh"
+    echo ""
     echo "Options:"
     echo "  --build, -b    Build C++ libraries and Go backend before starting"
     echo "  --help, -h     Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/dev/start.sh         # Start development server"
-    echo "  ./scripts/dev/start.sh --build # Build + start development server"
+    echo "  ./scripts/dev/start.sh         # Start backend only"
+    echo "  ./scripts/dev/start.sh --build # Build + start backend"
     exit 0
 fi
 
@@ -182,38 +185,18 @@ GRPC_PID=$!
 
 wait_for_grpc
 
-cd "$PROJECT_ROOT/webserver/web"
-[ ! -d "node_modules" ] && npm install
-cd "$PROJECT_ROOT"
-
 cleanup_on_error() {
     echo "Error detected, stopping services..."
     if [ -n "${GO_PID:-}" ]; then
         kill "$GO_PID" 2>/dev/null || true
     fi
-    if [ -n "${VITE_PID:-}" ]; then
-        kill "$VITE_PID" 2>/dev/null || true
-    fi
     if [ -n "${GRPC_PID:-}" ]; then
         kill "$GRPC_PID" 2>/dev/null || true
     fi
-    wait ${GO_PID:-} ${VITE_PID:-} ${GRPC_PID:-} 2>/dev/null || true
+    wait ${GO_PID:-} ${GRPC_PID:-} 2>/dev/null || true
 }
 
 trap cleanup_on_error INT TERM
-
-echo "Starting Vite (hot reload)..."
-cd webserver/web
-npm run dev > /tmp/vite.log 2>&1 &
-VITE_PID=$!
-cd "$PROJECT_ROOT"
-sleep 2
-
-! kill -0 $VITE_PID 2>/dev/null && {
-    echo "Error: Vite failed to start"
-    cat /tmp/vite.log
-    exit 1
-}
 
 echo "Starting Go server..."
 echo "Building Go server (always compile)..."
@@ -232,7 +215,6 @@ sleep 2
 
 ! kill -0 $GO_PID 2>/dev/null && {
     echo "Error: Go server failed to start"
-    kill $VITE_PID 2>/dev/null
     exit 1
 }
 
@@ -243,9 +225,12 @@ $COMPOSE_CMD -f docker-compose.dev.yml --profile coverage up -d coverage-report-
 sleep 2
 
 echo "================================================"
-echo "Development server running:"
-echo "  HTTPS:  https://localhost:8443"
-echo "  Flipt:  http://localhost:8081"
+echo "Backend running:"
+echo "  API (HTTPS): https://localhost:8443"
+echo "  Flipt:       http://localhost:8081"
+echo ""
+echo "Frontend (run in another terminal):"
+echo "  ./scripts/dev/start-frontend.sh  -> https://localhost:3000"
 echo ""
 echo "Test Reports:"
 echo "  BDD:      http://localhost:5050"
@@ -253,17 +238,13 @@ echo "  E2E:      http://localhost:5051"
 echo "  Coverage: http://localhost:5052"
 echo "  Go Deps:  http://localhost:5053"
 echo "================================================"
-echo "Dev mode - hot reload enabled"
-echo "Feature Flags enabled"
 echo ""
 echo "Services running in background"
-echo "  Vite PID: $VITE_PID"
 echo "  Go Server PID: $GO_PID"
 echo "  gRPC Server PID: $GRPC_PID"
 echo ""
 echo "To stop services, run: ./scripts/dev/stop.sh"
 echo "To view logs:"
-echo "  Vite:      tail -f /tmp/vite.log"
-echo "  Go Server: tail -f /tmp/goserver.log"
-echo "  Cpp Client: tail -f  /tmp/grpc-server.log"
+echo "  Go Server:  tail -f /tmp/goserver.log"
+echo "  gRPC C++:   tail -f /tmp/grpc-server.log"
 

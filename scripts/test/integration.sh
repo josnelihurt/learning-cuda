@@ -149,8 +149,8 @@ echo "  GOLANG_VERSION:    $GOLANG_VERSION"
 echo ""
 
 mkdir -p integration/tests/acceptance/.ignore/test-results
-mkdir -p .ignore/webserver/web/test-results
-mkdir -p .ignore/webserver/web/playwright-report
+mkdir -p .ignore/front-end/test-results
+mkdir -p .ignore/front-end/playwright-report
 
 echo "Note: Tests require local services running (Flipt + App)"
 echo "Make sure you've run: ./scripts/dev/start.sh"
@@ -261,7 +261,7 @@ fi
 if [[ "$TEST_TYPE" == "e2e" || "$TEST_TYPE" == "all" ]]; then
     echo ""
     echo "E2E Results:"
-    echo "  Location: .ignore/webserver/web/"
+    echo "  Location: .ignore/front-end/"
     echo "  Subdirs: test-results/, playwright-report/"
     echo ""
     echo "  View report:"

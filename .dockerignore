@@ -1,7 +1,7 @@
 bazel-*
 
 node_modules/
-webserver/web/node_modules/
+front-end/node_modules/
 
 .git/
 .gitignore
@@ -36,7 +36,7 @@ temp/
 
 README-HTTPS.md
 *.md
-!webserver/web/README.md
+!front-end/README.md
 
 *_test.cpp
 *_test.go

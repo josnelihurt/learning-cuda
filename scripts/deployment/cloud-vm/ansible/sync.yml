@@ -21,7 +21,7 @@
           - "--exclude=bin/"
           - "--exclude=coverage/"
           - "--exclude=cpp_accelerator/"
-          - "--exclude=webserver/web/node_modules"
+          - "--exclude=front-end/node_modules"
           - "--exclude=third_party/"
           - "--exclude=venv-mcp/"
           - "--exclude=grpc-test/"

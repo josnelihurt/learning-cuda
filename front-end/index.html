@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CUDA Image Processor - Josnelihurt</title>
-    <link href='https://fonts.googleapis.com/css?family=Lato:400,600,700,300' rel='stylesheet' type='text/css'>
+    <link href="https://fonts.googleapis.com/css?family=Lato:400,600,700,300" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <!-- Fixed Header -->
     <header class="navbar">
         <div class="navbar-container">
             <div class="navbar-left">
@@ -33,7 +32,6 @@
         <information-banner></information-banner>
     </header>
 
-    <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-content">
             <app-root></app-root>
@@ -41,7 +39,6 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
         <video-grid></video-grid>
     </main>
@@ -56,10 +53,8 @@
     <grpc-status-modal></grpc-status-modal>
     <app-tour></app-tour>
 
-    {{range .ScriptTags}}
-    <script{{if .Module}} type="module"{{end}} src="{{.Src}}"></script>
-    {{end}}
-    
+    <script type="module" src="/src/main.ts"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const hostname = window.location.hostname;
@@ -67,7 +62,7 @@
             const fliptBtn = document.getElementById('fliptBtn');
             if (jaegerBtn) jaegerBtn.href = `http://${hostname}:16686`;
             if (fliptBtn) fliptBtn.href = `http://${hostname}:8081`;
-            
+
             const creditBy = document.getElementById('credit-by');
             if (creditBy) {
                 creditBy.addEventListener('click', function() {

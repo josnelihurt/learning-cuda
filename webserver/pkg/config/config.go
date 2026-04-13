@@ -84,13 +84,9 @@ func setDefaults(v *viper.Viper) {
 		"environment":         "development",
 		"http_client_timeout": "10s",
 
-		"server.http_port":          ":8080",
-		"server.https_port":         ":8443",
-		"server.hot_reload_enabled": false,
-		"server.web_root_path":      "webserver/web",
-		"server.dev_server_url":     "https://localhost:3000",
-		"server.dev_server_paths":   []string{"/@vite/", "/src/", "/node_modules/"},
-		"server.tls.enabled":        true,
+		"server.http_port":   ":8080",
+		"server.https_port":  ":8443",
+		"server.tls.enabled": true,
 		"server.tls.cert_file":      ".secrets/localhost+2.pem",
 		"server.tls.key_file":       ".secrets/localhost+2-key.pem",
 

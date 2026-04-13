@@ -84,7 +84,7 @@ echo "Building Go server..."
 echo ""
 echo "Building frontend..."
 (
-  cd webserver/web
+  cd front-end
   if [ ! -d node_modules ]; then
     npm install
   fi

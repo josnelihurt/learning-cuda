@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CUDA Image Processor - React</title>
-    <link href='https://fonts.googleapis.com/css?family=Lato:400,600,700,300' rel='stylesheet' type='text/css'>
+    <link href="https://fonts.googleapis.com/css?family=Lato:400,600,700,300" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
     <div id="root"></div>
-
-    {{range .ScriptTags}}
-    <script{{if .Module}} type="module"{{end}} src="{{.Src}}"></script>
-    {{end}}
+    <script type="module" src="/src/react/main.tsx"></script>
 </body>
 </html>

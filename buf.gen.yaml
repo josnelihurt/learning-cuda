@@ -1,6 +1,6 @@
 # Complete protobuf generation configuration (Go + C++ + TypeScript)
 # Used for local development with `buf generate`
-# Requires node_modules installed in webserver/web/
+# Requires node_modules installed in front-end/
 # For Docker builds (backend only), see buf.gen.backend.yaml
 
 version: v2
@@ -16,12 +16,12 @@ plugins:
   - local: protoc-gen-connect-go
     out: proto/gen
     opt: paths=source_relative
-  - local: webserver/web/node_modules/.bin/protoc-gen-es
-    out: webserver/web/src/gen
+  - local: front-end/node_modules/.bin/protoc-gen-es
+    out: front-end/src/gen
     opt:
       - target=ts
-  - local: webserver/web/node_modules/.bin/protoc-gen-connect-es
-    out: webserver/web/src/gen
+  - local: front-end/node_modules/.bin/protoc-gen-connect-es
+    out: front-end/src/gen
     opt:
       - target=ts
 inputs:

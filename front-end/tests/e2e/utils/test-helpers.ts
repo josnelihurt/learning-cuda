@@ -8,7 +8,7 @@
  * @returns The base URL for the current environment
  */
 export function getBaseUrl(): string {
-  return process.env.PLAYWRIGHT_BASE_URL || 'https://localhost:8443';
+  return process.env.PLAYWRIGHT_BASE_URL || 'https://localhost:3000';
 }
 
 /**

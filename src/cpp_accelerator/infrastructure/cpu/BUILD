@@ -4,8 +4,8 @@ cc_library(
     hdrs = ["blur_filter.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
     ],
 )
 
@@ -15,8 +15,8 @@ cc_library(
     hdrs = ["grayscale_filter.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
     ],
 )
 
@@ -28,9 +28,9 @@ cc_test(
     ],
     deps = [
         ":blur_filter",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/infrastructure/image:image_adapters",
         "@googletest//:gtest_main",
     ],
 )
@@ -43,9 +43,9 @@ cc_test(
     ],
     deps = [
         ":grayscale_filter",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/infrastructure/image:image_adapters",
         "@googletest//:gtest_main",
     ],
 )

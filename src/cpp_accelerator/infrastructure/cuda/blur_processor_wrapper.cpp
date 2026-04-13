@@ -1,11 +1,11 @@
-#include "cpp_accelerator/infrastructure/cuda/blur_processor.h"
+#include "src/cpp_accelerator/infrastructure/cuda/blur_processor.h"
 
 #include <cmath>
 #include <string>
 #include <vector>
 
-#include "cpp_accelerator/core/telemetry.h"
-#include "cpp_accelerator/infrastructure/cuda/blur_kernel.h"
+#include "src/cpp_accelerator/core/telemetry.h"
+#include "src/cpp_accelerator/infrastructure/cuda/blur_kernel.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"

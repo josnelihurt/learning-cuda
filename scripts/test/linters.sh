@@ -22,7 +22,7 @@ CPP_ERRORS=0
 
 echo "[1/3] Running Frontend Linter (ESLint)..."
 echo "============================================="
-cd "$PROJECT_ROOT/front-end"
+cd "$PROJECT_ROOT/src/front-end"
 if [ -d "node_modules" ]; then
     if [ "$FIX_MODE" = true ]; then
         npm run lint:fix || FRONTEND_ERRORS=$?
@@ -37,7 +37,7 @@ if [ -d "node_modules" ]; then
             echo "FAILED: Frontend linting found issues"
     fi
 else
-        echo "WARNING: Skipping frontend - dependencies not installed (run: cd front-end && npm install)"
+        echo "WARNING: Skipping frontend - dependencies not installed (run: cd src/front-end && npm install)"
 fi
 echo ""
 
@@ -67,15 +67,15 @@ echo "[3/3] Running C++ Linter (clang-tidy)..."
 echo "==========================================="
 cd "$PROJECT_ROOT"
 if command -v clang-tidy &> /dev/null; then
-    CPP_FILES=$(find cpp_accelerator -name "*.cpp" -o -name "*.h" | grep -v "BUILD" || true)
+    CPP_FILES=$(find src/cpp_accelerator -name "*.cpp" -o -name "*.h" | grep -v "BUILD" || true)
     
     if [ -n "$CPP_FILES" ]; then
         if [ "$FIX_MODE" = true ]; then
             echo "$CPP_FILES" | xargs clang-tidy -p . --fix || CPP_ERRORS=$?
-            find cpp_accelerator -name "*.cpp" -o -name "*.h" | xargs clang-format -i || true
+            find src/cpp_accelerator -name "*.cpp" -o -name "*.h" | xargs clang-format -i || true
         else
             echo "$CPP_FILES" | xargs clang-tidy -p . || CPP_ERRORS=$?
-            find cpp_accelerator -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run -Werror || true
+            find src/cpp_accelerator -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run -Werror || true
         fi
         
         if [ $CPP_ERRORS -eq 0 ]; then

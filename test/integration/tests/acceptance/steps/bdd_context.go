@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/websocket"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/featureflags"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )

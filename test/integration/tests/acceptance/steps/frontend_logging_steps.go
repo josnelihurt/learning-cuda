@@ -135,4 +135,3 @@ func InitializeFrontendLoggingSteps(ctx *godog.ScenarioContext, tc *TestContext)
 	ctx.Step(`^the feature flag "([^"]*)" is not set$`, tc.theFeatureFlagIsNotSet)
 	ctx.Step(`^the frontend is configured$`, tc.theFrontendIsConfigured)
 }
-

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cpp_accelerator/core/result.h"
+#include "src/cpp_accelerator/core/result.h"
 
 namespace jrb::application::commands {
 

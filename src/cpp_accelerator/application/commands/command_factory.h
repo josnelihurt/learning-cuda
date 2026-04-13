@@ -3,8 +3,8 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include "cpp_accelerator/application/commands/command_interface.h"
-#include "cpp_accelerator/infrastructure/config/models/program_config.h"
+#include "src/cpp_accelerator/application/commands/command_interface.h"
+#include "src/cpp_accelerator/infrastructure/config/models/program_config.h"
 
 namespace jrb::application::commands {
 

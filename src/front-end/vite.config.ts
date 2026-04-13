@@ -118,8 +118,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 3000,
       https: {
-        key: resolve(__dirname, '../.secrets/localhost+2-key.pem'),
-        cert: resolve(__dirname, '../.secrets/localhost+2.pem'),
+        key: resolve(__dirname, '../../.secrets/localhost+2-key.pem'),
+        cert: resolve(__dirname, '../../.secrets/localhost+2.pem'),
       },
       cors: true,
       strictPort: true,

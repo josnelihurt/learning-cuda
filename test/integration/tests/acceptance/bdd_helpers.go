@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/featureflags"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/featureflags"
 )
 
 type BDDContext struct {

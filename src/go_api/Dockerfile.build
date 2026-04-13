@@ -14,11 +14,11 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY webserver/ ./webserver/
+COPY src/go_api/ ./src/go_api/
 
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
-WORKDIR /build/webserver
+WORKDIR /build/src/go_api
 
 ARG CGO_ENABLED=0
 ENV CGO_ENABLED=${CGO_ENABLED}
@@ -35,7 +35,7 @@ ENV BUILD_TIME=${BUILD_TIME}
 RUN make build
 
 RUN mkdir -p /artifacts/bin && \
-    cp ../bin/server /artifacts/bin/
+    cp ../../bin/server /artifacts/bin/
 
 FROM scratch AS artifacts
 

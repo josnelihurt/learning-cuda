@@ -3,7 +3,7 @@ cc_library(
     hdrs = ["command_interface.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//cpp_accelerator/core:result",
+        "//src/cpp_accelerator/core:result",
     ],
 )
 
@@ -25,7 +25,7 @@ cc_library(
     deps = [
         ":command_interface",
         ":commands",
-        "//cpp_accelerator/infrastructure/config",
+        "//src/cpp_accelerator/infrastructure/config",
     ],
 )
 
@@ -41,8 +41,8 @@ cc_test(
         ":command_factory",
         ":command_interface",
         ":commands",
-        "//cpp_accelerator/core:result",
-        "//cpp_accelerator/infrastructure/config",
+        "//src/cpp_accelerator/core:result",
+        "//src/cpp_accelerator/infrastructure/config",
         "@googletest//:gtest_main",
     ],
 )

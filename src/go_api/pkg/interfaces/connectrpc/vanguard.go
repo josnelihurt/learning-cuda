@@ -6,9 +6,9 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/vanguard"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	"github.com/jrb/cuda-learning/webserver/pkg/application"
-	"github.com/jrb/cuda-learning/webserver/pkg/config"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
 
 // VanguardConfig groups all dependencies needed to setup Vanguard transcoder

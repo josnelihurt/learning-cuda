@@ -1,4 +1,4 @@
-#include "cpp_accelerator/ports/cgo/cgo_api.h"
+#include "src/cpp_accelerator/ports/cgo/cgo_api.h"
 
 #include <cstring>
 #include <memory>
@@ -14,9 +14,9 @@
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/core/telemetry.h"
-#include "cpp_accelerator/ports/cgo/image_buffer_adapter.h"
-#include "cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/core/telemetry.h"
+#include "src/cpp_accelerator/ports/cgo/image_buffer_adapter.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 // TODO(deprecate-cgo): Remove this CGO transport layer once the gRPC service fully replaces it.
 

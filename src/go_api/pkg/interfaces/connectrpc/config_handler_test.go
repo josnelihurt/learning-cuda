@@ -3,7 +3,7 @@ package connectrpc
 import (
 	"testing"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

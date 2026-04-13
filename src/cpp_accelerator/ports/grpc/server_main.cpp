@@ -12,12 +12,12 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/str_cat.h"
 
-#include "cpp_accelerator/ports/grpc/image_processor_service_impl.h"
-#include "cpp_accelerator/ports/grpc/processor_engine_adapter.h"
-#include "cpp_accelerator/ports/grpc/webrtc_manager.h"
-#include "cpp_accelerator/ports/grpc/webrtc_signaling_service_impl.h"
-#include "cpp_accelerator/ports/shared_lib/library_version.h"
-#include "cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/ports/grpc/image_processor_service_impl.h"
+#include "src/cpp_accelerator/ports/grpc/processor_engine_adapter.h"
+#include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
+#include "src/cpp_accelerator/ports/grpc/webrtc_signaling_service_impl.h"
+#include "src/cpp_accelerator/ports/shared_lib/library_version.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 ABSL_FLAG(std::string, listen_addr, "0.0.0.0:60061",
           "Address for the ImageProcessorService gRPC server to bind to.");

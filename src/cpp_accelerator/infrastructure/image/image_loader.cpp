@@ -1,4 +1,4 @@
-#include "cpp_accelerator/infrastructure/image/image_loader.h"
+#include "src/cpp_accelerator/infrastructure/image/image_loader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"

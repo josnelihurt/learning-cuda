@@ -228,7 +228,7 @@ echo "Running E2E tests locally..."
 echo "Command: npx playwright test $PLAYWRIGHT_OPTS"
 echo ""
 
-cd front-end
+cd src/front-end
 
 set +e
 npx playwright test $PLAYWRIGHT_OPTS

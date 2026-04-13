@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	flipt "go.flipt.io/flipt-client"
 )
 

@@ -42,7 +42,7 @@ ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
 
 WORKDIR /build
 
-COPY cpp_accelerator/ ./cpp_accelerator/
+COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
@@ -71,7 +71,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
+          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
@@ -87,13 +87,13 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
           --linkopt="-Wl,--verbose" \
           --linkopt="-Wl,--stats" \
-          //cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
+          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
         echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
     fi
 
-RUN VERSION=$(cat cpp_accelerator/VERSION) && \
+RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/lib && \
-    cp -L bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so
+    cp -L bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so
 
 FROM scratch AS artifacts
 
@@ -111,12 +111,12 @@ COPY .bazelrc .bazeliskrc ./
 COPY bazel/ ./bazel/
 COPY proto/ ./proto/
 COPY third_party/ ./third_party/
-COPY cpp_accelerator/ ./cpp_accelerator/
+COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
 ENV USE_BAZEL_VERSION=8.4.2
-RUN bazel fetch //cpp_accelerator/ports/grpc:image_processor_grpc_server || true
+RUN bazel fetch //src/cpp_accelerator/ports/grpc:image_processor_grpc_server || true
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     NPROC=$(nproc) && \
@@ -139,7 +139,7 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+          //src/cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
@@ -153,19 +153,19 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+          //src/cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
         echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
     fi
 
-RUN VERSION=$(cat cpp_accelerator/VERSION) && \
+RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/bin && \
-    cp -L bazel-bin/cpp_accelerator/ports/grpc/image_processor_grpc_server /artifacts/bin/image_processor_grpc_server
+    cp -L bazel-bin/src/cpp_accelerator/ports/grpc/image_processor_grpc_server /artifacts/bin/image_processor_grpc_server
 
 FROM grpc-built AS grpc-artifacts
 
 COPY --from=cpp-built /artifacts/lib/ /artifacts/lib/
 
-RUN VERSION=$(cat cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
+RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
     if [ -f "/artifacts/lib/libcuda_processor_v${VERSION}.so" ]; then \
       cp /artifacts/lib/libcuda_processor_v${VERSION}.so /artifacts/lib/libcuda_processor.so; \
     elif [ -f "/artifacts/lib/libcuda_processor.so" ]; then \
@@ -193,7 +193,7 @@ COPY --from=grpc-artifacts /artifacts/bin/image_processor_grpc_server ./bin/imag
 COPY --from=grpc-artifacts /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
 
 # Copy VERSION file for GetVersionInfo endpoint
-COPY cpp_accelerator/VERSION ./cpp_accelerator/VERSION
+COPY src/cpp_accelerator/VERSION ./src/cpp_accelerator/VERSION
 
 ENV LD_LIBRARY_PATH=/opt/cuda/grpc/lib:${LD_LIBRARY_PATH}
 

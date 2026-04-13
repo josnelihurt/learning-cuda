@@ -1,14 +1,14 @@
-#include "cpp_accelerator/application/pipeline/filter_pipeline.h"
+#include "src/cpp_accelerator/application/pipeline/filter_pipeline.h"
 
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
 
-#include "cpp_accelerator/application/pipeline/buffer_pool.h"
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
-#include "cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
-#include "cpp_accelerator/infrastructure/image/image_loader.h"
+#include "src/cpp_accelerator/application/pipeline/buffer_pool.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/infrastructure/cpu/blur_filter.h"
+#include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/image/image_loader.h"
 
 namespace jrb::application::pipeline {
 namespace {

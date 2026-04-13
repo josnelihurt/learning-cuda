@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/config"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"

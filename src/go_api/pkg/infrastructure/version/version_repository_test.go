@@ -25,7 +25,7 @@ func TestRepositoryImpl_GetGoVersion(t *testing.T) {
 
 	version := repo.GetGoVersion()
 
-	if _, err := os.Stat(filepath.Join("..", "..", "..", "..", "webserver", "VERSION")); err == nil {
+	if _, err := os.Stat(filepath.Join("..", "..", "..", "..", "..", "src", "go_api", "VERSION")); err == nil {
 		assert.NotEqual(t, UnknownValue, version)
 		assert.NotEmpty(t, version)
 	} else {
@@ -38,7 +38,7 @@ func TestRepositoryImpl_GetCppVersion(t *testing.T) {
 
 	version := repo.GetCppVersion()
 
-	if _, err := os.Stat(filepath.Join("..", "..", "..", "..", "cpp_accelerator", "VERSION")); err == nil {
+	if _, err := os.Stat(filepath.Join("..", "..", "..", "..", "..", "src", "cpp_accelerator", "VERSION")); err == nil {
 		assert.NotEqual(t, UnknownValue, version)
 		assert.NotEmpty(t, version)
 	} else {
@@ -51,7 +51,7 @@ func TestRepositoryImpl_GetProtoVersion(t *testing.T) {
 
 	version := repo.GetProtoVersion()
 
-	if _, err := os.Stat(filepath.Join("..", "..", "..", "..", "proto", "VERSION")); err == nil {
+	if _, err := os.Stat(filepath.Join("..", "..", "..", "..", "..", "proto", "VERSION")); err == nil {
 		assert.NotEqual(t, UnknownValue, version)
 		assert.NotEmpty(t, version)
 	} else {
@@ -72,7 +72,7 @@ func TestFindProjectRoot(t *testing.T) {
 	root := findProjectRoot()
 	assert.NotEmpty(t, root)
 
-	webserverVersionPath := filepath.Join(root, "webserver", "VERSION")
-	_, err := os.Stat(webserverVersionPath)
-	assert.NoError(t, err, "webserver/VERSION should exist in project root")
+	goAPIVersionPath := filepath.Join(root, "src", "go_api", "VERSION")
+	_, err := os.Stat(goAPIVersionPath)
+	assert.NoError(t, err, "src/go_api/VERSION should exist in project root")
 }

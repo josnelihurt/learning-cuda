@@ -1,8 +1,8 @@
-#include "cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
 
 #include <algorithm>
 
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::infrastructure::cpu {
 

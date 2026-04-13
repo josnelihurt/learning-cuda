@@ -10,7 +10,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces",
         "@spdlog",
         "//third_party/stb:stb_image",
         "//third_party/stb:stb_image_write",
@@ -28,7 +28,7 @@ cc_test(
     ],
     deps = [
         ":image_adapters",
-        "//cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces",
         "@googletest//:gtest_main",
     ],
 )

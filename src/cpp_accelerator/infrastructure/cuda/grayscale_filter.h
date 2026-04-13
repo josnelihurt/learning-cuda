@@ -1,7 +1,7 @@
 #pragma once
 
-#include "cpp_accelerator/domain/interfaces/filters/i_filter.h"
-#include "cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
+#include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
+#include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
 
 namespace jrb::infrastructure::cuda {
 

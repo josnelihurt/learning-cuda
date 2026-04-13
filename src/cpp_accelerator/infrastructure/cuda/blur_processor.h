@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "cpp_accelerator/domain/interfaces/filters/i_filter.h"
+#include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 
 namespace jrb::infrastructure::cuda {
 

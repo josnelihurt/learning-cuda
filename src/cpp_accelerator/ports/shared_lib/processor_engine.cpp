@@ -1,24 +1,24 @@
-#include "cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 #include <cstring>
 #include <string>
 #include <utility>
 
-#include "cpp_accelerator/ports/shared_lib/library_version.h"
+#include "src/cpp_accelerator/ports/shared_lib/library_version.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/application/pipeline/filter_pipeline.h"
-#include "cpp_accelerator/core/logger.h"
-#include "cpp_accelerator/core/telemetry.h"
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
-#include "cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
-#include "cpp_accelerator/infrastructure/cuda/blur_processor.h"
-#include "cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
+#include "src/cpp_accelerator/application/pipeline/filter_pipeline.h"
+#include "src/cpp_accelerator/core/logger.h"
+#include "src/cpp_accelerator/core/telemetry.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/infrastructure/cpu/blur_filter.h"
+#include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/cuda/blur_processor.h"
+#include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 
 namespace jrb::ports::shared_lib {
 

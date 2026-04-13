@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 )
 
 type ProcessorBackendOrigin string

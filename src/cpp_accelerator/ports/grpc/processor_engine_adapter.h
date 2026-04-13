@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "cpp_accelerator/ports/grpc/processor_engine_provider.h"
-#include "cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/ports/grpc/processor_engine_provider.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 namespace jrb::ports::grpc_service {
 

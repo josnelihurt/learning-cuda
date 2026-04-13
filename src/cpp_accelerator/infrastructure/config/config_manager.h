@@ -2,8 +2,8 @@
 
 #include <span>
 #include <string>
-#include "cpp_accelerator/core/result.h"
-#include "cpp_accelerator/infrastructure/config/models/program_config.h"
+#include "src/cpp_accelerator/core/result.h"
+#include "src/cpp_accelerator/infrastructure/config/models/program_config.h"
 
 namespace jrb::infrastructure::config {
 

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/config"
-	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 )
 
 type DeviceMonitor struct {

@@ -1,4 +1,4 @@
-#include "cpp_accelerator/infrastructure/config/config_manager.h"
+#include "src/cpp_accelerator/infrastructure/config/config_manager.h"
 #include <lyra/lyra.hpp>
 #include <sstream>
 

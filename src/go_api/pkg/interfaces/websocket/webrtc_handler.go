@@ -9,9 +9,9 @@ import (
 
 	"github.com/gorilla/websocket"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
-	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/protobuf/encoding/protojson"

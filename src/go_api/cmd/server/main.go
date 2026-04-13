@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/app"
-	"github.com/jrb/cuda-learning/webserver/pkg/application"
-	"github.com/jrb/cuda-learning/webserver/pkg/container"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/processor"
-	"github.com/jrb/cuda-learning/webserver/pkg/telemetry"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/app"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/container"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/telemetry"
 )
 
 func main() {

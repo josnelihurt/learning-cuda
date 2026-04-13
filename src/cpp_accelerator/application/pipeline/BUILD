@@ -15,8 +15,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":buffer_pool",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
     ],
 )
 
@@ -28,11 +28,11 @@ cc_test(
     ],
     deps = [
         ":filter_pipeline",
-        "//cpp_accelerator/infrastructure/cpu:blur_filter",
-        "//cpp_accelerator/infrastructure/cpu:grayscale_filter",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "//src/cpp_accelerator/infrastructure/cpu:blur_filter",
+        "//src/cpp_accelerator/infrastructure/cpu:grayscale_filter",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/infrastructure/image:image_adapters",
         "@googletest//:gtest_main",
     ],
 )

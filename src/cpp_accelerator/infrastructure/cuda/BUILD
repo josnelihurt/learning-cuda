@@ -32,10 +32,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":cuda_kernels",
-        "//cpp_accelerator/core:telemetry",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces:processors",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/core:telemetry",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces:processors",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
         "@spdlog",
     ],
 )
@@ -67,9 +67,9 @@ cc_test(
     ],
     deps = [
         ":blur_processor",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/infrastructure/image:image_adapters",
         "@googletest//:gtest_main",
     ],
 )
@@ -81,9 +81,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":cuda_kernels",
-        "//cpp_accelerator/core:telemetry",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/core:telemetry",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
         "@spdlog",
     ],
 )
@@ -96,10 +96,10 @@ cc_test(
     ],
     deps = [
         ":grayscale_filter",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
-        "//cpp_accelerator/infrastructure/cpu:grayscale_filter",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/infrastructure/cpu:grayscale_filter",
+        "//src/cpp_accelerator/infrastructure/image:image_adapters",
         "@googletest//:gtest_main",
     ],
 )

@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <string>
-#include "cpp_accelerator/domain/interfaces/image_source.h"
+#include "src/cpp_accelerator/domain/interfaces/image_source.h"
 
 namespace jrb::infrastructure::image {
 

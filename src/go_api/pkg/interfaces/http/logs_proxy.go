@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
 
 type LogsProxyHandler struct {

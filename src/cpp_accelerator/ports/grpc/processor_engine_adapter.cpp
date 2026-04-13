@@ -1,4 +1,4 @@
-#include "cpp_accelerator/ports/grpc/processor_engine_adapter.h"
+#include "src/cpp_accelerator/ports/grpc/processor_engine_adapter.h"
 
 #include <fstream>
 #include <string>
@@ -30,7 +30,7 @@ bool ProcessorEngineAdapter::GetVersionInfo(cuda_learning::GetVersionInfoRespons
   }
 
   std::string server_version;
-  static const char* version_file_paths[] = {"cpp_accelerator/VERSION",
+  static const char* version_file_paths[] = {"src/cpp_accelerator/VERSION",
                                              "../cpp_accelerator/VERSION",
                                              "../../cpp_accelerator/VERSION", "./VERSION", nullptr};
 

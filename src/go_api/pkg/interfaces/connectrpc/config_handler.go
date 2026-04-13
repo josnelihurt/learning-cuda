@@ -7,9 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/webserver/pkg/application"
-	"github.com/jrb/cuda-learning/webserver/pkg/config"
-	"github.com/jrb/cuda-learning/webserver/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )

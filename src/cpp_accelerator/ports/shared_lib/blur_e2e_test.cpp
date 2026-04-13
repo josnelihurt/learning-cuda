@@ -9,10 +9,10 @@
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 
-#include "cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "cpp_accelerator/infrastructure/cpu/blur_filter.h"
-#include "cpp_accelerator/infrastructure/image/image_loader.h"
-#include "cpp_accelerator/ports/shared_lib/processor_api.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
+#include "src/cpp_accelerator/infrastructure/cpu/blur_filter.h"
+#include "src/cpp_accelerator/infrastructure/image/image_loader.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_api.h"
 
 namespace jrb::ports::shared_lib {
 namespace {

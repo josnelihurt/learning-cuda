@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	videoinfra "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/video"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	videoinfra "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/video"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

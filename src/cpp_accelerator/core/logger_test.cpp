@@ -1,4 +1,4 @@
-#include "cpp_accelerator/core/logger.h"
+#include "src/cpp_accelerator/core/logger.h"
 #include <gtest/gtest.h>
 
 #pragma GCC diagnostic push

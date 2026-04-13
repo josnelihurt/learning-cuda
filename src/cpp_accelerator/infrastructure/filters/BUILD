@@ -7,11 +7,11 @@ cc_test(
         "//data:static_images/lena.png",
     ],
     deps = [
-        "//cpp_accelerator/infrastructure/cpu:blur_filter",
-        "//cpp_accelerator/infrastructure/cuda:cuda_wrappers",
-        "//cpp_accelerator/domain/interfaces",
-        "//cpp_accelerator/domain/interfaces/filters:filters",
-        "//cpp_accelerator/infrastructure/image:image_adapters",
+        "//src/cpp_accelerator/infrastructure/cpu:blur_filter",
+        "//src/cpp_accelerator/infrastructure/cuda:cuda_wrappers",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/infrastructure/image:image_adapters",
         "@googletest//:gtest_main",
     ],
 )

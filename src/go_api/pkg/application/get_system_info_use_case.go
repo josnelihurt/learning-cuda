@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 
-	"github.com/jrb/cuda-learning/webserver/pkg/domain"
-	"github.com/jrb/cuda-learning/webserver/pkg/domain/interfaces"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"

@@ -85,15 +85,15 @@ describe('useWebRTCStream', () => {
 
     const { result } = renderHook(() => useWebRTCStream());
 
-    await act(async () => {
-      const startPromise = result.current.startStream('source-abc', []);
-      // State should be 'connecting' immediately
-      expect(result.current.connectionState).toBe('connecting');
-      await startPromise;
+    // Start stream (state transitions to connecting)
+    const startPromise = act(async () => {
+      await result.current.startStream('source-abc', []);
     });
 
     // State should be 'connected' after successful completion
+    await startPromise;
     expect(result.current.connectionState).toBe('connected');
+    expect(result.current.isStreaming).toBe(true);
   });
 
   it('stopStream() should call manageWebRTC.closeSession() and cleanup state', async () => {

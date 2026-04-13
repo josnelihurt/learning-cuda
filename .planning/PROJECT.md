@@ -99,6 +99,8 @@ A learning-focused project to rebuild the frontend using React while maintaining
 
 **Goal:** Build a production-ready React frontend with full feature parity to the existing Lit frontend, serving as a hands-on React learning project.
 
+**Phase 1 (2026-04-13):** `front-end/` Vite MPA with `/react` and `/lit` on dev (Vite) and production (Nginx); Playwright + bounded dev script prove routes.
+
 **Target features:**
 - React + Vite + TypeScript scaffold with dual routing (/lit and /react)
 - Clean component architecture (presentational vs container, no prop drilling)
@@ -127,4 +129,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-12 after milestone v1.0 started*
+*Last updated: 2026-04-13 after Phase 1 scaffold complete*

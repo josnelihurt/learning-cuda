@@ -12,7 +12,7 @@ Five phases take the project from zero React code to a production-ready frontend
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Scaffold and Infrastructure** - Vite MPA config, Go dual routing, React entry point, and WebRTC test stubs
+- [x] **Phase 1: Scaffold and Infrastructure** (2026-04-13) - Vite MPA config, Nginx/Vite `/react` and `/lit`, React entry point, and WebRTC test stubs
 - [ ] **Phase 2: Core Hook Infrastructure** - ConnectRPC context, async gRPC hook, toast, filters, and health monitor hooks
 - [ ] **Phase 3: Static Feature UI** - Image processing, file management, settings, and health monitoring UI
 - [ ] **Phase 4: Video Streaming and WebRTC** - Full WebRTC stream lifecycle, canvas frame display, video source selector
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold and Infrastructure | 0/2 | Planned | - |
+| 1. Scaffold and Infrastructure | 2/2 | Complete | 2026-04-13 |
 | 2. Core Hook Infrastructure | 0/? | Not started | - |
 | 3. Static Feature UI | 0/? | Not started | - |
 | 4. Video Streaming and WebRTC | 0/? | Not started | - |

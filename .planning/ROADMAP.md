@@ -93,7 +93,11 @@ Plans:
   1. Developer can open `/react` and `/lit` side-by-side and exercise every feature (image upload, video stream, file list, settings, health) with identical results
   2. The React production build completes with zero TypeScript strict-mode errors and no console errors on page load
   3. CSS rendering of the React frontend matches the Lit frontend with no layout gaps or missing styles
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 05-01-PLAN.md — Build validation: TypeScript strict mode check, production build, console error verification
+- [ ] 05-02-PLAN.md — CSS parity: Custom property audit, hardcoded value fixes, visual verification, parity report
+- [ ] 05-03-PLAN.md — Feature parity: Comprehensive checklist, side-by-side testing, gap analysis report
 
 ## Progress
 
@@ -106,4 +110,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Core Hook Infrastructure | 2/2 | Complete | 2026-04-12 |
 | 3. Static Feature UI | 5/5 | Complete | 2026-04-13 |
 | 4. Video Streaming and WebRTC | 0/4 | Not started | - |
-| 5. Polish and Parity Validation | 0/? | Not started | - |
+| 5. Polish and Parity Validation | 0/3 | Not started | - |

@@ -1,0 +1,121 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { useEffect } from 'react';
+import { act } from 'react';
+import { ConnectError, Code } from '@connectrpc/connect';
+import { ListFiltersResponse } from '@/gen/image_processor_service_pb';
+import { useAsyncGRPC } from './hooks/useAsyncGRPC';
+import { renderWithService } from './test-utils/render-with-service';
+import type { GrpcClients } from './context/service-context';
+
+afterEach(() => {
+  document.body.replaceChildren();
+});
+
+describe('useAsyncGRPC', () => {
+  it('transitions loading to data on success', async () => {
+    const listFilters = vi.fn().mockResolvedValue(new ListFiltersResponse({}));
+    const snapshots: { loading: boolean; data?: ListFiltersResponse }[] = [];
+
+    function Probe() {
+      const { data, loading } = useAsyncGRPC(
+        async (clients, { signal }) =>
+          clients.imageProcessorClient.listFilters({}, { signal }),
+        []
+      );
+      snapshots.push({ loading, data });
+      return null;
+    }
+
+    const { unmount } = renderWithService(<Probe />, {
+      imageProcessorClient: { listFilters } as unknown as GrpcClients['imageProcessorClient'],
+      remoteManagementClient: {} as GrpcClients['remoteManagementClient'],
+    });
+
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(listFilters).toHaveBeenCalled();
+      });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(listFilters).toHaveBeenCalled();
+    const last = snapshots[snapshots.length - 1];
+    expect(last?.loading).toBe(false);
+    expect(last?.data).toBeInstanceOf(ListFiltersResponse);
+    unmount();
+  });
+
+  it('maps ConnectError to stable error shape', async () => {
+    const listFilters = vi
+      .fn()
+      .mockRejectedValue(new ConnectError('rpc failed', Code.Unavailable));
+    const errors: { message: string; code?: string }[] = [];
+
+    function Probe() {
+      const { error, loading } = useAsyncGRPC(
+        async (clients, { signal }) =>
+          clients.imageProcessorClient.listFilters({}, { signal }),
+        []
+      );
+      useEffect(() => {
+        if (!loading && error) {
+          errors.push(error);
+        }
+      }, [loading, error]);
+      return null;
+    }
+
+    const { unmount } = renderWithService(<Probe />, {
+      imageProcessorClient: { listFilters } as unknown as GrpcClients['imageProcessorClient'],
+      remoteManagementClient: {} as GrpcClients['remoteManagementClient'],
+    });
+
+    await vi.waitFor(
+      () => {
+        expect(errors.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 }
+    );
+
+    expect(errors[0]?.message).toBeDefined();
+    expect(errors[0]?.code).toBe(String(Code.Unavailable));
+    unmount();
+  });
+
+  it('refetch runs executor again', async () => {
+    const listFilters = vi.fn().mockResolvedValue(new ListFiltersResponse({}));
+    let refetch: (() => void) | undefined;
+
+    function Probe() {
+      const grpc = useAsyncGRPC(
+        async (clients, { signal }) =>
+          clients.imageProcessorClient.listFilters({}, { signal }),
+        []
+      );
+      refetch = grpc.refetch;
+      return null;
+    }
+
+    const { unmount } = renderWithService(<Probe />, {
+      imageProcessorClient: { listFilters } as unknown as GrpcClients['imageProcessorClient'],
+      remoteManagementClient: {} as GrpcClients['remoteManagementClient'],
+    });
+
+    await act(async () => {
+      await vi.waitFor(() => expect(listFilters).toHaveBeenCalledTimes(1));
+    });
+
+    await act(async () => {
+      refetch?.();
+    });
+
+    await act(async () => {
+      await vi.waitFor(() => expect(listFilters).toHaveBeenCalledTimes(2));
+    });
+
+    unmount();
+  });
+});

@@ -1,4 +1,4 @@
-import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/connect';
+import { createPromiseClient, PromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService as ConfigServiceClient } from '../../gen/config_service_connect';
 import { StreamEndpoint } from '../../gen/config_service_pb';
@@ -6,14 +6,7 @@ import { telemetryService } from '../../infrastructure/observability/telemetry-s
 import { logger } from '../../infrastructure/observability/otel-logger';
 import type { IConfigService } from '../../domain/interfaces/IConfigService';
 import { grpcConnectionService } from '../../infrastructure/connection/grpc-connection-service';
-
-const tracingInterceptor: Interceptor = (next) => async (req) => {
-  const headers = telemetryService.getTraceHeaders();
-  for (const [key, value] of Object.entries(headers)) {
-    req.header.set(key, value);
-  }
-  return await next(req);
-};
+import { tracingInterceptor } from '../../infrastructure/grpc/tracing-interceptor';
 
 class StreamConfigService implements IConfigService {
   private client: PromiseClient<typeof ConfigServiceClient>;

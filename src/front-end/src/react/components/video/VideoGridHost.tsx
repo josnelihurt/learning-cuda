@@ -178,6 +178,16 @@ export function VideoGridHost() {
     });
   }, [emitSelectionState]);
 
+  const activeWsService = useMemo(() => {
+    if (selectedSourceId) {
+      const selected = sources.find((source) => source.id === selectedSourceId);
+      if (selected?.ws) {
+        return selected.ws;
+      }
+    }
+    return sources.find((source) => source.ws)?.ws ?? null;
+  }, [selectedSourceId, sources]);
+
   const addSource = useCallback(
     (inputSource: InputSource) => {
       if (sourcesRef.current.length >= MAX_SOURCES) {
@@ -501,6 +511,7 @@ export function VideoGridHost() {
         frames={frames}
         cameraStatus={cameraStatus}
         cameraStatusType={cameraStatusType}
+        wsService={activeWsService}
       />
     </>
   );

@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { grpcConnectionService } from '../../../infrastructure/connection/grpc-connection-service';
+import { webrtcService } from '../../../infrastructure/connection/webrtc-service';
+import './StatsPanel.css';
 
 type StatsPanelProps = {
   fps: string;
@@ -6,7 +9,47 @@ type StatsPanelProps = {
   frames: number;
   cameraStatus: string;
   cameraStatusType: 'success' | 'error' | 'warning' | 'inactive';
+  wsService?: {
+    getConnectionStatus: () => {
+      state: 'connected' | 'disconnected' | 'connecting' | 'error';
+      lastRequest: string | null;
+      lastRequestTime: Date | null;
+    };
+  } | null;
 };
+
+type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'error';
+
+type ConnectionSnapshot = {
+  label: 'ws' | 'gRPC' | 'WebRTC';
+  state: ConnectionState;
+  lastRequest: string | null;
+  lastRequestTime: Date | null;
+};
+
+function normalizeState(state: string): ConnectionState {
+  if (state === 'connected' || state === 'disconnected' || state === 'connecting' || state === 'error') {
+    return state;
+  }
+  return 'disconnected';
+}
+
+function formatElapsedTime(time: Date | null): string {
+  if (!time) {
+    return 'N/A';
+  }
+  const diffMs = Date.now() - time.getTime();
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h`;
+}
 
 export function StatsPanel({
   fps,
@@ -14,31 +57,87 @@ export function StatsPanel({
   frames,
   cameraStatus,
   cameraStatusType,
+  wsService = null,
 }: StatsPanelProps) {
+  const [connections, setConnections] = useState<ConnectionSnapshot[]>([
+    { label: 'ws', state: 'disconnected', lastRequest: null, lastRequestTime: null },
+    { label: 'gRPC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
+    { label: 'WebRTC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
+  ]);
+
+  useEffect(() => {
+    const updateConnections = () => {
+      const wsStatus = wsService?.getConnectionStatus() ?? {
+        state: 'disconnected' as const,
+        lastRequest: null,
+        lastRequestTime: null,
+      };
+      const grpcStatus = grpcConnectionService.getConnectionStatus();
+      const webRtcStatus = webrtcService.getConnectionStatus();
+
+      setConnections([
+        {
+          label: 'ws',
+          state: normalizeState(wsStatus.state),
+          lastRequest: wsStatus.lastRequest,
+          lastRequestTime: wsStatus.lastRequestTime,
+        },
+        {
+          label: 'gRPC',
+          state: normalizeState(grpcStatus.state),
+          lastRequest: grpcStatus.lastRequest,
+          lastRequestTime: grpcStatus.lastRequestTime,
+        },
+        {
+          label: 'WebRTC',
+          state: normalizeState(webRtcStatus.state),
+          lastRequest: webRtcStatus.lastRequest,
+          lastRequestTime: webRtcStatus.lastRequestTime,
+        },
+      ]);
+    };
+
+    updateConnections();
+    const intervalId = window.setInterval(updateConnections, 2000);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [wsService]);
+
+  const cameraStatusClassName = useMemo(
+    () => `camera-status-${cameraStatusType}`,
+    [cameraStatusType]
+  );
+
   return (
     <div
       data-testid="react-stats-panel"
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '35px',
-        background: '#2a2a2a',
-        color: '#fff',
-        borderTop: '2px solid #404040',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '2px 30px 1px',
-        zIndex: 1000,
-        gap: '24px',
-        fontSize: '12px',
-      }}
+      className="react-stats-panel"
     >
-      <strong>FPS: {fps}</strong>
-      <strong>Time: {time}</strong>
-      <strong>Frames: {frames}</strong>
-      <strong className={`camera-status-${cameraStatusType}`}>{cameraStatus}</strong>
+      <div className="react-stats-left">
+        <strong>FPS: {fps}</strong>
+        <strong>Time: {time}</strong>
+        <strong>Frames: {frames}</strong>
+        <strong className={cameraStatusClassName}>{cameraStatus}</strong>
+      </div>
+      <div className="react-connections-section">
+        {connections.map((connection) => (
+          <div
+            key={connection.label}
+            className="react-connection-card"
+            data-testid={`react-connection-${connection.label.toLowerCase()}`}
+          >
+            <div className="react-connection-header">
+              <span className="react-connection-label">{connection.label}</span>
+              <span className={`react-connection-indicator ${connection.state}`} />
+            </div>
+            <div className="react-connection-detail">
+              Req: {connection.lastRequest ?? 'N/A'}
+            </div>
+            <div className="react-connection-time">{formatElapsedTime(connection.lastRequestTime)}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

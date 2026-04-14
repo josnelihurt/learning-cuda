@@ -1,0 +1,102 @@
+.react-stats-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 35px;
+  background: #2a2a2a;
+  color: #fff;
+  border-top: 2px solid #404040;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 30px 1px;
+  z-index: 1000;
+  gap: 24px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.react-stats-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.react-connections-section {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.react-connection-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  min-width: 180px;
+  height: 26px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.react-connection-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 46px;
+}
+
+.react-connection-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.react-connection-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.react-connection-indicator.connected {
+  background: #66ff66;
+  box-shadow: 0 0 6px #66ff66;
+}
+
+.react-connection-indicator.disconnected,
+.react-connection-indicator.error {
+  background: #ff6666;
+  box-shadow: 0 0 6px #ff6666;
+}
+
+.react-connection-indicator.connecting {
+  background: #ffaa00;
+  box-shadow: 0 0 6px #ffaa00;
+}
+
+.react-connection-detail {
+  font-size: 9px;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.react-connection-time {
+  font-size: 8px;
+  color: #b0b0b0;
+  flex-shrink: 0;
+}

@@ -17,8 +17,8 @@ import { ReactFrameTransportService } from './ReactFrameTransportService';
  * manageFrameTransport.sendFrame(frameData, filters);
  *
  * // Register callbacks
- * manageFrameTransport.setFrameCallback((frameData) => { /* handle frame */ });
- * manageFrameTransport.setErrorCallback((error) => { /* handle error */ });
+ * manageFrameTransport.setFrameCallback((frameData) => { ... });
+ * manageFrameTransport.setErrorCallback((error) => { ... });
  *
  * // Check status
  * const status = manageFrameTransport.getConnectionStatus();

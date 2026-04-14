@@ -1,0 +1,96 @@
+.shell {
+  display: block;
+  width: 100%;
+}
+
+.shell .controlSection {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shell .controlSection:last-child {
+  border-bottom: none;
+}
+
+.shell .controlLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.shell .selectedRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+}
+
+.shell .sourceBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.shell .segmented {
+  display: flex;
+  gap: 4px;
+  background: var(--background-secondary);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.shell .segment {
+  flex: 1;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.shell .segment:hover {
+  color: var(--text-primary);
+}
+
+.shell .segmentActive {
+  background: white;
+  color: var(--primary-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.shell .compactSelect {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.shell .compactSelect:hover {
+  border-color: var(--primary-color);
+}
+
+.shell .compactSelect:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}

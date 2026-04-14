@@ -11,6 +11,31 @@
     <div id="root"></div>
     <toast-container></toast-container>
     <stats-panel></stats-panel>
+    <source-drawer></source-drawer>
+    <add-source-fab></add-source-fab>
+    <accelerator-status-fab></accelerator-status-fab>
+    <image-selector-modal></image-selector-modal>
+    <feature-flags-modal></feature-flags-modal>
+    <grpc-status-modal></grpc-status-modal>
+    <app-tour></app-tour>
     <script type="module" src="/src/react/main.tsx"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const hostname = window.location.hostname;
+            const jaegerBtn = document.getElementById('jaegerBtn');
+            const fliptBtn = document.getElementById('fliptBtn');
+            if (jaegerBtn) jaegerBtn.href = `http://${hostname}:16686`;
+            if (fliptBtn) fliptBtn.href = `http://${hostname}:8081`;
+
+            const creditBy = document.getElementById('credit-by');
+            if (creditBy) {
+                creditBy.addEventListener('click', function() {
+                    localStorage.clear();
+                    console.log('LocalStorage cleared');
+                    alert('LocalStorage cleared!');
+                });
+            }
+        });
+    </script>
 </body>
 </html>

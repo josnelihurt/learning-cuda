@@ -1,6 +1,24 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
+import type { ActiveFilterState } from '../filters/FilterPanel';
 import { VideoStreamer } from './VideoStreamer';
+
+const dashboardFiltersRef: { current: ActiveFilterState[] } = { current: [] };
+
+vi.mock('../../context/dashboard-state-context', () => ({
+  useDashboardState: () => ({
+    selectedSourceNumber: 1,
+    selectedSourceName: 'Lena',
+    selectedAccelerator: 'gpu',
+    selectedResolution: 'original',
+    activeFilters: dashboardFiltersRef.current,
+    processorFilterEpoch: 0,
+    setSelectedSource: vi.fn(),
+    setAccelerator: vi.fn(),
+    setResolution: vi.fn(),
+    setActiveFilters: vi.fn(),
+  }),
+}));
 
 // Mock HTMLCanvasElement.getContext for all tests
 beforeEach(() => {
@@ -11,23 +29,12 @@ beforeEach(() => {
   };
 
   HTMLCanvasElement.prototype.getContext = vi.fn(() => mockContext);
+  dashboardFiltersRef.current = [];
 });
 
 // Mock dependencies
 vi.mock('../../hooks/useWebRTCStream', () => ({
   useWebRTCStream: vi.fn(),
-}));
-
-vi.mock('../filters/FilterPanel', () => ({
-  FilterPanel: ({ onFiltersChange }: any) => (
-    <div data-testid="filter-panel">
-      <button
-        onClick={() => onFiltersChange([{ id: 'filter1', parameters: {} }])}
-      >
-        Select Filter
-      </button>
-    </div>
-  ),
 }));
 
 import { useWebRTCStream } from '../../hooks/useWebRTCStream';
@@ -49,10 +56,10 @@ describe('VideoStreamer', () => {
   });
 
   describe('Component Rendering', () => {
-    it('renders FilterPanel, VideoSourceSelector, VideoCanvas', () => {
+    it('renders VideoSourceSelector and empty state when not streaming', () => {
       render(<VideoStreamer />);
 
-      expect(screen.getByTestId('filter-panel')).toBeInTheDocument();
+      expect(screen.queryByTestId('filter-panel')).not.toBeInTheDocument();
       expect(screen.getByTestId('video-source-selector')).toBeInTheDocument();
       expect(screen.getByText(/No Stream Active/i)).toBeInTheDocument();
     });
@@ -168,14 +175,10 @@ describe('VideoStreamer', () => {
   });
 
   describe('Filter Integration', () => {
-    it('filters from FilterPanel are passed to startStream() per D-15', async () => {
+    it('passes dashboard activeFilters to startStream() per D-15', async () => {
+      dashboardFiltersRef.current = [{ id: 'filter1', parameters: {} }];
       render(<VideoStreamer />);
 
-      // Select a filter via FilterPanel
-      const filterButton = screen.getByText(/Select Filter/i);
-      fireEvent.click(filterButton);
-
-      // Start stream
       const startButton = screen.getByRole('button', { name: /start stream/i });
       fireEvent.click(startButton);
 
@@ -191,15 +194,10 @@ describe('VideoStreamer', () => {
     it('selected source from VideoSourceSelector is passed to startStream()', async () => {
       render(<VideoStreamer />);
 
-      // This test verifies that the component passes the selected source
-      // The actual source selection happens via VideoSourceSelector
-      // which calls onSourceChange, updating the selectedSource state
-
       const startButton = screen.getByRole('button', { name: /start stream/i });
       fireEvent.click(startButton);
 
       await waitFor(() => {
-        // Default is camera-1 when source type is 'camera'
         expect(mockStartStream).toHaveBeenCalledWith('camera-1', []);
       });
     });
@@ -264,7 +262,6 @@ describe('VideoStreamer', () => {
       render(<VideoStreamer />);
 
       const stopButton = screen.getByRole('button', { name: /stop stream/i });
-      // CSS Modules generate hash-based class names, so we check if it contains the base name
       expect(stopButton.className).toContain('stopButton');
     });
   });

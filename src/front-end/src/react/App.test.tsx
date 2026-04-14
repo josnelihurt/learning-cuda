@@ -1,8 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import App from './App';
 import { ToastProvider } from './context/toast-context';
 import { GrpcClientsProvider } from './providers/grpc-clients-provider';
+
+function renderWithProviders(ui: ReactElement) {
+  return render(
+    <ToastProvider>
+      <GrpcClientsProvider>{ui}</GrpcClientsProvider>
+    </ToastProvider>
+  );
+}
 
 vi.mock('./providers/app-services-provider', () => ({
   useAppServices: () => ({
@@ -11,8 +20,23 @@ vi.mock('./providers/app-services-provider', () => ({
   }),
 }));
 
-vi.mock('./components/video/VideoStreamer', () => ({
-  VideoStreamer: () => <div data-testid="video-streamer">VideoStreamer</div>,
+vi.mock('./context/dashboard-state-context', () => ({
+  useDashboardState: () => ({
+    selectedSourceNumber: 1,
+    selectedSourceName: 'Lena',
+    selectedAccelerator: 'gpu',
+    selectedResolution: 'original',
+    activeFilters: [],
+    processorFilterEpoch: 0,
+    setSelectedSource: vi.fn(),
+    setAccelerator: vi.fn(),
+    setResolution: vi.fn(),
+    setActiveFilters: vi.fn(),
+  }),
+}));
+
+vi.mock('./components/video/VideoGridHost', () => ({
+  VideoGridHost: () => <div data-testid="video-grid-host">VideoGridHost</div>,
 }));
 
 describe('App', () => {
@@ -25,42 +49,37 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
-  it('should render VideoStreamer when services are ready', () => {
-    render(<App />);
-    const videoStreamer = screen.getByTestId('video-streamer');
-    expect(videoStreamer).toBeInTheDocument();
+  it('should render VideoGridHost when services are ready', () => {
+    renderWithProviders(<App />);
+    const grid = screen.getByTestId('video-grid-host');
+    expect(grid).toBeInTheDocument();
   });
 
   it('should show React load marker text', () => {
-    render(<App />);
+    renderWithProviders(<App />);
     expect(screen.getByText('React app loaded')).toBeInTheDocument();
   });
 
   it('should render without console errors', () => {
-    render(<App />);
+    renderWithProviders(<App />);
     expect(console.error).not.toHaveBeenCalled();
   });
 
   it('should have Lit-matching shell structure', () => {
-    const { container } = render(<App />);
+    const { container } = renderWithProviders(<App />);
 
     expect(container.querySelector('.navbar')).toBeInTheDocument();
     expect(container.querySelector('.sidebar')).toBeInTheDocument();
+    expect(container.querySelector('.sidebar-content')).toBeInTheDocument();
     expect(container.querySelector('.main-content')).toBeInTheDocument();
 
-    const videoStreamer = screen.getByTestId('video-streamer');
-    expect(container.querySelector('.main-content')?.contains(videoStreamer)).toBe(true);
+    const grid = screen.getByTestId('video-grid-host');
+    expect(container.querySelector('.main-content')?.contains(grid)).toBe(true);
   });
 
   it('should render when wrapped like main.tsx', () => {
-    render(
-      <ToastProvider>
-        <GrpcClientsProvider>
-          <App />
-        </GrpcClientsProvider>
-      </ToastProvider>
-    );
+    renderWithProviders(<App />);
 
-    expect(screen.getByTestId('video-streamer')).toBeInTheDocument();
+    expect(screen.getByTestId('video-grid-host')).toBeInTheDocument();
   });
 });

@@ -1,12 +1,16 @@
 import React from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import { useState } from 'react';
+import { ImageUpload } from '../image/ImageUpload';
+import { ReactVideoUpload } from './ReactVideoUpload';
+import { ReactVideoSelector } from './ReactVideoSelector';
 
 type ReactSourceDrawerProps = {
   isOpen: boolean;
   availableSources: InputSource[];
   onClose: () => void;
   onSelectSource: (source: InputSource) => void;
+  onSourcesChanged: () => void;
 };
 
 export function ReactSourceDrawer({
@@ -14,12 +18,14 @@ export function ReactSourceDrawer({
   availableSources,
   onClose,
   onSelectSource,
+  onSourcesChanged,
 }: ReactSourceDrawerProps) {
   const [activeTab, setActiveTab] = useState<'images' | 'videos'>('images');
+  const [videoReloadKey, setVideoReloadKey] = useState(0);
   const filteredSources =
     activeTab === 'images'
       ? availableSources.filter((source) => source.type === 'static' || source.type === 'camera')
-      : availableSources.filter((source) => source.type === 'video');
+      : [];
 
   return (
     <div className="react-source-drawer-host" aria-hidden={!isOpen}>
@@ -50,27 +56,63 @@ export function ReactSourceDrawer({
               Videos
             </button>
           </div>
-          <div className="section-title">Select Source</div>
-          <div className="source-list">
-            {filteredSources.map((source) => (
-              <button
-                key={source.id}
-                type="button"
-                className="source-item"
-                data-testid={`source-item-${source.id}`}
-                onClick={() => onSelectSource(source)}
-              >
-                <div className="source-icon">
-                  {source.type === 'camera' ? '\u25cf' : source.type === 'video' ? '\u25b6' : '\u25a3'}
-                </div>
-                <div className="source-info">
-                  <div className="source-name">{source.displayName}</div>
-                  <div className="source-type">{source.type}</div>
-                </div>
-                {source.isDefault ? <span className="source-badge">Default</span> : null}
-              </button>
-            ))}
-          </div>
+          {activeTab === 'images' ? (
+            <>
+              <div className="upload-section">
+                <div className="section-title">Upload Image</div>
+                <ImageUpload
+                  onImageUploaded={() => {
+                    onSourcesChanged();
+                  }}
+                />
+              </div>
+              <div className="section-title">Select Source</div>
+              <div className="source-list">
+                {filteredSources.map((source) => (
+                  <div
+                    key={source.id}
+                    className="source-item"
+                    data-testid={`source-item-${source.id}`}
+                    onClick={() => onSelectSource(source)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onSelectSource(source);
+                      }
+                    }}
+                  >
+                    <div className="source-icon">{source.type === 'camera' ? '\u25cf' : '\u25a3'}</div>
+                    <div className="source-info">
+                      <div className="source-name">{source.displayName}</div>
+                      <div className="source-type">{source.type}</div>
+                    </div>
+                    {source.isDefault ? <span className="source-badge">Default</span> : null}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="upload-section">
+                <div className="section-title">Upload Video</div>
+                <ReactVideoUpload
+                  onVideoUploaded={() => {
+                    onSourcesChanged();
+                    setVideoReloadKey((current) => current + 1);
+                  }}
+                />
+              </div>
+              <div className="section-title">Select Video</div>
+              <ReactVideoSelector
+                reloadKey={videoReloadKey}
+                onVideoSelected={(source) => {
+                  onSelectSource(source);
+                }}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -7,52 +7,63 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 CLEAN_ALL=false
-if [ "$1" = "--all" ]; then
-    CLEAN_ALL=true
+if [[ "${1:-}" == "--all" ]]; then
+  CLEAN_ALL=true
 fi
 
-echo "Cleaning build artifacts and test results..."
+# Layout: application code under src/, integration tests under test/
+GO_API_DIR="src/go_api"
+FRONTEND_DIR="src/front-end"
+INTEGRATION_ACCEPTANCE="test/integration/tests/acceptance"
+COVERAGE_DIR="test/coverage"
 
-echo "  Cleaning Bazel cache..."
+echo "Cleaning build artifacts and test outputs..."
+
+echo "  Bazel outputs and cache..."
 bazel clean --expunge
 
-echo "  Cleaning Go cache..."
+echo "  Go build cache..."
 go clean -cache -modcache -testcache
 
-echo "  Cleaning build outputs..."
-rm -f src/go_api/cmd/server/server
+echo "  Compiled binaries (repo root + stray go build in cmd/server)..."
+rm -f "${GO_API_DIR}/cmd/server/server"
 rm -f bin/server
 
-echo "  Cleaning generated proto files..."
+echo "  Generated protobuf (Go/C++); regenerate with ./scripts/build/protos.sh..."
 rm -rf proto/gen/*
 
-echo "  Cleaning test results..."
+echo "  Frontend / Playwright / Vite scratch (local + Docker volume targets)..."
 rm -rf .ignore/front-end/
-# Legacy cleanup for deprecated locations
-rm -rf .ignore/webserver/web/
-rm -rf src/front-end/.ignore/
-rm -rf src/front-end/test-results/
-rm -rf src/front-end/playwright-report/
-sudo rm -rf test/integration/tests/acceptance/.ignore/ 2>/dev/null || rm -rf test/integration/tests/acceptance/.ignore/
+rm -rf "${FRONTEND_DIR}/.ignore/"
+rm -rf "${FRONTEND_DIR}/test-results/"
+rm -rf "${FRONTEND_DIR}/playwright-report/"
 
-echo "  Cleaning test data (video frames)..."
+echo "  BDD acceptance scratch (${INTEGRATION_ACCEPTANCE}/.ignore)..."
+sudo rm -rf "${INTEGRATION_ACCEPTANCE}/.ignore/" 2>/dev/null || rm -rf "${INTEGRATION_ACCEPTANCE}/.ignore/"
+
+echo "  Coverage report trees (${COVERAGE_DIR}/...)..."
+rm -rf "${COVERAGE_DIR}/frontend/"
+rm -rf "${COVERAGE_DIR}/golang/"
+rm -rf "${COVERAGE_DIR}/cpp/"
+
+if [[ -d coverage ]]; then
+  echo "  Legacy root coverage/ (pre-restructure)..."
+  rm -rf coverage/
+fi
+
+echo "  Test data (extracted video frames; re-extract with scripts/tools if needed)..."
 rm -rf data/test-data/video-frames/
 
-echo "  Cleaning coverage reports..."
-rm -rf test/coverage/frontend/
-rm -rf test/coverage/golang/
-rm -rf test/coverage/cpp/
-
-if [ "$CLEAN_ALL" = true ]; then
-    echo "  Cleaning SSL certificates (--all flag)..."
-    rm -rf .secrets/localhost+2*.pem
+if [[ "$CLEAN_ALL" == true ]]; then
+  echo "  Dev TLS material (--all)..."
+  rm -f .secrets/localhost+2-key.pem .secrets/localhost+2.pem
 fi
 
 echo ""
-if [ "$CLEAN_ALL" = true ]; then
-    echo "Clean complete (including SSL certificates)"
-    echo "Certificates will be regenerated on next ./scripts/dev/start.sh"
+if [[ "$CLEAN_ALL" == true ]]; then
+  echo "Clean complete (including dev TLS certificates)."
+  echo "Run ./scripts/docker/generate-certs.sh or ./scripts/dev/start.sh to recreate certs."
 else
-    echo "Clean complete (SSL certificates preserved)"
-    echo "Use --all to also remove SSL certificates"
+  echo "Clean complete (TLS certificates under .secrets/ preserved)."
+  echo "Use --all to also remove .secrets/localhost+2*.pem"
 fi

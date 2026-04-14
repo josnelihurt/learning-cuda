@@ -10,13 +10,6 @@ stream:
   transport_format: "json"
   websocket_endpoint: "/ws"
 
-features:
-  use_binary_protocol: false
-  enable_grpc_streaming: false
-  enable_observability: true
-  stream.transport_format: "json"
-  stream.websocket_endpoint: ""
-
 go_feature_flag:
   enabled: true
   file_path: "/app/config/flags.goff.yaml"

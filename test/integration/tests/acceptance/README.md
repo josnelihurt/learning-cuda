@@ -3,10 +3,12 @@
 ## Overview
 
 This directory contains BDD-style acceptance tests that validate the behavior of the CUDA image processing service, including:
-- Feature flag management with Flipt
-- Image processing via ConnectRPC
+- Image processing via ConnectRPC (Grayscale, Gaussian Blur, Multi-filter)
 - WebSocket real-time processing
-- Streaming service endpoints
+- Input source management (static images, videos, camera)
+- Video playback and frame ID tracking
+- Processor capabilities and system information
+- Tools configuration
 
 ## Prerequisites
 
@@ -28,9 +30,8 @@ docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:l
 
 Ensure the following services are running:
 
-1. **Flipt** - Feature flag service at `http://localhost:8081`
-2. **Go Service** - Application server at `https://localhost:8443`
-3. **Infrastructure** - Jaeger, OTel Collector (optional but recommended)
+1. **Go Service** - Application server at `https://localhost:8443`
+2. **Infrastructure** - Jaeger, OTel Collector (optional but recommended)
 
 The easiest way to start all required services is:
 
@@ -83,72 +84,79 @@ Tests are skipped when running with `-short` flag:
 go test -short ./integration/tests/acceptance  # Will skip these tests
 ```
 
-## Test Scenarios
+## Test Features
 
-### 1. GetStreamConfig returns default values when Flipt is clean
+The test suite includes 11 feature files covering:
 
-**Given:**
-- Flipt has no feature flags configured
-- Service is running
+### Image Processing Features
+- **`features/image_processing.feature`** (22 scenarios)
+  - Passthrough processing (no filters)
+  - Grayscale filters (5 algorithms: BT601, BT709, Average, Lightness, Luminosity)
+  - Gaussian Blur filters (various kernel sizes, sigma values, border modes)
+  - Multi-filter combinations (Grayscale + Blur, Blur + Grayscale)
+  - Error scenarios (invalid filters, missing parameters)
 
-**When:**
-- Client calls `GetStreamConfig` endpoint
+- **`features/websocket_processing.feature`** (9 scenarios)
+  - Real-time image processing via WebSocket
+  - Frame-by-frame video processing
+  - Error handling for malformed requests
 
-**Then:**
-- Response contains default transport format: "json"
-- Response contains default endpoint: "/ws"
+### Input Source Features
+- **`features/input_sources.feature`** (3 scenarios)
+  - Listing available input sources (static, camera, video)
 
-### 2. Sync creates flags in Flipt with correct values
+- **`features/available_images.feature`** (3 scenarios)
+  - Listing static images available for processing
 
-**Given:**
-- Flipt is clean (no flags)
-- Service is running
+- **`features/upload_images.feature`** (4 scenarios)
+  - Uploading PNG images with validation
 
-**When:**
-- Client calls `SyncFeatureFlags` endpoint
+- **`features/video_playback.feature`** (9 scenarios)
+  - Listing available videos
+  - Uploading MP4 videos
+  - Video metadata validation
 
-**Then:**
-- Flipt contains `enable_stream_transport_format` flag
-- Flipt contains `enable_observability` flag
-- Flag `enable_observability` has value `true`
+- **`features/video_frame_id.feature`** (6 scenarios)
+  - Sequential frame ID tracking during video processing
 
-### 3. GetStreamConfig uses Flipt values when flags exist
+### System Features
+- **`features/processor_capabilities.feature`** (5 scenarios)
+  - Querying available filters and their parameters
+  - Supported accelerators (CUDA, CPU)
+  - Filter parameter types and constraints
 
-**Given:**
-- Feature flags are already synced to Flipt
-- Service is running
+- **`features/system_info.feature`** (4 scenarios)
+  - Retrieving system version information
+  - Environment configuration details
 
-**When:**
-- Client calls `GetStreamConfig` endpoint
+- **`features/tools_configuration.feature`** (6 scenarios)
+  - Dynamic tool discovery (Jaeger, Grafana, etc.)
+  - Tool configuration and accessibility
 
-**Then:**
-- Response contains values from Flipt (not hardcoded defaults)
-
-### 4. GetStreamConfig falls back to defaults when flag evaluation fails
-
-**Given:**
-- Flipt is clean (flags don't exist)
-- Service is running
-
-**When:**
-- Client calls `GetStreamConfig` endpoint
-
-**Then:**
-- Response contains fallback values from config.yaml
+- **`features/stream_config.feature`** (3 scenarios)
+  - Stream configuration retrieval
+  - Transport format settings
 
 ## Test Structure
 
-The tests follow the **Given/When/Then** BDD pattern:
+The tests follow the **Given/When/Then** BDD pattern with step definitions organized by responsibility:
 
-### Given (Setup)
-- `GivenFliptIsClean()` - Deletes all flags from Flipt
-- `GivenTheServiceIsRunning()` - Verifies service health
-- `GivenConfigHasDefaultValues()` - Sets expected default values
+### Step Definition Files
+- `steps/given_steps.go` - Setup steps (service running, config values)
+- `steps/when_steps.go` - Action steps (calling endpoints, processing images)
+- `steps/then_steps.go` - Assertion steps (validating responses)
+- `steps/image_steps.go` - Image processing and WebSocket steps
+- `steps/input_source_steps.go` - Input source and available image steps
+- `steps/video_steps.go` - Video playback and frame tracking steps
 
-### When (Action)
-- `WhenICallGetStreamConfig()` - Calls the GetStreamConfig endpoint
-- `WhenICallSyncFeatureFlags()` - Calls the SyncFeatureFlags endpoint
-- `WhenIWaitForFlagsToBeSynced()` - Waits for async operations
+### Core Components
+- `godog_test.go` - Test suite entry point with TestFeatures
+- `steps/context.go` - TestContext wrapper for dependency injection
+- `steps/bdd_context.go` - BDDContext with business logic and client management
+
+### Test Data
+- `testdata/checksums.json` - MD5 checksums for deterministic image processing validation
+- `scripts/generate_checksums.go` - Tool for regenerating checksums after visual inspection
 
 ### Then (Assertion)
 - `ThenTheResponseShouldContainTransportFormat()` - Validates transport format
@@ -158,8 +166,16 @@ The tests follow the **Given/When/Then** BDD pattern:
 
 ## Files
 
-- `feature_flags_test.go` - Main test scenarios
-- `bdd_helpers.go` - Given/When/Then helper functions (uses FliptHTTPAPI from infrastructure)
+- `godog_test.go` - Test suite entry point with TestFeatures
+- `steps/context.go` - TestContext wrapper for dependency injection
+- `steps/bdd_context.go` - BDDContext with business logic and client management
+- `steps/given_steps.go` - Given step definitions
+- `steps/when_steps.go` - When step definitions
+- `steps/then_steps.go` - Then step definitions
+- `steps/image_steps.go` - Image processing and WebSocket steps
+- `steps/input_source_steps.go` - Input source and available image steps
+- `steps/video_steps.go` - Video playback and frame tracking steps
+- `features/` - Gherkin feature files (11 features)
 - `README.md` - This file
 
 ## Architecture

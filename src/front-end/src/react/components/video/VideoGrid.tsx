@@ -49,7 +49,7 @@ export function VideoGrid({
   const template = getGridTemplate(sources.length);
 
   return (
-    <div className="video-grid-shell">
+    <div className="react-video-grid-shell">
       <div
         data-testid="video-grid"
         style={{

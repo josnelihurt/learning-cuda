@@ -5,6 +5,7 @@ import type { ToolCategory } from '@/gen/config_service_pb';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
 import { useAppServices } from '../../providers/app-services-provider';
 import { useToast } from '../../hooks/useToast';
+import styles from './ReactNavbarControls.module.css';
 
 declare const __APP_VERSION__: string;
 
@@ -90,10 +91,10 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
 
   return (
     <>
-      <div style={{ position: 'relative', display: 'inline-block' }} data-testid="react-tools-dropdown">
+      <div className={styles.toolsDropdown} data-testid="react-tools-dropdown">
         <button
           type="button"
-          className="feature-flags-btn"
+          className={styles.featureFlagsBtn}
           onClick={() => setIsToolsOpen((value) => !value)}
           data-testid="tools-dropdown-button"
         >
@@ -101,31 +102,12 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
           <span>{isToolsOpen ? '▲' : '▼'}</span>
         </button>
         {isToolsOpen ? (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              right: 0,
-              background: 'rgba(30, 30, 40, 0.98)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '8px',
-              minWidth: '220px',
-              zIndex: 1000,
-            }}
-          >
+          <div className={styles.dropdownMenu}>
             {toolCategories.flatMap((category: ToolCategory) => category.tools).map((tool) => (
               <button
                 key={tool.name}
                 type="button"
-                className="feature-flags-btn"
-                style={{
-                  width: '100%',
-                  border: 'none',
-                  borderRadius: 0,
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                  transform: 'none',
-                }}
+                className={styles.dropdownItem}
                 onClick={() => {
                   setIsToolsOpen(false);
                   if (tool.type === 'url' && tool.url) {
@@ -146,7 +128,10 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
                   }
                 }}
               >
-                {tool.name}
+                <span className={styles.dropdownIcon}>
+                  {tool.iconPath ? <img src={tool.iconPath} alt={tool.name} /> : tool.type === 'action' ? 'R' : 'OK'}
+                </span>
+                <span className={styles.dropdownText}>{tool.name}</span>
               </button>
             ))}
           </div>
@@ -155,18 +140,18 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
 
       <button
         type="button"
-        className="feature-flags-btn"
+        className={styles.featureFlagsBtn}
         onClick={onOpenFeatureFlags}
         data-testid="feature-flags-button"
       >
         Feature Flags
       </button>
 
-      <button type="button" className="feature-flags-btn" style={{ display: 'none' }}>
+      <button type="button" className={`${styles.featureFlagsBtn} ${styles.hiddenSync}`}>
         Sync Flags
       </button>
 
-      <div style={{ position: 'relative', display: 'inline-block' }} data-testid="react-version-tooltip">
+      <div className={styles.versionTooltip} data-testid="react-version-tooltip">
         <button
           type="button"
           className="info-btn"
@@ -176,35 +161,20 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
           <span>i</span>
         </button>
         {isVersionOpen ? (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 10px)',
-              right: 0,
-              background: '#fff',
-              border: '1px solid #ccc',
-              borderRadius: '8px',
-              padding: '16px',
-              minWidth: '320px',
-              zIndex: 1001,
-              color: '#111',
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: '8px' }}>Version Information</div>
+          <div className={styles.versionCard}>
+            <div className={styles.versionTitle}>Version Information</div>
             {isVersionLoading ? <div>Loading...</div> : null}
             {versionFields.map((field) => (
-              <div key={field.label} style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
-                <span style={{ fontWeight: 700, minWidth: '120px' }}>{field.label}:</span>
+              <div key={field.label} className={styles.versionRow}>
+                <span className={styles.versionLabel}>{field.label}:</span>
                 <span>{field.value}</span>
               </div>
             ))}
-            <div style={{ marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px', fontSize: '12px' }}>
-              <span style={{ fontWeight: 700, minWidth: '120px', display: 'inline-block' }}>
-                Environment:
-              </span>
+            <div className={styles.environmentRow}>
+              <span className={styles.versionLabel}>Environment:</span>
               <span>{environment}</span>
             </div>
-            <div style={{ marginTop: '8px', fontSize: '11px', color: '#666' }}>Build: {__APP_VERSION__}</div>
+            <div className={styles.buildInfo}>Build: {__APP_VERSION__}</div>
           </div>
         ) : null}
       </div>

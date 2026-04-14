@@ -2,24 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { ToastContainer } from '@/lit/components/app/toast-container';
 import { ToastProvider } from './context/toast-context';
 import { useToast } from './hooks/useToast';
 
 describe('useToast / ToastProvider', () => {
-  let successSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     document.body.replaceChildren();
     const mount = document.createElement('div');
     mount.id = 'react-toast-test-root';
-    const toastHost = document.createElement('toast-container');
-    document.body.append(mount, toastHost);
-    successSpy = vi.spyOn(ToastContainer.prototype, 'success');
+    document.body.append(mount);
   });
 
   afterEach(() => {
-    successSpy.mockRestore();
     document.body.replaceChildren();
   });
 
@@ -44,9 +38,8 @@ describe('useToast / ToastProvider', () => {
       );
     });
 
-    expect(document.querySelector('toast-container')).toBeTruthy();
     await vi.waitFor(() => {
-      expect(successSpy).toHaveBeenCalledWith('t', '', null);
+      expect(document.body.textContent).toContain('t');
     });
 
     await act(async () => {

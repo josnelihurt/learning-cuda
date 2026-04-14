@@ -7,7 +7,7 @@ type FrameCapturedPayload = {
   timestamp: number;
 };
 
-type ReactCameraPreviewProps = {
+type CameraPreviewProps = {
   width?: number;
   height?: number;
   fps?: number;
@@ -17,7 +17,7 @@ type ReactCameraPreviewProps = {
   onCameraError: (title: string, message: string) => void;
 };
 
-export function ReactCameraPreview({
+export function CameraPreview({
   width = 640,
   height = 480,
   fps = 15,
@@ -25,7 +25,7 @@ export function ReactCameraPreview({
   onFrameCaptured,
   onCameraStatus,
   onCameraError,
-}: ReactCameraPreviewProps) {
+}: CameraPreviewProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);

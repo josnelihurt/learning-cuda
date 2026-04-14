@@ -1,7 +1,7 @@
-import { ReactFrameTransportService } from './ReactFrameTransportService';
+import { FrameTransportService } from './FrameTransportService';
 
 /**
- * Singleton instance of ReactFrameTransportService for centralized frame transport access.
+ * Singleton instance of FrameTransportService for centralized frame transport access.
  *
  * This follows the same pattern as manageWebRTC (from 04-01-SUMMARY.md) for consistent
  * service access across the React application.
@@ -27,4 +27,4 @@ import { ReactFrameTransportService } from './ReactFrameTransportService';
  * manageFrameTransport.close();
  * ```
  */
-export const manageFrameTransport = new ReactFrameTransportService();
+export const manageFrameTransport = new FrameTransportService();

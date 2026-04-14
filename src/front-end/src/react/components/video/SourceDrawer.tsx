@@ -2,10 +2,10 @@ import React from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import { useState } from 'react';
 import { ImageUpload } from '../image/ImageUpload';
-import { ReactVideoUpload } from './ReactVideoUpload';
-import { ReactVideoSelector } from './ReactVideoSelector';
+import { VideoUpload } from './VideoUpload';
+import { VideoSelector } from './VideoSelector';
 
-type ReactSourceDrawerProps = {
+type SourceDrawerProps = {
   isOpen: boolean;
   availableSources: InputSource[];
   onClose: () => void;
@@ -13,13 +13,13 @@ type ReactSourceDrawerProps = {
   onSourcesChanged: () => void;
 };
 
-export function ReactSourceDrawer({
+export function SourceDrawer({
   isOpen,
   availableSources,
   onClose,
   onSelectSource,
   onSourcesChanged,
-}: ReactSourceDrawerProps) {
+}: SourceDrawerProps) {
   const [activeTab, setActiveTab] = useState<'images' | 'videos'>('images');
   const [videoReloadKey, setVideoReloadKey] = useState(0);
   const filteredSources =
@@ -97,7 +97,7 @@ export function ReactSourceDrawer({
             <>
               <div className="upload-section">
                 <div className="section-title">Upload Video</div>
-                <ReactVideoUpload
+                <VideoUpload
                   onVideoUploaded={() => {
                     onSourcesChanged();
                     setVideoReloadKey((current) => current + 1);
@@ -105,7 +105,7 @@ export function ReactSourceDrawer({
                 />
               </div>
               <div className="section-title">Select Video</div>
-              <ReactVideoSelector
+              <VideoSelector
                 reloadKey={videoReloadKey}
                 onVideoSelected={(source) => {
                   onSelectSource(source);

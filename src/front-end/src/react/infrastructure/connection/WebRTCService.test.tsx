@@ -1,10 +1,10 @@
 /**
- * Unit tests for ReactWebRTCService
+ * Unit tests for WebRTCService
  * TDD GREEN phase - Simplified tests that focus on core functionality
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ReactWebRTCService } from './ReactWebRTCService';
+import { WebRTCService } from './WebRTCService';
 
 // Mock WebRTC APIs
 const mockPeerConnection = {
@@ -39,8 +39,8 @@ const mockWebSocket = {
   onclose: null,
 };
 
-describe('ReactWebRTCService', () => {
-  let service: ReactWebRTCService;
+describe('WebRTCService', () => {
+  let service: WebRTCService;
 
   beforeEach(() => {
     // Set up global mocks
@@ -56,7 +56,7 @@ describe('ReactWebRTCService', () => {
     // Mock RTCDataChannel creation
     (mockPeerConnection.createDataChannel as any).mockReturnValue(mockDataChannel);
 
-    service = new ReactWebRTCService();
+    service = new WebRTCService();
   });
 
   afterEach(() => {
@@ -75,7 +75,7 @@ describe('ReactWebRTCService', () => {
 
     it('should not initialize when WebRTC is not supported', async () => {
       delete (global as any).RTCPeerConnection;
-      const service2 = new ReactWebRTCService();
+      const service2 = new WebRTCService();
       await service2.initialize();
       expect(service2.isInitialized()).toBe(false);
     });
@@ -97,7 +97,7 @@ describe('ReactWebRTCService', () => {
 
     it('should return null when WebRTC is not supported', () => {
       delete (global as any).RTCPeerConnection;
-      const service2 = new ReactWebRTCService();
+      const service2 = new WebRTCService();
       const pc = service2.createPeerConnection();
       expect(pc).toBeNull();
     });
@@ -129,13 +129,13 @@ describe('ReactWebRTCService', () => {
 
     it('should return false when RTCPeerConnection is missing', () => {
       delete (global as any).RTCPeerConnection;
-      const service2 = new ReactWebRTCService();
+      const service2 = new WebRTCService();
       expect(service2.isSupported()).toBe(false);
     });
 
     it('should return false when getUserMedia is missing', () => {
       (global as any).navigator = { mediaDevices: {} };
-      const service2 = new ReactWebRTCService();
+      const service2 = new WebRTCService();
       expect(service2.isSupported()).toBe(false);
     });
   });

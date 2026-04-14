@@ -1,5 +1,5 @@
 /**
- * React WebRTC Service
+ * WebRTC Service
  * Provides WebRTC peer connection, data channel, WebSocket signaling, heartbeat, and session management
  * Adapted from Lit WebRTCService pattern for React compatibility
  */
@@ -7,7 +7,7 @@
 import { WebRTCSession } from '../../../domain/value-objects/WebRTCSession';
 import { SignalingMessage } from '../../../gen/webrtc_signal_pb';
 
-export class ReactWebRTCService {
+export class WebRTCService {
   private initialized: boolean = false;
   private initPromise: Promise<void> | null = null;
   private signalingWebSockets: Map<string, WebSocket> = new Map();

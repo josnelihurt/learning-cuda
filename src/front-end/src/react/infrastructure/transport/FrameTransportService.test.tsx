@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ReactFrameTransportService } from './ReactFrameTransportService';
+import { FrameTransportService } from './FrameTransportService';
 
 // Simple mock WebSocket class
 let mockWebSocketInstance: any = null;
@@ -62,13 +62,13 @@ const OriginalWebSocket = global.WebSocket;
 const VALID_FRAME_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
-describe('ReactFrameTransportService', () => {
-  let service: ReactFrameTransportService;
+describe('FrameTransportService', () => {
+  let service: FrameTransportService;
 
   const setupService = async () => {
     mockWebSocketInstance = null;
     (global as any).WebSocket = MockWebSocket;
-    service = new ReactFrameTransportService();
+    service = new FrameTransportService();
     await service.initialize();
     await new Promise(resolve => setTimeout(resolve, 50));
     // Force WebSocket to open state for testing
@@ -106,7 +106,7 @@ describe('ReactFrameTransportService', () => {
     it('should have connecting state initially', async () => {
       mockWebSocketInstance = null;
       (global as any).WebSocket = MockWebSocket;
-      service = new ReactFrameTransportService();
+      service = new FrameTransportService();
       expect(service.getConnectionStatus()).toBe('connecting');
       cleanupService();
     });
@@ -120,7 +120,7 @@ describe('ReactFrameTransportService', () => {
     it('should leave connecting state when initialize is replaced and throws', async () => {
       mockWebSocketInstance = null;
       (global as any).WebSocket = MockWebSocket;
-      service = new ReactFrameTransportService();
+      service = new FrameTransportService();
 
       const errorCallback = vi.fn();
       service.setErrorCallback(errorCallback);
@@ -274,7 +274,7 @@ describe('ReactFrameTransportService', () => {
     it('should track connecting state', async () => {
       mockWebSocketInstance = null;
       (global as any).WebSocket = MockWebSocket;
-      service = new ReactFrameTransportService();
+      service = new FrameTransportService();
       expect(service.getConnectionStatus()).toBe('connecting');
       cleanupService();
     });

@@ -5,7 +5,7 @@ import { logger } from '@/infrastructure/observability/otel-logger';
 
 declare global {
   interface Window {
-    __reactGrpcStatusModal?: {
+    __grpcStatusModal?: {
       isOpen: () => boolean;
       isMinimized: () => boolean;
       open: () => void;
@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-export function ReactGrpcStatusModal() {
+export function GrpcStatusModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
@@ -34,10 +34,10 @@ export function ReactGrpcStatusModal() {
         setIsOpen(true);
       },
     };
-    window.__reactGrpcStatusModal = api;
+    window.__grpcStatusModal = api;
     return () => {
-      if (window.__reactGrpcStatusModal === api) {
-        delete window.__reactGrpcStatusModal;
+      if (window.__grpcStatusModal === api) {
+        delete window.__grpcStatusModal;
       }
     };
   }, [isMinimized, isOpen]);

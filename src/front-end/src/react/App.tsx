@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { VideoGridHost } from './components/video/VideoGridHost';
 import { SidebarColumn } from './components/sidebar/SidebarColumn';
 import { useAppServices } from './providers/app-services-provider';
-import { ReactNavbarControls, ReactVersionTooltip } from './components/app/ReactNavbarControls';
-import { ReactFeatureFlagsModal } from './components/app/ReactFeatureFlagsModal';
-import { ReactGrpcStatusModal } from './components/app/ReactGrpcStatusModal';
-import { ReactAppTour } from './components/app/ReactAppTour';
-import { ReactInformationBanner } from './components/app/ReactInformationBanner';
+import { NavbarControls, VersionTooltip } from './components/app/NavbarControls';
+import { FeatureFlagsModal } from './components/app/FeatureFlagsModal';
+import { GrpcStatusModal } from './components/app/GrpcStatusModal';
+import { AppTour } from './components/app/AppTour';
+import { InformationBanner } from './components/app/InformationBanner';
 
 function MainContent() {
   const { ready } = useAppServices();
@@ -49,7 +49,7 @@ export function App() {
             </a>
           </div>
           <div className="navbar-services" data-testid="navbar-services-placeholder">
-            <ReactNavbarControls onOpenFeatureFlags={() => setIsFeatureFlagsOpen(true)} />
+            <NavbarControls onOpenFeatureFlags={() => setIsFeatureFlagsOpen(true)} />
           </div>
           <div className="navbar-credit">
             <span id="credit-by" className="clickable-credit" title="Click to clear localStorage">
@@ -58,18 +58,18 @@ export function App() {
             <a href="https://josnelihurt.me" target="_blank" rel="noreferrer">
               josnelihurt
             </a>
-            <ReactVersionTooltip />
+            <VersionTooltip />
           </div>
         </div>
-        <ReactInformationBanner />
+        <InformationBanner />
       </header>
 
       <SidebarColumn />
 
       <MainContent />
-      <ReactFeatureFlagsModal isOpen={isFeatureFlagsOpen} onClose={() => setIsFeatureFlagsOpen(false)} />
-      <ReactGrpcStatusModal />
-      <ReactAppTour />
+      <FeatureFlagsModal isOpen={isFeatureFlagsOpen} onClose={() => setIsFeatureFlagsOpen(false)} />
+      <GrpcStatusModal />
+      <AppTour />
     </>
   );
 }

@@ -5,11 +5,11 @@ import type { ToolCategory } from '@/gen/config_service_pb';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
 import { useAppServices } from '../../providers/app-services-provider';
 import { useToast } from '../../hooks/useToast';
-import styles from './ReactNavbarControls.module.css';
+import styles from './NavbarControls.module.css';
 
 declare const __APP_VERSION__: string;
 
-type ReactNavbarControlsProps = {
+type NavbarControlsProps = {
   onOpenFeatureFlags: () => void;
 };
 
@@ -18,7 +18,7 @@ type VersionField = {
   value: string;
 };
 
-export function ReactVersionTooltip() {
+export function VersionTooltip() {
   const [isVersionOpen, setIsVersionOpen] = useState(false);
   const [versionFields, setVersionFields] = useState<VersionField[]>([]);
   const [environment, setEnvironment] = useState('Loading...');
@@ -133,7 +133,7 @@ export function ReactVersionTooltip() {
   );
 }
 
-export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsProps) {
+export function NavbarControls({ onOpenFeatureFlags }: NavbarControlsProps) {
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const { container } = useAppServices();
   const toast = useToast();

@@ -10,13 +10,13 @@ import { WebSocketService } from '@/infrastructure/transport/websocket-frame-tra
 import { FilterData } from '@/domain/value-objects';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
-import { ReactVideoGrid } from './ReactVideoGrid';
-import { ReactSourceDrawer } from './ReactSourceDrawer';
-import { ReactAddSourceFab } from './ReactAddSourceFab';
-import { ReactImageSelectorModal } from './ReactImageSelectorModal';
-import { ReactAcceleratorStatusFab } from './ReactAcceleratorStatusFab';
+import { VideoGrid } from './VideoGrid';
+import { SourceDrawer } from './SourceDrawer';
+import { AddSourceFab } from './AddSourceFab';
+import { ImageSelectorModal } from './ImageSelectorModal';
+import { AcceleratorStatusFab } from './AcceleratorStatusFab';
 import { useToast } from '../../hooks/useToast';
-import { ReactStatsPanel } from '../app/ReactStatsPanel';
+import { StatsPanel } from '../app/StatsPanel';
 
 type GridSource = {
   id: string;
@@ -435,7 +435,7 @@ export function VideoGridHost() {
 
   return (
     <>
-      <ReactVideoGrid
+      <VideoGrid
         sources={sources.map((source) => ({
           id: source.id,
           number: source.number,
@@ -480,22 +480,22 @@ export function VideoGridHost() {
         onCameraError={(title, message) => toastManager.error(title, message)}
         data-testid="video-grid-host"
       />
-      <ReactAddSourceFab onClick={openDrawer} />
-      <ReactAcceleratorStatusFab />
-      <ReactSourceDrawer
+      <AddSourceFab onClick={openDrawer} />
+      <AcceleratorStatusFab />
+      <SourceDrawer
         isOpen={isDrawerOpen}
         availableSources={availableSources}
         onClose={() => setIsDrawerOpen(false)}
         onSelectSource={onSelectSourceFromDrawer}
         onSourcesChanged={refreshDrawerSources}
       />
-      <ReactImageSelectorModal
+      <ImageSelectorModal
         isOpen={isImageSelectorOpen}
         availableImages={availableImages}
         onClose={() => setIsImageSelectorOpen(false)}
         onSelectImage={onSelectImage}
       />
-      <ReactStatsPanel
+      <StatsPanel
         fps={fps}
         time={time}
         frames={frames}

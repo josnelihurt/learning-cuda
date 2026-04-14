@@ -4,12 +4,12 @@ import type { InputSource } from '@/gen/config_service_pb';
 import { videoService } from '@/infrastructure/data/video-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
 
-type ReactVideoSelectorProps = {
+type VideoSelectorProps = {
   reloadKey: number;
   onVideoSelected: (source: InputSource) => void;
 };
 
-export function ReactVideoSelector({ reloadKey, onVideoSelected }: ReactVideoSelectorProps) {
+export function VideoSelector({ reloadKey, onVideoSelected }: VideoSelectorProps) {
   const [videos, setVideos] = useState<StaticVideo[]>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

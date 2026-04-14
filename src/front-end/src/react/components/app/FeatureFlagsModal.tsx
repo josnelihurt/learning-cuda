@@ -4,12 +4,12 @@ import { ConfigService } from '@/gen/config_service_connect';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
 import { useToast } from '../../hooks/useToast';
 
-type ReactFeatureFlagsModalProps = {
+type FeatureFlagsModalProps = {
   isOpen: boolean;
   onClose: () => void;
 };
 
-export function ReactFeatureFlagsModal({ isOpen, onClose }: ReactFeatureFlagsModalProps) {
+export function FeatureFlagsModal({ isOpen, onClose }: FeatureFlagsModalProps) {
   const [syncing, setSyncing] = useState(false);
   const toast = useToast();
   const client = useMemo(

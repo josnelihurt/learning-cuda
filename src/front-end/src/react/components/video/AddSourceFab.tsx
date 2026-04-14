@@ -1,10 +1,10 @@
 import React from 'react';
 
-type ReactAddSourceFabProps = {
+type AddSourceFabProps = {
   onClick: () => void;
 };
 
-export function ReactAddSourceFab({ onClick }: ReactAddSourceFabProps) {
+export function AddSourceFab({ onClick }: AddSourceFabProps) {
   return (
     <button
       type="button"

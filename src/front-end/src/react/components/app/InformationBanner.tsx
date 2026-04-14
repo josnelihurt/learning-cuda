@@ -1,4 +1,4 @@
-export function ReactInformationBanner() {
+export function InformationBanner() {
   return (
     <div
       style={{

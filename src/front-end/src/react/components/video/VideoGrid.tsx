@@ -1,8 +1,8 @@
-import { ReactCameraPreview } from './ReactCameraPreview';
-import { ReactVideoSourceCard } from './ReactVideoSourceCard';
-import './react-video-grid.css';
+import { CameraPreview } from './CameraPreview';
+import { VideoSourceCard } from './VideoSourceCard';
+import './video-grid.css';
 
-export type ReactGridSource = {
+export type GridSource = {
   id: string;
   number: number;
   name: string;
@@ -17,8 +17,8 @@ type CameraFramePayload = {
   timestamp: number;
 };
 
-type ReactVideoGridProps = {
-  sources: ReactGridSource[];
+type VideoGridProps = {
+  sources: GridSource[];
   selectedSourceId: string | null;
   onSelectSource: (sourceId: string) => void;
   onCloseSource: (sourceId: string) => void;
@@ -36,7 +36,7 @@ function getGridTemplate(count: number): { columns: string; rows: string } {
   return { columns: 'repeat(3, 1fr)', rows: 'repeat(3, 1fr)' };
 }
 
-export function ReactVideoGrid({
+export function VideoGrid({
   sources,
   selectedSourceId,
   onSelectSource,
@@ -45,11 +45,11 @@ export function ReactVideoGrid({
   onCameraFrame,
   onCameraStatus,
   onCameraError,
-}: ReactVideoGridProps) {
+}: VideoGridProps) {
   const template = getGridTemplate(sources.length);
 
   return (
-    <div className="react-video-grid-shell">
+    <div className="video-grid-shell">
       <div
         data-testid="video-grid"
         style={{
@@ -62,7 +62,7 @@ export function ReactVideoGrid({
         }}
       >
         {sources.map((source) => (
-          <ReactVideoSourceCard
+          <VideoSourceCard
             key={source.id}
             sourceId={source.id}
             sourceNumber={source.number}
@@ -75,13 +75,13 @@ export function ReactVideoGrid({
             onChangeImage={onChangeImageRequest}
           >
             {source.type === 'camera' ? (
-              <ReactCameraPreview
+              <CameraPreview
                 onFrameCaptured={(payload) => onCameraFrame(source.id, payload)}
                 onCameraStatus={onCameraStatus}
                 onCameraError={onCameraError}
               />
             ) : null}
-          </ReactVideoSourceCard>
+          </VideoSourceCard>
         ))}
       </div>
     </div>

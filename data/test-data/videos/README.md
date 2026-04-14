@@ -22,7 +22,7 @@ This directory contains optimized videos for E2E testing purposes.
 
 **Frame Metadata:**
 - All 200 frames have been pre-extracted to `data/test-data/video-frames/e2e-test/`
-- SHA256 hashes for each frame are embedded in `webserver/pkg/infrastructure/video/test_video_metadata.go`
+- SHA256 hashes for each frame are embedded in `src/go_api/pkg/infrastructure/video/test_video_metadata.go`
 - Frame IDs are sequential integers from 0 to 199
 
 ## Frame Extraction (On-Demand)
@@ -35,7 +35,7 @@ Frames are generated on-demand when needed.
 The metadata generation tool will automatically extract frames if they don't exist:
 
 ```bash
-go run cmd/generate-video-metadata/main.go
+go run ./src/tools/generate-video-metadata
 ```
 
 This command will:
@@ -133,5 +133,5 @@ isValid := video.ValidateFrameHash(42, actualHash)
 - The preview image is auto-generated on first run
 - Frame extraction takes ~2 seconds for 200 frames
 - Metadata generation adds ~100KB to compiled binary
-- First-time setup: `go run cmd/generate-video-metadata/main.go`
+- First-time setup: `go run ./src/tools/generate-video-metadata`
 

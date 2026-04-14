@@ -405,7 +405,7 @@ The catch-all handler in `webserver/pkg/app/app.go` was intercepting Connect-RPC
 ### Video Frame ID and Test Infrastructure (Oct 20, 2025) - 6 BDD scenarios (pending implementation)
 - [x] Generated optimized E2E test video (480x360, 10fps, 20s, 200 frames, 464KB)
 - [x] Extracted 200 frames as PNG with SHA256 hash metadata
-- [x] Created embedded Go metadata (webserver/pkg/infrastructure/video/test_video_metadata.go)
+- [x] Created embedded Go metadata (src/go_api/pkg/infrastructure/video/test_video_metadata.go)
 - [x] Extended VideoFrameUpdate proto with frame_id field
 - [x] Updated video streaming to include sequential frame_id (0-199)
 - [x] Created scripts for video generation and frame extraction
@@ -433,8 +433,8 @@ The catch-all handler in `webserver/pkg/app/app.go` was intercepting Connect-RPC
 **Test Infrastructure:**
 - Video: data/test-data/videos/e2e-test.mp4
 - Frames: data/test-data/video-frames/e2e-test/*.png (200 frames)
-- Metadata: Embedded in webserver/pkg/infrastructure/video/test_video_metadata.go
-- Scripts: generate-test-video.sh, extract-video-frames.sh, generate-video-metadata
+- Metadata: Embedded in src/go_api/pkg/infrastructure/video/test_video_metadata.go
+- Scripts: generate-test-video.sh, extract-video-frames.sh, src/tools/generate-video-metadata
 
 ### WebSocket Handler Refactoring (Oct 20, 2025)
 - [x] Commented non-functional video player code pending FFmpeg integration

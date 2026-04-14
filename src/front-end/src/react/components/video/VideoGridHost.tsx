@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import type { StaticImage } from '@/gen/common_pb';
-import type { StatsPanel } from '@/components/app/stats-panel';
-import type { ToastContainer } from '@/components/app/toast-container';
+import type { StatsPanel } from '@/lit/components/app/stats-panel';
+import type { ToastContainer } from '@/lit/components/app/toast-container';
 import type { ActiveFilterState } from '../filters/FilterPanel';
 import { useAppServices } from '../../providers/app-services-provider';
 import { useDashboardState } from '../../context/dashboard-state-context';

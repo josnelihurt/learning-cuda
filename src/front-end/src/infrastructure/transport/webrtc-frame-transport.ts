@@ -1,9 +1,9 @@
 import type { IFrameTransportService } from '../../domain/interfaces/IFrameTransportService';
 import type { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../../domain/value-objects';
 import { WebSocketFrameResponse } from '../../gen/image_processor_service_pb';
-import type { StatsPanel } from '../../components/app/stats-panel';
-import type { CameraPreview } from '../../components/video/camera-preview';
-import type { ToastContainer } from '../../components/app/toast-container';
+import type { StatsPanel } from '../../lit/components/app/stats-panel';
+import type { CameraPreview } from '../../lit/components/video/camera-preview';
+import type { ToastContainer } from '../../lit/components/app/toast-container';
 
 export class WebRTCFrameTransportService implements IFrameTransportService {
   constructor(

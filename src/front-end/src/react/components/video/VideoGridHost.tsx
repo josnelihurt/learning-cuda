@@ -16,7 +16,7 @@ import { AddSourceFab } from './AddSourceFab';
 import { ImageSelectorModal } from './ImageSelectorModal';
 import { AcceleratorStatusFab } from './AcceleratorStatusFab';
 import { useToast } from '../../hooks/useToast';
-import { StatsPanel } from '../app/StatsPanel';
+import { StatsPanel as ReactStatsPanel } from '../app/StatsPanel';
 
 type GridSource = {
   id: string;
@@ -495,7 +495,7 @@ export function VideoGridHost() {
         onClose={() => setIsImageSelectorOpen(false)}
         onSelectImage={onSelectImage}
       />
-      <StatsPanel
+      <ReactStatsPanel
         fps={fps}
         time={time}
         frames={frames}

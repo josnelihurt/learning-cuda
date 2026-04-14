@@ -1,5 +1,6 @@
-.app {
-  min-height: 100vh;
-  background: var(--dominant-color, #fff);
-  padding: var(--spacing-lg, 24px);
+/* Shell layout uses global static CSS (layout.css, header.css, …). */
+
+.react-main-loading {
+  padding: var(--spacing-md);
+  color: var(--text-secondary);
 }

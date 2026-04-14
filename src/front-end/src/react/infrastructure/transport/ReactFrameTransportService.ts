@@ -3,9 +3,8 @@ import {
   GenericFilterSelection,
   GenericFilterParameterSelection,
   WebSocketFrameRequest,
-  TraceContext,
-  AcceleratorType,
 } from '@/gen/image_processor_service_pb';
+import { AcceleratorType, TraceContext } from '@/gen/common_pb';
 import { propagation, context } from '@opentelemetry/api';
 import type { ActiveFilterState } from '@/react/components/filters/FilterPanel';
 
@@ -87,7 +86,11 @@ export class ReactFrameTransportService {
    * @param filters - Array of active filter states to apply
    */
   sendFrame(base64Data: string, filters: ActiveFilterState[]): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    const openState =
+      typeof WebSocket !== 'undefined' && typeof WebSocket.OPEN === 'number'
+        ? WebSocket.OPEN
+        : 1;
+    if (!this.ws || this.ws.readyState !== openState) {
       const error = new Error('WebSocket not connected');
       if (this.errorCallback) {
         this.errorCallback(error);

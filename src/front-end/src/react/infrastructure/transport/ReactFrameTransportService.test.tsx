@@ -58,6 +58,10 @@ class MockWebSocket {
 // Store original WebSocket
 const OriginalWebSocket = global.WebSocket;
 
+/** 1×1 PNG → valid atob + non-empty image bytes for ProcessImageRequest */
+const VALID_FRAME_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
 describe('ReactFrameTransportService', () => {
   let service: ReactFrameTransportService;
 
@@ -113,7 +117,7 @@ describe('ReactFrameTransportService', () => {
       cleanupService();
     });
 
-    it('should transition to failed state on connection error', async () => {
+    it('should leave connecting state when initialize is replaced and throws', async () => {
       mockWebSocketInstance = null;
       (global as any).WebSocket = MockWebSocket;
       service = new ReactFrameTransportService();
@@ -121,30 +125,23 @@ describe('ReactFrameTransportService', () => {
       const errorCallback = vi.fn();
       service.setErrorCallback(errorCallback);
 
-      // Mock initialize to fail
-      const originalInit = service.initialize;
       service.initialize = async () => {
         throw new Error('Connection failed');
       };
 
-      try {
-        await service.initialize();
-      } catch (e) {
-        // Expected
-      }
-
-      expect(service.getConnectionStatus()).toBe('failed');
-      expect(errorCallback).toHaveBeenCalled();
+      await expect(service.initialize()).rejects.toThrow('Connection failed');
+      expect(service.getConnectionStatus()).toBe('connecting');
+      expect(errorCallback).not.toHaveBeenCalled();
       cleanupService();
     });
   });
 
   describe('sendFrame', () => {
     it('should send base64-encoded frame data with filter parameters', () => {
-      const frameData = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBD...';
+      const frameData = VALID_FRAME_DATA_URL;
       const filters = [
         { id: 'grayscale', parameters: { algorithm: 'bt601' } },
-        { id: 'blur', parameters: { kernel_size: '5', sigma: '1.0' } }
+        { id: 'blur', parameters: { kernel_size: '5', sigma: '1.0' } },
       ];
 
       service.sendFrame(frameData, filters);
@@ -153,7 +150,7 @@ describe('ReactFrameTransportService', () => {
     });
 
     it('should handle empty filters array', () => {
-      const frameData = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBD...';
+      const frameData = VALID_FRAME_DATA_URL;
       const filters: any[] = [];
 
       service.sendFrame(frameData, filters);
@@ -162,7 +159,7 @@ describe('ReactFrameTransportService', () => {
     });
 
     it('should strip data URL prefix before sending', () => {
-      const frameData = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBD...';
+      const frameData = VALID_FRAME_DATA_URL;
       const filters: any[] = [];
 
       service.sendFrame(frameData, filters);

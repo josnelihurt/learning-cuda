@@ -53,7 +53,7 @@ export function App() {
             <span className="navbar-badge">React app loaded</span>
           </div>
           <div className="navbar-credit">
-            <span id="credit-by" style={{ cursor: 'pointer' }} title="Click to clear localStorage">
+            <span id="credit-by" className="clickable-credit" title="Click to clear localStorage">
               by
             </span>{' '}
             <a href="https://josnelihurt.me" target="_blank" rel="noreferrer">

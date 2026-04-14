@@ -180,9 +180,54 @@ The tests follow the **Given/When/Then** BDD pattern with step definitions organ
 
 ## Architecture
 
-These tests reuse production code from `webserver/pkg/infrastructure/featureflags`:
-- `FliptHTTPAPI` - Extended FliptWriter with GET methods for listing and retrieving flags
-- No code duplication, tests use the same infrastructure as the application
+These tests use ConnectRPC clients generated from Protocol Buffer definitions:
+- **genconnect.ImageProcessorServiceClient** - Image processing operations
+- **genconnect.ConfigServiceClient** - Configuration queries
+- **genconnect.FileServiceClient** - File upload and listing operations
+
+The tests make real gRPC-Web requests to the running service, validating end-to-end behavior including network communication, serialization, and business logic.
+
+## Running Tests with Convenience Script
+
+A convenience script is available that handles service checks, checksum generation, and test execution:
+
+```bash
+cd test/integration/tests/acceptance/scripts
+./run_tests.sh
+```
+
+This script:
+1. Verifies the service is running
+2. Generates checksums automatically if needed
+3. Executes tests with a 120-second timeout
+
+## Test Combinations
+
+### Filters
+- **NONE** - Passthrough (no filter applied)
+- **GRAYSCALE** - Grayscale conversion (5 algorithms available)
+- **BLUR** - Gaussian blur (configurable kernel, sigma, border mode)
+
+### Accelerators
+- **CUDA** - GPU processing
+- **CPU** - CPU fallback processing
+
+### Grayscale Algorithms
+- **BT601** - ITU-R BT.601 (SDTV): Y = 0.299R + 0.587G + 0.114B
+- **BT709** - ITU-R BT.709 (HDTV): Y = 0.2126R + 0.7152G + 0.0722B
+- **AVERAGE** - Simple average: Y = (R + G + B) / 3
+- **LIGHTNESS** - Lightness: Y = (max(R,G,B) + min(R,G,B)) / 2
+- **LUMINOSITY** - Luminosity: Y = 0.21R + 0.72G + 0.07B
+
+### Blur Parameters
+- **Kernel Size**: 3, 5, 7 (odd numbers)
+- **Sigma**: 0.5, 1.0, 1.5, 2.0
+- **Border Mode**: REFLECT, CLAMP, WRAP
+- **Separable**: true/false (optimization for Gaussian blur)
+
+### Multi-filter Combinations
+- **GRAYSCALE_AND_BLUR** - Apply grayscale first, then blur
+- **BLUR_AND_GRAYSCALE** - Apply blur first, then grayscale
 
 ## Adding New BDD Tests
 

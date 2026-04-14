@@ -220,7 +220,6 @@ Completed features extracted from git commit history, organized by date.
 
 ### Production Deployment & Infrastructure (Nov 1, 2025)
 - [x] Implemented production Docker deployment with CUDA separation
-- [x] Added Cloudflare tunnel integration for production environment on Jetson Nano
 - [x] Created modular Jetson Nano deployment system with Ansible automation
 - [x] Unified logging configuration for development and production environments
 - [x] Added production deployment warning banner with environment detection
@@ -236,7 +235,6 @@ Completed features extracted from git commit history, organized by date.
 - Test Reports: https://reports-cuda-demo.josnelihurt.me
 
 **Deployment Features:**
-- Cloudflare tunnel for secure external access
 - Ansible playbooks for automated deployment and updates
 - Production-optimized Docker configuration with CUDA separation
 - Environment-specific configuration management

@@ -262,7 +262,7 @@ Production-like Docker deployment running locally using pre-built images from Gi
 
 ### Production
 
-Real deployment on Jetson Nano hardware with Cloudflare tunnel for external access.
+Real deployment on Jetson Nano hardware with Traefik as the ingress layer.
 
 **Production URL:** https://app-cuda-demo.josnelihurt.me
 
@@ -286,7 +286,7 @@ Real deployment on Jetson Nano hardware with Cloudflare tunnel for external acce
 ```
 
 **Configuration:** `config/config.production.yaml`
-- Cloudflare tunnel for external access
+- External access managed by deployment networking and DNS
 - Ansible automation
 - Production-optimized Docker configuration
 - Unified logging configuration
@@ -311,7 +311,7 @@ Skip when needed: `git commit --no-verify` or `git push --no-verify`
 - C++/CUDA doing the processing via gRPC service
 - Protocol Buffers for C++/Go communication
 - Bazel for C++/CUDA builds, Makefile for Go
-- **Production**: Jetson Nano deployment with Cloudflare tunnel
+- **Production**: Jetson Nano deployment with Traefik ingress
 - **Deployment**: Ansible automation for infrastructure management
 
 **Frontend**: Lit Web Components for core UI + React dashboard, TypeScript with Vite bundler.

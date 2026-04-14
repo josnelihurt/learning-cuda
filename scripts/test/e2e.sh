@@ -111,8 +111,8 @@ export GROUP_ID=$(id -g)
 # Set environment variables based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
     export TEST_ENV="production"
-    export PLAYWRIGHT_BASE_URL="https://app-cuda-demo.josnelihurt.me"
-    echo "Environment: Production (https://app-cuda-demo.josnelihurt.me)"
+    export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-https://localhost:443}"
+    echo "Environment: Production (${PLAYWRIGHT_BASE_URL})"
 elif [ "$ENVIRONMENT" = "staging" ]; then
     export TEST_ENV="staging"
     export PLAYWRIGHT_BASE_URL="https://app.localhost"
@@ -148,9 +148,9 @@ echo "Checking services..."
 
 # Check application health based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
-    if ! curl -k -s https://app-cuda-demo.josnelihurt.me/health > /dev/null 2>&1; then
-        echo "ERROR: Production service is not accessible at https://app-cuda-demo.josnelihurt.me"
-        echo "Please start production services with: docker compose --profile cloudflare up -d"
+    if ! curl -k -s "${PLAYWRIGHT_BASE_URL}/health" > /dev/null 2>&1; then
+        echo "ERROR: Production service is not accessible at ${PLAYWRIGHT_BASE_URL}"
+        echo "Please start production services with: docker compose up -d"
         exit 1
     fi
 elif [ "$ENVIRONMENT" = "staging" ]; then

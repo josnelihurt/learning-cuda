@@ -135,27 +135,6 @@ services:
       - "traefik.http.routers.test-reports.priority=100"
       - "traefik.http.services.test-reports.loadbalancer.server.port=8080"
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-    restart: unless-stopped
-    
-    command: tunnel --config /etc/cloudflared/config.yml run
-    
-    env_file:
-      - ./.secrets/production.env
-    
-    volumes:
-      - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
-    
-    networks:
-      - traefik
-    
-    depends_on:
-      traefik:
-        condition: service_started
-    
-
 networks:
   traefik:
     driver: bridge

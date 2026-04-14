@@ -216,7 +216,6 @@ Microservices, observability, testing, and cloud deployment.
 
 ### Jetson Nano Production Deployment
 - [x] #114 Deploy application on Jetson Nano hardware
-- [x] #115 Cloudflare tunnel integration for external access
 - [x] #116 Modular Ansible deployment system
 - [x] #117 Production-optimized Docker configuration with CUDA separation
 - [x] #118 Environment-specific configuration management
@@ -254,7 +253,6 @@ Microservices, observability, testing, and cloud deployment.
 ### Security
 - [ ] #529 Secrets management (Vault, AWS Secrets Manager)
 - [x] #129 TLS for HTTP server (native Go implementation)
-- [x] #130 DDoS protection (Cloudflare)
 - [ ] #529 TLS for gRPC
 - [ ] #529 Auth (JWT, OAuth)
 - [ ] #529 Rate limiting

@@ -127,8 +127,6 @@ jobs:
 
           sudo_exec "install -m 0644 docker-compose.yml \"${TARGET}/docker-compose.yml\""
           sudo_exec "install -m 0644 traefik-config.yml \"${TARGET}/traefik-config.yml\""
-          sudo_exec "install -m 0644 cloudflared-config.yml \"${TARGET}/cloudflared-config.yml\""
-
           sudo_exec "rsync -a --delete \"${PWD}/config/\" \"${TARGET}/config/\""
           sudo_exec "rsync -a --delete \"${PWD}/data/\" \"${TARGET}/data/\""
 

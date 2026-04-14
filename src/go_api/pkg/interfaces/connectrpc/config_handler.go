@@ -3,7 +3,6 @@ package connectrpc
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 
 	"connectrpc.com/connect"
@@ -11,6 +10,7 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -57,7 +57,7 @@ func (h *ConfigHandler) GetStreamConfig(
 	streamConfig, err := h.getStreamConfigUseCase.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to get stream config: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to get stream config")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -75,7 +75,7 @@ func (h *ConfigHandler) GetStreamConfig(
 	transportFormat := streamConfig.TransportFormat
 	if transportFormat == "" {
 		transportFormat = "json"
-		log.Printf("DEBUG: Forced transport_format to 'json' (was empty)")
+		logger.FromContext(ctx).Debug().Msg("Forced transport_format to 'json' (was empty)")
 	}
 
 	endpoints := []*pb.StreamEndpoint{
@@ -88,7 +88,7 @@ func (h *ConfigHandler) GetStreamConfig(
 		},
 	}
 
-	log.Printf("DEBUG: StreamEndpoint console_logging value: %v", consoleLogging)
+	logger.FromContext(ctx).Debug().Bool("console_logging", consoleLogging).Msg("StreamEndpoint console_logging value")
 
 	span.SetAttributes(
 		attribute.String("config.endpoint", streamConfig.WebsocketEndpoint),
@@ -172,7 +172,7 @@ func (h *ConfigHandler) ListInputs(
 	sources, err := h.listInputsUseCase.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to list input sources: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list input sources")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -242,8 +242,10 @@ func (h *ConfigHandler) GetAvailableTools(
 		attribute.Int("tools.category_count", len(categories)),
 	)
 
-	log.Printf("GetAvailableTools: returning %d categories for environment: %s",
-		len(categories), h.configManager.Environment)
+	logger.FromContext(ctx).Debug().
+		Int("category_count", len(categories)).
+		Str("environment", h.configManager.Environment).
+		Msg("GetAvailableTools: returning categories")
 
 	return connect.NewResponse(&pb.GetAvailableToolsResponse{
 		Categories: categories,
@@ -282,7 +284,7 @@ func (h *ConfigHandler) GetSystemInfo(
 	systemInfo, err := h.getSystemInfoUseCase.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to get system info: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to get system info")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -310,8 +312,10 @@ func (h *ConfigHandler) GetSystemInfo(
 		attribute.String("system.environment", systemInfo.Environment),
 	)
 
-	log.Printf("GetSystemInfo: returning system info for environment: %s, go_version: %s",
-		systemInfo.Environment, systemInfo.Version.GoVersion)
+	logger.FromContext(ctx).Debug().
+		Str("environment", systemInfo.Environment).
+		Str("go_version", systemInfo.Version.GoVersion).
+		Msg("GetSystemInfo: returning system info")
 
 	return connect.NewResponse(response), nil
 }
@@ -350,8 +354,12 @@ func (h *ConfigHandler) GetProcessorStatus(
 		CurrentLibrary: caps.LibraryVersion,
 	}
 
-	log.Printf("GetProcessorStatus: returning capabilities with %d filters, api_version: %s, library_version: %s, origin: %s",
-		len(caps.Filters), caps.ApiVersion, caps.LibraryVersion, origin)
+	logger.FromContext(ctx).Debug().
+		Int("filter_count", len(caps.Filters)).
+		Str("api_version", caps.ApiVersion).
+		Str("library_version", caps.LibraryVersion).
+		Str("origin", string(origin)).
+		Msg("GetProcessorStatus: returning capabilities")
 
 	return connect.NewResponse(response), nil
 }

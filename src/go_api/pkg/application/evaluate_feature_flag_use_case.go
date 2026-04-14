@@ -2,9 +2,9 @@ package application
 
 import (
 	"context"
-	"log"
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -38,8 +38,11 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateBoolean(
 
 	eval, err := uc.repository.EvaluateBoolean(ctx, flagKey, entityID)
 	if err != nil || !eval.Success {
-		log.Printf("Feature flag '%s' evaluation failed, using fallback: %v. Error: %v",
-			flagKey, fallbackValue, err)
+		logger.FromContext(ctx).Warn().
+			Str("flag_key", flagKey).
+			Bool("fallback_value", fallbackValue).
+			Err(err).
+			Msg("Feature flag evaluation failed, using fallback")
 		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
 		span.SetAttributes(attribute.Bool("flag.fallback_value", fallbackValue))
 		return fallbackValue, nil
@@ -47,7 +50,9 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateBoolean(
 
 	result, ok := eval.Result.(bool)
 	if !ok {
-		log.Printf("Warning: Type assertion failed for flag '%s', result type: %T, using fallback value", flagKey, eval.Result)
+		logger.FromContext(ctx).Warn().
+			Str("flag_key", flagKey).
+			Msg("Type assertion failed for flag result, using fallback value")
 		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
 		span.SetAttributes(attribute.Bool("flag.fallback_value", fallbackValue))
 		return fallbackValue, nil
@@ -55,7 +60,7 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateBoolean(
 	span.SetAttributes(attribute.Bool("flag.used_fallback", false))
 	span.SetAttributes(attribute.Bool("flag.fallback_value", result))
 
-	log.Printf("Feature flag '%s' evaluated to: %v", flagKey, result)
+	logger.FromContext(ctx).Debug().Str("flag_key", flagKey).Bool("result", result).Msg("Feature flag evaluated")
 	return result, nil
 }
 
@@ -79,8 +84,11 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateString(
 
 	eval, err := uc.repository.EvaluateString(ctx, flagKey, entityID)
 	if err != nil || !eval.Success {
-		log.Printf("Feature flag '%s' evaluation failed, using fallback: %v. Error: %v",
-			flagKey, fallbackValue, err)
+		logger.FromContext(ctx).Warn().
+			Str("flag_key", flagKey).
+			Str("fallback_value", fallbackValue).
+			Err(err).
+			Msg("Feature flag evaluation failed, using fallback")
 		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
 		span.SetAttributes(attribute.String("flag.fallback_value", fallbackValue))
 		return fallbackValue, nil
@@ -88,7 +96,9 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateString(
 
 	result, ok := eval.Result.(string)
 	if !ok {
-		log.Printf("Warning: Type assertion failed for flag '%s', result type: %T, using fallback value", flagKey, eval.Result)
+		logger.FromContext(ctx).Warn().
+			Str("flag_key", flagKey).
+			Msg("Type assertion failed for flag result, using fallback value")
 		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
 		span.SetAttributes(attribute.String("flag.fallback_value", fallbackValue))
 		return fallbackValue, nil
@@ -96,6 +106,6 @@ func (uc *EvaluateFeatureFlagUseCase) EvaluateString(
 	span.SetAttributes(attribute.Bool("flag.used_fallback", false))
 	span.SetAttributes(attribute.String("flag.fallback_value", result))
 
-	log.Printf("Feature flag '%s' evaluated to: %v", flagKey, result)
+	logger.FromContext(ctx).Debug().Str("flag_key", flagKey).Str("result", result).Msg("Feature flag evaluated")
 	return result, nil
 }

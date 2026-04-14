@@ -1,12 +1,12 @@
 package adapters
 
 import (
-	"log"
 	"strconv"
 	"strings"
 
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
 
 type ProtobufAdapter struct{}
@@ -61,11 +61,9 @@ func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterTy
 		case pb.FilterType_FILTER_TYPE_NONE:
 			filters = append(filters, domain.FilterNone)
 		case pb.FilterType_FILTER_TYPE_UNSPECIFIED:
-			// Log warning for unspecified filter type
-			log.Printf("Warning: received unspecified filter type, skipping")
+			logger.Global().Warn().Msg("received unspecified filter type, skipping")
 		default:
-			// Log warning for unknown filter type
-			log.Printf("Warning: received unknown filter type %v, skipping", f)
+			logger.Global().Warn().Int("filter_type", int(f)).Msg("received unknown filter type, skipping")
 		}
 	}
 	return filters
@@ -78,16 +76,13 @@ func (a *ProtobufAdapter) ToAccelerator(pbAccel pb.AcceleratorType) domain.Accel
 	case pb.AcceleratorType_ACCELERATOR_TYPE_CPU:
 		return domain.AcceleratorCPU
 	case pb.AcceleratorType_ACCELERATOR_TYPE_UNSPECIFIED:
-		// Log warning for unspecified accelerator type
-		log.Printf("Warning: received unspecified accelerator type, defaulting to GPU")
+		logger.Global().Warn().Msg("received unspecified accelerator type, defaulting to GPU")
 		return domain.AcceleratorGPU
 	case pb.AcceleratorType_ACCELERATOR_TYPE_OPENCL:
-		// Log warning for unsupported accelerator type
-		log.Printf("Warning: received unsupported accelerator type OPENCL, defaulting to GPU")
+		logger.Global().Warn().Msg("received unsupported accelerator type OPENCL, defaulting to GPU")
 		return domain.AcceleratorGPU
 	default:
-		// Log warning for unknown accelerator type
-		log.Printf("Warning: received unknown accelerator type %v, defaulting to GPU", pbAccel)
+		logger.Global().Warn().Int("accelerator_type", int(pbAccel)).Msg("received unknown accelerator type, defaulting to GPU")
 		return domain.AcceleratorGPU
 	}
 }
@@ -105,12 +100,10 @@ func (a *ProtobufAdapter) ToGrayscaleType(pbType pb.GrayscaleType) domain.Graysc
 	case pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY:
 		return domain.GrayscaleLuminosity
 	case pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED:
-		// Log warning for unspecified grayscale type
-		log.Printf("Warning: received unspecified grayscale type, defaulting to BT601")
+		logger.Global().Warn().Msg("received unspecified grayscale type, defaulting to BT601")
 		return domain.GrayscaleBT601
 	default:
-		// Log warning for unknown grayscale type
-		log.Printf("Warning: received unknown grayscale type %v, defaulting to BT601", pbType)
+		logger.Global().Warn().Int("grayscale_type", int(pbType)).Msg("received unknown grayscale type, defaulting to BT601")
 		return domain.GrayscaleBT601
 	}
 }
@@ -124,12 +117,10 @@ func (a *ProtobufAdapter) ToBorderMode(pbMode pb.BorderMode) domain.BorderMode {
 	case pb.BorderMode_BORDER_MODE_WRAP:
 		return domain.BorderModeWrap
 	case pb.BorderMode_BORDER_MODE_UNSPECIFIED:
-		// Log warning for unspecified border mode
-		log.Printf("Warning: received unspecified border mode, defaulting to REFLECT")
+		logger.Global().Warn().Msg("received unspecified border mode, defaulting to REFLECT")
 		return domain.BorderModeReflect
 	default:
-		// Log warning for unknown border mode
-		log.Printf("Warning: received unknown border mode %v, defaulting to REFLECT", pbMode)
+		logger.Global().Warn().Int("border_mode", int(pbMode)).Msg("received unknown border mode, defaulting to REFLECT")
 		return domain.BorderModeReflect
 	}
 }
@@ -156,7 +147,7 @@ func (a *ProtobufAdapter) ToProtobufBorderMode(mode domain.BorderMode) pb.Border
 	case domain.BorderModeWrap:
 		return pb.BorderMode_BORDER_MODE_WRAP
 	default:
-		log.Printf("Warning: unknown border mode %v, defaulting to REFLECT", mode)
+		logger.Global().Warn().Str("border_mode", string(mode)).Msg("unknown border mode, defaulting to REFLECT")
 		return pb.BorderMode_BORDER_MODE_REFLECT
 	}
 }
@@ -218,7 +209,7 @@ func (a *ProtobufAdapter) genericSelectionsToProto(
 			filters = append(filters, pb.FilterType_FILTER_TYPE_BLUR)
 			blur = a.blurFromGeneric(selection.Parameters, blur)
 		default:
-			log.Printf("Warning: received unknown generic filter %s, skipping", selection.FilterId)
+			logger.Global().Warn().Str("filter_id", selection.FilterId).Msg("received unknown generic filter, skipping")
 		}
 	}
 

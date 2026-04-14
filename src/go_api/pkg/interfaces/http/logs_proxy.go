@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -24,6 +23,11 @@ func NewLogsProxyHandler(collectorEndpoint string, enabled bool) *LogsProxyHandl
 }
 
 func (h *LogsProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// All logging in this handler MUST use logger.LocalOnly() to avoid a feedback
+	// loop: this handler forwards logs to the OTLP collector, so using the remote
+	// logger here would cause those log entries to be re-forwarded indefinitely.
+	log := logger.LocalOnly()
+
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Encoding")
@@ -36,7 +40,9 @@ func (h *LogsProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !h.enabled {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte(`{"success":true,"message":"logging disabled"}`)); err != nil {
-			log.Printf("Error writing response: %v", err)
+			log.Error().Err(err).
+				Str("remote_addr", r.RemoteAddr).
+				Msg("Failed to write logging-disabled response")
 		}
 		return
 	}
@@ -48,18 +54,22 @@ func (h *LogsProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading logs request body: %v", err)
+		log.Error().Err(err).
+			Str("remote_addr", r.RemoteAddr).
+			Str("content_type", r.Header.Get("Content-Type")).
+			Msg("Failed to read logs request body")
 		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
-	logger.Global().Debug().
-		Int("bytes", len(body)).
+	log.Debug().
+		Int("body_bytes", len(body)).
 		Str("content_type", r.Header.Get("Content-Type")).
+		Str("remote_addr", r.RemoteAddr).
 		Msg("Received OTLP logs from frontend")
 
-	if h.enabled && h.collectorEndpoint != "" {
+	if h.collectorEndpoint != "" {
 		var collectorURL string
 		if strings.HasPrefix(h.collectorEndpoint, "http://") || strings.HasPrefix(h.collectorEndpoint, "https://") {
 			collectorURL = h.collectorEndpoint
@@ -69,14 +79,20 @@ func (h *LogsProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		//nolint:gosec // collectorURL is from internal config, not user input
 		resp, err := http.Post(collectorURL, "application/json", bytes.NewReader(body))
 		if err != nil {
-			logger.Global().Error().Err(err).Str("collector_url", collectorURL).Msg("Failed to forward logs to collector")
+			log.Error().Err(err).
+				Str("collector_url", collectorURL).
+				Str("remote_addr", r.RemoteAddr).
+				Int("body_bytes", len(body)).
+				Msg("Failed to forward logs to collector")
 		} else {
 			defer resp.Body.Close()
 			if resp.StatusCode >= 400 {
-				logger.Global().Warn().
+				respBody, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort
+				log.Warn().
 					Int("status_code", resp.StatusCode).
 					Str("collector_url", collectorURL).
-					Msg("Collector returned error status")
+					Str("collector_response", string(respBody)).
+					Msg("Collector returned error status for logs")
 			}
 		}
 	}
@@ -84,6 +100,8 @@ func (h *LogsProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte(`{"partialSuccess":{}}`)); err != nil {
-		log.Printf("Error writing response: %v", err)
+		log.Error().Err(err).
+			Str("remote_addr", r.RemoteAddr).
+			Msg("Failed to write response")
 	}
 }

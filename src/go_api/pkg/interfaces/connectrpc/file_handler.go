@@ -3,11 +3,11 @@ package connectrpc
 import (
 	"context"
 	"errors"
-	"log"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -42,7 +42,7 @@ func (h *FileHandler) ListAvailableImages(
 	images, err := h.listAvailableImagesUseCase.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to list available images: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list available images")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -79,7 +79,7 @@ func (h *FileHandler) UploadImage(
 	image, err := h.uploadImageUseCase.Execute(ctx, req.Msg.Filename, req.Msg.FileData)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to upload image: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to upload image")
 
 		code := connect.CodeInternal
 		if err.Error() == "file too large" {
@@ -96,7 +96,7 @@ func (h *FileHandler) UploadImage(
 		attribute.String("image.path", image.Path),
 	)
 
-	log.Printf("Image uploaded successfully: %s", image.ID)
+	logger.FromContext(ctx).Info().Str("image_id", image.ID).Msg("Image uploaded successfully")
 
 	return connect.NewResponse(&pb.UploadImageResponse{
 		Image: &pb.StaticImage{
@@ -118,7 +118,7 @@ func (h *FileHandler) ListAvailableVideos(
 	videos, err := h.listAvailableVideosUseCase.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to list available videos: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list available videos")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -156,7 +156,7 @@ func (h *FileHandler) UploadVideo(
 	video, err := h.uploadVideoUseCase.Execute(ctx, req.Msg.FileData, req.Msg.Filename)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to upload video: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to upload video")
 
 		code := connect.CodeInternal
 		if errors.Is(err, application.ErrFileTooLarge) {
@@ -173,7 +173,7 @@ func (h *FileHandler) UploadVideo(
 		attribute.String("video.path", video.Path),
 	)
 
-	log.Printf("Video uploaded successfully: %s", video.ID)
+	logger.FromContext(ctx).Info().Str("video_id", video.ID).Msg("Video uploaded successfully")
 
 	return connect.NewResponse(&pb.UploadVideoResponse{
 		Video: &pb.StaticVideo{

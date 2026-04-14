@@ -3,10 +3,10 @@ package telemetry
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -24,7 +24,7 @@ type TracerProvider struct {
 
 func New(ctx context.Context, enabled bool, config *config.ObservabilityConfig) (*TracerProvider, error) {
 	if !enabled {
-		log.Println("Observability disabled by feature flag")
+		logger.Global().Info().Msg("Observability disabled by feature flag")
 		return &TracerProvider{enabled: false}, nil
 	}
 
@@ -76,7 +76,10 @@ func New(ctx context.Context, enabled bool, config *config.ObservabilityConfig) 
 		propagation.Baggage{},
 	))
 
-	log.Printf("OpenTelemetry tracer initialized (grpc_endpoint: %s, sampling: %.2f)", config.OtelCollectorGRPCEndpoint, config.TraceSamplingRate)
+	logger.Global().Info().
+		Str("grpc_endpoint", config.OtelCollectorGRPCEndpoint).
+		Float64("sampling_rate", config.TraceSamplingRate).
+		Msg("OpenTelemetry tracer initialized")
 
 	return &TracerProvider{
 		provider: provider,
@@ -89,11 +92,11 @@ func (tp *TracerProvider) Shutdown(ctx context.Context) error {
 		return nil
 	}
 
-	log.Println("Shutting down OpenTelemetry tracer provider...")
+	logger.Global().Info().Msg("Shutting down OpenTelemetry tracer provider...")
 	if err := tp.provider.Shutdown(ctx); err != nil {
 		return fmt.Errorf("failed to shutdown tracer provider: %w", err)
 	}
-	log.Println("OpenTelemetry tracer provider shutdown complete")
+	logger.Global().Info().Msg("OpenTelemetry tracer provider shutdown complete")
 	return nil
 }
 

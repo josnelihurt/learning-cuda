@@ -15,8 +15,3 @@ observability_enabled:
         enabled: true
     defaultRule:
         variation: disabled
-ws_transport_format:
-    variations:
-        json: json
-    defaultRule:
-        variation: json

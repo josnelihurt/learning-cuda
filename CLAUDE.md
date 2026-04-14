@@ -8,14 +8,6 @@ CUDA Learning Platform - Real-time image/video processing via CUDA GPU kernels. 
 
 ## Build & Development Commands
 
-### Development Environment
-```bash
-./scripts/dev/start.sh --build  # First time: build C++/Go + start dev server
-./scripts/dev/start.sh          # Subsequent runs (hot reload enabled)
-./scripts/dev/stop.sh           # Stop all services
-```
-Access: https://localhost:8443
-
 ### Building Components
 ```bash
 # C++ (Bazel)
@@ -85,8 +77,6 @@ src/go_api/
 src/front-end/        # Lit + React (Vite)
 ```
 
-### Processing Flow
-Go Server → gRPC Client → gRPC Server (C++) → ProcessorEngine → FilterPipeline → CUDA/CPU Filters
 
 ### Key Patterns
 - Clean Architecture with dependency injection
@@ -132,12 +122,3 @@ Proto generation: `./scripts/build/protos.sh`
 - **Frontend**: Lit Web Components + TypeScript with Vite
 - **Observability**: OpenTelemetry, Jaeger tracing, Grafana dashboards, Loki logs
 
-## Git Hooks
-
-```bash
-./scripts/hooks/install.sh   # Install pre-commit/pre-push hooks
-git commit --no-verify       # Skip hooks when needed
-```
-
-Pre-commit: unit tests + linters
-Pre-push: full validation with all browsers

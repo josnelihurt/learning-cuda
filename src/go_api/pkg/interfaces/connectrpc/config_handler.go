@@ -16,35 +16,32 @@ import (
 )
 
 type ConfigHandler struct {
-	getStreamConfigUseCase *application.GetStreamConfigUseCase
-	featureFlagRepo        domain.FeatureFlagRepository
-	listInputsUseCase      *application.ListInputsUseCase
-	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
-	getSystemInfoUseCase   *application.GetSystemInfoUseCase
-	configManager          *config.Manager
-	processorCapsUC        application.ProcessorCapabilitiesUseCase
+	featureFlagRepo   domain.FeatureFlagRepository
+	listInputsUseCase *application.ListInputsUseCase
+	evaluateFFUseCase *application.EvaluateFeatureFlagUseCase
+	getSystemInfoUseCase *application.GetSystemInfoUseCase
+	configManager     *config.Manager
+	processorCapsUC   application.ProcessorCapabilitiesUseCase
 }
 
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
-	GetStreamConfigUC *application.GetStreamConfigUseCase
-	FeatureFlagRepo   domain.FeatureFlagRepository
-	ListInputsUC      *application.ListInputsUseCase
-	EvaluateFFUC      *application.EvaluateFeatureFlagUseCase
-	GetSystemInfoUC   *application.GetSystemInfoUseCase
-	ConfigManager     *config.Manager
-	ProcessorCapsUC   application.ProcessorCapabilitiesUseCase
+	FeatureFlagRepo domain.FeatureFlagRepository
+	ListInputsUC    *application.ListInputsUseCase
+	EvaluateFFUC    *application.EvaluateFeatureFlagUseCase
+	GetSystemInfoUC *application.GetSystemInfoUseCase
+	ConfigManager   *config.Manager
+	ProcessorCapsUC application.ProcessorCapabilitiesUseCase
 }
 
 func NewConfigHandler(deps ConfigHandlerDeps) *ConfigHandler {
 	return &ConfigHandler{
-		getStreamConfigUseCase: deps.GetStreamConfigUC,
-		featureFlagRepo:        deps.FeatureFlagRepo,
-		listInputsUseCase:      deps.ListInputsUC,
-		evaluateFFUseCase:      deps.EvaluateFFUC,
-		getSystemInfoUseCase:   deps.GetSystemInfoUC,
-		configManager:          deps.ConfigManager,
-		processorCapsUC:        deps.ProcessorCapsUC,
+		featureFlagRepo:   deps.FeatureFlagRepo,
+		listInputsUseCase: deps.ListInputsUC,
+		evaluateFFUseCase: deps.EvaluateFFUC,
+		getSystemInfoUseCase: deps.GetSystemInfoUC,
+		configManager:     deps.ConfigManager,
+		processorCapsUC:   deps.ProcessorCapsUC,
 	}
 }
 
@@ -53,13 +50,6 @@ func (h *ConfigHandler) GetStreamConfig(
 	req *connect.Request[pb.GetStreamConfigRequest],
 ) (*connect.Response[pb.GetStreamConfigResponse], error) {
 	span := trace.SpanFromContext(ctx)
-
-	streamConfig, err := h.getStreamConfigUseCase.Execute(ctx)
-	if err != nil {
-		span.RecordError(err)
-		logger.FromContext(ctx).Error().Err(err).Msg("Failed to get stream config")
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
 
 	logLevel, err := h.evaluateFFUseCase.EvaluateString(ctx, "frontend_log_level", "default", "INFO")
 	if err != nil || logLevel == "" {
@@ -71,28 +61,20 @@ func (h *ConfigHandler) GetStreamConfig(
 		consoleLogging = true
 	}
 
-	// Force transport_format to "json" if empty
-	transportFormat := streamConfig.TransportFormat
-	if transportFormat == "" {
-		transportFormat = "json"
-		logger.FromContext(ctx).Debug().Msg("Forced transport_format to 'json' (was empty)")
-	}
-
+	// Return WebRTC signaling endpoint via ConnectRPC
 	endpoints := []*pb.StreamEndpoint{
 		{
-			Type:            "websocket",
-			Endpoint:        streamConfig.WebsocketEndpoint,
-			TransportFormat: transportFormat,
-			LogLevel:        logLevel,
-			ConsoleLogging:  consoleLogging,
+			Type:           "webrtc-signaling",
+			Endpoint:       "/webrtc.SignalingService/Signaling",
+			LogLevel:       logLevel,
+			ConsoleLogging: consoleLogging,
 		},
 	}
 
 	logger.FromContext(ctx).Debug().Bool("console_logging", consoleLogging).Msg("StreamEndpoint console_logging value")
 
 	span.SetAttributes(
-		attribute.String("config.endpoint", streamConfig.WebsocketEndpoint),
-		attribute.String("config.transport_format", streamConfig.TransportFormat),
+		attribute.String("config.endpoint", "/webrtc.SignalingService/Signaling"),
 		attribute.String("config.log_level", logLevel),
 		attribute.Bool("config.console_logging", consoleLogging),
 		attribute.Int("config.endpoint_count", len(endpoints)),

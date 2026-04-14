@@ -8,10 +8,6 @@ server:
     cert_file: ".secrets/localhost+2.pem"
     key_file: ".secrets/localhost+2-key.pem"
 
-stream:
-  transport_format: "json"
-  websocket_endpoint: "/ws"
-
 go_feature_flag:
   enabled: true
   file_path: "config/flags.goff.yaml"

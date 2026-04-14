@@ -112,61 +112,6 @@ func TestServerConfig_Validation(t *testing.T) {
 	}
 }
 
-func TestStreamConfig_Validation(t *testing.T) {
-	tests := []struct {
-		name        string
-		config      StreamConfig
-		expectValid bool
-	}{
-		{
-			name: "Success_ValidConfig",
-			config: StreamConfig{
-				TransportFormat:   "json",
-				WebsocketEndpoint: "/ws",
-			},
-			expectValid: true,
-		},
-		{
-			name: "Success_BinaryTransport",
-			config: StreamConfig{
-				TransportFormat:   "binary",
-				WebsocketEndpoint: "/ws",
-			},
-			expectValid: true,
-		},
-		{
-			name: "Error_EmptyTransportFormat",
-			config: StreamConfig{
-				TransportFormat: "",
-			},
-			expectValid: false,
-		},
-		{
-			name: "Error_EmptyWebsocketEndpoint",
-			config: StreamConfig{
-				TransportFormat:   "json",
-				WebsocketEndpoint: "",
-			},
-			expectValid: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
-			config := tt.config
-
-			// Act & Assert
-			if tt.expectValid {
-				assert.NotEmpty(t, config.TransportFormat)
-				assert.NotEmpty(t, config.WebsocketEndpoint)
-			} else {
-				assert.True(t, config.TransportFormat == "" || config.WebsocketEndpoint == "")
-			}
-		})
-	}
-}
-
 func TestObservabilityConfig_Validation(t *testing.T) {
 	tests := []struct {
 		name        string

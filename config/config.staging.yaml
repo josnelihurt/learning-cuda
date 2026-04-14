@@ -6,10 +6,6 @@ server:
   tls:
     enabled: false
 
-stream:
-  transport_format: "json"
-  websocket_endpoint: "/ws"
-
 go_feature_flag:
   enabled: true
   file_path: "/app/config/flags.goff.yaml"
@@ -77,4 +73,3 @@ tools:
       icon_path: ""
       type: "url"
       url: "https://reports.localhost/coverage"
-

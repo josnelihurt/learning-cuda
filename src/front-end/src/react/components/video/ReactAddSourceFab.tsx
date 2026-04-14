@@ -1,3 +1,5 @@
+import React from 'react';
+
 type ReactAddSourceFabProps = {
   onClick: () => void;
 };

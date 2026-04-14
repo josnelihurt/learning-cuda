@@ -1,3 +1,4 @@
+import React from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import { useState } from 'react';
 

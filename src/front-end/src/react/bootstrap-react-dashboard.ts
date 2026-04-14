@@ -1,7 +1,6 @@
 import { container } from '@/application/di';
 import { acceleratorHealthMonitor } from '@/infrastructure/external/accelerator-health-monitor';
 import { systemInfoService } from '@/infrastructure/external/system-info-service';
-import type { ToastContainer } from '@/components/app/toast-container';
 
 let bootstrapPromise: Promise<void> | null = null;
 let beforeUnloadAttached = false;
@@ -24,11 +23,6 @@ function attachBeforeUnload(): void {
 }
 
 async function runBootstrap(): Promise<void> {
-  const toastManager = document.querySelector('toast-container') as ToastContainer | null;
-  if (toastManager) {
-    toastManager.configure({ duration: 7000 });
-  }
-
   const streamConfigService = container.getConfigService();
   const telemetryService = container.getTelemetryService();
   const logger = container.getLogger();
@@ -52,10 +46,9 @@ async function runBootstrap(): Promise<void> {
         'error.message':
           result.reason instanceof Error ? result.reason.message : String(result.reason),
       });
-      toastManager?.error(
-        `${serviceName} Error`,
-        `Failed to initialize ${serviceName.toLowerCase()} service`
-      );
+      logger.error(`${serviceName} initialization warning surfaced to user`, {
+        'service.name': serviceName,
+      });
     }
   });
 
@@ -95,10 +88,9 @@ async function runBootstrap(): Promise<void> {
         'error.message':
           result.reason instanceof Error ? result.reason.message : String(result.reason),
       });
-      toastManager?.warning(
-        `${serviceName} Error`,
-        `Failed to load ${serviceName.toLowerCase()} data`
-      );
+      logger.error(`${serviceName} data loading warning surfaced to user`, {
+        'service.name': serviceName,
+      });
     }
   });
 

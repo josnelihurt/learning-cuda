@@ -22,9 +22,9 @@ case "$ARCH" in
 esac
 
 DEFAULT_PROTO_VERSION="$(read_version proto/VERSION)"
-DEFAULT_CPP_VERSION="$(read_version cpp_accelerator/VERSION)"
-DEFAULT_GOLANG_VERSION="$(read_version webserver/VERSION)"
-DEFAULT_INTEGRATION_VERSION="$(read_version integration/VERSION)"
+DEFAULT_CPP_VERSION="$(read_version src/cpp_accelerator/VERSION)"
+DEFAULT_GOLANG_VERSION="$(read_version src/go_api/VERSION)"
+DEFAULT_INTEGRATION_VERSION="$(read_version test/integration/VERSION)"
 
 LOCAL_REGISTRY="local/josnelihurt/learning-cuda"
 REMOTE_REGISTRY="ghcr.io/josnelihurt/learning-cuda"
@@ -148,19 +148,13 @@ echo "  CPP_VERSION:       $CPP_VERSION"
 echo "  GOLANG_VERSION:    $GOLANG_VERSION"
 echo ""
 
-mkdir -p integration/tests/acceptance/.ignore/test-results
-mkdir -p .ignore/webserver/web/test-results
-mkdir -p .ignore/webserver/web/playwright-report
+mkdir -p test/integration/tests/acceptance/.ignore/test-results
+mkdir -p .ignore/front-end/test-results
+mkdir -p .ignore/front-end/playwright-report
 
-echo "Note: Tests require local services running (Flipt + App)"
+echo "Note: Tests require local services running (App)"
 echo "Make sure you've run: ./scripts/dev/start.sh"
 echo ""
-
-if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
-    echo "ERROR: Flipt is not accessible at http://localhost:8081"
-    echo "Please start services with: ./scripts/dev/start.sh"
-    exit 1
-fi
 
 if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
     echo "ERROR: Service is not accessible at https://localhost:8443"
@@ -250,7 +244,7 @@ echo "========================================="
 if [[ "$TEST_TYPE" == "backend" || "$TEST_TYPE" == "all" ]]; then
     echo ""
     echo "Backend Results:"
-    echo "  Location: integration/tests/acceptance/.ignore/test-results/"
+    echo "  Location: test/integration/tests/acceptance/.ignore/test-results/"
     echo "  Files: cucumber-report.json, junit-report.xml"
     echo ""
     echo "  View report:"
@@ -261,7 +255,7 @@ fi
 if [[ "$TEST_TYPE" == "e2e" || "$TEST_TYPE" == "all" ]]; then
     echo ""
     echo "E2E Results:"
-    echo "  Location: .ignore/webserver/web/"
+    echo "  Location: .ignore/front-end/"
     echo "  Subdirs: test-results/, playwright-report/"
     echo ""
     echo "  View report:"

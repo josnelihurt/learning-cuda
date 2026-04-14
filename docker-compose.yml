@@ -1,4 +1,52 @@
 services:
+  go-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_TAG: ${BASE_TAG:-latest}
+        TARGETARCH: ${TARGETARCH:-amd64}
+        PROTO_VERSION: ${PROTO_VERSION:-2.4.0}
+        CPP_VERSION: ${CPP_VERSION:-2.4.0}
+        GOLANG_VERSION: ${GOLANG_VERSION:-1.4.0}
+    image: ${CUDA_GO_APP_IMAGE:-cuda-learning-go-app:latest}
+    container_name: cuda-go-app
+    restart: unless-stopped
+    networks:
+      traefik:
+        aliases:
+          - go-app
+
+  web-frontend:
+    build:
+      context: .
+      dockerfile: src/front-end/Dockerfile
+      args:
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_TAG: ${BASE_TAG:-latest}
+        TARGETARCH: ${TARGETARCH:-amd64}
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-cuda-learning-web-frontend:latest}
+    container_name: cuda-web-frontend
+    restart: unless-stopped
+    depends_on:
+      go-app:
+        condition: service_started
+      traefik:
+        condition: service_started
+    networks:
+      - traefik
+    volumes:
+      - ./data:/app/data:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app-web.rule=Host(`app-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.app-web.entrypoints=websecure"
+      - "traefik.http.routers.app-web.tls=true"
+      - "traefik.http.routers.app-web.priority=120"
+      - "traefik.http.services.app-web.loadbalancer.server.port=80"
+
   traefik:
     image: traefik:latest
     container_name: traefik

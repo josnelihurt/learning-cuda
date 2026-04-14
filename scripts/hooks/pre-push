@@ -49,14 +49,14 @@ ensure_writable() {
 ensure_writable ".ignore/lib/cuda_learning"
 
 echo "Building CUDA shared library..."
-bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+bazel build //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so
 
-VERSION=$(cat cpp_accelerator/VERSION)
+VERSION=$(cat src/cpp_accelerator/VERSION)
 TARGET_FILE=".ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so"
 
 # Remove existing file first to handle permission issues
 rm -f "$TARGET_FILE"
-cp bazel-bin/cpp_accelerator/ports/shared_lib/libcuda_processor.so "$TARGET_FILE"
+cp bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so "$TARGET_FILE"
 chmod 644 "$TARGET_FILE"
 
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
@@ -77,14 +77,14 @@ EOF
 echo ""
 echo "Building Go server..."
 (
-  cd webserver
+  cd src/go_api
   make build
 )
 
 echo ""
 echo "Building frontend..."
 (
-  cd webserver/web
+  cd src/front-end
   if [ ! -d node_modules ]; then
     npm install
   fi

@@ -24,22 +24,15 @@ services:
       - /tmp:/tmp
     
     networks:
-      - traefik
-    
+      traefik:
+        aliases:
+          - go-app
+
     depends_on:
-      flipt:
-        condition: service_healthy
       traefik:
         condition: service_started
       grpc-server:
         condition: service_healthy
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cuda-app.rule=Host(`app.localhost`)"
-      - "traefik.http.routers.cuda-app.entrypoints=websecure"
-      - "traefik.http.routers.cuda-app.tls=true"
-      - "traefik.http.services.cuda-app.loadbalancer.server.port=8080"
     
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -47,6 +40,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  web-frontend:
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt/learning-cuda/web-frontend:latest-amd64}
+    container_name: cuda-web-frontend-staging
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cuda-app.rule=Host(`app.localhost`)"
+      - "traefik.http.routers.cuda-app.entrypoints=websecure"
+      - "traefik.http.routers.cuda-app.tls=true"
+      - "traefik.http.routers.cuda-app.priority=120"
+      - "traefik.http.services.cuda-app.loadbalancer.server.port=80"
 
   traefik:
     image: traefik:latest
@@ -78,33 +92,6 @@ services:
     
     depends_on: []
     
-
-  flipt:
-    image: flipt/flipt:latest
-    container_name: flipt-staging
-    restart: unless-stopped
-    
-    environment:
-      - FLIPT_LOG_LEVEL=info
-      - FLIPT_META_TELEMETRY_ENABLED=false
-    
-    networks:
-      - traefik
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.flipt.rule=Host(`flipt.localhost`)"
-      - "traefik.http.routers.flipt.entrypoints=websecure"
-      - "traefik.http.routers.flipt.tls=true"
-      - "traefik.http.routers.flipt.priority=200"
-      - "traefik.http.services.flipt.loadbalancer.server.port=8080"
 
   grpc-server:
     image: ${GRPC_SERVER_IMAGE:-ghcr.io/josnelihurt/learning-cuda/grpc-server:latest-amd64}

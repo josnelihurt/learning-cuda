@@ -3,21 +3,12 @@ services:
     image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda/app:latest-amd64}
     container_name: cuda-go-server
     restart: unless-stopped
-    
+
     volumes:
       - ./data:/data:ro
       - ./config/config.production.yaml:/app/config/config.yaml:ro
       - /tmp:/tmp
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=public-wan"
-      - "traefik.http.routers.go-server.rule=Host(`app-cuda-demo.josnelihurt.me`)"
-      - "traefik.http.routers.go-server.entrypoints=https"
-      - "traefik.http.routers.go-server.tls=true"
-      - "traefik.http.routers.go-server.tls.certresolver=cloudflare"
-      - "traefik.http.services.go-server.loadbalancer.server.port=8080"
-    
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -26,36 +17,31 @@ services:
       start_period: 40s
 
     networks:
-      - iot-internal
-      - public-wan
+      iot-internal:
+        aliases:
+          - go-app
+      public-wan:
 
-  flipt:
-    image: flipt/flipt:latest
-    container_name: flipt
+  web-frontend:
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt/learning-cuda/web-frontend:latest-amd64}
+    container_name: cuda-web-frontend
     restart: unless-stopped
-    
-    environment:
-      - FLIPT_LOG_LEVEL=info
-      - FLIPT_META_TELEMETRY_ENABLED=false
-    
-    networks:
-      - public-wan
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    
+    depends_on:
+      go-server:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data:ro
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=public-wan"
-      - "traefik.http.routers.flipt.rule=Host(`flipt-cuda-demo.josnelihurt.me`)"
-      - "traefik.http.routers.flipt.entrypoints=https"
-      - "traefik.http.routers.flipt.tls=true"
-      - "traefik.http.routers.flipt.priority=200"
-      - "traefik.http.services.flipt.loadbalancer.server.port=8080"
+      - "traefik.http.routers.go-server.rule=Host(`app-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.go-server.entrypoints=https"
+      - "traefik.http.routers.go-server.tls=true"
+      - "traefik.http.routers.go-server.tls.certresolver=cloudflare"
+      - "traefik.http.services.go-server.loadbalancer.server.port=80"
+    networks:
+      - iot-internal
+      - public-wan
 
 networks:
   public-wan:

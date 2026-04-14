@@ -1,0 +1,36 @@
+#root {
+  display: contents;
+}
+
+@keyframes react-banner-marquee {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(-100%, 0);
+  }
+}
+
+.feature-flags-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  background: var(--background, rgba(20, 20, 30, 0.8));
+  color: var(--text-primary, white);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.react-main-loading {
+  padding: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.clickable-credit {
+  cursor: pointer;
+}

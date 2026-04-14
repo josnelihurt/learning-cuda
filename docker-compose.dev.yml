@@ -1,32 +1,4 @@
 services:
-  flipt:
-    image: flipt/flipt:latest
-    container_name: flipt
-    restart: unless-stopped
-    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
-    
-    ports:
-      - "${FLIPT_PORT:-8081}:8080"
-      - "9000:9000"
-    
-    volumes:
-      - ./.ignore/storage/flipt:/var/opt/flipt
-    
-    environment:
-      - FLIPT_LOG_LEVEL=info
-      - FLIPT_DB_URL=file:/var/opt/flipt/flipt.db
-      - FLIPT_META_TELEMETRY_ENABLED=false
-    
-    networks:
-      - dev-network
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   app-dev:
     image: ubuntu:22.04
     container_name: cuda-image-processor
@@ -38,28 +10,46 @@ services:
     
     volumes:
       - ./bin/server:/app/server:ro
-      - ./webserver/web:/app/webserver/web:ro
       - ./data:/app/data:ro
       - ./.secrets:/app/.secrets:ro
       - ./config/config.dev.yaml:/app/config/config.yaml:ro
     
     working_dir: /app
     
-    command: ["/app/server", "-webroot=webserver/web"]
-    
-    depends_on:
-      flipt:
-        condition: service_healthy
+    command: ["/app/server", "-config=/app/config/config.yaml"]
     
     networks:
-      - dev-network
-    
+      dev-network:
+        aliases:
+          - go-app
+
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  web-frontend-dev:
+    build:
+      context: .
+      dockerfile: src/front-end/Dockerfile
+      args:
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_TAG: ${BASE_TAG:-latest}
+        TARGETARCH: ${TARGETARCH:-amd64}
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-cuda-learning-web-frontend:latest}
+    container_name: cuda-web-frontend-dev
+    restart: unless-stopped
+    depends_on:
+      app-dev:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - dev-network
 
   grpc-server-dev:
     image: ${GRPC_SERVER_IMAGE:-local/josnelihurt/learning-cuda/grpc-server:latest-amd64}
@@ -94,7 +84,7 @@ services:
     container_name: integration-tests
     network_mode: host
     volumes:
-      - ./integration/tests/acceptance/.ignore/test-results:/workspace/integration/tests/acceptance/.ignore/test-results
+      - ./test/integration/tests/acceptance/.ignore/test-results:/workspace/test/integration/tests/acceptance/.ignore/test-results
     profiles:
       - testing
 
@@ -121,15 +111,12 @@ services:
       - PLAYWRIGHT_TRACE=${PLAYWRIGHT_TRACE:-true}
     
     volumes:
-      - ./webserver/web/src:/workspace/webserver/web/src:ro
-      - ./webserver/web/tests:/workspace/webserver/web/tests
-      - ./webserver/web/playwright.config.ts:/workspace/webserver/web/playwright.config.ts:ro
-      - ./webserver/web/tsconfig.json:/workspace/webserver/web/tsconfig.json:ro
-      - ./.ignore/webserver/web:/workspace/.ignore/webserver/web
+      - ./src/front-end/src:/workspace/src/front-end/src:ro
+      - ./src/front-end/tests:/workspace/src/front-end/tests
+      - ./src/front-end/playwright.config.ts:/workspace/src/front-end/playwright.config.ts:ro
+      - ./src/front-end/tsconfig.json:/workspace/src/front-end/tsconfig.json:ro
+      - ./.ignore/front-end:/workspace/.ignore/front-end
       - ./data:/workspace/data:ro
-    
-    depends_on:
-      - flipt
     
     profiles:
       - testing
@@ -142,7 +129,7 @@ services:
       - "5051:8080"
     
     volumes:
-      - ./.ignore/webserver/web/playwright-report:/app
+      - ./.ignore/front-end/playwright-report:/app
     
     command: npx http-server /app -p 8080
     
@@ -159,8 +146,8 @@ services:
     ports:
       - "5050:8080"
     volumes:
-      - ./integration/tests/acceptance/.ignore/test-results:/app/input:ro
-      - ./integration/tests/acceptance/.ignore/reports:/app/output
+      - ./test/integration/tests/acceptance/.ignore/test-results:/app/input:ro
+      - ./test/integration/tests/acceptance/.ignore/reports:/app/output
     command: >
       sh -c "npm init -y &&
              npm install multiple-cucumber-html-reporter http-server && 
@@ -179,7 +166,7 @@ services:
     ports:
       - "5052:8080"
     volumes:
-      - ./coverage:/app:ro
+      - ./test/coverage:/app:ro
     command: npx http-server /app -p 8080
     networks:
       - dev-network
@@ -194,7 +181,7 @@ services:
       - "5053:8080"
     volumes:
       - .:/app:ro
-    command: --root /app/webserver --gomod /app/go.mod --skip-browser --addr :8080
+    command: --root /app/src/go_api --gomod /app/go.mod --skip-browser --addr :8080
     networks:
       - dev-network
     profiles:
@@ -204,9 +191,9 @@ services:
     image: node:20-alpine
     container_name: lint-frontend
     user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
-    working_dir: /workspace/webserver/web
+    working_dir: /workspace/src/front-end
     volumes:
-      - ./webserver/web:/workspace/webserver/web
+      - ./src/front-end:/workspace/src/front-end
     command: sh -c "npm install && npm run lint && npm run format:check"
     profiles:
       - lint
@@ -226,7 +213,7 @@ services:
       go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest &&
       export PATH=$$PATH:$$(go env GOPATH)/bin &&
       export CGO_ENABLED=1 &&
-      golangci-lint run --timeout 5m --skip-dirs='integration/tests,cmd/generate-video-metadata,proto/gen'
+      golangci-lint run --timeout 5m --skip-dirs='test/integration/tests,src/tools/generate-video-metadata,proto/gen'
       "
     profiles:
       - lint
@@ -242,7 +229,7 @@ services:
     command: >
       sh -c "apt-get update -qq 2>&1 | grep -v 'Permission denied' || true && 
              apt-get install -y -qq clang-tidy clang-format > /dev/null 2>&1 && 
-             find cpp_accelerator -name '*.cpp' -o -name '*.h' | grep -v BUILD | xargs clang-format --dry-run -Werror || echo 'Format check complete' &&
+             find src/cpp_accelerator -name '*.cpp' -o -name '*.h' | grep -v BUILD | xargs clang-format --dry-run -Werror || echo 'Format check complete' &&
              echo 'C++ linting complete'"
     profiles:
       - lint

@@ -19,14 +19,14 @@ Access: https://localhost:8443
 ### Building Components
 ```bash
 # C++ (Bazel)
-bazel build //cpp_accelerator/ports/grpc:image_processor_grpc_server
-bazel build //cpp_accelerator/...
+bazel build //src/cpp_accelerator/ports/grpc:image_processor_grpc_server
+bazel build //src/cpp_accelerator/...
 
-# Go (from webserver/)
-cd webserver && make build
+# Go (from src/go_api/)
+cd src/go_api && make build
 
-# Frontend (from webserver/web/)
-cd webserver/web && npm install && npm run dev
+# Frontend (from src/front-end/)
+cd src/front-end && npm install && npm run dev
 ```
 
 ### Testing
@@ -40,15 +40,15 @@ cd webserver/web && npm install && npm run dev
 ./scripts/test/unit-tests.sh --skip-frontend # Go only
 
 # Individual test suites
-go test -race ./webserver/pkg/...                    # Go tests
-cd webserver/web && npm run test                     # Frontend (Vitest)
-bazel test //cpp_accelerator/...                     # C++ tests
+go test -race ./src/go_api/pkg/...                 # Go tests
+cd src/front-end && npm run test                   # Frontend (Vitest)
+bazel test //src/cpp_accelerator/...                # C++ tests
 
 # Specific C++ test
-bazel test //cpp_accelerator/core:logger_test
+bazel test //src/cpp_accelerator/core:logger_test
 
 # BDD acceptance tests (requires services running)
-go test ./integration/tests/acceptance -run TestFeatures -v
+go test ./test/integration/tests/acceptance -run TestFeatures -v
 
 # E2E tests
 ./scripts/test/e2e.sh --chromium   # Fast: Chromium only
@@ -65,7 +65,7 @@ go test ./integration/tests/acceptance -run TestFeatures -v
 
 ### Code Structure
 ```
-cpp_accelerator/
+src/cpp_accelerator/
   application/         # Use cases, FilterPipeline, BufferPool
   domain/interfaces/   # IFilter, ImageBuffer, IImageProcessor
   infrastructure/cuda/ # CUDA kernel implementations
@@ -74,14 +74,15 @@ cpp_accelerator/
   ports/shared_lib/   # Shared library exports
   core/               # Logger, Telemetry, Result type
 
-webserver/
+src/go_api/
   cmd/server/         # main.go entry point
   pkg/app/            # Application bootstrap
   pkg/application/    # Use cases
   pkg/domain/         # Domain logic
   pkg/infrastructure/ # Repositories, gRPC client
   pkg/interfaces/     # HTTP/WebSocket handlers
-  web/                # Frontend (Lit Web Components + Vite)
+
+src/front-end/        # Lit + React (Vite)
 ```
 
 ### Processing Flow
@@ -112,7 +113,7 @@ Go Server → gRPC Client → gRPC Server (C++) → ProcessorEngine → FilterPi
 - Test data builders: `makeXXX()`
 
 ### C++ Tests (GoogleTest)
-- Bazel test targets: `//cpp_accelerator/path:target_test`
+- Bazel test targets: `//src/cpp_accelerator/path:target_test`
 - Equivalence tests verify CPU/CUDA produce identical results
 
 ## Configuration

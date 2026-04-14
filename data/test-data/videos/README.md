@@ -7,7 +7,7 @@ This directory contains optimized videos for E2E testing purposes.
 **Purpose:** Optimized video for automated E2E and integration tests.
 
 **Specifications:**
-- **Resolution:** 480x360 (4:3 aspect ratio)
+- **Resolution:** 480x360 (16:9 display aspect ratio, 4:3 sample aspect ratio)
 - **Duration:** 20 seconds
 - **Frame Rate:** 10 fps
 - **Total Frames:** 200
@@ -16,14 +16,15 @@ This directory contains optimized videos for E2E testing purposes.
 - **Audio:** None (removed for smaller size)
 
 **Source:**
-- Extracted from `sample.mp4` (Big Buck Bunny)
+- Extracted from `data/videos/sample.mp4` (Big Buck Bunny)
 - Start time: 288 seconds (middle section, avoiding fades)
 - End time: 308 seconds
 
 **Frame Metadata:**
 - All 200 frames have been pre-extracted to `data/test-data/video-frames/e2e-test/`
-- SHA256 hashes for each frame are embedded in `webserver/pkg/infrastructure/video/test_video_metadata.go`
-- Frame IDs are sequential integers from 0 to 199
+- SHA256 hashes for each frame are embedded in `src/go_api/pkg/infrastructure/video/test_video_metadata.go`
+- Frame IDs are sequential integers from 0 to 199 (0-based, used in code)
+- Frame filenames use 1-based numbering: `frame_0001.png` to `frame_0200.png` (ffmpeg convention)
 
 ## Frame Extraction (On-Demand)
 
@@ -35,7 +36,7 @@ Frames are generated on-demand when needed.
 The metadata generation tool will automatically extract frames if they don't exist:
 
 ```bash
-go run cmd/generate-video-metadata/main.go
+go run ./src/tools/generate-video-metadata
 ```
 
 This command will:
@@ -96,7 +97,7 @@ video, err := videoRepo.GetByID(ctx, "e2e-test")
 
 ### Frame Validation
 ```go
-import "github.com/jrb/cuda-learning/webserver/pkg/infrastructure/video"
+import "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/video"
 
 // Get metadata for a specific frame
 metadata := video.GetFrameMetadata(42)
@@ -133,5 +134,5 @@ isValid := video.ValidateFrameHash(42, actualHash)
 - The preview image is auto-generated on first run
 - Frame extraction takes ~2 seconds for 200 frames
 - Metadata generation adds ~100KB to compiled binary
-- First-time setup: `go run cmd/generate-video-metadata/main.go`
+- First-time setup: `go run ./src/tools/generate-video-metadata`
 

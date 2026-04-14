@@ -1,0 +1,113 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(1.5px);
+  z-index: 2200;
+  pointer-events: auto;
+}
+
+.focusRing {
+  position: fixed;
+  border-radius: 14px;
+  box-shadow: 0 0 0 2000px rgba(15, 23, 42, 0.45);
+  border: 2px solid var(--accent-color, #38bdf8);
+  background: rgba(56, 189, 248, 0.08);
+  pointer-events: none;
+  transition: all 0.22s ease;
+}
+
+.tooltip {
+  position: fixed;
+  max-width: 320px;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.88);
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: rgba(15, 23, 42, 0.88);
+  transform: rotate(45deg);
+  z-index: -1;
+}
+
+.arrowRight {
+  left: -6px;
+  top: 50%;
+  margin-top: -6px;
+}
+
+.arrowLeft {
+  right: -6px;
+  top: 50%;
+  margin-top: -6px;
+}
+
+.arrowBottom {
+  top: -6px;
+  left: 50%;
+  margin-left: -6px;
+}
+
+.arrowTop {
+  bottom: -6px;
+  left: 50%;
+  margin-left: -6px;
+}
+
+.stepMeta {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.description {
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.buttonBase {
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.skipButton {
+  padding: 8px 16px;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.nextButton {
+  padding: 10px 20px;
+  background: #38bdf8;
+  color: #0f172a;
+}

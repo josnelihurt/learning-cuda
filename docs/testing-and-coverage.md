@@ -20,7 +20,7 @@ Fast, isolated tests that verify individual components work correctly.
 
 #### Frontend Unit Tests (Vitest)
 
-**Location:** `webserver/web/`
+**Location:** `src/front-end/`
 
 **Technology:** Vitest + TypeScript
 
@@ -32,7 +32,7 @@ Fast, isolated tests that verify individual components work correctly.
 
 **Run:**
 ```bash
-cd webserver/web
+cd src/front-end
 npm run test
 ```
 
@@ -48,7 +48,7 @@ npm run test -- --watch
 
 #### Golang Unit Tests
 
-**Location:** `webserver/pkg/`
+**Location:** `src/go_api/pkg/`
 
 **Technology:** `go test` with race detection
 
@@ -60,7 +60,7 @@ npm run test -- --watch
 
 **Run:**
 ```bash
-go test -race ./webserver/pkg/...
+go test -race ./src/go_api/pkg/...
 ```
 
 **Via script:**
@@ -72,7 +72,7 @@ go test -race ./webserver/pkg/...
 
 #### C++ Unit Tests
 
-**Location:** `cpp_accelerator/`
+**Location:** `src/cpp_accelerator/`
 
 **Technology:** GoogleTest + Bazel
 
@@ -99,7 +99,7 @@ go test -race ./webserver/pkg/...
 
 Acceptance tests using Gherkin feature files and Godog.
 
-**Location:** `integration/tests/acceptance/`
+**Location:** `test/integration/tests/acceptance/`
 
 **Technology:** Godog (Go) + Gherkin
 
@@ -138,7 +138,7 @@ Start services:
 
 If you've modified proto files:
 ```bash
-./integration/tests/acceptance/scripts/setup.sh
+./test/integration/tests/acceptance/scripts/setup.sh
 ```
 
 Or manually:
@@ -150,7 +150,7 @@ docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:l
 
 **From project root:**
 ```bash
-go test ./integration/tests/acceptance -run TestFeatures -v
+go test ./test/integration/tests/acceptance -run TestFeatures -v
 ```
 
 **With Docker:**
@@ -162,20 +162,20 @@ go test ./integration/tests/acceptance -run TestFeatures -v
 
 **Cucumber JSON:**
 ```bash
-go test ./integration/tests/acceptance -run TestFeatures -v \
+go test ./test/integration/tests/acceptance -run TestFeatures -v \
   -godog.format=cucumber \
   -godog.output=cucumber-report.json
 ```
 
 **JUnit XML:**
 ```bash
-go test ./integration/tests/acceptance -run TestFeatures -v \
+go test ./test/integration/tests/acceptance -run TestFeatures -v \
   -godog.format=junit > junit-report.xml
 ```
 
 **Multiple formats:**
 ```bash
-go test ./integration/tests/acceptance -run TestFeatures -v \
+go test ./test/integration/tests/acceptance -run TestFeatures -v \
   -godog.format=pretty,cucumber:cucumber-report.json,junit:junit-report.xml
 ```
 
@@ -185,13 +185,13 @@ docker compose -f docker-compose.dev.yml --profile testing up -d cucumber-report
 # Visit: http://localhost:5050
 ```
 
-**See also:** [BDD Tests README](../integration/tests/acceptance/README.md) for detailed documentation.
+**See also:** [BDD Tests README](../test/integration/tests/acceptance/README.md) for detailed documentation.
 
 ### E2E Tests (End-to-End)
 
 Browser-based tests using Playwright.
 
-**Location:** `webserver/web/`
+**Location:** `src/front-end/`
 
 **Technology:** Playwright + TypeScript
 
@@ -373,7 +373,7 @@ git push --no-verify
 **Individual linters:**
 ```bash
 # Frontend
-cd webserver/web
+cd src/front-end
 npm run lint
 npm run lint:fix
 
@@ -381,7 +381,7 @@ npm run lint:fix
 golangci-lint run ./...
 
 # C++
-clang-tidy -p . cpp_accelerator/**/*.cpp
+clang-tidy -p . src/cpp_accelerator/**/*.cpp
 ```
 
 **See:** [README Testing Section](../README.md#testing-code-quality)
@@ -410,29 +410,29 @@ docker-compose -f docker-compose.dev.yml --profile coverage up coverage-report-v
 ```
 
 **Report locations:**
-- Frontend: `coverage/frontend/index.html`
-- Golang: `coverage/golang/index.html`
-- C++: `coverage/cpp/html/index.html`
+- Frontend: `test/coverage/frontend/index.html`
+- Golang: `test/coverage/golang/index.html`
+- C++: `test/coverage/cpp/html/index.html`
 
 ## Test Organization
 
 ### Directory Structure
 
 ```
-integration/tests/acceptance/
+test/integration/tests/acceptance/
 ├── features/              # Gherkin feature files
 ├── steps/                # Step definitions
 ├── testdata/             # Test data and checksums
 └── scripts/              # Setup and utilities
 
-webserver/web/
+src/front-end/
 ├── src/                  # Source code
 └── tests/                # E2E and unit tests
 
-webserver/pkg/
+src/go_api/pkg/
 └── **/*_test.go         # Go unit tests
 
-cpp_accelerator/
+src/cpp_accelerator/
 └── **/*_test.cpp        # C++ unit tests (when implemented)
 ```
 
@@ -469,12 +469,12 @@ E2E tests use `InsecureSkipVerify: true` for development. If you see certificate
 
 **Solution:**
 ```bash
-./integration/tests/acceptance/scripts/setup.sh
+./test/integration/tests/acceptance/scripts/setup.sh
 ```
 
 ## Additional Resources
 
-- [BDD Tests README](../integration/tests/acceptance/README.md) - Detailed BDD documentation
+- [BDD Tests README](../test/integration/tests/acceptance/README.md) - Detailed BDD documentation
 - [README Testing Section](../README.md#testing-code-quality) - Quick reference
 - [Git Hooks](../README.md#git-hooks) - Pre-commit and pre-push hooks
 

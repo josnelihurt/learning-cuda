@@ -141,57 +141,10 @@ echo "System CPUs: $(nproc) cores"
 [ -n "$PLAYWRIGHT_OPTS" ] && echo "Playwright Options: $PLAYWRIGHT_OPTS"
 echo ""
 
-mkdir -p .ignore/webserver/web/test-results
-mkdir -p .ignore/webserver/web/playwright-report
+mkdir -p .ignore/front-end/test-results
+mkdir -p .ignore/front-end/playwright-report
 
-# Set Flipt port based on environment
-if [ "$ENVIRONMENT" = "prod" ]; then
-    FLIPT_PORT="8082"
-elif [ "$ENVIRONMENT" = "staging" ]; then
-    FLIPT_PORT=""
-else
-    FLIPT_PORT="8081"
-fi
-
-echo "Checking services (Flipt + App)..."
-if [ "$ENVIRONMENT" = "prod" ]; then
-    # In production, check Flipt via Cloudflare Tunnel
-    if ! curl -k -s https://flipt-cuda-demo.josnelihurt.me/api/v1/health > /dev/null 2>&1; then
-        echo "Flipt is not accessible at https://flipt-cuda-demo.josnelihurt.me"
-        echo "For production, make sure Docker Compose services are running:"
-        echo "  docker compose --profile cloudflare up -d"
-        exit 1
-    fi
-elif [ "$ENVIRONMENT" = "staging" ]; then
-    # In staging, check Flipt via Traefik
-    if ! curl -k -s https://flipt.localhost/api/v1/health > /dev/null 2>&1; then
-        echo "Flipt is not accessible at https://flipt.localhost"
-        echo "For staging, make sure Docker Compose services are running:"
-        echo "  ./scripts/deployment/staging_local/start.sh"
-        exit 1
-    fi
-else
-    # In development, check Flipt directly
-    if ! curl -s http://localhost:$FLIPT_PORT/api/v1/health > /dev/null 2>&1; then
-        echo "Flipt is not accessible at http://localhost:$FLIPT_PORT"
-        echo "Starting development services..."
-        ./scripts/dev/start.sh
-        
-        timeout=30
-        while [ $timeout -gt 0 ]; do
-            if curl -s http://localhost:$FLIPT_PORT/api/v1/health > /dev/null 2>&1; then
-                echo "Flipt is ready"
-                break
-            fi
-            sleep 1
-            timeout=$((timeout - 1))
-        done
-        if [ $timeout -eq 0 ]; then
-            echo "ERROR: Flipt failed to start"
-            exit 1
-        fi
-    fi
-fi
+echo "Checking services..."
 
 # Check application health based on environment
 if [ "$ENVIRONMENT" = "prod" ]; then
@@ -208,8 +161,13 @@ elif [ "$ENVIRONMENT" = "staging" ]; then
     fi
 else
     if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
-        echo "ERROR: Development service is not accessible at https://localhost:8443"
-        echo "Please start development services with: ./scripts/dev/start.sh"
+        echo "ERROR: Development backend is not accessible at https://localhost:8443"
+        echo "Please start with: ./scripts/dev/start.sh"
+        exit 1
+    fi
+    if ! curl -k -s -o /dev/null -w "%{http_code}" https://localhost:3000 | grep -qE '200|304'; then
+        echo "ERROR: Frontend dev server is not reachable at https://localhost:3000"
+        echo "Start the stack with: ./scripts/dev/start.sh"
         exit 1
     fi
 fi
@@ -217,12 +175,13 @@ fi
 echo "Services are running"
 echo ""
 
+export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-https://localhost:3000}"
+
 echo "Running E2E tests locally..."
 echo "Command: npx playwright test $PLAYWRIGHT_OPTS"
 echo ""
 
-# Change to the web directory where Playwright is configured
-cd webserver/web
+cd src/front-end
 
 set +e
 npx playwright test $PLAYWRIGHT_OPTS
@@ -240,7 +199,7 @@ else
 fi
 
 echo ""
-echo "Results saved in .ignore/webserver/web/"
+echo "Results saved in .ignore/front-end/"
 echo "  - test-results/e2e-results.json"
 echo "  - test-results/e2e-junit.xml"
 echo "  - playwright-report/"

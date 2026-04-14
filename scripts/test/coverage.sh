@@ -4,7 +4,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-COVERAGE_DIR="$PROJECT_ROOT/coverage"
+COVERAGE_DIR="$PROJECT_ROOT/test/coverage"
 
 # Flags para omitir capas específicas
 SKIP_FRONTEND=false
@@ -57,13 +57,13 @@ mkdir -p "$COVERAGE_DIR"/{frontend,golang,cpp}
 if [ "$SKIP_FRONTEND" = false ]; then
     echo "[1/3] Running Frontend Tests with Coverage..."
     echo "================================================"
-    cd "$PROJECT_ROOT/webserver/web"
+    cd "$PROJECT_ROOT/src/front-end"
     if [ -d "node_modules" ]; then
         npm run test:coverage
         echo "OK: Frontend coverage complete"
         echo "   Report: $COVERAGE_DIR/frontend/index.html"
     else
-        echo "WARNING: Skipping frontend - dependencies not installed (run: cd webserver/web && npm install)"
+        echo "WARNING: Skipping frontend - dependencies not installed (run: cd src/front-end && npm install)"
     fi
 else
     echo "[SKIPPED] Frontend Tests"
@@ -74,7 +74,7 @@ if [ "$SKIP_GOLANG" = false ]; then
     echo "[2/3] Running Golang Tests with Coverage..."
     echo "==============================================="
     cd "$PROJECT_ROOT"
-    go test -v -coverprofile="$COVERAGE_DIR/golang/coverage.out" -covermode=atomic ./webserver/...
+    go test -v -coverprofile="$COVERAGE_DIR/golang/coverage.out" -covermode=atomic ./src/go_api/...
     if [ $? -eq 0 ]; then
         # Vista tradicional
         go tool cover -html="$COVERAGE_DIR/golang/coverage.out" -o "$COVERAGE_DIR/golang/traditional.html"
@@ -108,7 +108,7 @@ if [ "$SKIP_CPP" = false ]; then
     echo "[3/3] Running C++ Tests with Coverage..."
     echo "============================================"
     cd "$PROJECT_ROOT"
-    bazel coverage //cpp_accelerator/... --combined_report=lcov 2>&1 | tee "$COVERAGE_DIR/cpp/bazel-coverage.log" || true
+    bazel coverage //src/cpp_accelerator/... --combined_report=lcov 2>&1 | tee "$COVERAGE_DIR/cpp/bazel-coverage.log" || true
     if [ -f "bazel-out/_coverage/_coverage_report.dat" ]; then
         cp bazel-out/_coverage/_coverage_report.dat "$COVERAGE_DIR/cpp/coverage.lcov"
         

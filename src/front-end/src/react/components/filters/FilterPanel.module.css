@@ -1,0 +1,185 @@
+.controlSection {
+  margin-bottom: 24px;
+}
+
+.controlLabel {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.hint {
+  font-weight: 400;
+  color: var(--text-secondary, #666);
+  font-size: 13px;
+}
+
+.filtersList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.noFilters {
+  color: var(--text-secondary, #666);
+  font-style: italic;
+  padding: 12px;
+  text-align: center;
+}
+
+.filterCard {
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  background: var(--background-primary, #fff);
+  transition: all 0.2s;
+}
+
+.filterCard.dragging {
+  opacity: 0.5;
+  background: var(--background-secondary, #f5f5f5);
+}
+
+.filterHeader {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filterHeader:hover {
+  background: rgba(var(--accent-color-rgb, 25, 118, 210), 0.05);
+}
+
+.dragHandleContainer {
+  cursor: grab;
+  margin-right: 8px;
+  padding: 2px;
+}
+
+.dragHandleContainer:active {
+  cursor: grabbing;
+}
+
+.dragHandle {
+  color: var(--text-secondary, #666);
+  font-size: 14px;
+  letter-spacing: -2px;
+}
+
+.checkboxContainer {
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.filterHeader label {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+  cursor: pointer;
+  user-select: none;
+}
+
+.chevron {
+  margin-left: 8px;
+  color: var(--text-secondary, #666);
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.filterBody {
+  display: none;
+  padding: 12px 12px 12px 44px;
+  border-top: 1px solid var(--border-color, #eee);
+}
+
+.filterBody.expanded {
+  display: block;
+}
+
+.paramControl {
+  margin-bottom: 12px;
+}
+
+.paramControl:last-child {
+  margin-bottom: 0;
+}
+
+.paramLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #666);
+  margin-bottom: 6px;
+}
+
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.radioOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+}
+
+.sliderContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sliderContainer input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.sliderValue {
+  min-width: 40px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+  font-weight: 500;
+}
+
+.numberInputContainer {
+  display: flex;
+  align-items: center;
+}
+
+.numberInputContainer input[type='number'] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+}
+
+.numberInputContainer input[type='number']:focus {
+  outline: none;
+  border-color: var(--accent-color, #1976d2);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.checkboxOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+  user-select: none;
+}

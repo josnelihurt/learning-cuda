@@ -135,8 +135,8 @@ jobs:
           sudo_exec "chown -R \"${JETSON_USER}:${JETSON_DEPLOYMENT_GROUP}\" \"${TARGET}\""
 
           proto_version=$(tr -d '\n' < proto/VERSION)
-          cpp_version=$(tr -d '\n' < cpp_accelerator/VERSION)
-          golang_version=$(tr -d '\n' < webserver/VERSION)
+          cpp_version=$(tr -d '\n' < src/cpp_accelerator/VERSION)
+          golang_version=$(tr -d '\n' < src/go_api/VERSION)
           app_tag="${golang_version}-proto${proto_version}-cpp${cpp_version}-go${golang_version}"
           app_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/app:${app_tag}-arm64"
 

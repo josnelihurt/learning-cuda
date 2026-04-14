@@ -3,7 +3,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-WEB_DIR="$PROJECT_ROOT/webserver/web"
+WEB_DIR="$PROJECT_ROOT/src/front-end"
 
 echo "Building frontend..."
 
@@ -13,5 +13,5 @@ cd "$WEB_DIR"
 
 npm run build
 
-echo "Build complete. Output: webserver/web/static/js/dist/"
+echo "Build complete. Output: src/front-end/dist/"
 ls -lh static/js/dist/app.*.js 2>/dev/null || echo "Warning: bundle not found"

@@ -30,7 +30,6 @@ type Container struct {
 
 	ProcessImageUseCase        *application.ProcessImageUseCase
 	EvaluateFeatureFlagUseCase *application.EvaluateFeatureFlagUseCase
-	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
 	GetSystemInfoUseCase       *application.GetSystemInfoUseCase
 	ListInputsUseCase          *application.ListInputsUseCase
 	// ListAvailableImagesUseCase handles listing available images
@@ -102,7 +101,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		Msg("gRPC client initialized successfully")
 
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
-	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 
 	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
 
@@ -135,7 +133,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		FeatureFlagRepo:            featureFlagRepo,
 		VideoRepository:            videoRepo,
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
-		GetStreamConfigUseCase:     getStreamConfigUseCase,
 		GetSystemInfoUseCase:       getSystemInfoUseCase,
 		ListInputsUseCase:          listInputsUseCase,
 		ListAvailableImagesUseCase: listAvailableImagesUseCase,

@@ -15,7 +15,6 @@ import (
 // VanguardConfig groups all dependencies needed to setup Vanguard transcoder
 type VanguardConfig struct {
 	ImageProcessorHandler *ImageProcessorHandler
-	GetStreamConfigUC     *application.GetStreamConfigUseCase
 	FeatureFlagRepo       domain.FeatureFlagRepository
 	ListInputsUC          *application.ListInputsUseCase
 	EvaluateFFUC          *application.EvaluateFeatureFlagUseCase
@@ -43,13 +42,12 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 	)
 
 	configHandler := NewConfigHandler(ConfigHandlerDeps{
-		GetStreamConfigUC: cfg.GetStreamConfigUC,
-		FeatureFlagRepo:   cfg.FeatureFlagRepo,
-		ListInputsUC:      cfg.ListInputsUC,
-		EvaluateFFUC:      cfg.EvaluateFFUC,
-		GetSystemInfoUC:   cfg.GetSystemInfoUC,
-		ConfigManager:     cfg.ConfigManager,
-		ProcessorCapsUC:   cfg.ProcessorCapsUC,
+		FeatureFlagRepo: cfg.FeatureFlagRepo,
+		ListInputsUC:    cfg.ListInputsUC,
+		EvaluateFFUC:    cfg.EvaluateFFUC,
+		GetSystemInfoUC: cfg.GetSystemInfoUC,
+		ConfigManager:   cfg.ConfigManager,
+		ProcessorCapsUC: cfg.ProcessorCapsUC,
 	})
 	_, configConnectHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 

@@ -14,7 +14,6 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/http"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/websocket"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -26,7 +25,6 @@ type App struct {
 	grpcProcessor         domain.ImageProcessor
 	grpcProcessorClient   *processor.GRPCClient
 	processorCapsUC       application.ProcessorCapabilitiesUseCase
-	getStreamConfigUC     *application.GetStreamConfigUseCase
 	getSystemInfoUC       *application.GetSystemInfoUseCase
 	featureFlagRepo       domain.FeatureFlagRepository
 	listInputsUC          *application.ListInputsUseCase
@@ -81,12 +79,6 @@ func WithGRPCProcessorClient(client *processor.GRPCClient) Option {
 func WithProcessorCapabilitiesUseCase(uc application.ProcessorCapabilitiesUseCase) Option {
 	return func(a *App) {
 		a.processorCapsUC = uc
-	}
-}
-
-func WithGetStreamConfigUseCase(uc *application.GetStreamConfigUseCase) Option {
-	return func(a *App) {
-		a.getStreamConfigUC = uc
 	}
 }
 
@@ -200,13 +192,12 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	connectrpc.RegisterConfigService(
 		mux,
 		connectrpc.ConfigHandlerDeps{
-			GetStreamConfigUC: a.getStreamConfigUC,
-			FeatureFlagRepo:   a.featureFlagRepo,
-			ListInputsUC:      a.listInputsUC,
-			EvaluateFFUC:      a.evaluateFFUC,
-			GetSystemInfoUC:   a.getSystemInfoUC,
-			ConfigManager:     a.config,
-			ProcessorCapsUC:   a.processorCapsUC,
+			FeatureFlagRepo: a.featureFlagRepo,
+			ListInputsUC:    a.listInputsUC,
+			EvaluateFFUC:    a.evaluateFFUC,
+			GetSystemInfoUC: a.getSystemInfoUC,
+			ConfigManager:   a.config,
+			ProcessorCapsUC: a.processorCapsUC,
 		},
 		a.interceptors...,
 	)
@@ -232,7 +223,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 
 	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
 		ImageProcessorHandler: rpcHandler,
-		GetStreamConfigUC:     a.getStreamConfigUC,
 		FeatureFlagRepo:       a.featureFlagRepo,
 		ListInputsUC:          a.listInputsUC,
 		EvaluateFFUC:          a.evaluateFFUC,
@@ -261,18 +251,6 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 	logger.Global().Info().Msg("Health endpoint registered at /health")
 }
 
-func (a *App) setupWebSocketHandler(mux *http.ServeMux) {
-	wsHandler := websocket.NewHandler(a.useCase, a.config.Stream, a.videoRepository, a.evaluateFFUC, a.grpcProcessor)
-	mux.HandleFunc("/ws", wsHandler.HandleWebSocket)
-	logger.Global().Info().Msg("WebSocket endpoint registered at /ws")
-}
-
-func (a *App) setupWebRTCSignalingWebSocket(mux *http.ServeMux) {
-	webrtcHandler := websocket.NewWebRTCSignalingHandler(a.grpcProcessorClient)
-	mux.HandleFunc("/ws/webrtc-signaling", webrtcHandler.HandleWebRTCSignaling)
-	logger.Global().Info().Msg("WebRTC signaling WebSocket endpoint registered at /ws/webrtc-signaling")
-}
-
 func (a *App) Run() error {
 	log := logger.Global()
 	defer func() {
@@ -295,8 +273,6 @@ func (a *App) Run() error {
 	a.setupObservability(mux)
 
 	a.setupHealthEndpoint(mux)
-	a.setupWebSocketHandler(mux)
-	a.setupWebRTCSignalingWebSocket(mux)
 	a.setupConnectRPCServices(mux)
 	handler := a.makeTelemetryMiddleware(mux)
 
@@ -305,7 +281,6 @@ func (a *App) Run() error {
 	go func() {
 		log.Info().
 			Str("port", a.config.Server.HTTPPort).
-			Str("transport", a.config.Stream.TransportFormat).
 			Msg("Starting HTTP server")
 		if err := http.ListenAndServe(a.config.Server.HTTPPort, handler); err != nil {
 			errChan <- err

@@ -13,7 +13,6 @@ type Manager struct {
 	Environment       string              `mapstructure:"environment"`
 	GoFeatureFlag     GoFeatureFlagConfig `mapstructure:"go_feature_flag"`
 	Server            ServerConfig        `mapstructure:"server"`
-	Stream            StreamConfig        `mapstructure:"stream"`
 	Observability     ObservabilityConfig `mapstructure:"observability"`
 	Logging           LoggerConfig        `mapstructure:"logging"`
 	Processor         ProcessorConfig     `mapstructure:"processor"`
@@ -85,9 +84,6 @@ func setDefaults(v *viper.Viper) {
 		"server.tls.enabled":   true,
 		"server.tls.cert_file": ".secrets/localhost+2.pem",
 		"server.tls.key_file":  ".secrets/localhost+2-key.pem",
-
-		"stream.transport_format":   "json",
-		"stream.websocket_endpoint": "/ws",
 
 		"observability.enabled":                      true,
 		"observability.service_name":                 "cuda-image-processor",

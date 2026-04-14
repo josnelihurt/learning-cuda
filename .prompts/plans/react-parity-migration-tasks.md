@@ -1,67 +1,64 @@
-# React Full Parity Migration Tasks
+# React Parity Remaining Tasks
 
 ## Goal
-Replace remaining Lit-based UI runtime pieces on the React route with native React implementations, while preserving behavior, UX, and test coverage.
+Finish the remaining work required to reach 100% functional and UX parity between `/` (Lit) and `/react` (React-native route), with no Lit runtime widgets left on `/react`.
 
-## Current Reality (What is still Lit on `/react`)
-- `video-grid` is a Lit custom element imported in `src/front-end/src/react/main.tsx`.
-- `camera-preview` is a Lit custom element imported in `src/front-end/src/react/main.tsx`.
-- Several cross-cutting UI elements still rely on Lit custom elements: `toast-container`, `stats-panel`, `source-drawer`, `add-source-fab`, `image-selector-modal`, `grpc-status-modal`, `tools-dropdown`, `feature-flags-*`, `app-tour`, `information-banner`.
-- React currently hosts these elements and wires them via imperative refs/listeners in `VideoGridHost.tsx`, instead of owning the rendering tree end-to-end.
+## What Is Already Migrated
+- React-native video surface is in place: `ReactVideoGrid`, `ReactVideoSourceCard`, `ReactCameraPreview`.
+- Source lifecycle and processing flows are React-owned in `VideoGridHost`:
+  - add/remove/select source
+  - image filter application + resolution changes
+  - video restart on filter changes
+  - camera frame loop + frame transport
+  - WebRTC create/close hooks
+- React-native route overlays implemented for migrated scope:
+  - source drawer
+  - image selector modal
+  - add source FAB
+  - accelerator status FAB
+  - stats panel
+  - toast rendering
+- Lit imports for migrated widgets were removed from `src/front-end/src/react/main.tsx`.
 
-## Migration Scope (Tasks by Priority)
+## Remaining Work To Reach 100%
 
-### P0 - Core video surface parity
-- [ ] Build `ReactVideoGrid` to replace Lit `video-grid` rendering and internal source state.
-- [ ] Build `ReactVideoSourceCard` to replace Lit `video-source-card` (select, close, change image actions).
-- [ ] Build `ReactCameraPreview` to replace Lit `camera-preview` capture/preview behavior.
-- [ ] Move per-source pipeline state (`filters`, `resolution`, `currentImageSrc`, `originalImageSrc`, streaming metadata) into React state/store.
-- [ ] Replace imperative `grid.*` calls from `VideoGridHost` with typed React callbacks/handlers.
+### 1) Migrate remaining Lit-only widgets used on `/react`
+- [ ] Replace `tools-dropdown` with React component.
+- [ ] Replace `feature-flags-button` with React component.
+- [ ] Replace `feature-flags-modal` with React component.
+- [ ] Replace `sync-flags-button` with React component (or remove if obsolete by design).
+- [ ] Replace `grpc-status-modal` with React component.
+- [ ] Replace `app-tour` with React component.
+- [ ] Replace `information-banner` with React component.
+- [ ] Replace `version-tooltip-lit` with React component.
 
-### P0 - Streaming and processing behavior parity
-- [ ] Preserve source lifecycle parity: add source, remove source, auto-select first source, selected-source switching.
-- [ ] Preserve static image processing parity: resolution changes + filter application + image replacement.
-- [ ] Preserve video source processing parity: restart/send-start behavior when filters change.
-- [ ] Preserve camera path parity: frame capture loop, filter transport, and source image refresh.
-- [ ] Keep WebRTC session lifecycle parity (create, heartbeat, stop/close on remove/unload).
+### 2) Remove remaining Lit dependencies from React route entry
+- [ ] Remove all remaining Lit component imports from `src/front-end/src/react/main.tsx`.
+- [ ] Remove remaining Lit host tags from `src/front-end/react.html` for widgets migrated to React.
+- [ ] Ensure `/react` boots and runs with React-owned UI tree only.
 
-### P1 - Replace Lit overlays and controls that block full React ownership
-- [ ] Replace `source-drawer` with React component and keep source/video upload/select workflows.
-- [ ] Replace `image-selector-modal` with React modal and keep `change image` flow parity.
-- [ ] Replace `add-source-fab` and `accelerator-status-fab` with React components.
-- [ ] Replace `stats-panel` and `toast-container` bridges with React-native equivalents or adapters.
+### 3) Close remaining behavior parity gaps
+- [ ] Verify camera behavior matches Lit route under long-running sessions (no freeze, no permission loop, continuous processing).
+- [ ] Verify source numbering/selection parity under add/remove stress scenarios.
+- [ ] Verify WebRTC heartbeat/session teardown parity on source remove and tab unload.
+- [ ] Verify upload/select workflows parity (image + video) if upload widgets are expected inside React drawer.
 
-### P1 - Sidebar/control orchestration cleanup
-- [ ] Remove DOM event bridge logic (`CustomEvent` wiring) once components are React-native.
-- [ ] Convert remaining orchestration from document queries to provider/hooks state flow.
-- [ ] Ensure filter panel, selected source, accelerator, and resolution state stay fully React-controlled.
+### 4) Testing and validation to declare parity complete
+- [ ] Add/expand React tests to cover migrated and remaining parity-critical flows:
+  - [ ] add/remove source
+  - [ ] selected source synchronization with filter panel and resolution
+  - [ ] static image processing updates
+  - [ ] video restart semantics on filter change
+  - [ ] camera continuous frame processing
+  - [ ] change image flow
+  - [ ] stream start/stop and cleanup behavior
+- [ ] Run React suite green (`npm run test` in `src/front-end`).
+- [ ] Run production build green (`npm run build` in `src/front-end`).
+- [ ] Execute manual parity checklist against `/` route for same scenarios and confirm no UX/behavior drift.
 
-### P2 - Secondary Lit widgets and route cleanup
-- [ ] Decide migration strategy for `tools-dropdown`, `feature-flags-button/modal`, `sync-flags-button`, `grpc-status-modal`, `app-tour`, `information-banner`, `version-tooltip-lit`.
-- [ ] Remove Lit component imports from `src/front-end/src/react/main.tsx` after each React replacement is complete.
-- [ ] Keep `/` (Lit) and `/react` behavior aligned until cutover decision.
-
-## Validation Checklist (Definition of Done)
-- [ ] No Lit custom element imports remain in `src/front-end/src/react/main.tsx` for migrated features.
-- [ ] `VideoGridHost` no longer depends on imperative custom-element API calls for migrated areas.
-- [ ] React tests cover all migrated flows:
-  - [ ] Add/remove source
-  - [ ] Select source + sync filters/resolution
-  - [ ] Apply filters to image/video/camera sources
-  - [ ] Change image flow
-  - [ ] Stream start/stop behavior
-- [ ] Manual parity checks pass against Lit route for the same scenarios.
-- [ ] Existing React test suite remains green.
-
-## Suggested Execution Order
-1. `ReactVideoSourceCard`
-2. `ReactCameraPreview`
-3. `ReactVideoGrid`
-4. Replace image-change modal + source drawer in React
-5. Remove `video-grid` and `camera-preview` Lit imports from React entry
-6. Migrate remaining secondary widgets
-
-## Risk Notes
-- The highest migration risk is behavior drift in the video/camera processing loops and WebRTC/session lifecycle.
-- Keep transport/service layer contracts stable during UI migration to reduce regression surface.
-- Prefer thin adapters during transition, then delete adapters after full feature parity is verified.
+## Definition of Done (100% Parity)
+- [ ] `/react` has no Lit custom element imports for runtime UI.
+- [ ] `/react` has no Lit host elements required in `react.html` for runtime UI.
+- [ ] All dashboard interactions on `/react` are controlled by React state/hooks/providers.
+- [ ] Automated tests cover parity-critical workflows and pass.
+- [ ] Manual parity checks against Lit route pass for image, video, camera, and control-plane features.

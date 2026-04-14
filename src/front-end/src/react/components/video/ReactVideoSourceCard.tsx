@@ -26,6 +26,7 @@ export function ReactVideoSourceCard({
   children,
 }: ReactVideoSourceCardProps) {
   const cardClassName = isSelected ? 'card selected' : 'card';
+  const shouldRenderProcessedImage = Boolean(imageSrc);
 
   return (
     <div className="react-video-source">
@@ -61,7 +62,10 @@ export function ReactVideoSourceCard({
           {'\u00d7'}
         </button>
         <div className="content">
-          {imageSrc ? <img src={imageSrc} alt={sourceName} crossOrigin="anonymous" /> : children}
+          {shouldRenderProcessedImage ? (
+            <img src={imageSrc} alt={sourceName} crossOrigin="anonymous" />
+          ) : null}
+          {children}
         </div>
       </div>
     </div>

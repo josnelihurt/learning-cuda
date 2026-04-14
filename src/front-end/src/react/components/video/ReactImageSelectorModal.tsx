@@ -1,3 +1,4 @@
+import React from 'react';
 import type { StaticImage } from '@/gen/common_pb';
 
 type ReactImageSelectorModalProps = {

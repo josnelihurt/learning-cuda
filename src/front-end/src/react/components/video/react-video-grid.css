@@ -335,3 +335,37 @@
   object-fit: cover;
   border-radius: 4px;
 }
+
+.react-accelerator-fab {
+  position: fixed;
+  bottom: 160px;
+  right: 32px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 28px;
+  cursor: pointer;
+}
+
+.react-accelerator-fab.blinking {
+  animation: react-fab-heartbeat 2s ease-in-out infinite;
+}
+
+@keyframes react-fab-heartbeat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.1); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.1); }
+  70% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+.camera-status-success { color: #66ff66; }
+.camera-status-error { color: #ff6666; }
+.camera-status-warning { color: #ffaa00; }
+.camera-status-inactive { color: #b0b0b0; }

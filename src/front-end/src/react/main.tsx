@@ -1,8 +1,5 @@
 import './react-root.css';
-import '@/components/app/toast-container';
 import '@/components/app/information-banner';
-import '@/components/app/stats-panel';
-import '@/components/ui/accelerator-status-fab';
 import '@/components/flags/feature-flags-modal';
 import '@/components/app/grpc-status-modal';
 import '@/components/app/app-tour';

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import type { StaticImage } from '@/gen/common_pb';
 import type { StatsPanel } from '@/components/app/stats-panel';
@@ -14,6 +14,9 @@ import { ReactVideoGrid } from './ReactVideoGrid';
 import { ReactSourceDrawer } from './ReactSourceDrawer';
 import { ReactAddSourceFab } from './ReactAddSourceFab';
 import { ReactImageSelectorModal } from './ReactImageSelectorModal';
+import { ReactAcceleratorStatusFab } from './ReactAcceleratorStatusFab';
+import { useToast } from '../../hooks/useToast';
+import { ReactStatsPanel } from '../app/ReactStatsPanel';
 
 type GridSource = {
   id: string;
@@ -40,10 +43,20 @@ export function VideoGridHost() {
   const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
   const [availableSources, setAvailableSources] = useState<InputSource[]>([]);
   const [availableImages, setAvailableImages] = useState<StaticImage[]>([]);
+  const [fps, setFps] = useState('--');
+  const [time, setTime] = useState('--ms');
+  const [frames, setFrames] = useState(0);
+  const [cameraStatus, setCameraStatus] = useState('Inactive');
+  const [cameraStatusType, setCameraStatusType] = useState<'success' | 'error' | 'warning' | 'inactive'>(
+    'inactive'
+  );
+  const fpsHistoryRef = useRef<number[]>([]);
+  const processingTimesRef = useRef<number[]>([]);
   const nextNumberRef = useRef(1);
   const pendingSourceNumberForImageChangeRef = useRef<number | null>(null);
   const sourcesRef = useRef<GridSource[]>([]);
   const { container, ready } = useAppServices();
+  const toast = useToast();
   const {
     activeFilters,
     selectedAccelerator,
@@ -57,13 +70,51 @@ export function VideoGridHost() {
     sourcesRef.current = sources;
   }, [sources]);
 
-  const stats = useMemo(
-    () => document.querySelector('stats-panel') as StatsPanel | null,
+  const statsManager = useMemo(
+    () =>
+      ({
+        updateCameraStatus: (status: string, type: 'success' | 'error' | 'warning' | 'inactive') => {
+          setCameraStatus(status);
+          setCameraStatusType(type);
+        },
+        updateWebSocketStatus: () => undefined,
+        updateProcessingStats: (processingTime: number) => {
+          setFrames((current) => current + 1);
+          const instantFps = 1000 / processingTime;
+          fpsHistoryRef.current.push(instantFps);
+          if (fpsHistoryRef.current.length > 10) {
+            fpsHistoryRef.current.shift();
+          }
+          const avgFps =
+            fpsHistoryRef.current.reduce((sum, value) => sum + value, 0) / fpsHistoryRef.current.length;
+          setFps(avgFps.toFixed(1));
+
+          processingTimesRef.current.push(processingTime);
+          if (processingTimesRef.current.length > 10) {
+            processingTimesRef.current.shift();
+          }
+          const avgTime =
+            processingTimesRef.current.reduce((sum, value) => sum + value, 0) /
+            processingTimesRef.current.length;
+          setTime(`${avgTime.toFixed(0)}ms`);
+        },
+        setWebSocketService: () => undefined,
+      }) as Pick<
+        StatsPanel,
+        'updateCameraStatus' | 'updateWebSocketStatus' | 'updateProcessingStats' | 'setWebSocketService'
+      >,
     []
   );
-  const toast = useMemo(
-    () => document.querySelector('toast-container') as ToastContainer | null,
-    []
+
+  const toastManager = useMemo(
+    () =>
+      ({
+        success: toast.success,
+        error: toast.error,
+        warning: toast.warning,
+        info: toast.info,
+      }) as ToastContainer,
+    [toast.error, toast.info, toast.success, toast.warning]
   );
 
   const mapFiltersToValueObjects = useCallback(
@@ -143,11 +194,9 @@ export function VideoGridHost() {
         getLastFrameTime: () =>
           sourcesRef.current.find((item) => item.id === uniqueId)?.lastCameraFrameTime ?? performance.now(),
       };
-      const ws = stats && toast ? new WebSocketService(stats, cameraManager as never, toast) : null;
+      const ws = new WebSocketService(statsManager as StatsPanel, cameraManager as never, toastManager);
       ws?.connect();
-      if (stats && ws && 'setWebSocketService' in stats) {
-        stats.setWebSocketService(ws);
-      }
+      statsManager.setWebSocketService(ws);
       if (ws) {
         ws.onFrameResult((data) => {
           const frameData = data.videoFrame ?? data.response;
@@ -210,7 +259,7 @@ export function VideoGridHost() {
         });
       });
     },
-    [emitSelectionState, mapFiltersToValueObjects, stats, toast, updateSource]
+    [emitSelectionState, mapFiltersToValueObjects, statsManager, toastManager, updateSource]
   );
 
   useEffect(() => {
@@ -223,17 +272,6 @@ export function VideoGridHost() {
       addSource(defaultSource);
     }
   }, [addSource, container, ready]);
-
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-    const stats = document.querySelector('stats-panel') as StatsPanel | null;
-    const toast = document.querySelector('toast-container') as ToastContainer | null;
-    if (!stats || !toast) {
-      logger.error('Stats or toast managers unavailable');
-    }
-  }, [ready]);
 
   const openDrawer = useCallback(() => {
     const inputSourceService = container.getInputSourceService();
@@ -429,11 +467,12 @@ export function VideoGridHost() {
             selectedAccelerator
           );
         }}
-        onCameraStatus={(status, type) => stats?.updateCameraStatus(status, type)}
-        onCameraError={(title, message) => toast?.error(title, message)}
+        onCameraStatus={(status, type) => statsManager.updateCameraStatus(status, type)}
+        onCameraError={(title, message) => toastManager.error(title, message)}
         data-testid="video-grid-host"
       />
       <ReactAddSourceFab onClick={openDrawer} />
+      <ReactAcceleratorStatusFab />
       <ReactSourceDrawer
         isOpen={isDrawerOpen}
         availableSources={availableSources}
@@ -445,6 +484,13 @@ export function VideoGridHost() {
         availableImages={availableImages}
         onClose={() => setIsImageSelectorOpen(false)}
         onSelectImage={onSelectImage}
+      />
+      <ReactStatsPanel
+        fps={fps}
+        time={time}
+        frames={frames}
+        cameraStatus={cameraStatus}
+        cameraStatusType={cameraStatusType}
       />
     </>
   );

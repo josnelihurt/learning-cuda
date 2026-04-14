@@ -1,16 +1,16 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ReactVideoSourceCard } from './ReactVideoSourceCard';
+import { VideoSourceCard } from './VideoSourceCard';
 
-describe('ReactVideoSourceCard', () => {
+describe('VideoSourceCard', () => {
   it('calls select and close handlers', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
     const onChangeImage = vi.fn();
 
     render(
-      <ReactVideoSourceCard
+      <VideoSourceCard
         sourceId="source-1"
         sourceNumber={1}
         sourceName="Lena"
@@ -43,11 +43,11 @@ describe('ReactVideoSourceCard', () => {
       onChangeImage,
     };
 
-    const { rerender } = render(<ReactVideoSourceCard {...baseProps} sourceType="static" />);
+    const { rerender } = render(<VideoSourceCard {...baseProps} sourceType="static" />);
     fireEvent.click(screen.getByTestId('change-image-button'));
     expect(onChangeImage).toHaveBeenCalledWith('source-1', 1);
 
-    rerender(<ReactVideoSourceCard {...baseProps} sourceType="camera" />);
+    rerender(<VideoSourceCard {...baseProps} sourceType="camera" />);
     expect(screen.queryByTestId('change-image-button')).not.toBeInTheDocument();
   });
 });

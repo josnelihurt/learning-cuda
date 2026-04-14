@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@/infrastructure/observability/otel-logger';
-import styles from './ReactAppTour.module.css';
+import styles from './AppTour.module.css';
 
 declare const __APP_VERSION__: string;
 
@@ -69,7 +69,7 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-export function ReactAppTour() {
+export function AppTour() {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [focusStyle, setFocusStyle] = useState<Record<string, string>>({});

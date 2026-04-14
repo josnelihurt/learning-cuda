@@ -1,6 +1,6 @@
 import React from 'react';
 
-type ReactStatsPanelProps = {
+type StatsPanelProps = {
   fps: string;
   time: string;
   frames: number;
@@ -8,13 +8,13 @@ type ReactStatsPanelProps = {
   cameraStatusType: 'success' | 'error' | 'warning' | 'inactive';
 };
 
-export function ReactStatsPanel({
+export function StatsPanel({
   fps,
   time,
   frames,
   cameraStatus,
   cameraStatusType,
-}: ReactStatsPanelProps) {
+}: StatsPanelProps) {
   return (
     <div
       data-testid="react-stats-panel"

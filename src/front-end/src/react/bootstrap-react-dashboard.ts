@@ -112,7 +112,7 @@ async function runBootstrap(): Promise<void> {
       logger.warn('Accelerator health check detected unhealthy status, opening modal');
       document.dispatchEvent(new CustomEvent('accelerator-unhealthy'));
     },
-    () => Boolean(window.__reactGrpcStatusModal?.isOpen())
+    () => Boolean(window.__grpcStatusModal?.isOpen())
   );
   logger.info('Accelerator health monitoring started');
 

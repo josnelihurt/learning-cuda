@@ -1,8 +1,8 @@
 /**
- * Singleton instance of ReactWebRTCService
+ * Singleton instance of WebRTCService
  * Exported for use throughout the React application
  */
 
-import { ReactWebRTCService } from './ReactWebRTCService';
+import { WebRTCService } from './WebRTCService';
 
-export const manageWebRTC = new ReactWebRTCService();
+export const manageWebRTC = new WebRTCService();

@@ -6,7 +6,7 @@ import { logger } from '@/infrastructure/observability/otel-logger';
 
 declare global {
   interface Window {
-    __reactGrpcStatusModal?: {
+    __grpcStatusModal?: {
       isOpen: () => boolean;
       isMinimized: () => boolean;
       open: () => void;
@@ -15,14 +15,14 @@ declare global {
   }
 }
 
-export function ReactAcceleratorStatusFab() {
+export function AcceleratorStatusFab() {
   const [isVisible, setIsVisible] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const checkHealth = async () => {
-      const isModalOpen = Boolean(window.__reactGrpcStatusModal?.isOpen());
+      const isModalOpen = Boolean(window.__grpcStatusModal?.isOpen());
       try {
         const response = await remoteManagementService.checkAcceleratorHealth();
         const healthy = response.status === AcceleratorHealthStatus.HEALTHY;
@@ -62,7 +62,7 @@ export function ReactAcceleratorStatusFab() {
       className={`react-accelerator-fab ${isBlinking ? 'blinking' : ''}`}
       data-testid="accelerator-status-fab"
       onClick={() => {
-        const modalElement = window.__reactGrpcStatusModal;
+        const modalElement = window.__grpcStatusModal;
         if (!modalElement) {
           return;
         }

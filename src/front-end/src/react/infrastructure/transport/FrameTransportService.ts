@@ -9,7 +9,7 @@ import { propagation, context } from '@opentelemetry/api';
 import type { ActiveFilterState } from '@/react/components/filters/FilterPanel';
 
 /**
- * ReactFrameTransportService handles WebSocket-based frame transport for video streaming.
+ * FrameTransportService handles WebSocket-based frame transport for video streaming.
  *
  * Manages:
  * - WebSocket connection to /ws/frame-transport endpoint
@@ -20,7 +20,7 @@ import type { ActiveFilterState } from '@/react/components/filters/FilterPanel';
  *
  * Adapted from Lit WebSocketService for React compatibility.
  */
-export class ReactFrameTransportService {
+export class FrameTransportService {
   private ws: WebSocket | null = null;
   private connectionState: 'connecting' | 'connected' | 'disconnected' | 'failed' = 'connecting';
   private frameCallback: ((frameData: string) => void) | null = null;

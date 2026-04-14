@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-type ReactVideoSourceCardProps = {
+type VideoSourceCardProps = {
   sourceId: string;
   sourceNumber: number;
   sourceName: string;
@@ -13,7 +13,7 @@ type ReactVideoSourceCardProps = {
   children?: ReactNode;
 };
 
-export function ReactVideoSourceCard({
+export function VideoSourceCard({
   sourceId,
   sourceNumber,
   sourceName,
@@ -24,7 +24,7 @@ export function ReactVideoSourceCard({
   onClose,
   onChangeImage,
   children,
-}: ReactVideoSourceCardProps) {
+}: VideoSourceCardProps) {
   const cardClassName = isSelected ? 'card selected' : 'card';
   const shouldRenderProcessedImage = Boolean(imageSrc);
 

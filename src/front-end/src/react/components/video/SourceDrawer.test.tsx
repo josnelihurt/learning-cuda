@@ -1,25 +1,25 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ReactSourceDrawer } from './ReactSourceDrawer';
+import { SourceDrawer } from './SourceDrawer';
 
 vi.mock('../image/ImageUpload', () => ({
   ImageUpload: () => <div data-testid="mock-image-upload" />,
 }));
 
-vi.mock('./ReactVideoUpload', () => ({
-  ReactVideoUpload: () => <div data-testid="mock-video-upload" />,
+vi.mock('./VideoUpload', () => ({
+  VideoUpload: () => <div data-testid="mock-video-upload" />,
 }));
 
-vi.mock('./ReactVideoSelector', () => ({
-  ReactVideoSelector: () => <div data-testid="mock-video-selector" />,
+vi.mock('./VideoSelector', () => ({
+  VideoSelector: () => <div data-testid="mock-video-selector" />,
 }));
 
-describe('ReactSourceDrawer', () => {
+describe('SourceDrawer', () => {
   it('shows static and camera sources in images tab', () => {
     const onSelectSource = vi.fn();
     render(
-      <ReactSourceDrawer
+      <SourceDrawer
         isOpen
         availableSources={[
           { id: 's1', displayName: 'Lena', type: 'static', imagePath: '', isDefault: true },
@@ -42,7 +42,7 @@ describe('ReactSourceDrawer', () => {
 
   it('switches to videos tab and filters sources', () => {
     render(
-      <ReactSourceDrawer
+      <SourceDrawer
         isOpen
         availableSources={[
           { id: 's1', displayName: 'Lena', type: 'static', imagePath: '', isDefault: true },

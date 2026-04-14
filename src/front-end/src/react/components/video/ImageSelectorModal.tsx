@@ -1,19 +1,19 @@
 import React from 'react';
 import type { StaticImage } from '@/gen/common_pb';
 
-type ReactImageSelectorModalProps = {
+type ImageSelectorModalProps = {
   isOpen: boolean;
   availableImages: StaticImage[];
   onClose: () => void;
   onSelectImage: (image: StaticImage) => void;
 };
 
-export function ReactImageSelectorModal({
+export function ImageSelectorModal({
   isOpen,
   availableImages,
   onClose,
   onSelectImage,
-}: ReactImageSelectorModalProps) {
+}: ImageSelectorModalProps) {
   return (
     <div className="react-image-modal-host" aria-hidden={!isOpen}>
       <div className={`backdrop ${isOpen ? 'show' : ''}`} onClick={onClose} />

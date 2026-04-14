@@ -3,11 +3,11 @@ import { videoService } from '@/infrastructure/data/video-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import type { StaticVideo } from '@/gen/common_pb';
 
-type ReactVideoUploadProps = {
+type VideoUploadProps = {
   onVideoUploaded: (video: StaticVideo) => void;
 };
 
-export function ReactVideoUpload({ onVideoUploaded }: ReactVideoUploadProps) {
+export function VideoUpload({ onVideoUploaded }: VideoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);

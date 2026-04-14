@@ -4,6 +4,17 @@ import { remoteManagementService } from '@/infrastructure/external/remote-manage
 import { AcceleratorHealthStatus } from '@/gen/remote_management_service_pb';
 import { logger } from '@/infrastructure/observability/otel-logger';
 
+declare global {
+  interface Window {
+    __reactGrpcStatusModal?: {
+      isOpen: () => boolean;
+      isMinimized: () => boolean;
+      open: () => void;
+      restore: () => void;
+    };
+  }
+}
+
 export function ReactAcceleratorStatusFab() {
   const [isVisible, setIsVisible] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
@@ -11,10 +22,7 @@ export function ReactAcceleratorStatusFab() {
   useEffect(() => {
     let cancelled = false;
     const checkHealth = async () => {
-      const modalElement = document.querySelector('grpc-status-modal') as
-        | { isModalOpen?: () => boolean }
-        | null;
-      const isModalOpen = Boolean(modalElement?.isModalOpen?.());
+      const isModalOpen = Boolean(window.__reactGrpcStatusModal?.isOpen());
       try {
         const response = await remoteManagementService.checkAcceleratorHealth();
         const healthy = response.status === AcceleratorHealthStatus.HEALTHY;
@@ -54,16 +62,14 @@ export function ReactAcceleratorStatusFab() {
       className={`react-accelerator-fab ${isBlinking ? 'blinking' : ''}`}
       data-testid="accelerator-status-fab"
       onClick={() => {
-        const modalElement = document.querySelector('grpc-status-modal') as
-          | { open?: () => void; restore?: () => void; isModalMinimized?: () => boolean }
-          | null;
+        const modalElement = window.__reactGrpcStatusModal;
         if (!modalElement) {
           return;
         }
-        if (modalElement.isModalMinimized?.()) {
-          modalElement.restore?.();
+        if (modalElement.isMinimized()) {
+          modalElement.restore();
         } else {
-          modalElement.open?.();
+          modalElement.open();
         }
       }}
     >

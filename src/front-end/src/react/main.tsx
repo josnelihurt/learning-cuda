@@ -1,12 +1,4 @@
 import './react-root.css';
-import '@/components/app/information-banner';
-import '@/components/flags/feature-flags-modal';
-import '@/components/app/grpc-status-modal';
-import '@/components/app/app-tour';
-import '@/components/ui/tools-dropdown';
-import '@/components/flags/feature-flags-button';
-import '@/components/flags/sync-flags-button';
-import '@/components/ui/version-tooltip-lit';
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';

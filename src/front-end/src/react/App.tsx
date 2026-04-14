@@ -1,6 +1,12 @@
+import React, { useEffect, useState } from 'react';
 import { VideoGridHost } from './components/video/VideoGridHost';
 import { SidebarColumn } from './components/sidebar/SidebarColumn';
 import { useAppServices } from './providers/app-services-provider';
+import { ReactNavbarControls } from './components/app/ReactNavbarControls';
+import { ReactFeatureFlagsModal } from './components/app/ReactFeatureFlagsModal';
+import { ReactGrpcStatusModal } from './components/app/ReactGrpcStatusModal';
+import { ReactAppTour } from './components/app/ReactAppTour';
+import { ReactInformationBanner } from './components/app/ReactInformationBanner';
 
 function MainContent() {
   const { ready } = useAppServices();
@@ -19,41 +25,51 @@ function MainContent() {
 }
 
 export function App() {
+  const [isFeatureFlagsOpen, setIsFeatureFlagsOpen] = useState(false);
+
+  useEffect(() => {
+    const clearStorage = () => {
+      localStorage.clear();
+      alert('LocalStorage cleared!');
+    };
+    const creditBy = document.getElementById('credit-by');
+    creditBy?.addEventListener('click', clearStorage);
+    return () => {
+      creditBy?.removeEventListener('click', clearStorage);
+    };
+  }, []);
+
   return (
     <>
-        <header className="navbar">
-          <div className="navbar-container">
-            <div className="navbar-left">
-              <a href="/" className="navbar-brand">
-                <span className="accent">CUDA</span> Image Processor
-              </a>
-            </div>
-            <div className="navbar-services" data-testid="navbar-services-placeholder">
-              <tools-dropdown></tools-dropdown>
-              <feature-flags-button></feature-flags-button>
-              <sync-flags-button style={{ display: 'none' }}></sync-flags-button>
-              <span className="navbar-badge">React app loaded</span>
-            </div>
-            <div className="navbar-credit">
-              <span id="credit-by" style={{ cursor: 'pointer' }} title="Click to clear localStorage">
-                by
-              </span>{' '}
-              <a href="https://josnelihurt.me" target="_blank" rel="noreferrer">
-                josnelihurt
-              </a>
-              <version-tooltip-lit>
-                <button type="button" className="info-btn" title="Version Information">
-                  <span>i</span>
-                </button>
-              </version-tooltip-lit>
-            </div>
+      <header className="navbar">
+        <div className="navbar-container">
+          <div className="navbar-left">
+            <a href="/" className="navbar-brand">
+              <span className="accent">CUDA</span> Image Processor
+            </a>
           </div>
-          <information-banner />
-        </header>
+          <div className="navbar-services" data-testid="navbar-services-placeholder">
+            <ReactNavbarControls onOpenFeatureFlags={() => setIsFeatureFlagsOpen(true)} />
+            <span className="navbar-badge">React app loaded</span>
+          </div>
+          <div className="navbar-credit">
+            <span id="credit-by" style={{ cursor: 'pointer' }} title="Click to clear localStorage">
+              by
+            </span>{' '}
+            <a href="https://josnelihurt.me" target="_blank" rel="noreferrer">
+              josnelihurt
+            </a>
+          </div>
+        </div>
+        <ReactInformationBanner />
+      </header>
 
-        <SidebarColumn />
+      <SidebarColumn />
 
-        <MainContent />
+      <MainContent />
+      <ReactFeatureFlagsModal isOpen={isFeatureFlagsOpen} onClose={() => setIsFeatureFlagsOpen(false)} />
+      <ReactGrpcStatusModal />
+      <ReactAppTour />
     </>
   );
 }

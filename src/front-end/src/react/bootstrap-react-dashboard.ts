@@ -2,6 +2,14 @@ import { container } from '@/application/di';
 import { acceleratorHealthMonitor } from '@/infrastructure/external/accelerator-health-monitor';
 import { systemInfoService } from '@/infrastructure/external/system-info-service';
 
+declare global {
+  interface Window {
+    __reactGrpcStatusModal?: {
+      isOpen: () => boolean;
+    };
+  }
+}
+
 let bootstrapPromise: Promise<void> | null = null;
 let beforeUnloadAttached = false;
 
@@ -12,10 +20,15 @@ function attachBeforeUnload(): void {
   beforeUnloadAttached = true;
   window.addEventListener('beforeunload', () => {
     const webrtcService = container.getWebRTCService();
+    const logger = container.getLogger();
     const activeSessions = webrtcService.getActiveSessions();
     activeSessions.forEach((session) => {
       webrtcService.stopHeartbeat(session.getId());
-      void webrtcService.closeSession(session.getId()).catch(() => undefined);
+      void webrtcService.closeSession(session.getId()).catch((error) => {
+        logger.warn('Failed to close WebRTC session on beforeunload', {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      });
     });
     acceleratorHealthMonitor.stopMonitoring();
     container.getLogger().shutdown();
@@ -94,14 +107,12 @@ async function runBootstrap(): Promise<void> {
     }
   });
 
-  const modalElement = document.querySelector('grpc-status-modal');
   acceleratorHealthMonitor.startMonitoring(
     () => {
       logger.warn('Accelerator health check detected unhealthy status, opening modal');
       document.dispatchEvent(new CustomEvent('accelerator-unhealthy'));
     },
-    () =>
-      Boolean(modalElement && (modalElement as { isModalOpen?: () => boolean }).isModalOpen?.())
+    () => Boolean(window.__reactGrpcStatusModal?.isOpen())
   );
   logger.info('Accelerator health monitoring started');
 

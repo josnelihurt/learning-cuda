@@ -6,6 +6,7 @@ import type { ActiveFilterState } from '../app/filter-panel.types';
 import { FilterData, WebRTCSession } from '../../domain/value-objects';
 import type { StatsPanel } from '../app/stats-panel';
 import type { CameraPreview } from './camera-preview';
+import './camera-preview';
 import type { ToastContainer } from '../app/toast-container';
 import { logger } from '../../infrastructure/observability/otel-logger';
 import { webrtcService } from '../../infrastructure/connection/webrtc-service';

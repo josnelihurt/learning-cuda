@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@/infrastructure/observability/otel-logger';
+import styles from './ReactAppTour.module.css';
 
 declare const __APP_VERSION__: string;
 
@@ -293,98 +294,33 @@ export function ReactAppTour() {
     return null;
   }
 
-  const arrowStyle: Record<string, string> = {
-    position: 'absolute',
-    width: '12px',
-    height: '12px',
-    background: 'rgba(15, 23, 42, 0.88)',
-    transform: 'rotate(45deg)',
-    zIndex: '-1',
-  };
-  if (tooltipPlacement === 'right') {
-    arrowStyle.left = '-6px';
-    arrowStyle.top = '50%';
-    arrowStyle.marginTop = '-6px';
-  } else if (tooltipPlacement === 'left') {
-    arrowStyle.right = '-6px';
-    arrowStyle.top = '50%';
-    arrowStyle.marginTop = '-6px';
-  } else if (tooltipPlacement === 'bottom') {
-    arrowStyle.top = '-6px';
-    arrowStyle.left = '50%';
-    arrowStyle.marginLeft = '-6px';
-  } else {
-    arrowStyle.bottom = '-6px';
-    arrowStyle.left = '50%';
-    arrowStyle.marginLeft = '-6px';
-  }
+  const arrowPlacementClass =
+    tooltipPlacement === 'right'
+      ? styles.arrowRight
+      : tooltipPlacement === 'left'
+        ? styles.arrowLeft
+        : tooltipPlacement === 'bottom'
+          ? styles.arrowBottom
+          : styles.arrowTop;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(1.5px)',
-        zIndex: 2200,
-        pointerEvents: 'auto',
-      }}
-      role="presentation"
-    >
-      <div
-        style={{
-          position: 'fixed',
-          borderRadius: '14px',
-          boxShadow: '0 0 0 2000px rgba(15, 23, 42, 0.45)',
-          border: '2px solid var(--accent-color, #38bdf8)',
-          background: 'rgba(56, 189, 248, 0.08)',
-          pointerEvents: 'none',
-          transition: 'all 0.22s ease',
-          ...focusStyle,
-        }}
-      />
-      <div
-        style={{
-          position: 'fixed',
-          maxWidth: '320px',
-          color: '#f8fafc',
-          background: 'rgba(15, 23, 42, 0.88)',
-          borderRadius: '16px',
-          padding: '20px 24px',
-          boxShadow: '0 18px 42px rgba(15, 23, 42, 0.45)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          transition: 'transform 0.2s ease, opacity 0.2s ease',
-          ...tooltipStyle,
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${step.id}-title`}
-      >
-        <div style={arrowStyle} />
-        <span style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(148, 163, 184, 0.9)' }}>
+    <div className={styles.overlay} role="presentation">
+      <div className={styles.focusRing} style={focusStyle} />
+      <div className={styles.tooltip} style={tooltipStyle} role="dialog" aria-modal="true" aria-labelledby={`${step.id}-title`}>
+        <div className={`${styles.arrow} ${arrowPlacementClass}`} />
+        <span className={styles.stepMeta}>
           Step {stepIndex + 1} of {TOUR_STEPS.length}
         </span>
-        <h2 id={`${step.id}-title`} style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>
+        <h2 id={`${step.id}-title`} className={styles.title}>
           {step.title}
         </h2>
-        <p style={{ fontSize: '15px', lineHeight: 1.5, margin: 0, color: 'rgba(226, 232, 240, 0.92)' }}>
+        <p className={styles.description}>
           {step.description}
         </p>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+        <div className={styles.actions}>
           <button
             type="button"
-            style={{
-              border: 'none',
-              borderRadius: '999px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: '8px 16px',
-              background: 'transparent',
-              color: 'rgba(226, 232, 240, 0.92)',
-            }}
+            className={`${styles.buttonBase} ${styles.skipButton}`}
             onClick={() => {
               dismiss();
               setActive(false);
@@ -394,16 +330,7 @@ export function ReactAppTour() {
           </button>
           <button
             type="button"
-            style={{
-              border: 'none',
-              borderRadius: '999px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: '10px 20px',
-              background: '#38bdf8',
-              color: '#0f172a',
-            }}
+            className={`${styles.buttonBase} ${styles.nextButton}`}
             onClick={() => {
               if (stepIndex >= TOUR_STEPS.length - 1) {
                 dismiss();

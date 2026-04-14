@@ -25,3 +25,12 @@
   align-items: center;
   gap: 8px;
 }
+
+.react-main-loading {
+  padding: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+.clickable-credit {
+  cursor: pointer;
+}

@@ -6,6 +6,8 @@ import { defineConfig, loadEnv } from 'vite';
 import type { Connect, Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
+import { createReadStream, existsSync } from 'node:fs';
+import { extname, join } from 'node:path';
 import react from '@vitejs/plugin-react';
 
 function prettyFrontendRoutesPlugin(): Plugin {
@@ -66,6 +68,30 @@ function gitVersionPlugin() {
   };
 }
 
+const DATA_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+};
+
+// Serves ./data/** at /data/** during Vite dev (nginx handles this in production).
+function serveDataDirPlugin(): Plugin {
+  return {
+    name: 'serve-data-dir',
+    configureServer(server) {
+      server.middlewares.use('/data', (req, res, next) => {
+        const filePath = join(__dirname, '../../data', req.url ?? '/');
+        if (!existsSync(filePath)) { next(); return; }
+        const ct = DATA_MIME[extname(filePath).toLowerCase()];
+        if (ct) res.setHeader('Content-Type', ct);
+        createReadStream(filePath).pipe(res);
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiTarget = env.VITE_API_ORIGIN || 'https://localhost:8443';
@@ -102,7 +128,7 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
     },
 
-    plugins: [gitVersionPlugin(), prettyFrontendRoutesPlugin(), react()],
+    plugins: [gitVersionPlugin(), prettyFrontendRoutesPlugin(), serveDataDirPlugin(), react()],
 
     optimizeDeps: {
       include: [
@@ -126,7 +152,6 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       proxy: {
         '/api': backendHTTP,
-        '/data': backendHTTP,
         '/cuda_learning': backendHTTP,
         '/com.jrb': backendHTTP,
         '/ws': backendWS,
@@ -161,7 +186,6 @@ export default defineConfig(({ mode }) => {
       https: false,
       proxy: {
         '/api': backendHTTP,
-        '/data': backendHTTP,
         '/cuda_learning': backendHTTP,
         '/com.jrb': backendHTTP,
         '/ws': backendWS,

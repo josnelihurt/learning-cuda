@@ -14,7 +14,6 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/http"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/statichttp"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/websocket"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -262,15 +261,10 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 	logger.Global().Info().Msg("Health endpoint registered at /health")
 }
 
-func (a *App) setupStaticHandler(mux *http.ServeMux) {
-	staticHandler := statichttp.NewStaticHandler(&statichttp.StaticHandlerDeps{
-		StreamConfig:  a.config.Stream,
-		UseCase:       a.useCase,
-		VideoRepo:     a.videoRepository,
-		EvaluateFFUC:  a.evaluateFFUC,
-		GRPCProcessor: a.grpcProcessor,
-	})
-	staticHandler.RegisterRoutes(mux)
+func (a *App) setupWebSocketHandler(mux *http.ServeMux) {
+	wsHandler := websocket.NewHandler(a.useCase, a.config.Stream, a.videoRepository, a.evaluateFFUC, a.grpcProcessor)
+	mux.HandleFunc("/ws", wsHandler.HandleWebSocket)
+	logger.Global().Info().Msg("WebSocket endpoint registered at /ws")
 }
 
 func (a *App) setupWebRTCSignalingWebSocket(mux *http.ServeMux) {
@@ -301,7 +295,7 @@ func (a *App) Run() error {
 	a.setupObservability(mux)
 
 	a.setupHealthEndpoint(mux)
-	a.setupStaticHandler(mux)
+	a.setupWebSocketHandler(mux)
 	a.setupWebRTCSignalingWebSocket(mux)
 	a.setupConnectRPCServices(mux)
 	handler := a.makeTelemetryMiddleware(mux)

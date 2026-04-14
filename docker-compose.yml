@@ -37,6 +37,8 @@ services:
         condition: service_started
     networks:
       - traefik
+    volumes:
+      - ./data:/app/data:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app-web.rule=Host(`app-cuda-demo.josnelihurt.me`)"

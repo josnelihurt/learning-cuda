@@ -24,20 +24,15 @@ services:
       - /tmp:/tmp
     
     networks:
-      - traefik
-    
+      traefik:
+        aliases:
+          - go-app
+
     depends_on:
       traefik:
         condition: service_started
       grpc-server:
         condition: service_healthy
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cuda-app.rule=Host(`app.localhost`)"
-      - "traefik.http.routers.cuda-app.entrypoints=websecure"
-      - "traefik.http.routers.cuda-app.tls=true"
-      - "traefik.http.services.cuda-app.loadbalancer.server.port=8080"
     
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -45,6 +40,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  web-frontend:
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt/learning-cuda/web-frontend:latest-amd64}
+    container_name: cuda-web-frontend-staging
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cuda-app.rule=Host(`app.localhost`)"
+      - "traefik.http.routers.cuda-app.entrypoints=websecure"
+      - "traefik.http.routers.cuda-app.tls=true"
+      - "traefik.http.routers.cuda-app.priority=120"
+      - "traefik.http.services.cuda-app.loadbalancer.server.port=80"
 
   traefik:
     image: traefik:latest

@@ -168,7 +168,6 @@ webserver/
 │   ├── interfaces/      # HTTP/WebSocket/Connect-RPC handlers
 │   │   ├── connectrpc/  # Connect-RPC handlers
 │   │   ├── websocket/   # WebSocket handlers
-│   │   ├── statichttp/  # /data, /ws, Flipt proxy (UI lives in ../front-end)
 │   │   └── adapters/   # Protocol adapters
 │   ├── config/          # Configuration management
 │   ├── container/       # Dependency injection
@@ -193,9 +192,8 @@ Frontend source: `../front-end/` (Vite in development, Nginx image in production
 - Session management for multiple concurrent connections
 - Streams processing results back to clients
 
-**Auxiliary HTTP** (`pkg/interfaces/statichttp/`):
-- Serves `/data/` image assets, `/ws` streaming WebSocket, and `/flipt/` admin proxy
-- The browser UI is built and served from `front-end/` (dev: Vite; prod: Nginx)
+**WebSocket `/ws`** is registered directly in `pkg/app/app.go` using `pkg/interfaces/websocket/`.
+Static `/data/` assets are served by Nginx in production (volume-mounted from `./data`); in dev the Go server handles them via the filesystem.
 
 ### Application Layer
 

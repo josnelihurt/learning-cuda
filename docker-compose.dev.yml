@@ -19,14 +19,37 @@ services:
     command: ["/app/server", "-config=/app/config/config.yaml"]
     
     networks:
-      - dev-network
-    
+      dev-network:
+        aliases:
+          - go-app
+
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  web-frontend-dev:
+    build:
+      context: .
+      dockerfile: src/front-end/Dockerfile
+      args:
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_TAG: ${BASE_TAG:-latest}
+        TARGETARCH: ${TARGETARCH:-amd64}
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-cuda-learning-web-frontend:latest}
+    container_name: cuda-web-frontend-dev
+    restart: unless-stopped
+    depends_on:
+      app-dev:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - dev-network
 
   grpc-server-dev:
     image: ${GRPC_SERVER_IMAGE:-local/josnelihurt/learning-cuda/grpc-server:latest-amd64}

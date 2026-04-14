@@ -25,12 +25,30 @@ message GetStreamConfigResponse {
   TraceContext trace_context = 3 [json_name = "trace_context"];
 }
 
-// Feature flags synchronization
-message SyncFeatureFlagsRequest {
+message ManagedFeatureFlag {
+  string key = 1 [json_name = "key"];
+  string name = 3 [json_name = "name"];
+  string type = 5 [json_name = "type"];
+  bool enabled = 7 [json_name = "enabled"];
+  string default_value = 9 [json_name = "default_value"];
+  string description = 11 [json_name = "description"];
+}
+
+message ListFeatureFlagsRequest {
   TraceContext trace_context = 1 [json_name = "trace_context"];
 }
 
-message SyncFeatureFlagsResponse {
+message ListFeatureFlagsResponse {
+  repeated ManagedFeatureFlag flags = 1 [json_name = "flags"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message UpsertFeatureFlagRequest {
+  ManagedFeatureFlag flag = 1 [json_name = "flag"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+}
+
+message UpsertFeatureFlagResponse {
   string message = 1 [json_name = "message"];
   TraceContext trace_context = 3 [json_name = "trace_context"];
 }
@@ -133,9 +151,16 @@ service ConfigService {
     };
   }
   
-  rpc SyncFeatureFlags(SyncFeatureFlagsRequest) returns (SyncFeatureFlagsResponse) {
+  rpc ListFeatureFlags(ListFeatureFlagsRequest) returns (ListFeatureFlagsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
     option (google.api.http) = {
-      post: "/api/v1/config/flags/sync"
+      get: "/api/v1/config/flags"
+    };
+  }
+
+  rpc UpsertFeatureFlag(UpsertFeatureFlagRequest) returns (UpsertFeatureFlagResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/config/flags"
       body: "*"
     };
   }

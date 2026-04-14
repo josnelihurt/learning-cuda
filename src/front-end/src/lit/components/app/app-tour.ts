@@ -203,7 +203,7 @@ export class AppTour extends LitElement {
       id: 'feature-flags',
       selector: 'feature-flags-button',
       title: 'Feature Flags',
-      description: 'Manage feature toggles for experiments. Connect to Flipt to enable or disable flags.',
+      description: 'Manage feature toggles for experiments. Enable or disable flags from the built-in panel.',
     },
     {
       id: 'version-info',

@@ -1,0 +1,22 @@
+frontend_console_logging:
+    variations:
+        disabled: false
+        enabled: true
+    defaultRule:
+        variation: enabled
+frontend_log_level:
+    variations:
+        INFO: INFO
+    defaultRule:
+        variation: INFO
+observability_enabled:
+    variations:
+        disabled: false
+        enabled: true
+    defaultRule:
+        variation: disabled
+ws_transport_format:
+    variations:
+        json: json
+    defaultRule:
+        variation: json

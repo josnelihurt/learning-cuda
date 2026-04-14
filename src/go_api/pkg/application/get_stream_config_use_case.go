@@ -31,7 +31,7 @@ func (uc *GetStreamConfigUseCase) Execute(ctx context.Context) (*config.StreamCo
 	)
 	defer span.End()
 
-	transportFormat, err := uc.evaluateFFUseCase.EvaluateVariant(
+	transportFormat, err := uc.evaluateFFUseCase.EvaluateString(
 		ctx,
 		"ws_transport_format",
 		"default",

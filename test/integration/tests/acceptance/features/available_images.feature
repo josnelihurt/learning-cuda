@@ -3,8 +3,7 @@ Feature: List Available Static Images
     I want to list the available static images for processing
 
     Background:
-        Given Flipt is running at "http://localhost:8081" with namespace "default"
-        And the service is running at "https://localhost:8443"
+        Given the service is running at "https://localhost:8443"
 
     Scenario: List available static images
         When I call ListAvailableImages endpoint

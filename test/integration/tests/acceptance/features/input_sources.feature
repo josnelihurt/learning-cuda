@@ -3,8 +3,7 @@ Feature: Input Source Selection
     I want to list the available input sources
 
     Background:
-        Given Flipt is running at "http://localhost:8081" with namespace "default"
-        And the service is running at "https://localhost:8443"
+        Given the service is running at "https://localhost:8443"
 
     Scenario: List default input sources
         When I call ListInputs endpoint

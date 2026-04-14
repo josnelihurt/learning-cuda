@@ -4,8 +4,7 @@ Feature: Video Playback from Files
     So that I can process video content using GPU/CPU acceleration
 
     Background:
-        Given Flipt is running at "http://localhost:8081" with namespace "default"
-        And the service is running at "https://localhost:8443"
+        Given the service is running at "https://localhost:8443"
 
     Scenario: List available videos
         When I call ListAvailableVideos endpoint

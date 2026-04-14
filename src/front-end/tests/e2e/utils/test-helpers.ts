@@ -12,22 +12,6 @@ export function getBaseUrl(): string {
 }
 
 /**
- * Gets the Flipt API URL based on the current environment
- * @returns The Flipt API URL for the current environment
- */
-export function getFliptUrl(): string {
-  const env = process.env.TEST_ENV || 'development';
-  
-  if (env === 'production') {
-    return 'https://flipt-cuda-demo.josnelihurt.me';
-  } else if (env === 'staging') {
-    return 'https://flipt.localhost';
-  } else {
-    return 'http://localhost:8081';
-  }
-}
-
-/**
  * Checks if the current environment is production
  * @returns True if running in production environment
  */
@@ -45,22 +29,6 @@ export function getMinVideoFrames(): number {
 }
 
 /**
- * Gets the expected Flipt URL pattern for dashboard tests
- * @returns The expected URL pattern for Flipt dashboard
- */
-export function getFliptDashboardUrlPattern(): string {
-  const env = process.env.TEST_ENV || 'development';
-  
-  if (env === 'production') {
-    return '/flipt';
-  } else if (env === 'staging') {
-    return 'flipt.localhost';
-  } else {
-    return 'localhost:8081';
-  }
-}
-
-/**
  * Creates a full API endpoint URL
  * @param endpoint The API endpoint path
  * @returns The full URL for the API endpoint
@@ -68,16 +36,6 @@ export function getFliptDashboardUrlPattern(): string {
 export function createApiUrl(endpoint: string): string {
   const baseUrl = getBaseUrl();
   return `${baseUrl}${endpoint}`;
-}
-
-/**
- * Creates a full Flipt API endpoint URL
- * @param endpoint The Flipt API endpoint path
- * @returns The full URL for the Flipt API endpoint
- */
-export function createFliptApiUrl(endpoint: string): string {
-  const fliptUrl = getFliptUrl();
-  return `${fliptUrl}${endpoint}`;
 }
 
 /**

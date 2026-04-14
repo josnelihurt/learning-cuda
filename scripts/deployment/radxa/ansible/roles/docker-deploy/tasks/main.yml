@@ -87,5 +87,4 @@
       - "Traefik Dashboard: http://{{ ansible_host }}:8081"
       - "Jaeger UI: http://{{ ansible_host }}:16686"
       - "Grafana: https://{{ ansible_host }}/grafana"
-      - "Flipt: https://{{ ansible_host }}/flipt"
       - "Test Reports: https://{{ ansible_host }}/reports"

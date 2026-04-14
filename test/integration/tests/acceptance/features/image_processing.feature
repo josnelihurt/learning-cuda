@@ -4,8 +4,7 @@ Feature: Image Processing via ConnectRPC
   So that I can transform images using GPU or CPU
 
   Background:
-    Given Flipt is running at "http://localhost:8081" with namespace "default"
-    And the service is running at "https://localhost:8443"
+    Given the service is running at "https://localhost:8443"
     And I have image "lena.png"
 
   Scenario: Process image with no filter using GPU

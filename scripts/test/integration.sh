@@ -152,15 +152,9 @@ mkdir -p test/integration/tests/acceptance/.ignore/test-results
 mkdir -p .ignore/front-end/test-results
 mkdir -p .ignore/front-end/playwright-report
 
-echo "Note: Tests require local services running (Flipt + App)"
+echo "Note: Tests require local services running (App)"
 echo "Make sure you've run: ./scripts/dev/start.sh"
 echo ""
-
-if ! curl -s http://localhost:8081/api/v1/health > /dev/null 2>&1; then
-    echo "ERROR: Flipt is not accessible at http://localhost:8081"
-    echo "Please start services with: ./scripts/dev/start.sh"
-    exit 1
-fi
 
 if ! curl -k -s https://localhost:8443/health > /dev/null 2>&1; then
     echo "ERROR: Service is not accessible at https://localhost:8443"

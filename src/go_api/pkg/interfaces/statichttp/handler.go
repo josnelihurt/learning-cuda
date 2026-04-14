@@ -11,33 +11,28 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/websocket"
 )
 
-// StaticHandlerDeps groups dependencies for auxiliary HTTP routes (data files, WebSocket, Flipt proxy).
+// StaticHandlerDeps groups dependencies for auxiliary HTTP routes (data files and WebSocket).
 type StaticHandlerDeps struct {
 	StreamConfig  config.StreamConfig
 	UseCase       *application.ProcessImageUseCase
 	VideoRepo     domain.VideoRepository
-	FliptURL      string
 	EvaluateFFUC  *application.EvaluateFeatureFlagUseCase
 	GRPCProcessor domain.ImageProcessor
 }
 
 type StaticHandler struct {
 	wsHandler *websocket.Handler
-	fliptURL  string
 }
 
 func NewStaticHandler(deps *StaticHandlerDeps) *StaticHandler {
 	return &StaticHandler{
 		wsHandler: websocket.NewHandler(deps.UseCase, deps.StreamConfig, deps.VideoRepo, deps.EvaluateFFUC, deps.GRPCProcessor),
-		fliptURL:  deps.FliptURL,
 	}
 }
 
 func (h *StaticHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/data/", h.ServeData)
 	mux.HandleFunc("/ws", h.wsHandler.HandleWebSocket)
-	fliptProxy := NewFliptProxyHandler(h.fliptURL)
-	mux.Handle("/flipt/", http.StripPrefix("/flipt", fliptProxy))
 }
 
 func (h *StaticHandler) ServeData(w http.ResponseWriter, r *http.Request) {

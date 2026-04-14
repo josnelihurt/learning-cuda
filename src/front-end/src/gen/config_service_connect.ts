@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAvailableToolsRequest, GetAvailableToolsResponse, GetProcessorStatusRequest, GetProcessorStatusResponse, GetStreamConfigRequest, GetStreamConfigResponse, GetSystemInfoRequest, GetSystemInfoResponse, ListInputsRequest, ListInputsResponse, SyncFeatureFlagsRequest, SyncFeatureFlagsResponse } from "./config_service_pb.js";
+import { GetAvailableToolsRequest, GetAvailableToolsResponse, GetProcessorStatusRequest, GetProcessorStatusResponse, GetStreamConfigRequest, GetStreamConfigResponse, GetSystemInfoRequest, GetSystemInfoResponse, ListFeatureFlagsRequest, ListFeatureFlagsResponse, ListInputsRequest, ListInputsResponse, UpsertFeatureFlagRequest, UpsertFeatureFlagResponse } from "./config_service_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -23,12 +23,22 @@ export const ConfigService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * @generated from rpc cuda_learning.ConfigService.SyncFeatureFlags
+     * @generated from rpc cuda_learning.ConfigService.ListFeatureFlags
      */
-    syncFeatureFlags: {
-      name: "SyncFeatureFlags",
-      I: SyncFeatureFlagsRequest,
-      O: SyncFeatureFlagsResponse,
+    listFeatureFlags: {
+      name: "ListFeatureFlags",
+      I: ListFeatureFlagsRequest,
+      O: ListFeatureFlagsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc cuda_learning.ConfigService.UpsertFeatureFlag
+     */
+    upsertFeatureFlag: {
+      name: "UpsertFeatureFlag",
+      I: UpsertFeatureFlagRequest,
+      O: UpsertFeatureFlagResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -1,32 +1,4 @@
 services:
-  flipt:
-    image: flipt/flipt:latest
-    container_name: flipt
-    restart: unless-stopped
-    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
-    
-    ports:
-      - "${FLIPT_PORT:-8081}:8080"
-      - "9000:9000"
-    
-    volumes:
-      - ./.ignore/storage/flipt:/var/opt/flipt
-    
-    environment:
-      - FLIPT_LOG_LEVEL=info
-      - FLIPT_DB_URL=file:/var/opt/flipt/flipt.db
-      - FLIPT_META_TELEMETRY_ENABLED=false
-    
-    networks:
-      - dev-network
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   app-dev:
     image: ubuntu:22.04
     container_name: cuda-image-processor
@@ -45,10 +17,6 @@ services:
     working_dir: /app
     
     command: ["/app/server", "-config=/app/config/config.yaml"]
-    
-    depends_on:
-      flipt:
-        condition: service_healthy
     
     networks:
       - dev-network
@@ -126,9 +94,6 @@ services:
       - ./src/front-end/tsconfig.json:/workspace/src/front-end/tsconfig.json:ro
       - ./.ignore/front-end:/workspace/.ignore/front-end
       - ./data:/workspace/data:ro
-    
-    depends_on:
-      - flipt
     
     profiles:
       - testing

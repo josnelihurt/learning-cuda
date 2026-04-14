@@ -151,48 +151,199 @@ export class GetStreamConfigResponse extends Message<GetStreamConfigResponse> {
 }
 
 /**
- * Feature flags synchronization
- *
- * @generated from message cuda_learning.SyncFeatureFlagsRequest
+ * @generated from message cuda_learning.ManagedFeatureFlag
  */
-export class SyncFeatureFlagsRequest extends Message<SyncFeatureFlagsRequest> {
+export class ManagedFeatureFlag extends Message<ManagedFeatureFlag> {
   /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 1 [json_name = "trace_context"];
+   * @generated from field: string key = 1;
    */
-  traceContext?: TraceContext;
+  key = "";
 
-  constructor(data?: PartialMessage<SyncFeatureFlagsRequest>) {
+  /**
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  /**
+   * @generated from field: string type = 5;
+   */
+  type = "";
+
+  /**
+   * @generated from field: bool enabled = 7;
+   */
+  enabled = false;
+
+  /**
+   * @generated from field: string default_value = 9 [json_name = "default_value"];
+   */
+  defaultValue = "";
+
+  /**
+   * @generated from field: string description = 11;
+   */
+  description = "";
+
+  constructor(data?: PartialMessage<ManagedFeatureFlag>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.SyncFeatureFlagsRequest";
+  static readonly typeName = "cuda_learning.ManagedFeatureFlag";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 1, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "default_value", jsonName: "default_value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SyncFeatureFlagsRequest {
-    return new SyncFeatureFlagsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ManagedFeatureFlag {
+    return new ManagedFeatureFlag().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SyncFeatureFlagsRequest {
-    return new SyncFeatureFlagsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ManagedFeatureFlag {
+    return new ManagedFeatureFlag().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SyncFeatureFlagsRequest {
-    return new SyncFeatureFlagsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ManagedFeatureFlag {
+    return new ManagedFeatureFlag().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SyncFeatureFlagsRequest | PlainMessage<SyncFeatureFlagsRequest> | undefined, b: SyncFeatureFlagsRequest | PlainMessage<SyncFeatureFlagsRequest> | undefined): boolean {
-    return proto3.util.equals(SyncFeatureFlagsRequest, a, b);
+  static equals(a: ManagedFeatureFlag | PlainMessage<ManagedFeatureFlag> | undefined, b: ManagedFeatureFlag | PlainMessage<ManagedFeatureFlag> | undefined): boolean {
+    return proto3.util.equals(ManagedFeatureFlag, a, b);
   }
 }
 
 /**
- * @generated from message cuda_learning.SyncFeatureFlagsResponse
+ * @generated from message cuda_learning.ListFeatureFlagsRequest
  */
-export class SyncFeatureFlagsResponse extends Message<SyncFeatureFlagsResponse> {
+export class ListFeatureFlagsRequest extends Message<ListFeatureFlagsRequest> {
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 1 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ListFeatureFlagsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListFeatureFlagsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFeatureFlagsRequest {
+    return new ListFeatureFlagsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFeatureFlagsRequest {
+    return new ListFeatureFlagsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFeatureFlagsRequest {
+    return new ListFeatureFlagsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFeatureFlagsRequest | PlainMessage<ListFeatureFlagsRequest> | undefined, b: ListFeatureFlagsRequest | PlainMessage<ListFeatureFlagsRequest> | undefined): boolean {
+    return proto3.util.equals(ListFeatureFlagsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListFeatureFlagsResponse
+ */
+export class ListFeatureFlagsResponse extends Message<ListFeatureFlagsResponse> {
+  /**
+   * @generated from field: repeated cuda_learning.ManagedFeatureFlag flags = 1;
+   */
+  flags: ManagedFeatureFlag[] = [];
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<ListFeatureFlagsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListFeatureFlagsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flags", kind: "message", T: ManagedFeatureFlag, repeated: true },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFeatureFlagsResponse {
+    return new ListFeatureFlagsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListFeatureFlagsResponse {
+    return new ListFeatureFlagsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListFeatureFlagsResponse {
+    return new ListFeatureFlagsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListFeatureFlagsResponse | PlainMessage<ListFeatureFlagsResponse> | undefined, b: ListFeatureFlagsResponse | PlainMessage<ListFeatureFlagsResponse> | undefined): boolean {
+    return proto3.util.equals(ListFeatureFlagsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.UpsertFeatureFlagRequest
+ */
+export class UpsertFeatureFlagRequest extends Message<UpsertFeatureFlagRequest> {
+  /**
+   * @generated from field: cuda_learning.ManagedFeatureFlag flag = 1;
+   */
+  flag?: ManagedFeatureFlag;
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<UpsertFeatureFlagRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.UpsertFeatureFlagRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "message", T: ManagedFeatureFlag },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpsertFeatureFlagRequest {
+    return new UpsertFeatureFlagRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpsertFeatureFlagRequest {
+    return new UpsertFeatureFlagRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpsertFeatureFlagRequest {
+    return new UpsertFeatureFlagRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpsertFeatureFlagRequest | PlainMessage<UpsertFeatureFlagRequest> | undefined, b: UpsertFeatureFlagRequest | PlainMessage<UpsertFeatureFlagRequest> | undefined): boolean {
+    return proto3.util.equals(UpsertFeatureFlagRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.UpsertFeatureFlagResponse
+ */
+export class UpsertFeatureFlagResponse extends Message<UpsertFeatureFlagResponse> {
   /**
    * @generated from field: string message = 1;
    */
@@ -203,32 +354,32 @@ export class SyncFeatureFlagsResponse extends Message<SyncFeatureFlagsResponse> 
    */
   traceContext?: TraceContext;
 
-  constructor(data?: PartialMessage<SyncFeatureFlagsResponse>) {
+  constructor(data?: PartialMessage<UpsertFeatureFlagResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.SyncFeatureFlagsResponse";
+  static readonly typeName = "cuda_learning.UpsertFeatureFlagResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SyncFeatureFlagsResponse {
-    return new SyncFeatureFlagsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpsertFeatureFlagResponse {
+    return new UpsertFeatureFlagResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SyncFeatureFlagsResponse {
-    return new SyncFeatureFlagsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpsertFeatureFlagResponse {
+    return new UpsertFeatureFlagResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SyncFeatureFlagsResponse {
-    return new SyncFeatureFlagsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpsertFeatureFlagResponse {
+    return new UpsertFeatureFlagResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SyncFeatureFlagsResponse | PlainMessage<SyncFeatureFlagsResponse> | undefined, b: SyncFeatureFlagsResponse | PlainMessage<SyncFeatureFlagsResponse> | undefined): boolean {
-    return proto3.util.equals(SyncFeatureFlagsResponse, a, b);
+  static equals(a: UpsertFeatureFlagResponse | PlainMessage<UpsertFeatureFlagResponse> | undefined, b: UpsertFeatureFlagResponse | PlainMessage<UpsertFeatureFlagResponse> | undefined): boolean {
+    return proto3.util.equals(UpsertFeatureFlagResponse, a, b);
   }
 }
 

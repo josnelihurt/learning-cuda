@@ -127,7 +127,6 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': backendHTTP,
         '/data': backendHTTP,
-        '/flipt': backendHTTP,
         '/cuda_learning': backendHTTP,
         '/com.jrb': backendHTTP,
         '/ws': backendWS,
@@ -163,7 +162,6 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': backendHTTP,
         '/data': backendHTTP,
-        '/flipt': backendHTTP,
         '/cuda_learning': backendHTTP,
         '/com.jrb': backendHTTP,
         '/ws': backendWS,

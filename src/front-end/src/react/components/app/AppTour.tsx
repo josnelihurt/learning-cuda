@@ -45,7 +45,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'feature-flags',
     selector: '[data-testid="feature-flags-button"], feature-flags-button',
     title: 'Feature Flags',
-    description: 'Manage feature toggles for experiments. Connect to Flipt to enable or disable flags.',
+    description: 'Manage feature toggles for experiments. Enable or disable flags from the built-in panel.',
   },
   {
     id: 'version-info',

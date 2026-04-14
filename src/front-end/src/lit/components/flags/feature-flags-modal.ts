@@ -1,11 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { createPromiseClient, PromiseClient, Interceptor, ConnectError } from '@connectrpc/connect';
+import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '../../../gen/config_service_connect';
 import { telemetryService } from '../../../infrastructure/observability/telemetry-service';
-import { logger } from '../../../infrastructure/observability/otel-logger';
-import { toolsService } from '../../../infrastructure/external/tools-service';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();
@@ -18,7 +16,9 @@ const tracingInterceptor: Interceptor = (next) => async (req) => {
 @customElement('feature-flags-modal')
 export class FeatureFlagsModal extends LitElement {
   @state() private isOpen = false;
-  @state() private syncing = false;
+  @state() private loading = false;
+  @state() private savingKey: string | null = null;
+  @state() private flags: ManagedFlag[] = [];
   private client: PromiseClient<typeof ConfigService>;
 
   constructor() {
@@ -112,39 +112,6 @@ export class FeatureFlagsModal extends LitElement {
       gap: 8px;
     }
 
-    .sync-btn {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 13px;
-      font-weight: 400;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .sync-btn:hover:not(:disabled) {
-      background: rgba(0, 217, 255, 0.15);
-      border-color: rgba(0, 217, 255, 0.4);
-      color: #00d9ff;
-      transform: scale(1.01);
-    }
-
-    .sync-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .sync-btn.syncing {
-      background: rgba(0, 217, 255, 0.2);
-      border-color: rgba(0, 217, 255, 0.5);
-      color: #00d9ff;
-    }
-
     .close-btn {
       background: none;
       border: none;
@@ -169,34 +136,20 @@ export class FeatureFlagsModal extends LitElement {
 
     .modal-content {
       flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      overflow: auto;
+      padding: 16px;
+      background: #161821;
     }
 
-    .iframe-container {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-      border-radius: 0 0 8px 8px;
-    }
-
-    .iframe-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 1;
-      pointer-events: none;
-    }
-
-    .iframe {
+    .table {
       width: 100%;
-      height: 100%;
-      border: none;
-      background: white;
-      pointer-events: auto;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .cell {
+      padding: 8px;
+      text-align: left;
     }
   `;
 
@@ -226,13 +179,9 @@ export class FeatureFlagsModal extends LitElement {
   };
 
   async open() {
-    // Ensure tools service is initialized to get Flipt URL
-    if (!toolsService.isInitialized()) {
-      await toolsService.initialize();
-    }
-    
     this.isOpen = true;
     this.setAttribute('open', '');
+    await this.loadFlags();
     requestAnimationFrame(() => {
       const backdrop = this.shadowRoot?.querySelector('.backdrop');
       const modal = this.shadowRoot?.querySelector('.modal');
@@ -253,91 +202,60 @@ export class FeatureFlagsModal extends LitElement {
     }, 300);
   }
 
-  private async handleSync() {
-    if (this.syncing) return;
-
-    this.syncing = true;
-    this.requestUpdate();
-
+  private async loadFlags(): Promise<void> {
+    this.loading = true;
     try {
-      await telemetryService.withSpanAsync(
-        'flipt.sync_flags',
-        {
-          'flipt.operation': 'sync',
-          'rpc.service': 'ConfigService',
-          'rpc.method': 'SyncFeatureFlags',
-        },
-        async (span) => {
-          const startTime = performance.now();
-
-          try {
-            span.addEvent('Calling syncFeatureFlags RPC');
-
-            const response = await this.client.syncFeatureFlags({});
-
-            const endTime = performance.now();
-            const duration = endTime - startTime;
-
-            span.setAttribute('rpc.response_time_ms', duration);
-            span.setAttribute('flipt.sync_success', true);
-            span.setAttribute('flipt.message', response.message);
-
-            this.showToast('success', response.message);
-            logger.info('Flags synced successfully', {
-              message: response.message,
-            });
-
-            span.addEvent('Sync completed successfully');
-          } catch (error) {
-            span.setAttribute('error', true);
-
-            if (error instanceof ConnectError) {
-              span.setAttribute('error.code', error.code);
-              span.setAttribute('error.message', error.message);
-              span.recordException(error);
-
-              logger.error('Failed to sync flags ConnectError', {
-                'error.code': String(error.code),
-                'error.message': error.message,
-                'error.details': error.rawMessage,
-              });
-
-              this.showToast('error', `Sync failed: ${error.message}`);
-            } else {
-              const errorMsg = error instanceof Error ? error.message : String(error);
-              span.setAttribute('error.message', errorMsg);
-              span.recordException(error as Error);
-
-              logger.error('Failed to sync flags', {
-                'error.message': error instanceof Error ? error.message : String(error),
-              });
-              this.showToast('error', 'Failed to connect to server');
-            }
-
-            throw error;
-          }
-        }
-      );
+      const response = await this.client.listFeatureFlags({});
+      this.flags = response.flags.map((flag) => ({
+        key: flag.key,
+        name: flag.name,
+        type: flag.type,
+        enabled: flag.enabled,
+        defaultValue: flag.defaultValue,
+        description: flag.description,
+      }));
+    } catch (error) {
+      console.error('Feature flags load failed', error);
     } finally {
-      this.syncing = false;
-      this.requestUpdate();
+      this.loading = false;
     }
   }
 
-  private showToast(type: 'success' | 'error', message: string): void {
-    const toastContainer = document.querySelector('toast-container');
-    if (toastContainer) {
-      if (type === 'success' && 'success' in toastContainer) {
-        (toastContainer as any).success('Feature Flags', message);
-      } else if (type === 'error' && 'error' in toastContainer) {
-        (toastContainer as any).error('Sync Error', message);
+  private updateFlagField(
+    key: string,
+    field: 'enabled' | 'defaultValue',
+    value: boolean | string
+  ): void {
+    this.flags = this.flags.map((item) => {
+      if (item.key !== key) {
+        return item;
       }
-    }
+      if (field === 'enabled') {
+        return { ...item, enabled: Boolean(value) };
+      }
+      return { ...item, defaultValue: String(value) };
+    });
   }
 
-  private getFliptUrl(): string {
-    // Use the proxy route to bypass CSP restrictions
-    return `${window.location.origin}/flipt/#/namespaces/default/flags`;
+  private async saveFlag(flag: ManagedFlag): Promise<void> {
+    this.savingKey = flag.key;
+    try {
+      await this.client.upsertFeatureFlag({
+        flag: {
+          key: flag.key,
+          name: flag.name,
+          type: flag.type,
+          enabled: flag.enabled,
+          defaultValue: flag.defaultValue,
+          description: flag.description,
+        },
+      });
+      await this.loadFlags();
+    } catch (error) {
+      console.error('Feature flag update failed', error);
+    } finally {
+      this.savingKey = null;
+    }
   }
 
   render() {
@@ -347,34 +265,78 @@ export class FeatureFlagsModal extends LitElement {
         <div class="modal-header">
           <h2 class="modal-title">Feature Flags</h2>
           <div class="header-actions">
-            <button
-              class="sync-btn ${this.syncing ? 'syncing' : ''}"
-              @click=${this.handleSync}
-              ?disabled=${this.syncing}
-              title="Sync feature flags to Flipt"
-            >
-              <span>${this.syncing ? 'Syncing...' : 'Sync'}</span>
-            </button>
             <button class="close-btn" @click=${this.close} title="Close">×</button>
           </div>
         </div>
         <div class="modal-content">
-          <div class="iframe-container">
-            <div class="iframe-overlay" @click=${this.handleBackdropClick}></div>
-            <iframe
-              class="iframe"
-              src=${this.getFliptUrl()}
-              title="Flipt Feature Flags"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"
-              allow="fullscreen"
-              referrerpolicy="no-referrer-when-downgrade"
-            ></iframe>
-          </div>
+          ${this.loading
+            ? html`<div>Loading flags...</div>`
+            : html`<table class="table">
+                <thead>
+                  <tr>
+                    <th class="cell">Key</th>
+                    <th class="cell">Type</th>
+                    <th class="cell">Enabled</th>
+                    <th class="cell">Default</th>
+                    <th class="cell">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.flags.map(
+                    (flag) => html`<tr>
+                      <td class="cell">${flag.key}</td>
+                      <td class="cell">${flag.type}</td>
+                      <td class="cell">
+                        <input
+                          type="checkbox"
+                          .checked=${flag.enabled}
+                          @change=${(event: Event) =>
+                            this.updateFlagField(
+                              flag.key,
+                              'enabled',
+                              (event.target as HTMLInputElement).checked
+                            )}
+                        />
+                      </td>
+                      <td class="cell">
+                        <input
+                          .value=${flag.defaultValue}
+                          @input=${(event: Event) =>
+                            this.updateFlagField(
+                              flag.key,
+                              'defaultValue',
+                              (event.target as HTMLInputElement).value
+                            )}
+                        />
+                      </td>
+                      <td class="cell">
+                        <button
+                          type="button"
+                          class="close-btn"
+                          ?disabled=${this.savingKey === flag.key}
+                          @click=${() => this.saveFlag(flag)}
+                        >
+                          ${this.savingKey === flag.key ? 'Saving...' : 'Save'}
+                        </button>
+                      </td>
+                    </tr>`
+                  )}
+                </tbody>
+              </table>`}
         </div>
       </div>
     `;
   }
 }
+
+type ManagedFlag = {
+  key: string;
+  name: string;
+  type: string;
+  enabled: boolean;
+  defaultValue: string;
+  description: string;
+};
 
 declare global {
   interface HTMLElementTagNameMap {

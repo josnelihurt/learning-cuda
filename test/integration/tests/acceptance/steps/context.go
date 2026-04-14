@@ -2,8 +2,6 @@ package steps
 
 type TestContext struct {
 	*BDDContext
-	fliptURL   string
-	namespace  string
 	serviceURL string
 }
 
@@ -15,12 +13,8 @@ func (tc *TestContext) Reset() {
 	if tc.BDDContext != nil {
 		tc.BDDContext.CloseWebSocket()
 	}
-	if tc.fliptURL != "" && tc.serviceURL != "" {
-		tc.BDDContext = NewBDDContext(
-			tc.fliptURL,
-			tc.namespace,
-			tc.serviceURL,
-		)
+	if tc.serviceURL != "" {
+		tc.BDDContext = NewBDDContext(tc.serviceURL)
 	}
 }
 

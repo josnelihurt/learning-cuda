@@ -183,19 +183,6 @@ export function NavbarControls({ onOpenFeatureFlags }: NavbarControlsProps) {
                   setIsToolsOpen(false);
                   if (tool.type === 'url' && tool.url) {
                     window.open(tool.url, '_blank', 'noopener,noreferrer');
-                    return;
-                  }
-                  if (tool.type === 'action' && tool.action === 'sync_flags') {
-                    void (async () => {
-                      try {
-                        const client = createPromiseClient(ConfigService, transport);
-                        const response = await client.syncFeatureFlags({});
-                        toast.success('Feature Flags', response.message);
-                      } catch (error) {
-                        const message = error instanceof Error ? error.message : String(error);
-                        toast.error('Sync Error', message);
-                      }
-                    })();
                   }
                 }}
               >
@@ -216,10 +203,6 @@ export function NavbarControls({ onOpenFeatureFlags }: NavbarControlsProps) {
         data-testid="feature-flags-button"
       >
         Feature Flags
-      </button>
-
-      <button type="button" className={`${styles.featureFlagsBtn} ${styles.hiddenSync}`}>
-        Sync Flags
       </button>
     </>
   );

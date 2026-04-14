@@ -20,7 +20,6 @@
 # Access:
 #   https://app.localhost      - Main application
 #   https://grafana.localhost  - Grafana
-#   https://flipt.localhost    - Flipt
 #   https://jaeger.localhost   - Jaeger
 #   https://reports.localhost  - Test Reports
 #
@@ -160,7 +159,6 @@ echo "================================================"
 echo "Local Development URLs (.localhost):"
 echo "  App:     https://app.localhost"
 echo "  Grafana: https://grafana.localhost"
-echo "  Flipt:   https://flipt.localhost"
 echo "  Jaeger:  https://jaeger.localhost"
 echo "  Reports: https://reports.localhost"
 echo "================================================"

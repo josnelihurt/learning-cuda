@@ -18,7 +18,6 @@
             <div class="navbar-services">
                 <tools-dropdown></tools-dropdown>
                 <feature-flags-button></feature-flags-button>
-                <sync-flags-button style="display: none;"></sync-flags-button>
             </div>
             <div class="navbar-credit">
                 <span id="credit-by" style="cursor: pointer;" title="Click to clear localStorage">by</span> <a href="https://josnelihurt.me" target="_blank">josnelihurt</a>
@@ -59,9 +58,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const hostname = window.location.hostname;
             const jaegerBtn = document.getElementById('jaegerBtn');
-            const fliptBtn = document.getElementById('fliptBtn');
             if (jaegerBtn) jaegerBtn.href = `http://${hostname}:16686`;
-            if (fliptBtn) fliptBtn.href = `http://${hostname}:8081`;
 
             const creditBy = document.getElementById('credit-by');
             if (creditBy) {

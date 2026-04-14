@@ -59,18 +59,6 @@
       loop: "{{ docker_up.stderr_lines }}"
       when: docker_up.stderr_lines is defined
 
-    - name: Check flipt container logs if it failed
-      shell: cd {{ app_directory }} && docker compose logs flipt
-      register: flipt_logs
-      ignore_errors: yes
-      when: docker_up.rc != 0
-
-    - name: Display flipt logs
-      debug:
-        msg: "{{ item }}"
-      loop: "{{ flipt_logs.stdout_lines }}"
-      when: flipt_logs is defined and flipt_logs.stdout_lines is defined
-
     - name: Fail if docker compose failed
       fail:
         msg: "Docker compose failed to start services"

@@ -49,7 +49,7 @@ func TestGetStreamConfigUseCase_Execute(t *testing.T) {
 		{
 			name:           "Success_DefaultTransportFormat",
 			defaultConfig:  makeDefaultStreamConfig(),
-			mockEvaluation: makeVariantEvaluation("json", true),
+			mockEvaluation: makeStringEvaluation("json", true),
 			mockError:      nil,
 			assertResult: func(t *testing.T, result *config.StreamConfig, err error) {
 				assert.NoError(t, err)
@@ -64,7 +64,7 @@ func TestGetStreamConfigUseCase_Execute(t *testing.T) {
 				TransportFormat:   "json",
 				WebsocketEndpoint: "/custom",
 			},
-			mockEvaluation: makeVariantEvaluation("msgpack", true),
+			mockEvaluation: makeStringEvaluation("msgpack", true),
 			mockError:      nil,
 			assertResult: func(t *testing.T, result *config.StreamConfig, err error) {
 				assert.NoError(t, err)
@@ -88,7 +88,7 @@ func TestGetStreamConfigUseCase_Execute(t *testing.T) {
 		{
 			name:           "Success_FallbackOnFeatureFlagNotConfigured",
 			defaultConfig:  makeDefaultStreamConfig(),
-			mockEvaluation: makeVariantEvaluation("", false), // Feature flag not configured
+			mockEvaluation: makeStringEvaluation("", false), // Feature flag not configured
 			mockError:      nil,
 			assertResult: func(t *testing.T, result *config.StreamConfig, err error) {
 				assert.NoError(t, err)
@@ -103,7 +103,7 @@ func TestGetStreamConfigUseCase_Execute(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
 			mockRepo := new(mockFeatureFlagRepository)
-			mockRepo.On("EvaluateVariant",
+			mockRepo.On("EvaluateString",
 				mock.Anything,
 				"ws_transport_format",
 				"default",

@@ -29,7 +29,7 @@ type App struct {
 	processorCapsUC       application.ProcessorCapabilitiesUseCase
 	getStreamConfigUC     *application.GetStreamConfigUseCase
 	getSystemInfoUC       *application.GetSystemInfoUseCase
-	syncFlagsUC           *application.SyncFeatureFlagsUseCase
+	featureFlagRepo       domain.FeatureFlagRepository
 	listInputsUC          *application.ListInputsUseCase
 	evaluateFFUC          *application.EvaluateFeatureFlagUseCase
 	listAvailableImagesUC *application.ListAvailableImagesUseCase
@@ -97,9 +97,9 @@ func WithGetSystemInfoUseCase(uc *application.GetSystemInfoUseCase) Option {
 	}
 }
 
-func WithSyncFlagsUseCase(uc *application.SyncFeatureFlagsUseCase) Option {
+func WithFeatureFlagRepository(repo domain.FeatureFlagRepository) Option {
 	return func(a *App) {
-		a.syncFlagsUC = uc
+		a.featureFlagRepo = repo
 	}
 }
 
@@ -202,7 +202,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		mux,
 		connectrpc.ConfigHandlerDeps{
 			GetStreamConfigUC: a.getStreamConfigUC,
-			SyncFlagsUC:       a.syncFlagsUC,
+			FeatureFlagRepo:   a.featureFlagRepo,
 			ListInputsUC:      a.listInputsUC,
 			EvaluateFFUC:      a.evaluateFFUC,
 			GetSystemInfoUC:   a.getSystemInfoUC,
@@ -234,7 +234,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
 		ImageProcessorHandler: rpcHandler,
 		GetStreamConfigUC:     a.getStreamConfigUC,
-		SyncFlagsUC:           a.syncFlagsUC,
+		FeatureFlagRepo:       a.featureFlagRepo,
 		ListInputsUC:          a.listInputsUC,
 		EvaluateFFUC:          a.evaluateFFUC,
 		GetSystemInfoUC:       a.getSystemInfoUC,
@@ -267,7 +267,6 @@ func (a *App) setupStaticHandler(mux *http.ServeMux) {
 		StreamConfig:  a.config.Stream,
 		UseCase:       a.useCase,
 		VideoRepo:     a.videoRepository,
-		FliptURL:      a.config.Flipt.URL,
 		EvaluateFFUC:  a.evaluateFFUC,
 		GRPCProcessor: a.grpcProcessor,
 	})

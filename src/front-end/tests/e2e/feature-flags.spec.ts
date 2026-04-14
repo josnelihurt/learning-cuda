@@ -38,26 +38,16 @@ test.describe('Feature Flags Modal', () => {
     await expect(modalTitle).toContainText('Feature Flags');
   });
 
-  test('should display iframe with Flipt UI', async ({ page }) => {
+  test('should display feature flags table', async ({ page }) => {
     const featureFlagsButton = page.locator('feature-flags-button');
     const modal = page.locator('feature-flags-modal');
-    
-    // Open modal
+
     await featureFlagsButton.locator('button').click();
     await expect(modal).toBeVisible();
-    
-    // Check iframe is present
-    const iframe = modal.locator('iframe');
-    await expect(iframe).toBeVisible();
-    
-    // Check iframe attributes
-    await expect(iframe).toHaveAttribute('title', 'Flipt Feature Flags');
-    await expect(iframe).toHaveAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation');
-    await expect(iframe).toHaveAttribute('allow', 'fullscreen');
-    
-    // Check iframe src contains flipt path
-    const iframeSrc = await iframe.getAttribute('src');
-    expect(iframeSrc).toContain('/flipt/');
+
+    const table = modal.locator('.table');
+    await expect(table).toBeVisible();
+    await expect(modal.locator('th')).toContainText(['Key', 'Type', 'Enabled', 'Default', 'Actions']);
   });
 
   test('should close modal when clicking close button', async ({ page }) => {
@@ -93,44 +83,15 @@ test.describe('Feature Flags Modal', () => {
     await expect(modal).not.toBeVisible();
   });
 
-  test('should display sync button and handle sync action', async ({ page }) => {
+  test('should display save action for listed flags', async ({ page }) => {
     const featureFlagsButton = page.locator('feature-flags-button');
     const modal = page.locator('feature-flags-modal');
-    
-    // Open modal
-    await featureFlagsButton.locator('button').click();
-    await expect(modal).toBeVisible();
-    
-    // Check sync button is present
-    const syncButton = modal.locator('.sync-btn');
-    await expect(syncButton).toBeVisible();
-    await expect(syncButton).toContainText('Sync');
-    await expect(syncButton).toHaveAttribute('title', 'Sync feature flags to Flipt');
-    
-    // Check sync button is not disabled initially
-    await expect(syncButton).not.toBeDisabled();
-  });
 
-  test('should handle sync button click and show loading state', async ({ page }) => {
-    const featureFlagsButton = page.locator('feature-flags-button');
-    const modal = page.locator('feature-flags-modal');
-    
-    // Open modal
     await featureFlagsButton.locator('button').click();
     await expect(modal).toBeVisible();
-    
-    const syncButton = modal.locator('.sync-btn');
-    
-    // Click sync button
-    await syncButton.click();
-    
-    // Wait for sync to complete - the sync might be very fast
-    // We just verify it completes successfully
-    await expect(syncButton).not.toBeDisabled({ timeout: 10000 });
-    await expect(syncButton).toContainText('Sync');
-    
-    // Verify button is back to normal state
-    await expect(syncButton).not.toHaveClass(/syncing/);
+
+    const saveButton = modal.getByRole('button', { name: 'Save' }).first();
+    await expect(saveButton).toBeVisible();
   });
 
   test('should have proper modal styling and layout', async ({ page }) => {
@@ -156,20 +117,15 @@ test.describe('Feature Flags Modal', () => {
     const headerActions = header.locator('.header-actions');
     await expect(headerActions).toBeVisible();
     
-    const syncBtn = headerActions.locator('.sync-btn');
     const closeBtn = headerActions.locator('.close-btn');
-    await expect(syncBtn).toBeVisible();
     await expect(closeBtn).toBeVisible();
     
     // Check modal content
     const content = modalElement.locator('.modal-content');
     await expect(content).toBeVisible();
     
-    const iframeContainer = content.locator('.iframe-container');
-    await expect(iframeContainer).toBeVisible();
-    
-    const iframe = iframeContainer.locator('iframe');
-    await expect(iframe).toBeVisible();
+    const table = content.locator('.table');
+    await expect(table).toBeVisible();
   });
 
   test('should handle keyboard navigation (ESC key)', async ({ page }) => {
@@ -187,31 +143,19 @@ test.describe('Feature Flags Modal', () => {
     await expect(modal).not.toBeVisible();
   });
 
-  test('should maintain modal state during interactions', async ({ page }) => {
+  test('should keep modal open while editing values', async ({ page }) => {
     const featureFlagsButton = page.locator('feature-flags-button');
     const modal = page.locator('feature-flags-modal');
-    
-    // Open modal
+
     await featureFlagsButton.locator('button').click();
     await expect(modal).toBeVisible();
-    
-    // Interact with sync button
-    const syncButton = modal.locator('.sync-btn');
-    await syncButton.click();
-    
-    // Modal should still be visible during sync
+
+    const defaultInput = modal.locator('tbody input[type="text"], tbody input:not([type])').first();
+    if (await defaultInput.count()) {
+      await defaultInput.fill('true');
+    }
+
     await expect(modal).toBeVisible();
-    
-    // Wait for sync to complete
-    await expect(syncButton).not.toHaveClass(/syncing/, { timeout: 10000 });
-    
-    // Modal should still be visible after sync
-    await expect(modal).toBeVisible();
-    
-    // Close modal
-    const closeButton = modal.locator('.close-btn');
-    await closeButton.click();
-    await expect(modal).not.toBeVisible();
   });
 
   test('should handle multiple open/close cycles', async ({ page }) => {

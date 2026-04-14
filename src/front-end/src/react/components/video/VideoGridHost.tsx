@@ -1,25 +1,48 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
-import type { VideoGrid } from '@/components/video/video-grid';
+import type { StaticImage } from '@/gen/common_pb';
 import type { StatsPanel } from '@/components/app/stats-panel';
-import type { SourceDrawer } from '@/components/app/source-drawer';
-import type { ImageSelectorModal } from '@/components/image/image-selector-modal';
 import type { ToastContainer } from '@/components/app/toast-container';
 import type { ActiveFilterState } from '../filters/FilterPanel';
 import { useAppServices } from '../../providers/app-services-provider';
 import { useDashboardState } from '../../context/dashboard-state-context';
+import { WebSocketService } from '@/infrastructure/transport/websocket-frame-transport';
+import { FilterData } from '@/domain/value-objects';
+import { webrtcService } from '@/infrastructure/connection/webrtc-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
+import { ReactVideoGrid } from './ReactVideoGrid';
+import { ReactSourceDrawer } from './ReactSourceDrawer';
+import { ReactAddSourceFab } from './ReactAddSourceFab';
+import { ReactImageSelectorModal } from './ReactImageSelectorModal';
 
-type SourceSelectionDetail = {
-  sourceId: string;
-  sourceNumber: number;
-  sourceType?: string;
-  filters?: ActiveFilterState[];
-  resolution?: string;
+type GridSource = {
+  id: string;
+  number: number;
+  name: string;
+  type: string;
+  imagePath: string;
+  originalImageSrc: string;
+  currentImageSrc: string;
+  ws: WebSocketService | null;
+  filters: ActiveFilterState[];
+  resolution: string;
+  videoId?: string;
+  webrtcSessionId?: string;
+  lastCameraFrameTime: number;
 };
 
+const MAX_SOURCES = 9;
+
 export function VideoGridHost() {
-  const [grid, setGrid] = useState<VideoGrid | null>(null);
+  const [sources, setSources] = useState<GridSource[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
+  const [availableSources, setAvailableSources] = useState<InputSource[]>([]);
+  const [availableImages, setAvailableImages] = useState<StaticImage[]>([]);
+  const nextNumberRef = useRef(1);
   const pendingSourceNumberForImageChangeRef = useRef<number | null>(null);
+  const sourcesRef = useRef<GridSource[]>([]);
   const { container, ready } = useAppServices();
   const {
     activeFilters,
@@ -30,155 +53,399 @@ export function VideoGridHost() {
     setResolution,
   } = useDashboardState();
 
-  useLayoutEffect(() => {
-    if (!ready || !grid) {
+  useEffect(() => {
+    sourcesRef.current = sources;
+  }, [sources]);
+
+  const stats = useMemo(
+    () => document.querySelector('stats-panel') as StatsPanel | null,
+    []
+  );
+  const toast = useMemo(
+    () => document.querySelector('toast-container') as ToastContainer | null,
+    []
+  );
+
+  const mapFiltersToValueObjects = useCallback(
+    (filters: ActiveFilterState[]): FilterData[] =>
+      filters.map((filter) => new FilterData(filter.id, { ...filter.parameters })),
+    []
+  );
+
+  const updateSource = useCallback((sourceId: string, updater: (source: GridSource) => GridSource) => {
+    setSources((current) => current.map((source) => (source.id === sourceId ? updater(source) : source)));
+  }, []);
+
+  const emitSelectionState = useCallback(
+    (source: GridSource | null) => {
+      if (!source) {
+        return;
+      }
+      setSelectedSource(source.number, source.name);
+      setActiveFilters(source.filters.map((f) => ({ id: f.id, parameters: { ...f.parameters } })));
+      setResolution(source.resolution);
+    },
+    [setActiveFilters, setResolution, setSelectedSource]
+  );
+
+  const selectSourceById = useCallback(
+    (sourceId: string) => {
+      setSelectedSourceId(sourceId);
+      const source = sourcesRef.current.find((item) => item.id === sourceId) ?? null;
+      emitSelectionState(source);
+    },
+    [emitSelectionState]
+  );
+
+  const removeSourceById = useCallback((sourceId: string) => {
+    const source = sourcesRef.current.find((item) => item.id === sourceId);
+    if (!source) {
+      return;
+    }
+    if (source.webrtcSessionId) {
+      webrtcService.stopHeartbeat(source.webrtcSessionId);
+      void webrtcService.closeSession(source.webrtcSessionId).catch((error) => {
+        logger.error('Failed to close WebRTC session', {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+    source.ws?.disconnect();
+    setSources((current) => current.filter((item) => item.id !== sourceId));
+    setSelectedSourceId((currentSelected) => {
+      if (currentSelected !== sourceId) {
+        return currentSelected;
+      }
+      const remaining = sourcesRef.current.filter((item) => item.id !== sourceId);
+      const nextSource = remaining[0] ?? null;
+      if (nextSource) {
+        emitSelectionState(nextSource);
+        return nextSource.id;
+      }
+      return null;
+    });
+  }, [emitSelectionState]);
+
+  const addSource = useCallback(
+    (inputSource: InputSource) => {
+      if (sourcesRef.current.length >= MAX_SOURCES) {
+        toast?.warning('Maximum Sources', `Cannot add more than ${MAX_SOURCES} sources`);
+        return;
+      }
+      const number = nextNumberRef.current;
+      nextNumberRef.current += 1;
+
+      const uniqueId = `${inputSource.id}-${number}`;
+      const sourceImagePath =
+        inputSource.type === 'video' ? inputSource.previewImagePath || '' : inputSource.imagePath;
+      const cameraManager = {
+        setProcessing: () => undefined,
+        getLastFrameTime: () =>
+          sourcesRef.current.find((item) => item.id === uniqueId)?.lastCameraFrameTime ?? performance.now(),
+      };
+      const ws = stats && toast ? new WebSocketService(stats, cameraManager as never, toast) : null;
+      ws?.connect();
+      if (stats && ws && 'setWebSocketService' in stats) {
+        stats.setWebSocketService(ws);
+      }
+      if (ws) {
+        ws.onFrameResult((data) => {
+          const frameData = data.videoFrame ?? data.response;
+          if (!frameData) {
+            return;
+          }
+          const bytes = (frameData as { imageData?: Uint8Array; frameData?: Uint8Array }).imageData ??
+            (frameData as { imageData?: Uint8Array; frameData?: Uint8Array }).frameData;
+          if (!bytes) {
+            return;
+          }
+          let binary = '';
+          for (let index = 0; index < bytes.byteLength; index += 1) {
+            binary += String.fromCharCode(bytes[index]);
+          }
+          updateSource(uniqueId, (source) => ({
+            ...source,
+            currentImageSrc: `data:image/png;base64,${btoa(binary)}`,
+          }));
+        });
+      }
+
+      const source: GridSource = {
+        id: uniqueId,
+        number,
+        name: inputSource.displayName,
+        type: inputSource.type,
+        imagePath: sourceImagePath,
+        originalImageSrc: sourceImagePath,
+        currentImageSrc: sourceImagePath,
+        ws,
+        filters: [{ id: 'none', parameters: {} }],
+        resolution: 'original',
+        videoId: inputSource.type === 'video' ? inputSource.id : undefined,
+        lastCameraFrameTime: performance.now(),
+      };
+
+      setSources((current) => [...current, source]);
+      if (sourcesRef.current.length === 0) {
+        setSelectedSourceId(uniqueId);
+        emitSelectionState(source);
+      }
+
+      if (inputSource.type === 'video') {
+        const tryStartVideo = () => {
+          if (ws?.isConnected()) {
+            ws.sendStartVideo(inputSource.id, mapFiltersToValueObjects(source.filters), 'gpu');
+            return;
+          }
+          setTimeout(tryStartVideo, 100);
+        };
+        setTimeout(tryStartVideo, 100);
+      }
+
+      void webrtcService.createSession(uniqueId).then((session) => {
+        updateSource(uniqueId, (current) => ({ ...current, webrtcSessionId: session.getId() }));
+      }).catch((error) => {
+        logger.error('Failed to create WebRTC session', {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      });
+    },
+    [emitSelectionState, mapFiltersToValueObjects, stats, toast, updateSource]
+  );
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+    const input = container.getInputSourceService();
+    const defaultSource = input.getDefaultSource();
+    if (defaultSource && sourcesRef.current.length === 0) {
+      addSource(defaultSource);
+    }
+  }, [addSource, container, ready]);
+
+  useEffect(() => {
+    if (!ready) {
       return;
     }
     const stats = document.querySelector('stats-panel') as StatsPanel | null;
     const toast = document.querySelector('toast-container') as ToastContainer | null;
-    if (stats && toast) {
-      grid.setManagers(stats, toast);
+    if (!stats || !toast) {
+      logger.error('Stats or toast managers unavailable');
     }
-  }, [grid, ready]);
+  }, [ready]);
 
-  useEffect(() => {
-    if (!ready || !grid) {
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      await customElements.whenDefined('video-grid');
-      if (cancelled) {
-        return;
-      }
-      const input = container.getInputSourceService();
-      const defaultSource = input.getDefaultSource();
-      if (defaultSource && grid.getSources().length === 0) {
-        grid.addSource(defaultSource);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [container, grid, ready]);
-
-  useEffect(() => {
-    if (!grid || !ready) {
-      return;
-    }
-    const onSelection = ((e: Event) => {
-      const ce = e as CustomEvent<SourceSelectionDetail>;
-      const id = ce.detail?.sourceId;
-      const num = ce.detail?.sourceNumber;
-      const src = grid.getSources().find((s) => s.id === id);
-      setSelectedSource(num, src?.name ?? '');
-      if (ce.detail?.filters !== undefined) {
-        setActiveFilters(
-          ce.detail.filters.map((f) => ({
-            id: f.id,
-            parameters: { ...f.parameters },
-          }))
-        );
-      }
-      if (ce.detail?.resolution !== undefined) {
-        setResolution(ce.detail.resolution);
-      }
-    }) as EventListener;
-    grid.addEventListener('source-selection-changed', onSelection);
-    return () => grid.removeEventListener('source-selection-changed', onSelection);
-  }, [grid, ready, setSelectedSource, setActiveFilters, setResolution]);
-
-  useEffect(() => {
-    if (!grid || !ready) {
-      return;
-    }
-    const fab = document.querySelector('add-source-fab');
-    const drawer = document.querySelector('source-drawer') as SourceDrawer | null;
+  const openDrawer = useCallback(() => {
     const inputSourceService = container.getInputSourceService();
+    setAvailableSources(inputSourceService.getSources());
+    setIsDrawerOpen(true);
+  }, [container]);
 
-    const onOpenDrawer = (): void => {
-      if (drawer && inputSourceService) {
-        const sources = inputSourceService.getSources();
-        const selectedIds = grid.getSelectedSourceIds();
-        drawer.open(sources, selectedIds);
-      }
-    };
+  const onSelectSourceFromDrawer = useCallback(
+    (source: InputSource) => {
+      addSource(source);
+      setIsDrawerOpen(false);
+    },
+    [addSource]
+  );
 
-    const onSourceSelected = (e: Event): void => {
-      const ce = e as CustomEvent<{ source: InputSource }>;
-      if (ce.detail?.source) {
-        grid.addSource(ce.detail.source);
-      }
-    };
-
-    fab?.addEventListener('open-drawer', onOpenDrawer);
-    drawer?.addEventListener('source-selected', onSourceSelected as EventListener);
-
-    return () => {
-      fab?.removeEventListener('open-drawer', onOpenDrawer);
-      drawer?.removeEventListener('source-selected', onSourceSelected as EventListener);
-    };
-  }, [grid, ready, container]);
+  const onSelectImage = useCallback((image: StaticImage) => {
+    const imagePath = image.path;
+    const sourceNumber = pendingSourceNumberForImageChangeRef.current;
+    if (sourceNumber !== null) {
+      setSources((current) =>
+        current.map((source) =>
+          source.number === sourceNumber
+            ? {
+                ...source,
+                imagePath,
+                originalImageSrc: imagePath,
+                currentImageSrc: imagePath,
+              }
+            : source
+        )
+      );
+    }
+    pendingSourceNumberForImageChangeRef.current = null;
+    setIsImageSelectorOpen(false);
+  }, []);
 
   useEffect(() => {
-    if (!grid || !ready) {
+    if (!ready || !selectedSourceId) {
       return;
     }
-    const modal = document.querySelector('image-selector-modal') as ImageSelectorModal | null;
-    const inputSourceService = container.getInputSourceService();
-    const logger = container.getLogger();
+    const selectedSource = sourcesRef.current.find((source) => source.id === selectedSourceId);
+    if (!selectedSource) {
+      return;
+    }
+    const normalizedFilters =
+      activeFilters.length > 0 ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } })) : [{ id: 'none', parameters: {} }];
 
-    const onChangeImageRequested = (e: Event): void => {
-      const ce = e as CustomEvent<{ sourceId?: string; sourceNumber?: number }>;
-      pendingSourceNumberForImageChangeRef.current = ce.detail?.sourceNumber ?? null;
-      if (!modal || !inputSourceService || pendingSourceNumberForImageChangeRef.current === null) {
-        return;
-      }
-      void (async () => {
-        try {
-          const images = await inputSourceService.listAvailableImages();
-          modal.open(images);
-        } catch (error) {
-          logger.error('Failed to load images for image selector', {
-            'error.message': error instanceof Error ? error.message : String(error),
-          });
-          pendingSourceNumberForImageChangeRef.current = null;
+    updateSource(selectedSource.id, (source) => ({
+      ...source,
+      filters: normalizedFilters,
+      resolution: selectedResolution,
+    }));
+
+    if (!selectedSource.ws || !selectedSource.ws.isConnected()) {
+      logger.error('WebSocket not connected for selected source', {
+        'source.id': selectedSource.id,
+      });
+      return;
+    }
+    if (selectedSource.type === 'video') {
+      const videoId = selectedSource.videoId || selectedSource.name;
+      selectedSource.ws.sendStopVideo(videoId);
+      setTimeout(() => {
+        if (selectedSource.ws?.isConnected()) {
+          selectedSource.ws.sendStartVideo(videoId, mapFiltersToValueObjects(normalizedFilters), selectedAccelerator);
         }
-      })();
-    };
-
-    const onImageSelected = (e: Event): void => {
-      const ce = e as CustomEvent<{ image: { path: string } }>;
-      const imagePath = ce.detail?.image?.path;
-      const n = pendingSourceNumberForImageChangeRef.current;
-      if (imagePath !== undefined && n !== null) {
-        grid.changeSourceImage(n, imagePath);
-        pendingSourceNumberForImageChangeRef.current = null;
-      }
-    };
-
-    grid.addEventListener('change-image-requested', onChangeImageRequested);
-    modal?.addEventListener('image-selected', onImageSelected as EventListener);
-
-    return () => {
-      grid.removeEventListener('change-image-requested', onChangeImageRequested);
-      modal?.removeEventListener('image-selected', onImageSelected as EventListener);
-    };
-  }, [grid, ready, container]);
-
-  useEffect(() => {
-    if (!grid || !ready) {
+      }, 200);
       return;
     }
-    void grid.applyFilterToSelected(activeFilters, selectedAccelerator, selectedResolution);
-  }, [grid, activeFilters, selectedAccelerator, selectedResolution, ready]);
+    if (selectedSource.type === 'camera') {
+      return;
+    }
+
+    const applyForStatic = async () => {
+      try {
+        const originalImg = new Image();
+        originalImg.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          originalImg.onload = () => resolve();
+          originalImg.onerror = () => reject(new Error('Failed to load original image'));
+          originalImg.src = selectedSource.originalImageSrc;
+        });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return;
+        }
+        const originalWidth = originalImg.naturalWidth || originalImg.width || 512;
+        const originalHeight = originalImg.naturalHeight || originalImg.height || 512;
+        const factor = selectedResolution === 'half' ? 2 : selectedResolution === 'quarter' ? 4 : 1;
+        const targetWidth = Math.floor(originalWidth / factor);
+        const targetHeight = Math.floor(originalHeight / factor);
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        ctx.drawImage(originalImg, 0, 0, targetWidth, targetHeight);
+        const imageData = canvas.toDataURL('image/png');
+        const response = await selectedSource.ws!.sendSingleFrame(
+          imageData,
+          targetWidth,
+          targetHeight,
+          mapFiltersToValueObjects(normalizedFilters),
+          selectedAccelerator
+        );
+        if (response.success && response.response) {
+          let binary = '';
+          const bytes = response.response.imageData;
+          for (let index = 0; index < bytes.byteLength; index += 1) {
+            binary += String.fromCharCode(bytes[index]);
+          }
+          updateSource(selectedSource.id, (source) => ({
+            ...source,
+            currentImageSrc: `data:image/png;base64,${btoa(binary)}`,
+          }));
+        }
+      } catch (error) {
+        logger.error('Error applying static image filter', {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
+    void applyForStatic();
+  }, [
+    activeFilters,
+    mapFiltersToValueObjects,
+    ready,
+    selectedAccelerator,
+    selectedResolution,
+    selectedSourceId,
+    updateSource,
+  ]);
+
+  useEffect(() => {
+    const stopAllSources = () => {
+      sourcesRef.current.forEach((source) => {
+        source.ws?.disconnect();
+        if (source.webrtcSessionId) {
+          webrtcService.stopHeartbeat(source.webrtcSessionId);
+          void webrtcService.closeSession(source.webrtcSessionId).catch((error) => {
+            logger.error('Failed to close WebRTC session on cleanup', {
+              'error.message': error instanceof Error ? error.message : String(error),
+            });
+          });
+        }
+      });
+    };
+    window.addEventListener('beforeunload', stopAllSources);
+    return () => {
+      window.removeEventListener('beforeunload', stopAllSources);
+      stopAllSources();
+    };
+  }, []);
 
   return (
-    <video-grid
-      ref={(el: HTMLElement | null) => {
-        setGrid(el as VideoGrid | null);
-      }}
-      data-testid="video-grid-host"
-    />
+    <>
+      <ReactVideoGrid
+        sources={sources.map((source) => ({
+          id: source.id,
+          number: source.number,
+          name: source.name,
+          type: source.type,
+          imageSrc: source.currentImageSrc || source.imagePath,
+        }))}
+        selectedSourceId={selectedSourceId}
+        onSelectSource={selectSourceById}
+        onCloseSource={removeSourceById}
+        onChangeImageRequest={(_, sourceNumber) => {
+          pendingSourceNumberForImageChangeRef.current = sourceNumber;
+          const inputSourceService = container.getInputSourceService();
+          void inputSourceService
+            .listAvailableImages()
+            .then((images) => {
+              setAvailableImages(images);
+              setIsImageSelectorOpen(true);
+            })
+            .catch((error) => {
+              logger.error('Failed to load image options', {
+                'error.message': error instanceof Error ? error.message : String(error),
+              });
+            });
+        }}
+        onCameraFrame={(sourceId, payload) => {
+          updateSource(sourceId, (source) => ({ ...source, lastCameraFrameTime: payload.timestamp }));
+          const source = sourcesRef.current.find((item) => item.id === sourceId);
+          if (!source?.ws?.isConnected()) {
+            return;
+          }
+          const filters = source.filters.length ? source.filters : [{ id: 'none', parameters: {} }];
+          source.ws.sendFrame(
+            `data:image/jpeg;base64,${payload.base64data}`,
+            payload.width,
+            payload.height,
+            mapFiltersToValueObjects(filters),
+            selectedAccelerator
+          );
+        }}
+        onCameraStatus={(status, type) => stats?.updateCameraStatus(status, type)}
+        onCameraError={(title, message) => toast?.error(title, message)}
+        data-testid="video-grid-host"
+      />
+      <ReactAddSourceFab onClick={openDrawer} />
+      <ReactSourceDrawer
+        isOpen={isDrawerOpen}
+        availableSources={availableSources}
+        onClose={() => setIsDrawerOpen(false)}
+        onSelectSource={onSelectSourceFromDrawer}
+      />
+      <ReactImageSelectorModal
+        isOpen={isImageSelectorOpen}
+        availableImages={availableImages}
+        onClose={() => setIsImageSelectorOpen(false)}
+        onSelectImage={onSelectImage}
+      />
+    </>
   );
 }

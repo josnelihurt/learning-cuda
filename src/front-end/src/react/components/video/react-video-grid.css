@@ -1,0 +1,337 @@
+.react-video-grid-shell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: var(--spacing-md);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.react-video-source {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.react-video-source .card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  border: 3px solid transparent;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.react-video-source .card:hover {
+  border-color: var(--border-color);
+}
+
+.react-video-source .card.selected {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.react-video-source .source-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 10;
+}
+
+.react-video-source .change-image-btn,
+.react-video-source .close-btn {
+  position: absolute;
+  top: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.react-video-source .change-image-btn {
+  right: 40px;
+  font-size: 16px;
+}
+
+.react-video-source .close-btn {
+  right: 8px;
+  font-size: 18px;
+}
+
+.react-video-source .card:hover .change-image-btn,
+.react-video-source .card:hover .close-btn {
+  opacity: 1;
+}
+
+.react-video-source .change-image-btn:hover {
+  background: rgba(33, 150, 243, 0.9);
+}
+
+.react-video-source .close-btn:hover {
+  background: rgba(244, 67, 54, 0.9);
+}
+
+.react-video-source .content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.react-video-source .content img,
+.react-video-source .content video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.react-add-source-fab {
+  position: fixed;
+  bottom: 90px;
+  right: 32px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--accent-color);
+  color: #fff;
+  border: none;
+  border-radius: 28px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.react-add-source-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.react-source-drawer-host,
+.react-image-modal-host {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.react-image-modal-host {
+  z-index: 10000;
+}
+
+.react-source-drawer-host .backdrop,
+.react-image-modal-host .backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.react-source-drawer-host .backdrop.show,
+.react-image-modal-host .backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.react-source-drawer-host .drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 90vw;
+  background: #fff;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.react-source-drawer-host .drawer.show {
+  transform: translateX(0);
+}
+
+.react-source-drawer-host .drawer-header,
+.react-image-modal-host .modal-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.react-source-drawer-host .drawer-title,
+.react-image-modal-host .modal-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.react-source-drawer-host .drawer-content,
+.react-image-modal-host .modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+
+.react-source-drawer-host .tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 16px;
+}
+
+.react-source-drawer-host .tab {
+  flex: 1;
+  padding: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.react-source-drawer-host .tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.react-source-drawer-host .source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.react-source-drawer-host .source-item {
+  padding: 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.react-source-drawer-host .source-item:hover {
+  border-color: var(--accent-color);
+  background: var(--background-secondary);
+}
+
+.react-source-drawer-host .source-icon {
+  font-size: 24px;
+}
+
+.react-source-drawer-host .source-name {
+  font-weight: 600;
+}
+
+.react-source-drawer-host .source-type {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.react-source-drawer-host .source-badge,
+.react-image-modal-host .image-badge {
+  background: var(--accent-color);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.react-source-drawer-host .close-btn,
+.react-image-modal-host .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.react-image-modal-host .modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 12px;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.react-image-modal-host .modal.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.react-image-modal-host .image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.react-image-modal-host .image-item {
+  padding: 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--background-secondary);
+}
+
+.react-image-modal-host .image-item:hover {
+  border-color: var(--accent-color);
+}
+
+.react-image-modal-host .image-preview {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+}

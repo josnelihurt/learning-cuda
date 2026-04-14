@@ -17,6 +17,7 @@ export function ReactStatsPanel({
 }: ReactStatsPanelProps) {
   return (
     <div
+      data-testid="react-stats-panel"
       style={{
         position: 'fixed',
         bottom: 0,

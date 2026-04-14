@@ -9,11 +9,13 @@ export function SidebarColumn() {
     <aside className="sidebar">
       <div className="sidebar-content">
         <SidebarControls />
-        <FilterPanel
-          processorFilterEpoch={processorFilterEpoch}
-          onFiltersChange={setActiveFilters}
-          initialActiveFilters={activeFilters}
-        />
+        <div data-testid="react-filters-section">
+          <FilterPanel
+            processorFilterEpoch={processorFilterEpoch}
+            onFiltersChange={setActiveFilters}
+            initialActiveFilters={activeFilters}
+          />
+        </div>
       </div>
     </aside>
   );

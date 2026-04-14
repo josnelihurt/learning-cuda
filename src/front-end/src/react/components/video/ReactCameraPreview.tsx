@@ -30,13 +30,28 @@ export function ReactCameraPreview({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const onFrameCapturedRef = useRef(onFrameCaptured);
+  const onCameraStatusRef = useRef(onCameraStatus);
+  const onCameraErrorRef = useRef(onCameraError);
+
+  useEffect(() => {
+    onFrameCapturedRef.current = onFrameCaptured;
+  }, [onFrameCaptured]);
+
+  useEffect(() => {
+    onCameraStatusRef.current = onCameraStatus;
+  }, [onCameraStatus]);
+
+  useEffect(() => {
+    onCameraErrorRef.current = onCameraError;
+  }, [onCameraError]);
 
   useEffect(() => {
     let cancelled = false;
 
     const startCamera = async () => {
       try {
-        onCameraStatus('Requesting access...', 'warning');
+        onCameraStatusRef.current('Requesting access...', 'warning');
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error('Camera API not available. Use HTTPS.');
         }
@@ -64,7 +79,7 @@ export function ReactCameraPreview({
 
         canvas.width = width;
         canvas.height = height;
-        onCameraStatus('Active', 'success');
+        onCameraStatusRef.current('Active', 'success');
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) {
@@ -79,12 +94,12 @@ export function ReactCameraPreview({
           ctx.drawImage(video, 0, 0, width, height);
           const dataUrl = canvas.toDataURL('image/jpeg', quality);
           const base64data = dataUrl.split(',')[1] ?? '';
-          onFrameCaptured({ base64data, width, height, timestamp });
+          onFrameCapturedRef.current({ base64data, width, height, timestamp });
         }, 1000 / fps);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        onCameraError('Camera Error', message);
-        onCameraStatus('Camera Error', 'error');
+        onCameraErrorRef.current('Camera Error', message);
+        onCameraStatusRef.current('Camera Error', 'error');
       }
     };
 
@@ -102,9 +117,9 @@ export function ReactCameraPreview({
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
-      onCameraStatus('Inactive', 'inactive');
+      onCameraStatusRef.current('Inactive', 'inactive');
     };
-  }, [fps, height, onCameraError, onCameraStatus, onFrameCaptured, quality, width]);
+  }, [fps, height, quality, width]);
 
   return (
     <>

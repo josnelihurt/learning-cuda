@@ -31,7 +31,6 @@ type GridSource = {
   resolution: string;
   videoId?: string;
   webrtcSessionId?: string;
-  lastCameraFrameTime: number;
 };
 
 const MAX_SOURCES = 9;
@@ -53,6 +52,8 @@ export function VideoGridHost() {
   const fpsHistoryRef = useRef<number[]>([]);
   const processingTimesRef = useRef<number[]>([]);
   const nextNumberRef = useRef(1);
+  const defaultSourceInitializedRef = useRef(false);
+  const cameraFrameTimeRef = useRef<Record<string, number>>({});
   const pendingSourceNumberForImageChangeRef = useRef<number | null>(null);
   const sourcesRef = useRef<GridSource[]>([]);
   const { container, ready } = useAppServices();
@@ -192,7 +193,7 @@ export function VideoGridHost() {
       const cameraManager = {
         setProcessing: () => undefined,
         getLastFrameTime: () =>
-          sourcesRef.current.find((item) => item.id === uniqueId)?.lastCameraFrameTime ?? performance.now(),
+          cameraFrameTimeRef.current[uniqueId] ?? performance.now(),
       };
       const ws = new WebSocketService(statsManager as StatsPanel, cameraManager as never, toastManager);
       ws?.connect();
@@ -231,7 +232,6 @@ export function VideoGridHost() {
         filters: [{ id: 'none', parameters: {} }],
         resolution: 'original',
         videoId: inputSource.type === 'video' ? inputSource.id : undefined,
-        lastCameraFrameTime: performance.now(),
       };
 
       setSources((current) => [...current, source]);
@@ -266,9 +266,13 @@ export function VideoGridHost() {
     if (!ready) {
       return;
     }
+    if (defaultSourceInitializedRef.current) {
+      return;
+    }
     const input = container.getInputSourceService();
     const defaultSource = input.getDefaultSource();
     if (defaultSource && sourcesRef.current.length === 0) {
+      defaultSourceInitializedRef.current = true;
       addSource(defaultSource);
     }
   }, [addSource, container, ready]);
@@ -453,7 +457,7 @@ export function VideoGridHost() {
             });
         }}
         onCameraFrame={(sourceId, payload) => {
-          updateSource(sourceId, (source) => ({ ...source, lastCameraFrameTime: payload.timestamp }));
+          cameraFrameTimeRef.current[sourceId] = payload.timestamp;
           const source = sourcesRef.current.find((item) => item.id === sourceId);
           if (!source?.ws?.isConnected()) {
             return;

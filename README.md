@@ -314,7 +314,7 @@ Skip when needed: `git commit --no-verify` or `git push --no-verify`
 - **Production**: Jetson Nano deployment with Cloudflare tunnel
 - **Deployment**: Ansible automation for infrastructure management
 
-**Frontend**: Lit Web Components + TypeScript with Vite bundler. No React, just native web components.
+**Frontend**: Lit Web Components for core UI + React dashboard, TypeScript with Vite bundler.
 
 **Observability**: Jaeger distributed tracing, Grafana dashboards, Loki log aggregation, Flipt feature flags.
 
@@ -329,8 +329,11 @@ Currently implemented a bunch of different filters to explore various GPU progra
 - **Lightness** - (max+min)/2
 - **Luminosity** - weighted average, similar to BT.601
 
+**Blur algorithms** (learning convolution and shared memory):
+- **Gaussian Blur** - configurable kernel size and sigma
+- **Box Blur** - simple box blur with separable optimization
+
 **Coming next** (exploring different GPU concepts):
-- Blur filters (Gaussian, Box) - learning convolution and shared memory
 - Edge detection (Sobel, Canny) - learning gradients and complex algorithms
 - Color space conversions (RGB→HSV, RGB→LAB) - learning conditional operations
 - Morphological operations - learning neighborhood processing
@@ -378,6 +381,17 @@ Comprehensive testing and quality assurance across all layers:
 # Run all coverage tests (Frontend, Golang, C++)
 ./scripts/test/coverage.sh
 
+# Run unit tests (all)
+./scripts/test/unit-tests.sh
+
+# Run unit tests (specific components)
+./scripts/test/unit-tests.sh --skip-golang   # Frontend only
+./scripts/test/unit-tests.sh --skip-frontend # Go only
+
+# Run E2E tests
+./scripts/test/e2e.sh --chromium   # Fast: Chromium only
+./scripts/test/e2e.sh              # All browsers
+
 # Run all linters (ESLint, golangci-lint, clang-tidy)
 ./scripts/test/linters.sh
 
@@ -400,16 +414,41 @@ See [Testing & Coverage Documentation](docs/testing-and-coverage.md) for detaile
 
 ```
 src/cpp_accelerator/
-  infrastructure/cuda/  - GPU kernels
-  infrastructure/cpu/   - CPU versions
-  ports/grpc/          - gRPC service implementation
+  application/         # Use cases, FilterPipeline, BufferPool, Commands
+  domain/              # Interfaces (IFilter, ImageBuffer, IImageProcessor)
+  infrastructure/
+    cuda/              # GPU kernels
+    cpu/               # CPU fallback implementations
+    filters/           # Equivalence tests
+    image/             # Image loader/writer
+    config/            # Configuration management
+  ports/
+    grpc/              # gRPC service implementation
+    shared_lib/        # Shared library exports
+    cgo/               # CGO API
+  core/                # Logger, Telemetry, Result type
 
 src/go_api/
-  cmd/server/          - main.go
+  cmd/server/          # main.go entry point
+  pkg/
+    app/               # Application bootstrap
+    application/       # Use cases
+    config/            # Configuration
+    container/         # Dependency injection
+    domain/            # Domain logic
+    infrastructure/    # Repositories, gRPC client
+    interfaces/        # HTTP/WebSocket handlers
+    telemetry/         # Observability
 
-src/front-end/         - Lit + React (Vite)
+src/front-end/        # Lit Web Components + React (Vite)
+  src/lit/             # Lit web components
+  src/react/           # React dashboard
+  src/shared/          # Shared utilities
 
-scripts/               - organized scripts (dev/, test/, docker/, tools/, hooks/)
+scripts/               # organized scripts (dev/, test/, docker/, tools/, hooks/)
+proto/                 # Protocol Buffers definitions
+config/                # Configuration files (dev, staging, production)
+test/                  # Integration tests, coverage, manual tests
 ```
 
 ## Filter System

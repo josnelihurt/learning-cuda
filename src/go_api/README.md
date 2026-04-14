@@ -24,24 +24,24 @@ This will:
 
 ### Manual Build
 
-Build the Go server:
+Build the Go server from `src/go_api/`:
 ```bash
-cd webserver
+cd src/go_api
 make build
 ```
 
 Or from project root:
 ```bash
-cd webserver && make build
+cd src/go_api && make build
 ```
 
 Run the server:
 ```bash
-cd webserver
+cd src/go_api
 make run
 ```
 
-Or with config file:
+Or with config file (from project root):
 ```bash
 ./bin/server -config=config/config.yaml
 ```
@@ -50,7 +50,7 @@ Or with config file:
 
 Run server with hot reload:
 ```bash
-cd webserver
+cd src/go_api
 make dev
 ```
 
@@ -59,9 +59,9 @@ make dev
 For production (embedded files, single binary):
 
 ```bash
-cd webserver
+cd src/go_api
 make build
-./bin/server -config=config/config.production.yaml
+./bin/server -config=../../config/config.production.yaml
 ```
 
 The frontend is built with Vite and embedded as static assets. Templates and static files are served from the binary.

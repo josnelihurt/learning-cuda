@@ -20,7 +20,8 @@ function prettyFrontendRoutesPlugin(): Plugin {
     if (pathname.length > 1 && pathname.endsWith('/')) {
       pathname = pathname.slice(0, -1);
     }
-    if (pathname === '/react') {
+    // Root path serves React (react.html)
+    if (pathname === '/' || pathname === '') {
       req.url = '/react.html' + search;
     } else if (pathname === '/lit') {
       req.url = '/index.html' + search;

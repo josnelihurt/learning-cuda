@@ -1,29 +1,26 @@
 import { useState, useCallback } from 'react';
 import { useWebRTCStream } from '../../hooks/useWebRTCStream';
-import { FilterPanel } from '../filters/FilterPanel';
-import type { ActiveFilterState } from '../filters/FilterPanel';
 import { VideoSourceSelector } from './VideoSourceSelector';
 import { VideoCanvas } from './VideoCanvas';
 import type { StaticImage } from '@/gen/common_pb';
+import { useDashboardState } from '../../context/dashboard-state-context';
 import styles from './VideoStreamer.module.css';
 
 export function VideoStreamer() {
   const {
     connectionState,
     isStreaming,
-    activeSessionId,
     error,
     startStream,
     stopStream,
   } = useWebRTCStream();
 
-  const [selectedFilters, setSelectedFilters] = useState<ActiveFilterState[]>([]);
-  const [selectedSource, setSelectedSource] = useState<{ type: 'camera' | 'file'; id?: string }>({ type: 'camera' });
-  const [availableVideos] = useState<StaticImage[]>([]); // TODO: Fetch from backend
+  const { activeFilters } = useDashboardState();
 
-  const handleFiltersChange = useCallback((filters: ActiveFilterState[]) => {
-    setSelectedFilters(filters);
-  }, []);
+  const [selectedSource, setSelectedSource] = useState<{ type: 'camera' | 'file'; id?: string }>({
+    type: 'camera',
+  });
+  const [availableVideos] = useState<StaticImage[]>([]);
 
   const handleSourceChange = useCallback((source: { type: 'camera' | 'file'; id?: string }) => {
     setSelectedSource(source);
@@ -31,8 +28,8 @@ export function VideoStreamer() {
 
   const handleStartStream = useCallback(async () => {
     const sourceId = selectedSource.type === 'camera' ? 'camera-1' : selectedSource.id || '';
-    await startStream(sourceId, selectedFilters);
-  }, [selectedSource, selectedFilters, startStream]);
+    await startStream(sourceId, activeFilters);
+  }, [selectedSource, activeFilters, startStream]);
 
   const handleStopStream = useCallback(async () => {
     await stopStream();
@@ -52,14 +49,6 @@ export function VideoStreamer() {
             selectedVideoId={selectedSource.type === 'file' ? selectedSource.id : undefined}
             onSourceChange={handleSourceChange}
             data-testid="video-source-selector"
-          />
-        </div>
-
-        <div className={styles.filtersSection}>
-          <h3 className={styles.heading}>Filters</h3>
-          <FilterPanel
-            onFiltersChange={handleFiltersChange}
-            initialActiveFilters={selectedFilters}
           />
         </div>
 

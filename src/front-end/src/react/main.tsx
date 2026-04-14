@@ -2,10 +2,23 @@ import './react-root.css';
 import '@/components/app/toast-container';
 import '@/components/app/information-banner';
 import '@/components/app/stats-panel';
+import '@/components/app/source-drawer';
+import '@/components/ui/add-source-fab';
+import '@/components/ui/accelerator-status-fab';
+import '@/components/image/image-selector-modal';
+import '@/components/flags/feature-flags-modal';
+import '@/components/app/grpc-status-modal';
+import '@/components/app/app-tour';
+import '@/components/ui/tools-dropdown';
+import '@/components/flags/feature-flags-button';
+import '@/components/flags/sync-flags-button';
+import '@/components/ui/version-tooltip-lit';
+import '@/components/video/video-grid';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { ToastProvider } from './context/toast-context';
+import { DashboardStateProvider } from './context/dashboard-state-context';
 import { AppServicesProvider } from './providers/app-services-provider';
 import { GrpcClientsProvider } from './providers/grpc-clients-provider';
 
@@ -18,9 +31,11 @@ createRoot(rootElement).render(
   <StrictMode>
     <ToastProvider>
       <AppServicesProvider>
-        <GrpcClientsProvider>
-          <App />
-        </GrpcClientsProvider>
+        <DashboardStateProvider>
+          <GrpcClientsProvider>
+            <App />
+          </GrpcClientsProvider>
+        </DashboardStateProvider>
       </AppServicesProvider>
     </ToastProvider>
   </StrictMode>

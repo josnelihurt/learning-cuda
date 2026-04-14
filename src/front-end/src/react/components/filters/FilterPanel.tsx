@@ -17,6 +17,8 @@ interface FilterPanelProps {
   filters?: GenericFilterDefinition[];
   onFiltersChange: (activeFilters: ActiveFilterState[]) => void;
   initialActiveFilters?: ActiveFilterState[];
+  /** When incremented, refetches filter definitions from the backend (processor service updates). */
+  processorFilterEpoch?: number;
 }
 
 interface FilterState {
@@ -32,9 +34,17 @@ export function FilterPanel({
   filters: propFilters,
   onFiltersChange,
   initialActiveFilters,
+  processorFilterEpoch,
 }: FilterPanelProps) {
-  const { filters: availableFilters } = useFilters();
+  const { filters: availableFilters, refetch } = useFilters();
   const filters = propFilters ?? availableFilters;
+
+  useEffect(() => {
+    if (processorFilterEpoch === undefined || processorFilterEpoch < 1) {
+      return;
+    }
+    void refetch();
+  }, [processorFilterEpoch, refetch]);
 
   const [localFilters, setLocalFilters] = useState<FilterState[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);

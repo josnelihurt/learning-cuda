@@ -21,8 +21,6 @@
 #
 # Access:
 #   https://app.localhost      - Main application
-#   https://grafana.localhost  - Grafana
-#   https://jaeger.localhost   - Jaeger
 #   https://reports.localhost  - Test Reports
 #
 # Stop:
@@ -211,8 +209,6 @@ echo ""
 echo "================================================"
 echo "Staging Local URLs (.localhost):"
 echo "  App:     https://app.localhost"
-echo "  Grafana: https://grafana.localhost"
-echo "  Jaeger:  https://jaeger.localhost"
 echo "  Reports: https://reports.localhost"
 echo "================================================"
 echo ""

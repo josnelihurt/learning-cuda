@@ -85,6 +85,4 @@
       - "Health check: {{ 'PASSED' if health_check.status == 200 else 'FAILED' }}"
       - "Application URL: http://{{ ansible_host }}:8080"
       - "Traefik Dashboard: http://{{ ansible_host }}:8081"
-      - "Jaeger UI: http://{{ ansible_host }}:16686"
-      - "Grafana: https://{{ ansible_host }}/grafana"
       - "Test Reports: https://{{ ansible_host }}/reports"

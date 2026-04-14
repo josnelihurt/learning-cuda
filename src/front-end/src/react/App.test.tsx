@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import App from './App';
 import { ToastProvider } from './context/toast-context';
@@ -55,8 +55,9 @@ describe('App', () => {
     expect(grid).toBeInTheDocument();
   });
 
-  it('should show React load marker text', () => {
+  it('should show React load marker text in version tooltip', () => {
     renderWithProviders(<App />);
+    fireEvent.click(screen.getByTitle('Version Information'));
     expect(screen.getByText('React app loaded')).toBeInTheDocument();
   });
 

@@ -18,13 +18,11 @@ type VersionField = {
   value: string;
 };
 
-export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsProps) {
-  const [isToolsOpen, setIsToolsOpen] = useState(false);
+export function ReactVersionTooltip() {
   const [isVersionOpen, setIsVersionOpen] = useState(false);
   const [versionFields, setVersionFields] = useState<VersionField[]>([]);
   const [environment, setEnvironment] = useState('Loading...');
   const [isVersionLoading, setIsVersionLoading] = useState(true);
-  const { container } = useAppServices();
   const toast = useToast();
   const transport = useMemo(() => createGrpcConnectTransport(), []);
 
@@ -33,9 +31,6 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
       const target = event.target as HTMLElement | null;
       if (!target) {
         return;
-      }
-      if (!target.closest('[data-testid="react-tools-dropdown"]')) {
-        setIsToolsOpen(false);
       }
       if (!target.closest('[data-testid="react-version-tooltip"]')) {
         setIsVersionOpen(false);
@@ -83,6 +78,82 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
       cancelled = true;
     };
   }, [toast, transport]);
+
+  const buildVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+
+  return (
+    <div className={styles.versionTooltip} data-testid="react-version-tooltip">
+      <button
+        type="button"
+        className="info-btn"
+        title="Version Information"
+        onClick={() => setIsVersionOpen((value) => !value)}
+      >
+        <span>i</span>
+      </button>
+      {isVersionOpen ? (
+        <div className={styles.versionCard}>
+          <div className={styles.tooltipHeader}>
+            <span className={styles.versionTitle}>Version Information</span>
+            <button
+              type="button"
+              className={styles.tooltipClose}
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsVersionOpen(false);
+              }}
+              title="Close"
+            >
+              ×
+            </button>
+          </div>
+          <div className={styles.versionInfo}>
+            {isVersionLoading ? <div className={styles.versionRow}>Loading...</div> : null}
+            {versionFields.map((field) => (
+              <div key={field.label} className={styles.versionRow}>
+                <span className={styles.versionLabel}>{field.label}:</span>
+                <span className={styles.versionValue}>{field.value}</span>
+              </div>
+            ))}
+            <div className={styles.environmentRow}>
+              <div className={styles.versionRow}>
+                <span className={styles.versionLabel}>Environment:</span>
+                <span className={styles.versionValue}>{environment}</span>
+              </div>
+              <div className={styles.versionRow}>
+                <span className={styles.versionLabel}>Frontend:</span>
+                <span className={styles.versionValue}>React app loaded</span>
+              </div>
+            </div>
+            <div className={styles.buildInfo}>Build: {buildVersion}</div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsProps) {
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const { container } = useAppServices();
+  const toast = useToast();
+  const transport = useMemo(() => createGrpcConnectTransport(), []);
+
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) {
+        return;
+      }
+      if (!target.closest('[data-testid="react-tools-dropdown"]')) {
+        setIsToolsOpen(false);
+      }
+    };
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, []);
 
   const toolCategories =
     typeof container.getToolsService === 'function'
@@ -150,34 +221,6 @@ export function ReactNavbarControls({ onOpenFeatureFlags }: ReactNavbarControlsP
       <button type="button" className={`${styles.featureFlagsBtn} ${styles.hiddenSync}`}>
         Sync Flags
       </button>
-
-      <div className={styles.versionTooltip} data-testid="react-version-tooltip">
-        <button
-          type="button"
-          className="info-btn"
-          title="Version Information"
-          onClick={() => setIsVersionOpen((value) => !value)}
-        >
-          <span>i</span>
-        </button>
-        {isVersionOpen ? (
-          <div className={styles.versionCard}>
-            <div className={styles.versionTitle}>Version Information</div>
-            {isVersionLoading ? <div>Loading...</div> : null}
-            {versionFields.map((field) => (
-              <div key={field.label} className={styles.versionRow}>
-                <span className={styles.versionLabel}>{field.label}:</span>
-                <span>{field.value}</span>
-              </div>
-            ))}
-            <div className={styles.environmentRow}>
-              <span className={styles.versionLabel}>Environment:</span>
-              <span>{environment}</span>
-            </div>
-            <div className={styles.buildInfo}>Build: {__APP_VERSION__}</div>
-          </div>
-        ) : null}
-      </div>
     </>
   );
 }

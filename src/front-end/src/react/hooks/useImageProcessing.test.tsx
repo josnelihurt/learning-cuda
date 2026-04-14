@@ -199,6 +199,7 @@ describe('useImageProcessing', () => {
     await waitFor(
       () => {
         expect(result.current.processing).toBe(false);
+        expect(result.current.error).not.toBeNull();
       },
       { timeout: 3000 }
     );

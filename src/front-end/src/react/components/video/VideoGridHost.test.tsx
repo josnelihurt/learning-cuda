@@ -1,6 +1,5 @@
-import './register-mock-video-grid';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, act, waitFor } from '@testing-library/react';
+import { render, cleanup, act, waitFor, screen, fireEvent } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { ToastProvider } from '../../context/toast-context';
 import { GrpcClientsProvider } from '../../providers/grpc-clients-provider';
@@ -11,8 +10,36 @@ const mockSetResolution = vi.fn();
 const mockSetSelectedSource = vi.fn();
 
 const serviceMocks = vi.hoisted(() => ({
+  getSources: vi.fn().mockReturnValue([]),
+  getDefaultSource: vi.fn().mockReturnValue(null),
   listAvailableImages: vi.fn().mockResolvedValue([]),
   loggerError: vi.fn(),
+}));
+
+vi.mock('@/infrastructure/transport/websocket-frame-transport', () => ({
+  WebSocketService: class {
+    connect() {}
+    disconnect() {}
+    isConnected() {
+      return true;
+    }
+    setProcessing() {}
+    onFrameResult() {}
+    sendStartVideo() {}
+    sendStopVideo() {}
+    sendFrame() {}
+    async sendSingleFrame() {
+      return { success: true, response: { imageData: new Uint8Array() } };
+    }
+  },
+}));
+
+vi.mock('@/infrastructure/connection/webrtc-service', () => ({
+  webrtcService: {
+    createSession: vi.fn().mockResolvedValue({ getId: () => 'session-1' }),
+    stopHeartbeat: vi.fn(),
+    closeSession: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 vi.mock('../../providers/app-services-provider', () => {
@@ -25,8 +52,8 @@ vi.mock('../../providers/app-services-provider', () => {
     useAppServices: () => ({
       container: {
         getInputSourceService: () => ({
-          getSources: vi.fn().mockReturnValue([]),
-          getDefaultSource: vi.fn().mockReturnValue(null),
+          getSources: serviceMocks.getSources,
+          getDefaultSource: serviceMocks.getDefaultSource,
           listAvailableImages: serviceMocks.listAvailableImages,
         }),
         getProcessorCapabilitiesService: () => noopProcessorSvc,
@@ -75,23 +102,16 @@ function renderWithProviders(ui: ReactElement) {
   );
 }
 
-function appendFabDrawerModal(): void {
-  const fab = document.createElement('add-source-fab');
-  const drawer = document.createElement('source-drawer') as HTMLElement & { open: () => void };
-  drawer.open = vi.fn();
-  const modal = document.createElement('image-selector-modal') as HTMLElement & {
-    open: ReturnType<typeof vi.fn>;
-  };
-  modal.open = vi.fn();
-  document.body.append(fab, drawer, modal);
-}
-
 describe('VideoGridHost', () => {
   beforeEach(() => {
     vi.spyOn(customElements, 'whenDefined').mockResolvedValue(undefined as never);
     mockSetActiveFilters.mockClear();
     mockSetResolution.mockClear();
     mockSetSelectedSource.mockClear();
+    serviceMocks.getSources.mockClear();
+    serviceMocks.getDefaultSource.mockClear();
+    serviceMocks.getSources.mockReturnValue([]);
+    serviceMocks.getDefaultSource.mockReturnValue(null);
     serviceMocks.listAvailableImages.mockClear();
     serviceMocks.listAvailableImages.mockResolvedValue([]);
     serviceMocks.loggerError.mockClear();
@@ -103,162 +123,132 @@ describe('VideoGridHost', () => {
     document.body.innerHTML = '';
   });
 
-  it('opens source drawer when add-source-fab dispatches open-drawer', async () => {
-    const open = vi.fn();
-    const fab = document.createElement('add-source-fab');
-    const drawer = document.createElement('source-drawer') as HTMLElement & { open: typeof open };
-    drawer.open = open;
-    document.body.append(fab, drawer);
-
+  it('opens source drawer when add-input button is clicked', async () => {
     await act(async () => {
       renderWithProviders(<VideoGridHost />);
     });
 
     await act(async () => {
-      fab.dispatchEvent(new CustomEvent('open-drawer', { bubbles: true, composed: true }));
+      fireEvent.click(screen.getByTestId('add-input-fab'));
     });
 
-    expect(open).toHaveBeenCalled();
+    const drawer = screen.getByTestId('source-drawer');
+    expect(drawer.className).toContain('show');
   });
 
-  it('calls grid.addSource when source-drawer dispatches source-selected', async () => {
-    const fab = document.createElement('add-source-fab');
-    const drawer = document.createElement('source-drawer') as HTMLElement & { open: () => void };
-    drawer.open = vi.fn();
-    document.body.append(fab, drawer);
-
-    await act(async () => {
-      renderWithProviders(<VideoGridHost />);
-    });
-
-    const gridEl = document.querySelector('video-grid') as HTMLElement & {
-      addSource: ReturnType<typeof vi.fn>;
-    };
-    expect(gridEl).toBeTruthy();
-    const addSpy = vi.spyOn(gridEl, 'addSource');
-
-    const source = {
-      id: 'cam-1',
-      displayName: 'Camera',
-      type: 'camera' as const,
-      imagePath: '',
-      isDefault: false,
-    };
-
-    await act(async () => {
-      drawer.dispatchEvent(
-        new CustomEvent('source-selected', {
-          bubbles: true,
-          composed: true,
-          detail: { source },
-        })
-      );
-    });
-
-    expect(addSpy).toHaveBeenCalledWith(source);
-  });
-
-  it('syncs filters and resolution from source-selection-changed', async () => {
-    appendFabDrawerModal();
-
-    await act(async () => {
-      renderWithProviders(<VideoGridHost />);
-    });
-
-    const gridEl = document.querySelector('video-grid') as HTMLElement & {
-      getSources: () => Array<{ id: string; name: string }>;
-    };
-    gridEl.getSources = () => [{ id: 's1', name: 'Test' }];
-
-    await act(async () => {
-      gridEl.dispatchEvent(
-        new CustomEvent('source-selection-changed', {
-          bubbles: true,
-          composed: true,
-          detail: {
-            sourceId: 's1',
-            sourceNumber: 2,
-            filters: [{ id: 'blur', parameters: { radius: '3' } }],
-            resolution: 'half',
-          },
-        })
-      );
-    });
-
-    expect(mockSetSelectedSource).toHaveBeenCalledWith(2, 'Test');
-    expect(mockSetActiveFilters).toHaveBeenCalledWith([
-      { id: 'blur', parameters: { radius: '3' } },
+  it('adds a source when selecting one from drawer', async () => {
+    serviceMocks.getSources.mockReturnValue([
+      {
+        id: 'img-1',
+        displayName: 'Image',
+        type: 'static',
+        imagePath: '/image.png',
+        isDefault: false,
+      },
     ]);
-    expect(mockSetResolution).toHaveBeenCalledWith('half');
+
+    await act(async () => {
+      renderWithProviders(<VideoGridHost />);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('add-input-fab'));
+    });
+    fireEvent.click(screen.getByTestId('source-item-img-1'));
+
+    expect(screen.getByTestId('source-card-1')).toBeTruthy();
   });
 
-  it('opens image selector on change-image-requested and applies selection', async () => {
+  it('syncs selected source to dashboard state when adding first source', async () => {
+    serviceMocks.getSources.mockReturnValue([
+      {
+        id: 's1',
+        displayName: 'Test',
+        type: 'static',
+        imagePath: '/test.png',
+        isDefault: false,
+      },
+    ]);
+
+    await act(async () => {
+      renderWithProviders(<VideoGridHost />);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('add-input-fab'));
+    });
+    fireEvent.click(screen.getByTestId('source-item-s1'));
+
+    expect(mockSetSelectedSource).toHaveBeenCalledWith(1, 'Test');
+    expect(mockSetActiveFilters).toHaveBeenCalledWith([
+      { id: 'none', parameters: {} },
+    ]);
+    expect(mockSetResolution).toHaveBeenCalledWith('original');
+  });
+
+  it('opens image selector and applies selected image for a static source', async () => {
     const sampleImages = [{ id: 'i1', path: '/x.png', displayName: 'X', isDefault: false }];
     serviceMocks.listAvailableImages.mockResolvedValue(sampleImages);
-    appendFabDrawerModal();
+    serviceMocks.getSources.mockReturnValue([
+      {
+        id: 's-1',
+        displayName: 'Static',
+        type: 'static',
+        imagePath: '/before.png',
+        isDefault: false,
+      },
+    ]);
 
     await act(async () => {
       renderWithProviders(<VideoGridHost />);
     });
 
-    const gridEl = document.querySelector('video-grid') as HTMLElement & {
-      changeSourceImage: ReturnType<typeof vi.fn>;
-    };
-    const modal = document.querySelector('image-selector-modal') as HTMLElement & {
-      open: ReturnType<typeof vi.fn>;
-    };
-    const changeSpy = vi.spyOn(gridEl, 'changeSourceImage');
-
     await act(async () => {
-      gridEl.dispatchEvent(
-        new CustomEvent('change-image-requested', {
-          bubbles: true,
-          composed: true,
-          detail: { sourceId: 's-1', sourceNumber: 2 },
-        })
-      );
+      fireEvent.click(screen.getByTestId('add-input-fab'));
     });
+    fireEvent.click(screen.getByTestId('source-item-s-1'));
+    fireEvent.click(screen.getByTestId('change-image-button'));
 
     await waitFor(() => {
       expect(serviceMocks.listAvailableImages).toHaveBeenCalled();
-      expect(modal.open).toHaveBeenCalledWith(sampleImages);
+      expect(screen.getByTestId('image-selector-modal').className).toContain('show');
     });
 
     await act(async () => {
-      modal.dispatchEvent(
-        new CustomEvent('image-selected', {
-          bubbles: true,
-          composed: true,
-          detail: { image: { path: '/chosen.png' } },
-        })
-      );
+      fireEvent.click(screen.getByTestId('image-item-i1'));
     });
 
-    expect(changeSpy).toHaveBeenCalledWith(2, '/chosen.png');
+    const image = screen.getByAltText('Static') as HTMLImageElement;
+    expect(image.src).toContain('/x.png');
   });
 
-  it('logs when listAvailableImages fails for change-image', async () => {
+  it('logs when listAvailableImages fails for image selector request', async () => {
     serviceMocks.listAvailableImages.mockRejectedValue(new Error('network'));
-    appendFabDrawerModal();
+    serviceMocks.getSources.mockReturnValue([
+      {
+        id: 's-1',
+        displayName: 'Static',
+        type: 'static',
+        imagePath: '/before.png',
+        isDefault: false,
+      },
+    ]);
 
     await act(async () => {
       renderWithProviders(<VideoGridHost />);
     });
 
-    const gridEl = document.querySelector('video-grid') as HTMLElement;
-
     await act(async () => {
-      gridEl.dispatchEvent(
-        new CustomEvent('change-image-requested', {
-          bubbles: true,
-          composed: true,
-          detail: { sourceId: 's-1', sourceNumber: 1 },
-        })
-      );
+      fireEvent.click(screen.getByTestId('add-input-fab'));
     });
+    fireEvent.click(screen.getByTestId('source-item-s-1'));
+    fireEvent.click(screen.getByTestId('change-image-button'));
 
     await waitFor(() => {
-      expect(serviceMocks.loggerError).toHaveBeenCalled();
+      expect(serviceMocks.loggerError).toHaveBeenCalledWith(
+        'Failed to load image options',
+        expect.any(Object)
+      );
     });
   });
 });

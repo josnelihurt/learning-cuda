@@ -60,7 +60,7 @@ test.describe('Version Info Tooltip', () => {
     
     // Verify expected labels exist (order-independent)
     // Note: Some fields may be filtered out if empty (e.g., Proto Version)
-    const requiredLabels = ['Go Version', 'C++ Version', 'Branch', 'Build Time', 'Commit Hash'];
+    const requiredLabels = ['Go Version', 'C++ Version', 'Branch', 'Build Time', 'Commit Hash', 'Frontend'];
     const optionalLabels = ['Proto Version', 'Environment'];
     const foundLabels: string[] = [];
     

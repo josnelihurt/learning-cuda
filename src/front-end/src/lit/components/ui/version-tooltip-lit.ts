@@ -212,6 +212,10 @@ export class VersionTooltipLit extends LitElement {
               <span class="version-label">Environment:</span>
               <span class="version-value">${this.environment}</span>
             </div>
+            <div class="version-item">
+              <span class="version-label">Frontend:</span>
+              <span class="version-value">Lit app loaded</span>
+            </div>
           </div>
         </div>
       </div>

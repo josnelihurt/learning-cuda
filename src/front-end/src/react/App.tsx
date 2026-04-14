@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { VideoGridHost } from './components/video/VideoGridHost';
 import { SidebarColumn } from './components/sidebar/SidebarColumn';
 import { useAppServices } from './providers/app-services-provider';
-import { ReactNavbarControls } from './components/app/ReactNavbarControls';
+import { ReactNavbarControls, ReactVersionTooltip } from './components/app/ReactNavbarControls';
 import { ReactFeatureFlagsModal } from './components/app/ReactFeatureFlagsModal';
 import { ReactGrpcStatusModal } from './components/app/ReactGrpcStatusModal';
 import { ReactAppTour } from './components/app/ReactAppTour';
@@ -50,7 +50,6 @@ export function App() {
           </div>
           <div className="navbar-services" data-testid="navbar-services-placeholder">
             <ReactNavbarControls onOpenFeatureFlags={() => setIsFeatureFlagsOpen(true)} />
-            <span className="navbar-badge">React app loaded</span>
           </div>
           <div className="navbar-credit">
             <span id="credit-by" className="clickable-credit" title="Click to clear localStorage">
@@ -59,6 +58,7 @@ export function App() {
             <a href="https://josnelihurt.me" target="_blank" rel="noreferrer">
               josnelihurt
             </a>
+            <ReactVersionTooltip />
           </div>
         </div>
         <ReactInformationBanner />

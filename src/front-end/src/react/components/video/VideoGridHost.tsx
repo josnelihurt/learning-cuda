@@ -283,6 +283,11 @@ export function VideoGridHost() {
     setIsDrawerOpen(true);
   }, [container]);
 
+  const refreshDrawerSources = useCallback(() => {
+    const inputSourceService = container.getInputSourceService();
+    setAvailableSources(inputSourceService.getSources());
+  }, [container]);
+
   const onSelectSourceFromDrawer = useCallback(
     (source: InputSource) => {
       addSource(source);
@@ -482,6 +487,7 @@ export function VideoGridHost() {
         availableSources={availableSources}
         onClose={() => setIsDrawerOpen(false)}
         onSelectSource={onSelectSourceFromDrawer}
+        onSourcesChanged={refreshDrawerSources}
       />
       <ReactImageSelectorModal
         isOpen={isImageSelectorOpen}

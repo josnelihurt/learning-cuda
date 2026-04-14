@@ -234,6 +234,21 @@
   gap: 12px;
 }
 
+.react-source-drawer-host .upload-section {
+  padding: 0 0 16px 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+}
+
+.react-source-drawer-host .section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .react-source-drawer-host .source-item {
   padding: 16px;
   border: 2px solid var(--border-color);
@@ -254,10 +269,17 @@
 
 .react-source-drawer-host .source-icon {
   font-size: 24px;
+  flex-shrink: 0;
+}
+
+.react-source-drawer-host .source-info {
+  flex: 1;
 }
 
 .react-source-drawer-host .source-name {
   font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
 }
 
 .react-source-drawer-host .source-type {
@@ -282,6 +304,152 @@
   border: none;
   font-size: 24px;
   cursor: pointer;
+}
+
+.react-video-upload-container {
+  border: 2px dashed var(--border-color, #ddd);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.react-video-upload-container:hover {
+  border-color: var(--primary-color, #007bff);
+}
+
+.react-video-upload-container.dragging {
+  border-color: var(--primary-color, #007bff);
+  background: var(--primary-light, #e7f3ff);
+}
+
+.react-video-upload-button {
+  padding: 0.75rem 1.5rem;
+  background: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.react-video-upload-button:hover:not(:disabled) {
+  background: var(--primary-dark, #0056b3);
+}
+
+.react-video-upload-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.react-video-upload-info {
+  margin-top: 1rem;
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+.react-video-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--progress-bg, #e0e0e0);
+  border-radius: 2px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.react-video-progress-fill {
+  height: 100%;
+  background: var(--primary-color, #007bff);
+  transition: width 0.3s;
+}
+
+.react-video-message {
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.react-video-message.error {
+  background: var(--error-bg, #fee);
+  color: var(--error-color, #c00);
+}
+
+.react-video-message.success {
+  background: var(--success-bg, #efe);
+  color: var(--success-color, #090);
+}
+
+.react-video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.react-video-card {
+  border: 2px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--card-bg, #fff);
+  text-align: left;
+}
+
+.react-video-card:hover {
+  border-color: var(--primary-color, #007bff);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.react-video-card.selected {
+  border-color: var(--primary-color, #007bff);
+  background: var(--primary-light, #e7f3ff);
+}
+
+.react-video-card.default {
+  border-color: var(--success-color, #28a745);
+}
+
+.react-video-preview-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--preview-bg, #f0f0f0);
+}
+
+.react-video-name {
+  margin-top: 0.5rem;
+  font-weight: 500;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.react-video-default-badge {
+  display: inline-block;
+  background: var(--success-color, #28a745);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  margin-left: 0.5rem;
+}
+
+.react-video-loading,
+.react-video-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary, #666);
+}
+
+.react-video-error {
+  padding: 1rem;
+  background: var(--error-bg, #fee);
+  color: var(--error-color, #c00);
+  border-radius: 4px;
+  margin-top: 1rem;
 }
 
 .react-image-modal-host .modal {

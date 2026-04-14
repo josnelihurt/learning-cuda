@@ -34,7 +34,7 @@ export function FilterPanel({
   initialActiveFilters,
 }: FilterPanelProps) {
   const { filters: availableFilters } = useFilters();
-  const filters = propFilters || availableFilters;
+  const filters = propFilters ?? availableFilters;
 
   const [localFilters, setLocalFilters] = useState<FilterState[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);

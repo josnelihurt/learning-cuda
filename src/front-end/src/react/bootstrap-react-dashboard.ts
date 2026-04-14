@@ -1,0 +1,125 @@
+import { container } from '@/application/di';
+import { acceleratorHealthMonitor } from '@/infrastructure/external/accelerator-health-monitor';
+import { systemInfoService } from '@/infrastructure/external/system-info-service';
+import type { ToastContainer } from '@/components/app/toast-container';
+
+let bootstrapPromise: Promise<void> | null = null;
+let beforeUnloadAttached = false;
+
+function attachBeforeUnload(): void {
+  if (beforeUnloadAttached) {
+    return;
+  }
+  beforeUnloadAttached = true;
+  window.addEventListener('beforeunload', () => {
+    const webrtcService = container.getWebRTCService();
+    const activeSessions = webrtcService.getActiveSessions();
+    activeSessions.forEach((session) => {
+      webrtcService.stopHeartbeat(session.getId());
+      void webrtcService.closeSession(session.getId()).catch(() => undefined);
+    });
+    acceleratorHealthMonitor.stopMonitoring();
+    container.getLogger().shutdown();
+  });
+}
+
+async function runBootstrap(): Promise<void> {
+  const toastManager = document.querySelector('toast-container') as ToastContainer | null;
+  if (toastManager) {
+    toastManager.configure({ duration: 7000 });
+  }
+
+  const streamConfigService = container.getConfigService();
+  const telemetryService = container.getTelemetryService();
+  const logger = container.getLogger();
+  const inputSourceService = container.getInputSourceService();
+  const processorCapabilitiesService = container.getProcessorCapabilitiesService();
+  const toolsService = container.getToolsService();
+  const videoService = container.getVideoService();
+  const webrtcService = container.getWebRTCService();
+
+  logger.info('Initializing dashboard (React)...');
+
+  const coreServicesResults = await Promise.allSettled([
+    telemetryService.initialize(),
+    streamConfigService.initialize(),
+  ]);
+
+  coreServicesResults.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const serviceName = index === 0 ? 'Telemetry' : 'Config';
+      logger.error(`${serviceName} service failed to initialize`, {
+        'error.message':
+          result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+      toastManager?.error(
+        `${serviceName} Error`,
+        `Failed to initialize ${serviceName.toLowerCase()} service`
+      );
+    }
+  });
+
+  logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging());
+
+  try {
+    await systemInfoService.initialize();
+    const systemInfo = await systemInfoService.getSystemInfo();
+    if (systemInfo.environment) {
+      logger.setEnvironment(systemInfo.environment);
+    }
+  } catch (error) {
+    logger.warn('Failed to load system info for environment', {
+      'error.message': error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  const dataServicesResults = await Promise.allSettled([
+    inputSourceService.initialize(),
+    processorCapabilitiesService.initialize(),
+    toolsService.initialize(),
+    videoService.initialize(),
+    webrtcService.initialize(),
+  ]);
+
+  dataServicesResults.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const serviceNames = [
+        'Input Source',
+        'Processor Capabilities',
+        'Tools',
+        'Video',
+        'WebRTC',
+      ];
+      const serviceName = serviceNames[index];
+      logger.error(`${serviceName} service failed to initialize`, {
+        'error.message':
+          result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+      toastManager?.warning(
+        `${serviceName} Error`,
+        `Failed to load ${serviceName.toLowerCase()} data`
+      );
+    }
+  });
+
+  const modalElement = document.querySelector('grpc-status-modal');
+  acceleratorHealthMonitor.startMonitoring(
+    () => {
+      logger.warn('Accelerator health check detected unhealthy status, opening modal');
+      document.dispatchEvent(new CustomEvent('accelerator-unhealthy'));
+    },
+    () =>
+      Boolean(modalElement && (modalElement as { isModalOpen?: () => boolean }).isModalOpen?.())
+  );
+  logger.info('Accelerator health monitoring started');
+
+  attachBeforeUnload();
+  logger.info('Dashboard (React) services initialized');
+}
+
+export function ensureReactDashboardBootstrap(): Promise<void> {
+  if (!bootstrapPromise) {
+    bootstrapPromise = runBootstrap();
+  }
+  return bootstrapPromise;
+}

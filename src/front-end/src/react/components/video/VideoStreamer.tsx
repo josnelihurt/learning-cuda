@@ -58,7 +58,6 @@ export function VideoStreamer() {
         <div className={styles.filtersSection}>
           <h3 className={styles.heading}>Filters</h3>
           <FilterPanel
-            filters={[]} // TODO: Fetch from backend via useFilters
             onFiltersChange={handleFiltersChange}
             initialActiveFilters={selectedFilters}
           />

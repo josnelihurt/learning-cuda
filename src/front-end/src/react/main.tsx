@@ -13,6 +13,7 @@ import '@/components/ui/tools-dropdown';
 import '@/components/flags/feature-flags-button';
 import '@/components/flags/sync-flags-button';
 import '@/components/ui/version-tooltip-lit';
+import '@/components/video/camera-preview';
 import '@/components/video/video-grid';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

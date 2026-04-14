@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -24,6 +23,8 @@ func NewTraceProxyHandler(collectorEndpoint string, enabled bool) *TraceProxyHan
 }
 
 func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -36,7 +37,9 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !h.enabled {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte(`{"success":true,"message":"tracing disabled"}`)); err != nil {
-			log.Printf("Error writing response: %v", err)
+			logger.FromContext(ctx).Error().Err(err).
+				Str("remote_addr", r.RemoteAddr).
+				Msg("Failed to write tracing-disabled response")
 		}
 		return
 	}
@@ -48,7 +51,10 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading trace request body: %v", err)
+		logger.FromContext(ctx).Error().Err(err).
+			Str("remote_addr", r.RemoteAddr).
+			Str("content_type", r.Header.Get("Content-Type")).
+			Msg("Failed to read trace request body")
 		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
@@ -63,13 +69,19 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		collectorURL = fmt.Sprintf("http://%s/v1/traces", h.collectorEndpoint)
 	}
-	logger.Global().Debug().
+
+	logger.FromContext(ctx).Debug().
 		Str("collector_url", collectorURL).
+		Int("body_bytes", len(body)).
+		Str("remote_addr", r.RemoteAddr).
 		Msg("Forwarding browser traces")
 
 	proxyReq, err := http.NewRequest(http.MethodPost, collectorURL, bytes.NewReader(body))
 	if err != nil {
-		log.Printf("Error creating proxy request: %v", err)
+		logger.FromContext(ctx).Error().Err(err).
+			Str("collector_url", collectorURL).
+			Str("remote_addr", r.RemoteAddr).
+			Msg("Failed to create proxy request to collector")
 		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
 		return
 	}
@@ -84,7 +96,11 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
 	resp, err := client.Do(proxyReq)
 	if err != nil {
-		log.Printf("Error forwarding traces to collector at %s: %v", collectorURL, err)
+		logger.FromContext(ctx).Error().Err(err).
+			Str("collector_url", collectorURL).
+			Str("remote_addr", r.RemoteAddr).
+			Int("body_bytes", len(body)).
+			Msg("Failed to forward traces to collector")
 		http.Error(w, "Failed to forward traces", http.StatusBadGateway)
 		return
 	}
@@ -92,9 +108,20 @@ func (h *TraceProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	respBody, _ := io.ReadAll(resp.Body) //nolint:errcheck // Best effort response logging
 
-	logger.Global().Debug().
-		Int("status_code", resp.StatusCode).
-		Msg("Traces forwarded successfully")
+	if resp.StatusCode >= 400 {
+		logger.FromContext(ctx).Warn().
+			Str("collector_url", collectorURL).
+			Str("remote_addr", r.RemoteAddr).
+			Int("status_code", resp.StatusCode).
+			Str("collector_response", string(respBody)).
+			Msg("Collector returned error status for traces")
+	} else {
+		logger.FromContext(ctx).Debug().
+			Str("collector_url", collectorURL).
+			Int("status_code", resp.StatusCode).
+			Int("body_bytes", len(body)).
+			Msg("Traces forwarded successfully")
+	}
 
 	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
 	w.Header().Set("Access-Control-Allow-Origin", "*")

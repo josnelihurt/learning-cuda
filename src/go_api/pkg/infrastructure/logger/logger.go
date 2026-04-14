@@ -14,6 +14,7 @@ import (
 )
 
 var globalLogger zerolog.Logger
+var globalLocalLogger zerolog.Logger
 
 type Config struct {
 	Level             string
@@ -54,7 +55,8 @@ func New(cfg *Config) zerolog.Logger {
 
 	loggerCtx := configureCaller(&logger, cfg)
 
-	globalLogger = loggerCtx.Logger()
+	globalLocalLogger = loggerCtx.Logger()
+	globalLogger = globalLocalLogger
 	if otlpHook != nil {
 		globalLogger = globalLogger.Hook(otlpHook)
 	}
@@ -117,6 +119,13 @@ func configureCaller(loggerCtx *zerolog.Context, cfg *Config) zerolog.Context {
 
 func Global() *zerolog.Logger {
 	return &globalLogger
+}
+
+// LocalOnly returns a logger that writes only to local outputs (stdout/file).
+// Use this when remote logging would create a feedback loop, such as in the
+// OTLP proxy handler that forwards logs to the collector.
+func LocalOnly() *zerolog.Logger {
+	return &globalLocalLogger
 }
 
 func FromContext(ctx context.Context) *zerolog.Logger {

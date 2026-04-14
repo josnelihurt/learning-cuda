@@ -21,7 +21,6 @@ import (
 	"github.com/gorilla/websocket"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/featureflags"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -29,7 +28,6 @@ import (
 var rootPath = "/"
 
 type BDDContext struct {
-	fliptAPI               *featureflags.FliptHTTPAPI
 	httpClient             *http.Client
 	serviceBaseURL         string
 	lastResponse           *http.Response
@@ -67,7 +65,7 @@ type BDDContext struct {
 	listFiltersResponse    *pb.ListFiltersResponse
 }
 
-func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDContext {
+func NewBDDContext(serviceBaseURL string) *BDDContext {
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -82,7 +80,6 @@ func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDCont
 	fileClient := genconnect.NewFileServiceClient(httpClient, serviceBaseURL)
 
 	ctx := &BDDContext{
-		fliptAPI:       featureflags.NewFliptHTTPAPI(fliptBaseURL, fliptNamespace, httpClient),
 		httpClient:     httpClient,
 		serviceBaseURL: serviceBaseURL,
 		connectClient:  connectClient,
@@ -93,18 +90,6 @@ func NewBDDContext(fliptBaseURL, fliptNamespace, serviceBaseURL string) *BDDCont
 
 	ctx.loadChecksums()
 	return ctx
-}
-
-func (c *BDDContext) GivenFliptIsClean() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := c.fliptAPI.CleanAllFlags(ctx); err != nil {
-		return fmt.Errorf("failed to clean Flipt: %w", err)
-	}
-
-	time.Sleep(500 * time.Millisecond)
-	return nil
 }
 
 func (c *BDDContext) GivenTheServiceIsRunning() error {
@@ -174,15 +159,6 @@ func (c *BDDContext) callConnectRPCEndpoint(endpoint string) error {
 
 func (c *BDDContext) WhenICallGetStreamConfig() error {
 	return c.callConnectRPCEndpoint("cuda_learning.ConfigService/GetStreamConfig")
-}
-
-func (c *BDDContext) WhenICallSyncFeatureFlags() error {
-	return c.callConnectRPCEndpoint("cuda_learning.ConfigService/SyncFeatureFlags")
-}
-
-func (c *BDDContext) WhenIWaitForFlagsToBeSynced() error {
-	time.Sleep(1 * time.Second)
-	return nil
 }
 
 func (c *BDDContext) WhenICallHealthEndpoint() error {
@@ -271,42 +247,6 @@ func (c *BDDContext) ThenTheResponseShouldContainEndpoint(expected string) error
 	return nil
 }
 
-func (c *BDDContext) ThenFliptShouldHaveFlag(flagKey string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	flag, err := c.fliptAPI.GetFlag(ctx, flagKey)
-	if err != nil {
-		return fmt.Errorf("flag '%s' not found in Flipt: %w", flagKey, err)
-	}
-
-	if flag.Key != flagKey {
-		return fmt.Errorf("expected flag key '%s', got '%s'", flagKey, flag.Key)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) ThenFliptShouldHaveFlagWithValue(flagKey string, expectedValue interface{}) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	flag, err := c.fliptAPI.GetFlag(ctx, flagKey)
-	if err != nil {
-		return fmt.Errorf("flag '%s' not found in Flipt: %w", flagKey, err)
-	}
-
-	switch v := expectedValue.(type) {
-	case bool:
-		if flag.Enabled != v {
-			return fmt.Errorf("expected flag '%s' enabled=%v, got enabled=%v", flagKey, v, flag.Enabled)
-		}
-	default:
-		return fmt.Errorf("unsupported value type %T for flag validation", expectedValue)
-	}
-
-	return nil
-}
 
 func (c *BDDContext) ThenTheResponseStatusShouldBe(statusCode int) error {
 	if c.lastResponse == nil {
@@ -2401,24 +2341,3 @@ func (c *BDDContext) ThenTheFieldShouldNotBeEmpty(field string) error {
 	return nil
 }
 
-func (c *BDDContext) GetFliptAPI() *featureflags.FliptHTTPAPI {
-	return c.fliptAPI
-}
-
-func (c *BDDContext) SetObservabilityFlag(ctx context.Context, enabled bool) error {
-	flags := map[string]interface{}{
-		"observability_enabled": enabled,
-	}
-	return c.fliptAPI.SyncFlags(ctx, flags)
-}
-
-func (c *BDDContext) FlagExists(ctx context.Context, flagKey string) (bool, error) {
-	_, err := c.fliptAPI.GetFlag(ctx, flagKey)
-	if err != nil {
-		if err.Error() == "flag not found" {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}

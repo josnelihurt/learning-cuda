@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
@@ -16,7 +17,7 @@ import (
 
 type ConfigHandler struct {
 	getStreamConfigUseCase *application.GetStreamConfigUseCase
-	syncFlagsUseCase       *application.SyncFeatureFlagsUseCase
+	featureFlagRepo        domain.FeatureFlagRepository
 	listInputsUseCase      *application.ListInputsUseCase
 	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
 	getSystemInfoUseCase   *application.GetSystemInfoUseCase
@@ -27,7 +28,7 @@ type ConfigHandler struct {
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
 	GetStreamConfigUC *application.GetStreamConfigUseCase
-	SyncFlagsUC       *application.SyncFeatureFlagsUseCase
+	FeatureFlagRepo   domain.FeatureFlagRepository
 	ListInputsUC      *application.ListInputsUseCase
 	EvaluateFFUC      *application.EvaluateFeatureFlagUseCase
 	GetSystemInfoUC   *application.GetSystemInfoUseCase
@@ -38,7 +39,7 @@ type ConfigHandlerDeps struct {
 func NewConfigHandler(deps ConfigHandlerDeps) *ConfigHandler {
 	return &ConfigHandler{
 		getStreamConfigUseCase: deps.GetStreamConfigUC,
-		syncFlagsUseCase:       deps.SyncFlagsUC,
+		featureFlagRepo:        deps.FeatureFlagRepo,
 		listInputsUseCase:      deps.ListInputsUC,
 		evaluateFFUseCase:      deps.EvaluateFFUC,
 		getSystemInfoUseCase:   deps.GetSystemInfoUC,
@@ -60,7 +61,7 @@ func (h *ConfigHandler) GetStreamConfig(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	logLevel, err := h.evaluateFFUseCase.EvaluateVariant(ctx, "frontend_log_level", "default", "INFO")
+	logLevel, err := h.evaluateFFUseCase.EvaluateString(ctx, "frontend_log_level", "default", "INFO")
 	if err != nil || logLevel == "" {
 		logLevel = "INFO"
 	}
@@ -102,60 +103,64 @@ func (h *ConfigHandler) GetStreamConfig(
 	}), nil
 }
 
-func (h *ConfigHandler) SyncFeatureFlags(
+func (h *ConfigHandler) ListFeatureFlags(
 	ctx context.Context,
-	req *connect.Request[pb.SyncFeatureFlagsRequest],
-) (*connect.Response[pb.SyncFeatureFlagsResponse], error) {
-	span := trace.SpanFromContext(ctx)
-
-	flags := []domain.FeatureFlag{
-		{
-			Key:          "ws_transport_format",
-			Name:         "WebSocket Transport Format",
-			Type:         domain.VariantFlagType,
-			Enabled:      true,
-			DefaultValue: "json",
-		},
-		{
-			Key:          "observability_enabled",
-			Name:         "Observability Enabled",
-			Type:         domain.BooleanFlagType,
-			Enabled:      true,
-			DefaultValue: true,
-		},
-		{
-			Key:          "frontend_log_level",
-			Name:         "Frontend Log Level",
-			Type:         domain.VariantFlagType,
-			Enabled:      true,
-			DefaultValue: "INFO",
-		},
-		{
-			Key:          "frontend_console_logging",
-			Name:         "Frontend Console Logging",
-			Type:         domain.BooleanFlagType,
-			Enabled:      true,
-			DefaultValue: true,
-		},
+	req *connect.Request[pb.ListFeatureFlagsRequest],
+) (*connect.Response[pb.ListFeatureFlagsResponse], error) {
+	_ = req
+	if h.featureFlagRepo == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("feature flags repository not available"))
 	}
-
-	err := h.syncFlagsUseCase.Execute(ctx, flags)
+	flags, err := h.featureFlagRepo.ListFlags(ctx)
 	if err != nil {
-		log.Printf("Flag sync failed: %v", err)
-		span.SetAttributes(
-			attribute.String("sync.status", "failed"),
-			attribute.String("error.message", err.Error()),
-		)
-		span.RecordError(err)
-
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	result := make([]*pb.ManagedFeatureFlag, 0, len(flags))
+	for _, flag := range flags {
+		result = append(result, &pb.ManagedFeatureFlag{
+			Key:          flag.Key,
+			Name:         flag.Name,
+			Type:         string(flag.Type),
+			Enabled:      flag.Enabled,
+			DefaultValue: fmt.Sprintf("%v", flag.DefaultValue),
+			Description:  flag.Description,
+		})
+	}
+	return connect.NewResponse(&pb.ListFeatureFlagsResponse{Flags: result}), nil
+}
 
-	log.Println("Manual flag sync completed successfully")
-	span.SetAttributes(attribute.String("sync.status", "success"))
-	return connect.NewResponse(&pb.SyncFeatureFlagsResponse{
-		Message: "Flags synced successfully to Flipt",
-	}), nil
+func (h *ConfigHandler) UpsertFeatureFlag(
+	ctx context.Context,
+	req *connect.Request[pb.UpsertFeatureFlagRequest],
+) (*connect.Response[pb.UpsertFeatureFlagResponse], error) {
+	if req.Msg.GetFlag() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("flag is required"))
+	}
+	if h.featureFlagRepo == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("feature flags repository not available"))
+	}
+	in := req.Msg.GetFlag()
+	flagType := domain.FeatureFlagType(in.GetType())
+	defaultValue := interface{}(in.GetDefaultValue())
+	if flagType == domain.BooleanFlagType {
+		parsed, err := strconv.ParseBool(in.GetDefaultValue())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid boolean default value: %w", err))
+		}
+		defaultValue = parsed
+	}
+	err := h.featureFlagRepo.UpsertFlag(ctx, domain.FeatureFlag{
+		Key:          in.GetKey(),
+		Name:         in.GetName(),
+		Type:         flagType,
+		Enabled:      in.GetEnabled(),
+		DefaultValue: defaultValue,
+		Description:  in.GetDescription(),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&pb.UpsertFeatureFlagResponse{Message: "Flag updated successfully"}), nil
 }
 
 func (h *ConfigHandler) ListInputs(

@@ -18,17 +18,14 @@ func NewEvaluateFeatureFlagUseCase(repo domain.FeatureFlagRepository) *EvaluateF
 	return &EvaluateFeatureFlagUseCase{repository: repo}
 }
 
-func evaluate[T any](
+func (uc *EvaluateFeatureFlagUseCase) EvaluateBoolean(
 	ctx context.Context,
-	operationName string,
 	flagKey string,
 	entityID string,
-	fallbackValue T,
-	evaluator func(context.Context, string, string) (*domain.FeatureFlagEvaluation, error),
-	attributeSetter func(span trace.Span, value T),
-) (T, error) {
+	fallbackValue bool,
+) (bool, error) {
 	tracer := otel.Tracer("evaluate-feature-flag")
-	ctx, span := tracer.Start(ctx, operationName,
+	ctx, span := tracer.Start(ctx, "EvaluateBoolean",
 		trace.WithSpanKind(trace.SpanKindInternal),
 	)
 	defer span.End()
@@ -36,58 +33,69 @@ func evaluate[T any](
 	span.SetAttributes(
 		attribute.String("flag.key", flagKey),
 		attribute.String("flag.entity_id", entityID),
+		attribute.Bool("flag.fallback_value", fallbackValue),
 	)
-	attributeSetter(span, fallbackValue)
 
-	eval, err := evaluator(ctx, flagKey, entityID)
+	eval, err := uc.repository.EvaluateBoolean(ctx, flagKey, entityID)
 	if err != nil || !eval.Success {
 		log.Printf("Feature flag '%s' evaluation failed, using fallback: %v. Error: %v",
 			flagKey, fallbackValue, err)
 		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
-		attributeSetter(span, fallbackValue)
+		span.SetAttributes(attribute.Bool("flag.fallback_value", fallbackValue))
 		return fallbackValue, nil
 	}
 
-	result, ok := eval.Result.(T)
+	result, ok := eval.Result.(bool)
 	if !ok {
 		log.Printf("Warning: Type assertion failed for flag '%s', result type: %T, using fallback value", flagKey, eval.Result)
 		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
-		attributeSetter(span, fallbackValue)
+		span.SetAttributes(attribute.Bool("flag.fallback_value", fallbackValue))
 		return fallbackValue, nil
 	}
 	span.SetAttributes(attribute.Bool("flag.used_fallback", false))
-	attributeSetter(span, result)
+	span.SetAttributes(attribute.Bool("flag.fallback_value", result))
 
 	log.Printf("Feature flag '%s' evaluated to: %v", flagKey, result)
 	return result, nil
 }
 
-func (uc *EvaluateFeatureFlagUseCase) EvaluateBoolean(
-	ctx context.Context,
-	flagKey string,
-	entityID string,
-	fallbackValue bool,
-) (bool, error) {
-	return evaluate(
-		ctx, "EvaluateBoolean", flagKey, entityID, fallbackValue,
-		uc.repository.EvaluateBoolean,
-		func(span trace.Span, value bool) {
-			span.SetAttributes(attribute.Bool("flag.fallback_value", value))
-		},
-	)
-}
-
-func (uc *EvaluateFeatureFlagUseCase) EvaluateVariant(
+func (uc *EvaluateFeatureFlagUseCase) EvaluateString(
 	ctx context.Context,
 	flagKey string,
 	entityID string,
 	fallbackValue string,
 ) (string, error) {
-	return evaluate(
-		ctx, "EvaluateVariant", flagKey, entityID, fallbackValue,
-		uc.repository.EvaluateVariant,
-		func(span trace.Span, value string) {
-			span.SetAttributes(attribute.String("flag.fallback_value", value))
-		},
+	tracer := otel.Tracer("evaluate-feature-flag")
+	ctx, span := tracer.Start(ctx, "EvaluateString",
+		trace.WithSpanKind(trace.SpanKindInternal),
 	)
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("flag.key", flagKey),
+		attribute.String("flag.entity_id", entityID),
+		attribute.String("flag.fallback_value", fallbackValue),
+	)
+
+	eval, err := uc.repository.EvaluateString(ctx, flagKey, entityID)
+	if err != nil || !eval.Success {
+		log.Printf("Feature flag '%s' evaluation failed, using fallback: %v. Error: %v",
+			flagKey, fallbackValue, err)
+		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
+		span.SetAttributes(attribute.String("flag.fallback_value", fallbackValue))
+		return fallbackValue, nil
+	}
+
+	result, ok := eval.Result.(string)
+	if !ok {
+		log.Printf("Warning: Type assertion failed for flag '%s', result type: %T, using fallback value", flagKey, eval.Result)
+		span.SetAttributes(attribute.Bool("flag.used_fallback", true))
+		span.SetAttributes(attribute.String("flag.fallback_value", fallbackValue))
+		return fallbackValue, nil
+	}
+	span.SetAttributes(attribute.Bool("flag.used_fallback", false))
+	span.SetAttributes(attribute.String("flag.fallback_value", result))
+
+	log.Printf("Feature flag '%s' evaluated to: %v", flagKey, result)
+	return result, nil
 }

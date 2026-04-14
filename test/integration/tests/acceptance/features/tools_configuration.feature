@@ -4,8 +4,7 @@ Feature: Dynamic Tools Configuration
   So that I can display them dynamically based on environment
 
   Background:
-    Given Flipt is running at "http://localhost:8081" with namespace "default"
-    And the service is running at "https://localhost:8443"
+    Given the service is running at "https://localhost:8443"
 
   Scenario: Retrieve available tools grouped by category
     When I call GetAvailableTools

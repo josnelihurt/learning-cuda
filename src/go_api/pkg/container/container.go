@@ -19,7 +19,6 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/version"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/video"
-	flipt "go.flipt.io/flipt-client"
 )
 
 type Container struct {
@@ -27,12 +26,10 @@ type Container struct {
 	HTTPClient *httpinfra.ClientProxy
 
 	FeatureFlagRepo domain.FeatureFlagRepository
-	FliptAPI        *featureflags.FliptHTTPAPI
 	VideoRepository domain.VideoRepository
 
 	ProcessImageUseCase        *application.ProcessImageUseCase
 	EvaluateFeatureFlagUseCase *application.EvaluateFeatureFlagUseCase
-	SyncFeatureFlagsUseCase    *application.SyncFeatureFlagsUseCase
 	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
 	GetSystemInfoUseCase       *application.GetSystemInfoUseCase
 	ListInputsUseCase          *application.ListInputsUseCase
@@ -45,8 +42,6 @@ type Container struct {
 
 	GRPCProcessorClient *processor.GRPCClient
 	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
-
-	fliptClientProxy featureflags.FliptClientInterface
 }
 
 func New(ctx context.Context, configFile string) (*Container, error) {
@@ -72,34 +67,14 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		IdleConnTimeout: 90 * time.Second,
 	})
 
-	var fliptClientProxy featureflags.FliptClientInterface
 	var featureFlagRepo domain.FeatureFlagRepository
-	var fliptAPI *featureflags.FliptHTTPAPI
 
-	if cfg.Flipt.Enabled {
-		fliptClient, err := flipt.NewClient(
-			ctx,
-			flipt.WithURL(cfg.Flipt.URL),
-			flipt.WithNamespace(cfg.Flipt.Namespace),
-		)
-		if err != nil {
-			log.Warn().
-				Err(err).
-				Str("flipt_url", cfg.Flipt.URL).
-				Msg("Failed to initialize Flipt client. Feature flags will be disabled")
-			fliptClientProxy = nil
-			featureFlagRepo = nil
-			fliptAPI = nil
-		} else {
-			fliptClientProxy = featureflags.NewFliptClient(fliptClient)
-			fliptWriter := featureflags.NewFliptWriter(
-				cfg.Flipt.URL,
-				cfg.Flipt.Namespace,
-				httpClient,
-			)
-			featureFlagRepo = featureflags.NewFliptRepository(fliptClientProxy, fliptWriter)
-			fliptAPI = featureflags.NewFliptHTTPAPI(cfg.Flipt.URL, cfg.Flipt.Namespace, httpClient)
+	if cfg.GoFeatureFlag.Enabled {
+		goffRepo := featureflags.NewGoffRepository(cfg.GoFeatureFlag.FilePath)
+		if err := goffRepo.ValidateConfig(); err != nil {
+			return nil, fmt.Errorf("invalid go feature flag config: %w", err)
 		}
+		featureFlagRepo = goffRepo
 	}
 
 	buildInfo := build.NewBuildInfo()
@@ -127,7 +102,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		Msg("gRPC client initialized successfully")
 
 	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
-	syncFFUseCase := application.NewSyncFeatureFlagsUseCase(featureFlagRepo)
 	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
 
 	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
@@ -159,10 +133,8 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		Config:                     cfg,
 		HTTPClient:                 httpClient,
 		FeatureFlagRepo:            featureFlagRepo,
-		FliptAPI:                   fliptAPI,
 		VideoRepository:            videoRepo,
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
-		SyncFeatureFlagsUseCase:    syncFFUseCase,
 		GetStreamConfigUseCase:     getStreamConfigUseCase,
 		GetSystemInfoUseCase:       getSystemInfoUseCase,
 		ListInputsUseCase:          listInputsUseCase,
@@ -172,7 +144,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		UploadVideoUseCase:         uploadVideoUseCase,
 		GRPCProcessorClient:        grpcClient,
 		DeviceMonitor:              deviceMonitor,
-		fliptClientProxy:           fliptClientProxy,
 	}, nil
 }
 
@@ -185,13 +156,5 @@ func (c *Container) Close(ctx context.Context) error {
 		}
 	}
 
-	if c.fliptClientProxy != nil {
-		closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		if err := c.fliptClientProxy.Close(closeCtx); err != nil {
-			log.Error().Err(err).Msg("Error closing Flipt client")
-			return err
-		}
-	}
 	return nil
 }

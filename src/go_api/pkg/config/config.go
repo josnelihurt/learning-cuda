@@ -11,7 +11,7 @@ import (
 type Manager struct {
 	HTTPClientTimeout time.Duration       `mapstructure:"http_client_timeout"`
 	Environment       string              `mapstructure:"environment"`
-	Flipt             FliptConfig         `mapstructure:"flipt"`
+	GoFeatureFlag     GoFeatureFlagConfig `mapstructure:"go_feature_flag"`
 	Server            ServerConfig        `mapstructure:"server"`
 	Stream            StreamConfig        `mapstructure:"stream"`
 	Observability     ObservabilityConfig `mapstructure:"observability"`
@@ -22,14 +22,10 @@ type Manager struct {
 	MQTT              MQTTConfig          `mapstructure:"mqtt"`
 }
 
-type FliptConfig struct {
-	Enabled        bool          `mapstructure:"enabled"`
-	URL            string        `mapstructure:"url"`
-	Namespace      string        `mapstructure:"namespace"`
-	DBPath         string        `mapstructure:"db_path"`
-	ClientTimeout  time.Duration `mapstructure:"client_timeout"`
-	UpdateInterval time.Duration `mapstructure:"update_interval"`
-	HTTPTimeout    time.Duration `mapstructure:"http_timeout"`
+type GoFeatureFlagConfig struct {
+	Enabled   bool   `mapstructure:"enabled"`
+	FilePath  string `mapstructure:"file_path"`
+	Namespace string `mapstructure:"namespace"`
 }
 
 type ToolsConfig struct {
@@ -100,13 +96,9 @@ func setDefaults(v *viper.Viper) {
 		"observability.otel_collector_http_endpoint": "http://localhost:4318",
 		"observability.trace_sampling_rate":          1.0,
 
-		"flipt.enabled":         true,
-		"flipt.url":             "http://localhost:8081",
-		"flipt.namespace":       "default",
-		"flipt.db_path":         ".ignore/storage/flipt/flipt.db",
-		"flipt.client_timeout":  "30s",
-		"flipt.update_interval": "30s",
-		"flipt.http_timeout":    "10s",
+		"go_feature_flag.enabled":   true,
+		"go_feature_flag.file_path": "config/flags.goff.yaml",
+		"go_feature_flag.namespace": "default",
 
 		"logging.level":              "info",
 		"logging.format":             "json",

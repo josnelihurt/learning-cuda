@@ -112,3 +112,4 @@ server
 .claude/
 .kilo/
 .opencode/
+acceptance.test

@@ -4,8 +4,7 @@ Feature: Upload Images
     So that I can use them for processing
 
     Background:
-        Given Flipt is running at "http://localhost:8081" with namespace "default"
-        And the service is running at "https://localhost:8443"
+        Given the service is running at "https://localhost:8443"
 
     Scenario: Upload valid PNG image
         When I upload a valid PNG image named "test-upload.png"

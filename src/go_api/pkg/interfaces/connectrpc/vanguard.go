@@ -8,6 +8,7 @@ import (
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
 
@@ -15,7 +16,7 @@ import (
 type VanguardConfig struct {
 	ImageProcessorHandler *ImageProcessorHandler
 	GetStreamConfigUC     *application.GetStreamConfigUseCase
-	SyncFlagsUC           *application.SyncFeatureFlagsUseCase
+	FeatureFlagRepo       domain.FeatureFlagRepository
 	ListInputsUC          *application.ListInputsUseCase
 	EvaluateFFUC          *application.EvaluateFeatureFlagUseCase
 	GetSystemInfoUC       *application.GetSystemInfoUseCase
@@ -43,7 +44,7 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 
 	configHandler := NewConfigHandler(ConfigHandlerDeps{
 		GetStreamConfigUC: cfg.GetStreamConfigUC,
-		SyncFlagsUC:       cfg.SyncFlagsUC,
+		FeatureFlagRepo:   cfg.FeatureFlagRepo,
 		ListInputsUC:      cfg.ListInputsUC,
 		EvaluateFFUC:      cfg.EvaluateFFUC,
 		GetSystemInfoUC:   cfg.GetSystemInfoUC,

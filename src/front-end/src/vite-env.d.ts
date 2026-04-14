@@ -15,7 +15,6 @@ declare global {
       'video-grid': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
       'tools-dropdown': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
       'feature-flags-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
-      'sync-flags-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
       'version-tooltip-lit': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
     }
   }

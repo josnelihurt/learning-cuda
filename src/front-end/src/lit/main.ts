@@ -2,7 +2,6 @@ import './components/video/camera-preview';
 import './components/app/toast-container';
 import './components/app/stats-panel';
 import './components/app/filter-panel';
-import './components/flags/sync-flags-button';
 import './components/ui/tools-dropdown';
 import './components/video/video-grid';
 import './components/app/source-drawer';

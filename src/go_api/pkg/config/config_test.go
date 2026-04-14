@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -57,73 +56,6 @@ func TestSetDefaults(t *testing.T) {
 	// This test is complex due to viper dependencies
 	// In a real implementation, we would need to mock viper
 	t.Skip("Skipping due to viper dependencies - requires integration testing")
-}
-
-func TestFliptConfig_Validation(t *testing.T) {
-	tests := []struct {
-		name        string
-		config      FliptConfig
-		expectValid bool
-	}{
-		{
-			name: "Success_ValidConfig",
-			config: FliptConfig{
-				Enabled:        true,
-				URL:            "http://localhost:8081",
-				Namespace:      "default",
-				DBPath:         "/tmp/flipt.db",
-				ClientTimeout:  30 * time.Second,
-				UpdateInterval: 30 * time.Second,
-				HTTPTimeout:    10 * time.Second,
-			},
-			expectValid: true,
-		},
-		{
-			name: "Success_DisabledConfig",
-			config: FliptConfig{
-				Enabled: false,
-			},
-			expectValid: true,
-		},
-		{
-			name: "Error_EmptyURL",
-			config: FliptConfig{
-				Enabled: true,
-				URL:     "",
-			},
-			expectValid: false,
-		},
-		{
-			name: "Error_EmptyNamespace",
-			config: FliptConfig{
-				Enabled:   true,
-				URL:       "http://localhost:8081",
-				Namespace: "",
-			},
-			expectValid: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
-			config := tt.config
-
-			// Act & Assert
-			if tt.expectValid {
-				// If enabled, URL and Namespace should be set
-				if config.Enabled {
-					assert.NotEmpty(t, config.URL)
-					assert.NotEmpty(t, config.Namespace)
-				}
-			} else {
-				// If enabled but missing required fields, it's invalid
-				if config.Enabled {
-					assert.True(t, config.URL == "" || config.Namespace == "")
-				}
-			}
-		})
-	}
 }
 
 func TestServerConfig_Validation(t *testing.T) {
@@ -368,8 +300,8 @@ func TestToolsConfig_Validation(t *testing.T) {
 				},
 				Features: []ToolDefinition{
 					{
-						ID:   "flipt",
-						Name: "Flipt",
+						ID:   "feature_flags",
+						Name: "Feature Flags",
 						Type: "features",
 					},
 				},

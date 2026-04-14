@@ -4,8 +4,7 @@ Feature: Processor Capabilities
   So that I can discover supported filters and their parameters dynamically
 
   Background:
-    Given Flipt is running at "http://localhost:8081" with namespace "default"
-    And the service is running at "https://localhost:8443"
+    Given the service is running at "https://localhost:8443"
 
   Scenario: Query processor capabilities
     When I call GetProcessorStatus

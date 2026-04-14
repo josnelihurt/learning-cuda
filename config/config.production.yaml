@@ -17,14 +17,10 @@ features:
   stream.transport_format: "json"
   stream.websocket_endpoint: ""
 
-flipt:
+go_feature_flag:
   enabled: true
-  url: "http://flipt:8080"
+  file_path: "/app/config/flags.goff.yaml"
   namespace: "default"
-  db_path: "/var/opt/flipt/flipt.db"
-  client_timeout: "30s"
-  update_interval: "30s"
-  http_timeout: "10s"
 
 observability:
   service_name: "cuda-image-processor"
@@ -74,16 +70,11 @@ tools:
       type: "url"
       url: "https://grafana-cuda-demo.josnelihurt.me/explore"
   features:
-    - id: "flipt"
-      name: "Flipt Feature Flags"
-      icon_path: "/static/img/tools/flipt.svg"
-      type: "url"
-      url: "https://flipt-cuda-demo.josnelihurt.me"
-    - id: "sync_flags"
-      name: "Sync Feature Flags"
+    - id: "feature_flags"
+      name: "Feature Flags"
       icon_path: ""
       type: "action"
-      action: "sync_flags"
+      action: "open_feature_flags"
   testing:
     - id: "bdd_reports"
       name: "Test Reports (BDD)"

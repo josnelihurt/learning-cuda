@@ -4,8 +4,7 @@ Feature: System Information
   So that I can display version and environment information in the UI
 
   Background:
-    Given Flipt is running at "http://localhost:8081" with namespace "default"
-    And the service is running at "https://localhost:8443"
+    Given the service is running at "https://localhost:8443"
 
   Scenario: Get system info successfully
     When I call GetSystemInfo

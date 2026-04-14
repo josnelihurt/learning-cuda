@@ -6,13 +6,14 @@ type FeatureFlag struct {
 	Type         FeatureFlagType
 	Enabled      bool
 	DefaultValue interface{}
+	Description  string
 }
 
 type FeatureFlagType string
 
 const (
 	BooleanFlagType FeatureFlagType = "boolean"
-	VariantFlagType FeatureFlagType = "variant"
+	StringFlagType  FeatureFlagType = "string"
 )
 
 type FeatureFlagEvaluation struct {

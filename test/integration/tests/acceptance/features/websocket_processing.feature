@@ -4,8 +4,7 @@ Feature: WebSocket Image Processing
   So that I can have real-time image processing with different transport formats
 
   Background:
-    Given Flipt is running at "http://localhost:8081" with namespace "default"
-    And the service is running at "https://localhost:8443"
+    Given the service is running at "https://localhost:8443"
     And I have image "lena.png"
 
   Scenario: Process frame with JSON transport and no filter using GPU

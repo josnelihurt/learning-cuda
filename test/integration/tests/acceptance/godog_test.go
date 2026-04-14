@@ -7,7 +7,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
-	"github.com/jrb/cuda-learning/integration/tests/acceptance/steps"
+	"github.com/jrb/cuda-learning/test/integration/tests/acceptance/steps"
 )
 
 func TestFeatures(t *testing.T) {
@@ -54,5 +54,4 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	steps.InitializeImageSteps(ctx, testCtx)
 	steps.InitializeInputSourceSteps(ctx, testCtx)
 	steps.InitializeAvailableImagesSteps(ctx, testCtx)
-	steps.InitializeFrontendLoggingSteps(ctx, testCtx)
 }

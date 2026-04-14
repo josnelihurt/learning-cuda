@@ -145,19 +145,18 @@ export class ToolsDropdown extends LitElement {
   }
 
   private executeAction(action: string) {
-    if (action === 'sync_flags') {
-      const syncButton = document.querySelector('sync-flags-button');
-      if (syncButton) {
-        const button = syncButton.shadowRoot?.querySelector('button');
-        button?.click();
-      }
+    if (!action) {
+      return;
+    }
+    if (action === 'open_feature_flags') {
+      document.dispatchEvent(new CustomEvent('open-feature-flags-modal'));
     }
   }
 
   private renderTool(tool: any) {
     const iconContent = tool.iconPath
       ? html`<img src="${tool.iconPath}" alt="${tool.name}" />`
-      : html`${tool.type === 'action' && tool.action === 'sync_flags' ? 'R' : 'OK'}`;
+      : html`${tool.type === 'action' ? 'R' : 'OK'}`;
 
     return html`
       <a

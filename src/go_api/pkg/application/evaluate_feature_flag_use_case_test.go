@@ -23,7 +23,7 @@ func (m *mockFeatureFlagRepository) EvaluateBoolean(ctx context.Context, flagKey
 	return args.Get(0).(*domain.FeatureFlagEvaluation), args.Error(1)
 }
 
-func (m *mockFeatureFlagRepository) EvaluateVariant(ctx context.Context, flagKey, entityID string) (*domain.FeatureFlagEvaluation, error) {
+func (m *mockFeatureFlagRepository) EvaluateString(ctx context.Context, flagKey, entityID string) (*domain.FeatureFlagEvaluation, error) {
 	args := m.Called(ctx, flagKey, entityID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -44,6 +44,19 @@ func (m *mockFeatureFlagRepository) GetFlag(ctx context.Context, flagKey string)
 	return args.Get(0).(*domain.FeatureFlag), args.Error(1)
 }
 
+func (m *mockFeatureFlagRepository) ListFlags(ctx context.Context) ([]domain.FeatureFlag, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.FeatureFlag), args.Error(1)
+}
+
+func (m *mockFeatureFlagRepository) UpsertFlag(ctx context.Context, flag domain.FeatureFlag) error {
+	args := m.Called(ctx, flag)
+	return args.Error(0)
+}
+
 func makeBooleanEvaluation(result, success bool) *domain.FeatureFlagEvaluation {
 	return &domain.FeatureFlagEvaluation{
 		FlagKey:      "test_flag",
@@ -54,7 +67,7 @@ func makeBooleanEvaluation(result, success bool) *domain.FeatureFlagEvaluation {
 	}
 }
 
-func makeVariantEvaluation(result string, success bool) *domain.FeatureFlagEvaluation {
+func makeStringEvaluation(result string, success bool) *domain.FeatureFlagEvaluation {
 	return &domain.FeatureFlagEvaluation{
 		FlagKey:      "test_flag",
 		EntityID:     "test_entity",
@@ -163,7 +176,7 @@ func TestEvaluateFeatureFlagUseCase_EvaluateBoolean(t *testing.T) {
 	}
 }
 
-func TestEvaluateFeatureFlagUseCase_EvaluateVariant(t *testing.T) {
+func TestEvaluateFeatureFlagUseCase_EvaluateString(t *testing.T) {
 	var (
 		errRepositoryFailed = errors.New("repository failed")
 	)
@@ -182,7 +195,7 @@ func TestEvaluateFeatureFlagUseCase_EvaluateVariant(t *testing.T) {
 			flagKey:       "theme_variant",
 			entityID:      "user_123",
 			fallbackValue: "default",
-			mockResult:    makeVariantEvaluation("dark", true),
+			mockResult:    makeStringEvaluation("dark", true),
 			mockError:     nil,
 			assertResult: func(t *testing.T, result string, err error) {
 				assert.NoError(t, err)
@@ -206,7 +219,7 @@ func TestEvaluateFeatureFlagUseCase_EvaluateVariant(t *testing.T) {
 			flagKey:       "failed_variant",
 			entityID:      "user_789",
 			fallbackValue: "safe_default",
-			mockResult:    makeVariantEvaluation("wrong", false),
+			mockResult:    makeStringEvaluation("wrong", false),
 			mockError:     nil,
 			assertResult: func(t *testing.T, result string, err error) {
 				assert.NoError(t, err)
@@ -219,7 +232,7 @@ func TestEvaluateFeatureFlagUseCase_EvaluateVariant(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
 			mockRepo := new(mockFeatureFlagRepository)
-			mockRepo.On("EvaluateVariant",
+			mockRepo.On("EvaluateString",
 				mock.Anything,
 				tt.flagKey,
 				tt.entityID,
@@ -229,7 +242,7 @@ func TestEvaluateFeatureFlagUseCase_EvaluateVariant(t *testing.T) {
 			ctx := context.Background()
 
 			// Act
-			result, err := sut.EvaluateVariant(ctx, tt.flagKey, tt.entityID, tt.fallbackValue)
+			result, err := sut.EvaluateString(ctx, tt.flagKey, tt.entityID, tt.fallbackValue)
 
 			// Assert
 			tt.assertResult(t, result, err)

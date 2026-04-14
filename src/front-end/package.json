@@ -57,6 +57,8 @@
     "vitest": "^1.2.0"
   },
   "dependencies": {
+    "@openfeature/go-feature-flag-web-provider": "^0.2.9",
+    "@openfeature/web-sdk": "^1.7.3",
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/api-logs": "^0.206.0",
     "@opentelemetry/core": "1.28.0",

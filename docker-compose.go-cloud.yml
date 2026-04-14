@@ -29,34 +29,6 @@ services:
       - iot-internal
       - public-wan
 
-  flipt:
-    image: flipt/flipt:latest
-    container_name: flipt
-    restart: unless-stopped
-    
-    environment:
-      - FLIPT_LOG_LEVEL=info
-      - FLIPT_META_TELEMETRY_ENABLED=false
-    
-    networks:
-      - public-wan
-    
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=public-wan"
-      - "traefik.http.routers.flipt.rule=Host(`flipt-cuda-demo.josnelihurt.me`)"
-      - "traefik.http.routers.flipt.entrypoints=https"
-      - "traefik.http.routers.flipt.tls=true"
-      - "traefik.http.routers.flipt.priority=200"
-      - "traefik.http.services.flipt.loadbalancer.server.port=8080"
-
 networks:
   public-wan:
     external: true

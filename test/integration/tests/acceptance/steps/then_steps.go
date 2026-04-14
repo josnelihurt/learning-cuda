@@ -14,14 +14,6 @@ func (tc *TestContext) theResponseShouldContainEndpoint(expected string) error {
 	return tc.ThenTheResponseShouldContainEndpoint(expected)
 }
 
-func (tc *TestContext) fliptShouldHaveFlag(flagKey string) error {
-	return tc.ThenFliptShouldHaveFlag(flagKey)
-}
-
-func (tc *TestContext) flagShouldBeEnabled(flagKey string) error {
-	return tc.ThenFliptShouldHaveFlagWithValue(flagKey, true)
-}
-
 func (tc *TestContext) theResponseStatusShouldBe(statusCode int) error {
 	return tc.ThenTheResponseStatusShouldBe(statusCode)
 }
@@ -221,48 +213,13 @@ func (tc *TestContext) iCanRetrieveMetadataForFrameID(frameID int) error {
 	return tc.ThenICanRetrieveMetadataForFrameID(frameID)
 }
 
-func (tc *TestContext) theResponseShouldIncludeLogLevel(expectedLevel string) error {
-	return tc.ThenTheResponseShouldIncludeLogLevel(expectedLevel)
-}
-
-func (tc *TestContext) theResponseShouldIncludeConsoleLoggingEnabled() error {
-	return tc.ThenTheResponseShouldIncludeConsoleLoggingEnabled()
-}
-
-func (tc *TestContext) theResponseShouldIncludeConsoleLoggingDisabled() error {
-	return tc.ThenTheResponseShouldIncludeConsoleLoggingDisabled()
-}
-
-func (tc *TestContext) theLogsShouldBeWrittenToBackendLogger() error {
-	return tc.ThenTheLogsShouldBeWrittenToBackendLogger()
-}
-
 func (tc *TestContext) theResponseShouldReturnHTTP(code int) error {
 	return tc.ThenTheResponseShouldReturnHTTP200()
-}
-
-func (tc *TestContext) fliptShouldStillHaveAllFlagsConfiguredCorrectly() error {
-	// Verify all expected flags exist
-	expectedFlags := []string{
-		"ws_transport_format",
-		"observability_enabled",
-		"frontend_log_level",
-		"frontend_console_logging",
-	}
-
-	for _, flagKey := range expectedFlags {
-		if err := tc.ThenFliptShouldHaveFlag(flagKey); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain transport format "([^"]*)"$`, tc.theResponseShouldContainTransportFormat)
 	ctx.Step(`^the response should contain endpoint "([^"]*)"$`, tc.theResponseShouldContainEndpoint)
-	ctx.Step(`^Flipt should have flag "([^"]*)"$`, tc.fliptShouldHaveFlag)
-	ctx.Step(`^flag "([^"]*)" should be enabled$`, tc.flagShouldBeEnabled)
 	ctx.Step(`^the response status should be (\d+)$`, tc.theResponseStatusShouldBe)
 	ctx.Step(`^the response should contain status "([^"]*)"$`, tc.theResponseShouldContainStatus)
 	ctx.Step(`^the response should succeed$`, tc.theResponseShouldSucceed)
@@ -315,12 +272,7 @@ func InitializeThenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the metadata should contain (\d+) frames$`, tc.theMetadataShouldContainFrames)
 	ctx.Step(`^frame (\d+) should have a SHA256 hash$`, tc.frameShouldHaveASHA256Hash)
 	ctx.Step(`^I can retrieve metadata for frame_id (\d+)$`, tc.iCanRetrieveMetadataForFrameID)
-	ctx.Step(`^the response should include log level "([^"]*)"$`, tc.theResponseShouldIncludeLogLevel)
-	ctx.Step(`^the response should include console logging enabled$`, tc.theResponseShouldIncludeConsoleLoggingEnabled)
-	ctx.Step(`^the response should include console logging disabled$`, tc.theResponseShouldIncludeConsoleLoggingDisabled)
-	ctx.Step(`^the logs should be written to backend logger$`, tc.theLogsShouldBeWrittenToBackendLogger)
 	ctx.Step(`^the response should return HTTP (\d+)$`, tc.theResponseShouldReturnHTTP)
-	ctx.Step(`^Flipt should still have all flags configured correctly$`, tc.fliptShouldStillHaveAllFlagsConfiguredCorrectly)
 	ctx.Step(`^the response should be successful$`, tc.theResponseShouldBeSuccessful)
 	ctx.Step(`^the response should include version information$`, tc.theResponseShouldIncludeVersionInformation)
 	ctx.Step(`^the version should have ([^"]*)$`, tc.theVersionShouldHave)

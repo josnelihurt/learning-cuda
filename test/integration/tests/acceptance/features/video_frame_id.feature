@@ -4,8 +4,7 @@ Feature: Video Frame ID Tracking
   So that I can deterministically validate video playback and test with pre-calculated metadata
 
   Background:
-    Given Flipt is running at "http://localhost:8081" with namespace "default"
-    And the service is running at "https://localhost:8443"
+    Given the service is running at "https://localhost:8443"
 
   Scenario: E2E test video is available in video list
     When I call ListAvailableVideos

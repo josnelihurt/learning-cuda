@@ -9,10 +9,6 @@ ingress:
     service: https://traefik:443
     originRequest:
       noTLSVerify: true
-  - hostname: flipt-cuda-demo.josnelihurt.me
-    service: https://traefik:443
-    originRequest:
-      noTLSVerify: true
   - hostname: jaeger-cuda-demo.josnelihurt.me
     service: https://traefik:443
     originRequest:

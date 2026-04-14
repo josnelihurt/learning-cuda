@@ -59,7 +59,7 @@ func main() {
 		app.WithProcessorCapabilitiesUseCase(processorCapsUseCase),
 		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
 		app.WithGetSystemInfoUseCase(di.GetSystemInfoUseCase),
-		app.WithSyncFlagsUseCase(di.SyncFeatureFlagsUseCase),
+		app.WithFeatureFlagRepository(di.FeatureFlagRepo),
 		app.WithListInputsUseCase(di.ListInputsUseCase),
 		app.WithEvaluateFFUseCase(di.EvaluateFeatureFlagUseCase),
 		app.WithListAvailableImagesUseCase(di.ListAvailableImagesUseCase),

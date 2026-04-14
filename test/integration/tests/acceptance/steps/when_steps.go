@@ -8,18 +8,6 @@ func (tc *TestContext) iCallTheGetStreamConfigEndpoint() error {
 	return tc.WhenICallGetStreamConfig()
 }
 
-func (tc *TestContext) iCallTheSyncFeatureFlagsEndpoint() error {
-	return tc.WhenICallSyncFeatureFlags()
-}
-
-func (tc *TestContext) iCallTheSyncFeatureFlagsEndpointAgain() error {
-	return tc.WhenICallSyncFeatureFlags()
-}
-
-func (tc *TestContext) iWaitForFlagsToBeSynchronized() error {
-	return tc.WhenIWaitForFlagsToBeSynced()
-}
-
 func (tc *TestContext) iCallTheHealthEndpoint() error {
 	return tc.WhenICallHealthEndpoint()
 }
@@ -96,19 +84,8 @@ func (tc *TestContext) iQueryVideoMetadataFor(videoID string) error {
 	return tc.WhenIQueryVideoMetadataFor(videoID)
 }
 
-func (tc *TestContext) theClientRequestsStreamConfiguration() error {
-	return tc.WhenTheClientRequestsStreamConfiguration()
-}
-
-func (tc *TestContext) theBackendReceivesOTLPLogsAt(endpoint string) error {
-	return tc.WhenTheBackendReceivesOTLPLogsAt(endpoint)
-}
-
 func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I call the GetStreamConfig endpoint$`, tc.iCallTheGetStreamConfigEndpoint)
-	ctx.Step(`^I call the SyncFeatureFlags endpoint$`, tc.iCallTheSyncFeatureFlagsEndpoint)
-	ctx.Step(`^I call the SyncFeatureFlags endpoint again$`, tc.iCallTheSyncFeatureFlagsEndpointAgain)
-	ctx.Step(`^I wait for flags to be synchronized$`, tc.iWaitForFlagsToBeSynchronized)
 	ctx.Step(`^I call the health endpoint$`, tc.iCallTheHealthEndpoint)
 	ctx.Step(`^I call GetProcessorStatus$`, tc.iCallGetProcessorStatus)
 	ctx.Step(`^I call ListFilters$`, tc.iCallListFilters)
@@ -128,8 +105,6 @@ func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I receive (\d+) video frames$`, tc.iReceiveVideoFrames)
 	ctx.Step(`^I receive the first (\d+) video frames$`, tc.iReceiveTheFirstVideoFrames)
 	ctx.Step(`^I query video metadata for "([^"]*)"$`, tc.iQueryVideoMetadataFor)
-	ctx.Step(`^the client requests stream configuration$`, tc.theClientRequestsStreamConfiguration)
-	ctx.Step(`^the backend receives OTLP logs at "([^"]*)"$`, tc.theBackendReceivesOTLPLogsAt)
 	ctx.Step(`^I call GetSystemInfo$`, tc.iCallGetSystemInfo)
 }
 

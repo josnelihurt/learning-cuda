@@ -12,22 +12,26 @@ class OtelLogger implements ILogger {
   private consoleEnabled: boolean = true;
   private minLogLevel: SeverityNumber = SeverityNumber.INFO;
   private initialized = false;
+  private observabilityEnabled: boolean = false;
   private logQueue: any[] = [];
   private flushTimer: number | null = null;
   private environment: string = 'development';
 
-  initialize(logLevel: string, consoleEnabled: boolean, environment?: string): void {
+  initialize(logLevel: string, consoleEnabled: boolean, environment?: string, observabilityEnabled: boolean = false): void {
     try {
       this.consoleEnabled = consoleEnabled;
       this.minLogLevel = this.parseLogLevel(logLevel);
+      this.observabilityEnabled = observabilityEnabled;
       if (environment) {
         this.environment = environment;
       }
       this.initialized = true;
 
-      this.flushTimer = window.setInterval(() => {
-        this.flushLogs();
-      }, 5000);
+      if (this.observabilityEnabled) {
+        this.flushTimer = window.setInterval(() => {
+          this.flushLogs();
+        }, 5000);
+      }
     } catch (error) {
       console.warn('Failed to initialize logger:', error);
       this.initialized = false;
@@ -70,7 +74,7 @@ class OtelLogger implements ILogger {
   }
 
   private async flushLogs(): Promise<void> {
-    if (this.logQueue.length === 0) {
+    if (!this.observabilityEnabled || this.logQueue.length === 0) {
       return;
     }
 

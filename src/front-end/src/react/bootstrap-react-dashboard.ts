@@ -1,6 +1,7 @@
 import { container } from '@/application/di';
 import { acceleratorHealthMonitor } from '@/infrastructure/external/accelerator-health-monitor';
 import { systemInfoService } from '@/infrastructure/external/system-info-service';
+import { featureFlagsService } from '@/infrastructure/external/feature-flags-service';
 
 declare global {
   interface Window {
@@ -47,8 +48,10 @@ async function runBootstrap(): Promise<void> {
 
   logger.info('Initializing dashboard (React)...');
 
+  const observabilityEnabled = await featureFlagsService.isFeatureEnabled('observability_enabled');
+
   const coreServicesResults = await Promise.allSettled([
-    telemetryService.initialize(),
+    telemetryService.initialize(observabilityEnabled),
     streamConfigService.initialize(),
   ]);
 
@@ -65,7 +68,7 @@ async function runBootstrap(): Promise<void> {
     }
   });
 
-  logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging());
+  logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging(), undefined, observabilityEnabled);
 
   try {
     await systemInfoService.initialize();

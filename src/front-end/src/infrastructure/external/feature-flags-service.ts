@@ -1,14 +1,13 @@
 import { createPromiseClient, PromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { FeatureFlagsService } from '../../gen/feature_flags_connect';
-import { GetFeatureFlagsRequest } from '../../gen/feature_flags_pb';
+import { ConfigService } from '../../gen/config_service_connect';
 import { telemetryService } from '../observability/telemetry-service';
 import { logger } from '../observability/otel-logger';
 
 type FeatureFlagValue = string | boolean | null;
 
 class FeatureFlagsServiceClient {
-  private client: PromiseClient<typeof FeatureFlagsService>;
+  private client: PromiseClient<typeof ConfigService>;
   private flagsCache: Map<string, FeatureFlagValue> = new Map();
   private cacheTimestamp: number = 0;
   private readonly CACHE_TTL = 30000;
@@ -18,7 +17,7 @@ class FeatureFlagsServiceClient {
     const transport = createConnectTransport({
       baseUrl: window.location.origin,
     });
-    this.client = createPromiseClient(FeatureFlagsService, transport);
+    this.client = createPromiseClient(ConfigService, transport);
   }
 
   async initialize(): Promise<void> {
@@ -59,14 +58,14 @@ class FeatureFlagsServiceClient {
     }
 
     try {
-      const response = await this.client.getFeatureFlags({});
+      const response = await this.client.listFeatureFlags({});
       this.flagsCache.clear();
 
       for (const flag of response.flags) {
         if (flag.type === 'boolean') {
-          this.flagsCache.set(flag.key, flag.value === 'true' || flag.value === '1');
+          this.flagsCache.set(flag.key, flag.defaultValue === 'true' || flag.defaultValue === '1');
         } else {
-          this.flagsCache.set(flag.key, flag.value);
+          this.flagsCache.set(flag.key, flag.defaultValue);
         }
       }
 

@@ -11,12 +11,12 @@ class TelemetryService implements ITelemetryService {
   private enabled: boolean = false;
   private tracer: any = null;
 
-  async initialize() {
+  async initialize(enabled: boolean = true) {
     try {
-      this.enabled = true;
+      this.enabled = enabled;
 
       if (!this.enabled) {
-        logger.info('Telemetry disabled by configuration');
+        logger.info('Telemetry disabled by feature flag');
         return;
       }
 

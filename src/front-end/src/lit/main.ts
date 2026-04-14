@@ -20,6 +20,7 @@ import './components/app/app-tour';
 import './components/app/app-root';
 import { acceleratorHealthMonitor } from '../infrastructure/external/accelerator-health-monitor';
 import { systemInfoService } from '../infrastructure/external/system-info-service';
+import { featureFlagsService } from '../infrastructure/external/feature-flags-service';
 import { container } from '../application/di';
 import type {
   IConfigService,
@@ -55,8 +56,10 @@ const app = {
 
     logger.info('Initializing dashboard...');
 
+    const observabilityEnabled = await featureFlagsService.isFeatureEnabled('observability_enabled');
+
     const coreServicesResults = await Promise.allSettled([
-      telemetryService.initialize(),
+      telemetryService.initialize(observabilityEnabled),
       streamConfigService.initialize(),
     ]);
 
@@ -70,7 +73,7 @@ const app = {
       }
     });
 
-    logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging());
+    logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging(), undefined, observabilityEnabled);
 
     try {
       await systemInfoService.initialize();

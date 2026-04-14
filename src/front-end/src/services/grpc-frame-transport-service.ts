@@ -5,9 +5,9 @@ import { ProcessImageRequest, ProcessImageResponse } from '../gen/image_processo
 import { WebSocketFrameResponse } from '../gen/image_processor_service_pb';
 import type { IFrameTransportService } from '../domain/interfaces/IFrameTransportService';
 import { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../domain/value-objects';
-import type { StatsPanel } from '../components/app/stats-panel';
-import type { CameraPreview } from '../components/video/camera-preview';
-import type { ToastContainer } from '../components/app/toast-container';
+import type { StatsPanel } from '../lit/components/app/stats-panel';
+import type { CameraPreview } from '../lit/components/video/camera-preview';
+import type { ToastContainer } from '../lit/components/app/toast-container';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
 import { context, propagation } from '@opentelemetry/api';

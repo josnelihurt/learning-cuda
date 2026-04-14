@@ -1,12 +1,12 @@
-import type { StatsPanel } from '../../components/app/stats-panel';
-import type { CameraPreview } from '../../components/video/camera-preview';
-import type { FilterPanel } from '../../components/app/filter-panel';
-import type { ToastContainer } from '../../components/app/toast-container';
+import type { StatsPanel } from '../../lit/components/app/stats-panel';
+import type { CameraPreview } from '../../lit/components/video/camera-preview';
+import type { FilterPanel } from '../../lit/components/app/filter-panel';
+import type { ToastContainer } from '../../lit/components/app/toast-container';
 import type { WebSocketService } from '../../infrastructure/transport/websocket-frame-transport';
 import { telemetryService } from '../../infrastructure/observability/telemetry-service';
 import { logger } from '../../infrastructure/observability/otel-logger';
 import type { IUIService } from '../../domain/interfaces/IUIService';
-import type { ActiveFilterState } from '../../components/app/filter-panel.types';
+import type { ActiveFilterState } from '../../lit/components/app/filter-panel.types';
 import { FilterData } from '../../domain/value-objects';
 
 declare const __APP_VERSION__: string;

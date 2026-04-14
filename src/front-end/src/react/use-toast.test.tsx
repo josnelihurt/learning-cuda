@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { ToastContainer } from '@/components/app/toast-container';
+import { ToastContainer } from '@/lit/components/app/toast-container';
 import { ToastProvider } from './context/toast-context';
 import { useToast } from './hooks/useToast';
 

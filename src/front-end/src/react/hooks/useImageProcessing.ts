@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useServiceContext } from '../context/service-context';
 import { useToast, type ToastApi } from './useToast';
-import type { ActiveFilterState } from '../components/filters/FilterPanel';
+import type { ActiveFilterState } from '../lit/components/filters/FilterPanel';
 import {
   ProcessImageRequest,
   ProcessImageResponse,

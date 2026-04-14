@@ -12,7 +12,7 @@ import {
   Filter,
   createFilterFromDefinition,
   createFilterFromGenericDefinition,
-} from '../../components/app/filter-panel.types';
+} from '../../lit/components/app/filter-panel.types';
 import type { IProcessorCapabilitiesService } from '../../domain/interfaces/IProcessorCapabilitiesService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {

@@ -1,10 +1,15 @@
 # CUDA Image Processor - Frontend
 
-TypeScript frontend application built with Lit Web Components, implementing Clean Architecture principles for maintainable and testable code.
+TypeScript frontend application built with **Lit Web Components** and **React**, implementing Clean Architecture principles for maintainable and testable code.
 
 ## Overview
 
-The frontend is a single-page application (SPA) that provides real-time image and video processing through a web interface. It communicates with the Go backend via WebSocket, Connect-RPC (gRPC-Web), and supports future WebRTC integration for low-latency frame streaming.
+The frontend is a **multi-page application (MPA)** that provides real-time image and video processing through a web interface. It contains two dashboards:
+
+1. **React Dashboard** (`/`) - Full React 19 application with components, hooks, and context providers
+2. **Lit Dashboard** (`/lit`) - Original Lit Web Components application
+
+Both communicate with the Go backend via WebSocket, Connect-RPC (gRPC-Web), and support WebRTC integration for low-latency frame streaming.
 
 **Key Features:**
 - Real-time webcam processing with GPU/CPU filter selection
@@ -324,23 +329,27 @@ From project root:
 ./scripts/dev/start.sh           # Subsequent runs (hot reload)
 ```
 
-**Access:** https://localhost:8443
+**Access:**
+- **React Dashboard**: https://localhost:8443 (or http://localhost:3000 for Vite dev server)
+- **Lit Dashboard**: https://localhost:8443/lit (or http://localhost:3000/lit for Vite dev server)
+
+The backend Go server runs on port 8443, while the Vite dev server runs on port 3000 during development.
 
 ### Manual Development
 
 ```bash
-cd front-end
+cd src/front-end
 npm install
-npm run dev  # Vite dev server with hot reload
+npm run dev  # Vite dev server with hot reload on port 3000
 ```
 
 ### Build
 
 ```bash
-npm run build  # Production build
+npm run build  # Production build for both React and Lit
 ```
 
-The build output is embedded in the Go server binary as static assets.
+The build output is embedded in the Go server binary as static assets. The production deployment uses Nginx to serve the pre-built static files.
 
 ## Testing
 
@@ -348,7 +357,8 @@ The build output is embedded in the Go server binary as static assets.
 
 ```bash
 npm run test  # Vitest unit tests
-npm run test:watch  # Watch mode
+npm run test:ui  # Vitest UI mode
+npm run test:coverage  # Generate coverage report
 ```
 
 ### E2E Tests
@@ -356,19 +366,15 @@ npm run test:watch  # Watch mode
 ```bash
 npm run test:e2e  # Playwright E2E tests
 npm run test:e2e:ui  # Playwright UI mode
-```
-
-### Test Coverage
-
-```bash
-npm run test:coverage  # Generate coverage report
+npm run test:e2e:dev  # Development mode
 ```
 
 ## Tech Stack
 
 - **LitElement**: Native web components framework
+- **React 19**: Modern React application with hooks and context
 - **TypeScript**: Type-safe JavaScript
-- **Vite**: Build tool and dev server
+- **Vite**: Build tool and dev server with MPA support
 - **Vitest**: Unit testing framework
 - **Playwright**: E2E testing
 - **Connect-RPC**: gRPC-Web client library
@@ -380,30 +386,43 @@ npm run test:coverage  # Generate coverage report
 ```
 front-end/
 ├── src/
-│   ├── components/          # LitElement components
-│   │   ├── app/            # Core application components
-│   │   ├── video/          # Video-related components
-│   │   ├── image/          # Image-related components
-│   │   ├── flags/          # Feature flag components
-│   │   └── ui/             # UI utility components
-│   ├── application/         # Application layer
-│   │   ├── services/       # Application services
-│   │   └── di/            # Dependency injection
-│   ├── infrastructure/      # Infrastructure layer
-│   │   ├── transport/      # Frame transport implementations
-│   │   ├── data/           # Data services
-│   │   ├── external/       # External service integrations
-│   │   ├── connection/     # Connection management
-│   │   └── observability/  # Telemetry and logging
-│   ├── domain/              # Domain layer
-│   │   ├── interfaces/     # Domain interfaces
-│   │   └── value-objects/ # Value objects
-│   └── main.ts             # Application entry point
+│   ├── lit/                 # Lit Web Components application
+│   │   ├── components/      # LitElement components
+│   │   │   ├── app/        # Core application components
+│   │   │   ├── video/      # Video-related components
+│   │   │   ├── image/      # Image-related components
+│   │   │   ├── flags/      # Feature flag components
+│   │   │   └── ui/         # UI utility components
+│   │   ├── application/    # Application layer (services, DI)
+│   │   ├── infrastructure/ # Infrastructure layer
+│   │   ├── domain/         # Domain layer
+│   │   └── main.ts         # Lit entry point
+│   ├── react/               # React application
+│   │   ├── components/     # React components
+│   │   │   ├── app/        # Core app components
+│   │   │   ├── filters/    # Filter components
+│   │   │   ├── health/     # Health monitoring
+│   │   │   ├── image/      # Image processing
+│   │   │   ├── video/      # Video components
+│   │   │   ├── files/      # File management
+│   │   │   ├── settings/   # Settings panel
+│   │   │   └── sidebar/    # Sidebar components
+│   │   ├── hooks/          # React hooks
+│   │   ├── context/        # React context providers
+│   │   ├── providers/      # Service providers
+│   │   ├── infrastructure/ # React infrastructure
+│   │   └── main.tsx        # React entry point
+│   ├── services/            # Shared services
+│   ├── gen/                 # Generated protobuf code
+│   └── domain/              # Shared domain layer
+├── public/                  # Static assets
+│   └── static/             # CSS, images, fonts
 ├── tests/
-│   ├── e2e/                # E2E tests (Playwright)
-│   └── unit/               # Unit tests (Vitest)
-├── static/                 # Static assets (CSS, images)
-├── templates/              # HTML templates
+│   └── e2e/                # E2E tests (Playwright)
+├── index.html               # Lit dashboard entry
+├── react.html               # React dashboard entry
+├── vite.config.ts           # Vite MPA configuration
+├── Dockerfile               # Production build with Nginx
 └── package.json
 ```
 
@@ -419,5 +438,5 @@ front-end/
 ## See Also
 
 - [Main README](../../README.md) - Project overview
-- [Web Server README](../README.md) - Backend architecture
+- [Go API README](../go_api/README.md) - Backend architecture
 - [Testing Documentation](../../docs/testing-and-coverage.md) - Test execution guide

@@ -6,18 +6,19 @@ High-performance image processing library implementing Clean Architecture princi
 
 The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters using CUDA kernels. The architecture follows Clean Architecture patterns with clear separation between domain logic, application use cases, infrastructure implementations, and external adapters.
 
-**Version**: See `VERSION` file (currently 2.3.0)
+**Version**: See `VERSION` file (currently 2.4.2)
 
-**Note**: The library version (2.3.0) is separate from the C API version (2.1.0 defined in `processor_api.h`). The API version indicates the C interface contract, while the library version tracks overall library releases.
+**Note**: The library version (2.4.2) is separate from the C API version (2.1.0 defined in `processor_api.h`). The API version indicates the C interface contract, while the library version tracks overall library releases.
 
 **Features**:
 - GPU acceleration via CUDA kernels with CPU fallback
 - Dynamic library loading for runtime plugin selection
 - Protocol Buffers for language-agnostic API
-- OpenTelemetry integration for distributed tracing
+- OpenTelemetry integration for distributed tracing and log aggregation
 - Extensible filter pipeline architecture
 - Thread-safe concurrent processing
 - gRPC service support with streaming capabilities
+- WebRTC signaling support for real-time video streaming
 - Command pattern for program execution
 - Buffer pooling for memory efficiency
 - Video streaming support (StreamProcessVideo)
@@ -316,7 +317,7 @@ cpp_accelerator/
 │   │   ├── grayscale_kernel.cu/h
 │   │   ├── blur_kernel.cu/h
 │   │   ├── grayscale_filter.h/cpp
-│   │   └── blur_processor.h/cpp
+│   │   └── blur_processor.h/wrapper.cpp
 │   ├── cpu/             # CPU fallback implementations
 │   │   ├── grayscale_filter.h/cpp
 │   │   └── blur_filter.h/cpp
@@ -336,16 +337,27 @@ cpp_accelerator/
 │   │   ├── image_processor_service_impl.h/cpp
 │   │   ├── processor_engine_adapter.h/cpp
 │   │   ├── processor_engine_provider.h
+│   │   ├── webrtc_manager.h/cpp
+│   │   ├── webrtc_signaling_service_impl.h/cpp
 │   │   └── server_main.cpp
 │   └── shared_lib/      # Shared library exports
 │       ├── processor_api.h
 │       ├── processor_engine.h/cpp
 │       ├── cuda_processor_impl.cpp
-│       └── image_buffer_adapter.h/cpp
+│       ├── image_buffer_adapter.h/cpp
+│       └── library_version.h
 ├── core/                # Core utilities
 │   ├── logger.h/cpp     # Logging infrastructure
 │   ├── telemetry.h/cpp  # OpenTelemetry integration
+│   ├── otel_log_sink.h/cpp  # OpenTelemetry log sink for spdlog
 │   └── result.h         # Error handling types
+├── cmd/                 # Command-line utilities
+│   └── hello_cuda/      # CUDA hello world example
+├── docker-build-base/   # Docker build infrastructure
+│   ├── Dockerfile       # Base image for Bazel builds
+│   └── Dockerfile.mock  # Mock image for testing
+├── Dockerfile.build     # Build image for gRPC server
+├── Dockerfile.build.mock # Mock build image for testing
 └── VERSION              # Library version file
 ```
 
@@ -590,7 +602,7 @@ The library exposes a C API through `processor_api.h` for language-agnostic inte
 - `processor_init()` and `processor_cleanup()` are not thread-safe
 - `processor_process_image()` and `processor_get_capabilities()` can be called concurrently after successful initialization
 
-**API Version**: The C API version is defined as `PROCESSOR_API_VERSION "2.1.0"` in `processor_api.h`. This is separate from the library version (2.3.0) and indicates the C interface contract.
+**API Version**: The C API version is defined as `PROCESSOR_API_VERSION "2.1.0"` in `processor_api.h`. This is separate from the library version (2.4.2) and indicates the C interface contract.
 
 ## Adding New Filters
 
@@ -650,6 +662,11 @@ bazel test //cpp_accelerator/infrastructure/filters:blur_equivalence_test
 Build shared library:
 ```bash
 bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+```
+
+Build gRPC server:
+```bash
+bazel build //cpp_accelerator/ports/grpc:image_processor_grpc_server
 ```
 
 Build all:

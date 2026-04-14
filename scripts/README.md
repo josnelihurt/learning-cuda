@@ -4,13 +4,13 @@ This directory consolidates operational tooling used during development, CI buil
 
 ## Directory Catalog
 - `build/`: language-specific build helpers (`golang.sh`, `protos.sh`, `frontend.sh`) wired into CI jobs or local automation.
-- `deployment/`: infrastructure launchers for staging, production, and GitHub runners. See [Deployment Tooling](#deployment-tooling) for deeper coverage.
-- `dev/`: developer convenience wrappers (`start.sh`, `stop.sh`, `clean.sh`) for local iterative flows with hot reload.
+- `deployment/`: infrastructure launchers for staging, production, GitHub runners, and ARM64 hardware. See [Deployment Tooling](#deployment-tooling) for deeper coverage.
+- `dev/`: developer convenience wrappers (`start.sh`, `stop.sh`, `clean.sh`, `grafana-mcp-server.sh`) for local iterative flows with hot reload.
 - `docker/`: utilities for building images locally, generating certs, and validating host prerequisites, highlighted in [Local Docker Tooling](#local-docker-tooling).
 - `hooks/`: git hook installers and language-specific linters run before commits or pushes.
 - `linters/`: language-agnostic lint orchestration, including the Dockerfile used by the language compliance pipeline.
 - `secrets/`: bootstrap scripts for encrypted secrets material.
-- `test/`: coverage, unit, integration, BDD, and workflow-local runners mirroring CI behaviour.
+- `test/`: coverage, unit, integration, BDD, E2E, and workflow-local runners mirroring CI behaviour.
 - `tools/`: ad-hoc video and frame analysis helpers for experimentation and debugging.
 
 ## Interaction Map
@@ -19,15 +19,19 @@ flowchart LR
     DevStart[scripts/dev/start.sh]
     BuildProtos[scripts/build/protos.sh]
     DockerLocal[scripts/docker/build-local.sh]
-    Tests[scripts/test/\*.sh]
+    Tests[scripts/test/*.sh]
     Staging[scripts/deployment/staging_local/start.sh]
     Runners[scripts/deployment/github-runner/start.sh]
+    Radxa[scripts/deployment/radxa/deploy-runner.sh]
+    Prox4[scripts/deployment/prox4/ansible/site.yml]
 
     DevStart --> DockerLocal
     BuildProtos --> Tests
     DockerLocal --> Staging
     Tests --> Staging
     Runners --> CI[Self-hosted runners]
+    Prox4 --> Runners
+    Radxa --> CI
 ```
 
 ## Deployment Tooling

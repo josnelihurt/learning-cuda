@@ -3,72 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CUDA Image Processor - Josnelihurt</title>
+    <title>CUDA Image Processor - React</title>
     <link href="https://fonts.googleapis.com/css?family=Lato:400,600,700,300" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <header class="navbar">
-        <div class="navbar-container">
-            <div class="navbar-left">
-                <a href="/" class="navbar-brand">
-                    <span class="accent">CUDA</span> Image Processor
-                </a>
-            </div>
-            <div class="navbar-services">
-                <tools-dropdown></tools-dropdown>
-                <feature-flags-button></feature-flags-button>
-            </div>
-            <div class="navbar-credit">
-                <span id="credit-by" style="cursor: pointer;" title="Click to clear localStorage">by</span> <a href="https://josnelihurt.me" target="_blank">josnelihurt</a>
-                <version-tooltip-lit>
-                    <button class="info-btn" title="Version Information">
-                        <span>i</span>
-                    </button>
-                </version-tooltip-lit>
-            </div>
-        </div>
-        <information-banner></information-banner>
-    </header>
-
-    <aside class="sidebar">
-        <div class="sidebar-content">
-            <app-root></app-root>
-            <filter-panel></filter-panel>
-        </div>
-    </aside>
-
-    <main class="main-content">
-        <video-grid></video-grid>
-    </main>
-
-    <toast-container></toast-container>
-    <stats-panel></stats-panel>
-    <source-drawer></source-drawer>
-    <add-source-fab></add-source-fab>
-    <accelerator-status-fab></accelerator-status-fab>
-    <image-selector-modal></image-selector-modal>
-    <feature-flags-modal></feature-flags-modal>
-    <grpc-status-modal></grpc-status-modal>
-    <app-tour></app-tour>
-
-    <script type="module" src="/src/lit/main.ts"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const hostname = window.location.hostname;
-            const jaegerBtn = document.getElementById('jaegerBtn');
-            if (jaegerBtn) jaegerBtn.href = `http://${hostname}:16686`;
-
-            const creditBy = document.getElementById('credit-by');
-            if (creditBy) {
-                creditBy.addEventListener('click', function() {
-                    localStorage.clear();
-                    console.log('LocalStorage cleared');
-                    alert('LocalStorage cleared!');
-                });
-            }
-        });
-    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/react/main.tsx"></script>
 </body>
 </html>

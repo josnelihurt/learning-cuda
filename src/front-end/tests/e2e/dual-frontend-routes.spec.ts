@@ -6,9 +6,4 @@ test.describe('dual-frontend-routes', () => {
     await expect(page.locator('#root')).toBeVisible();
     await expect(page.getByText('React app loaded')).toBeVisible();
   });
-
-  test('serves Lit shell at /lit', async ({ page }) => {
-    await page.goto('/lit');
-    await expect(page.locator('app-root')).toBeVisible();
-  });
 });

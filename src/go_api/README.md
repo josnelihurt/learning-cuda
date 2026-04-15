@@ -560,7 +560,7 @@ docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:l
 ## Frontend
 
 The frontend uses:
-- **Lit Web Components** - Native web components
+- **React** - React dashboard UI
 - **TypeScript** - Type-safe JavaScript
 - **Vite** - Build tool and dev server
 - **Vitest** - Unit testing

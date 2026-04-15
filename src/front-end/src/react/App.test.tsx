@@ -66,7 +66,7 @@ describe('App', () => {
     expect(console.error).not.toHaveBeenCalled();
   });
 
-  it('should have Lit-matching shell structure', () => {
+  it('should have proper shell structure', () => {
     const { container } = renderWithProviders(<App />);
 
     expect(container.querySelector('.navbar')).toBeInTheDocument();

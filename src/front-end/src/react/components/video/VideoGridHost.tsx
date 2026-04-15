@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { InputSource } from '@/gen/config_service_pb';
 import type { StaticImage } from '@/gen/common_pb';
 import { AcceleratorType } from '@/gen/common_pb';
-import type { StatsPanel } from '@/lit/components/app/stats-panel';
-import type { ToastContainer } from '@/lit/components/app/toast-container';
+import type { IStatsDisplay, IToastDisplay } from '@/infrastructure/transport/transport-types';
 import type { ActiveFilterState } from '../filters/FilterPanel';
 import { useAppServices } from '../../providers/app-services-provider';
 import { useDashboardState } from '../../context/dashboard-state-context';
@@ -196,7 +195,7 @@ export function VideoGridHost() {
         },
         setTransportService: () => undefined,
       }) as Pick<
-        StatsPanel,
+        IStatsDisplay,
         'updateCameraStatus' | 'updateTransportStatus' | 'updateProcessingStats' | 'setTransportService'
       >,
     []
@@ -209,7 +208,7 @@ export function VideoGridHost() {
         error: toast.error,
         warning: toast.warning,
         info: toast.info,
-      }) as ToastContainer,
+      }) as IToastDisplay,
     [toast.error, toast.info, toast.success, toast.warning]
   );
 
@@ -403,9 +402,9 @@ export function VideoGridHost() {
           ? null
           : new WebRTCFrameTransportService(
               uniqueId,
-              statsManager as StatsPanel,
+              statsManager as IStatsDisplay,
               cameraManager as never,
-              toastManager
+              toastManager as IToastDisplay
             );
       if (transport) {
         transport.connect();

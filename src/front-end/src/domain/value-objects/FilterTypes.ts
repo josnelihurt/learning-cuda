@@ -1,10 +1,18 @@
-import type { FilterDefinition } from '../../../gen/common_pb';
+/**
+ * Filter value objects and factory functions.
+ *
+ * These types were moved from lit/components/app/filter-panel.types.ts during the React migration
+ * to make them available to non-Lit code. The Filter type and factory functions are now shared
+ * domain objects that can be used by both Lit and React components.
+ */
+
+import type { FilterDefinition } from '../../gen/common_pb';
 import type {
   GenericFilterDefinition,
   GenericFilterParameter,
   GenericFilterParameterOption,
-} from '../../../gen/image_processor_service_pb';
-import { GenericFilterParameterType } from '../../../gen/image_processor_service_pb';
+} from '../../gen/image_processor_service_pb';
+import { GenericFilterParameterType } from '../../gen/image_processor_service_pb';
 
 export type FilterParameterType = 'select' | 'range' | 'number' | 'checkbox' | 'text';
 

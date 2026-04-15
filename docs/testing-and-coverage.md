@@ -25,7 +25,7 @@ Fast, isolated tests that verify individual components work correctly.
 **Technology:** Vitest + TypeScript
 
 **What they test:**
-- Web Components (Lit)
+- React components
 - Services and utilities
 - Component interactions
 - State management

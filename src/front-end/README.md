@@ -1,13 +1,12 @@
 # CUDA Image Processor - Frontend
 
-TypeScript frontend application built with **Lit Web Components** and **React**, implementing Clean Architecture principles for maintainable and testable code.
+TypeScript frontend application built with **React**, implementing Clean Architecture principles for maintainable and testable code.
 
 ## Overview
 
-The frontend is a **multi-page application (MPA)** that provides real-time image and video processing through a web interface. It contains two dashboards:
+The frontend is a **multi-page application (MPA)** that provides real-time image and video processing through a web interface. It contains:
 
 1. **React Dashboard** (`/`) - Full React 19 application with components, hooks, and context providers
-2. **Lit Dashboard** (`/lit`) - Original Lit Web Components application
 
 Both communicate with the Go backend via Connect-RPC (gRPC-Web) for service calls and WebRTC for real-time frame streaming.
 
@@ -403,7 +402,6 @@ From project root:
 
 **Access:**
 - **React Dashboard**: https://localhost:8443 (or http://localhost:3000 for Vite dev server)
-- **Lit Dashboard**: https://localhost:8443/lit (or http://localhost:3000/lit for Vite dev server)
 
 The backend Go server runs on port 8443, while the Vite dev server runs on port 3000 during development.
 
@@ -418,7 +416,7 @@ npm run dev  # Vite dev server with hot reload on port 3000
 ### Build
 
 ```bash
-npm run build  # Production build for both React and Lit
+npm run build  # Production build
 ```
 
 The build output is embedded in the Go server binary as static assets. The production deployment uses Nginx to serve the pre-built static files.
@@ -443,7 +441,6 @@ npm run test:e2e:dev  # Development mode
 
 ## Tech Stack
 
-- **LitElement**: Native web components framework
 - **React 19**: Modern React application with hooks and context
 - **TypeScript**: Type-safe JavaScript
 - **Vite**: Build tool and dev server with MPA support
@@ -459,17 +456,6 @@ npm run test:e2e:dev  # Development mode
 ```
 front-end/
 ├── src/
-│   ├── lit/                 # Lit Web Components application
-│   │   ├── components/      # LitElement components
-│   │   │   ├── app/        # Core application components
-│   │   │   ├── video/      # Video-related components
-│   │   │   ├── image/      # Image-related components
-│   │   │   ├── flags/      # Feature flag components
-│   │   │   └── ui/         # UI utility components
-│   │   ├── application/    # Application layer (services, DI)
-│   │   ├── infrastructure/ # Infrastructure layer
-│   │   ├── domain/         # Domain layer
-│   │   └── main.ts         # Lit entry point
 │   ├── react/               # React application
 │   │   ├── components/     # React components
 │   │   │   ├── app/        # Core app components
@@ -492,9 +478,8 @@ front-end/
 │   └── static/             # CSS, images, fonts
 ├── tests/
 │   └── e2e/                # E2E tests (Playwright)
-├── index.html               # Lit dashboard entry
-├── react.html               # React dashboard entry
-├── vite.config.ts           # Vite MPA configuration
+├── index.html               # Main entry point
+├── vite.config.ts           # Vite configuration
 ├── Dockerfile               # Production build with Nginx
 └── package.json
 ```

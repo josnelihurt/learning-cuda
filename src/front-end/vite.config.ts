@@ -1,6 +1,6 @@
 /**
- * Vite MPA (Lit + React): build emits dist/index.html and dist/react.html.
- * dist/.vite/manifest.json uses HTML path keys index.html / react.html for Nginx static copies.
+ * Vite SPA (React only): build emits dist/index.html.
+ * dist/.vite/manifest.json uses HTML path keys for Nginx static copies.
  */
 import { defineConfig, loadEnv } from 'vite';
 import type { Connect, Plugin } from 'vite';
@@ -11,7 +11,7 @@ import { extname, join } from 'node:path';
 import react from '@vitejs/plugin-react';
 
 function prettyFrontendRoutesPlugin(): Plugin {
-  const rewrite: Connect.NextHandleFunction = (req, _res, next) => {
+  const rewrite: Connect.NextHandleFunction = (req, res, next) => {
     if (req.method !== 'GET' || !req.url) {
       next();
       return;
@@ -22,10 +22,8 @@ function prettyFrontendRoutesPlugin(): Plugin {
     if (pathname.length > 1 && pathname.endsWith('/')) {
       pathname = pathname.slice(0, -1);
     }
-    // Root path serves React (react.html)
+    // Root path serves React (index.html)
     if (pathname === '/' || pathname === '') {
-      req.url = '/react.html' + search;
-    } else if (pathname === '/lit') {
       req.url = '/index.html' + search;
     }
     next();
@@ -121,7 +119,6 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: resolve(__dirname, 'index.html'),
-          react: resolve(__dirname, 'react.html'),
         },
       },
       minify: 'esbuild',

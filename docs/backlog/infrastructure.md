@@ -265,7 +265,7 @@ Microservices, observability, testing, and cloud deployment.
 ### Linters & Formatters
 - [x] #131 Configure clang-tidy for C++ with 50+ code quality checks
 - [x] #132 Configure golangci-lint with 20+ linters for Go
-- [x] #133 Configure ESLint + Prettier for TypeScript/Lit frontend
+- [x] #133 Configure ESLint + Prettier for TypeScript/React frontend
 - [x] #134 Create unified run-linters.sh script (supports --fix mode)
 - [x] #135 Add Docker services for all linters (lint-frontend, lint-golang, lint-cpp)
 - [x] #136 Enhanced .clang-format with comprehensive formatting rules

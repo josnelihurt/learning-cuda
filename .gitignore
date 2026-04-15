@@ -73,7 +73,6 @@ test/coverage/
 # Node modules (any location)
 **/node_modules/
 node_modules/
-src/go_api/server
 coverage.out
 
 # Deployment sensitive files

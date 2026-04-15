@@ -14,6 +14,7 @@ import {
   type StartSessionResponse,
   SendIceCandidateRequest,
 } from '../../gen/webrtc_signal_pb';
+import { ProcessImageRequest } from '../../gen/image_processor_service_pb';
 import { WebRTCSignalingService } from '../../gen/webrtc_signal_connect';
 import { tracingInterceptor } from '../grpc/tracing-interceptor';
 
@@ -255,12 +256,34 @@ export class WebRTCService implements IWebRTCService {
 
     if (options.localStream) {
       for (const track of options.localStream.getTracks()) {
-        peerConnection.addTrack(track, options.localStream);
+        if (track.kind === 'video' && sessionMode === 'camera-mediatrack') {
+          const transceiver = peerConnection.addTransceiver(track, {
+            direction: 'sendonly',
+            streams: [options.localStream],
+          });
+          const caps = RTCRtpSender.getCapabilities('video');
+          if (caps) {
+            const h264Codecs = caps.codecs.filter(
+              c => c.mimeType.toLowerCase() === 'video/h264'
+            );
+            if (h264Codecs.length > 0) {
+              transceiver.setCodecPreferences(h264Codecs);
+              logger.info(`[WebRTC:${sessionId}] Forced H264 codec preference for webcam track`);
+            }
+          }
+        } else {
+          peerConnection.addTrack(track, options.localStream);
+        }
       }
       logger.info(`[WebRTC:${sessionId}] Local media tracks attached`, {
         'webrtc.track_count': options.localStream.getTracks().length,
         'webrtc.session_mode': sessionMode,
       });
+    }
+
+    if (sessionMode === 'camera-mediatrack') {
+      peerConnection.addTransceiver('video', { direction: 'recvonly' });
+      logger.info(`[WebRTC:${sessionId}] Added recvonly transceiver for processed camera video`);
     }
 
     const shouldUseDataChannel = options.useDataChannel ?? true;
@@ -277,6 +300,10 @@ export class WebRTCService implements IWebRTCService {
     try {
       await this.negotiateSession(sessionId, peerConnection);
       this.ensurePolling(sessionId);
+
+      if (shouldUseDataChannel) {
+        await this.waitForDataChannelOpen(sessionId);
+      }
 
       logger.info(`[WebRTC:${sessionId}] Session created successfully`, {
         'session.source_id': sourceId,
@@ -344,6 +371,16 @@ export class WebRTCService implements IWebRTCService {
 
   getDataChannel(sessionId: string): RTCDataChannel | null {
     return this.dataChannels.get(sessionId) ?? null;
+  }
+
+  sendControlRequest(sessionId: string, request: ProcessImageRequest): void {
+    const dataChannel = this.dataChannels.get(sessionId);
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+      throw new Error(`WebRTC data channel is not open for session ${sessionId}`);
+    }
+
+    const payload = request.toBinary();
+    dataChannel.send(payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength));
   }
 
   getConnectionStatus(): { state: ConnectionState; lastRequest: string | null; lastRequestTime: Date | null } {
@@ -522,11 +559,59 @@ export class WebRTCService implements IWebRTCService {
     }
   }
 
+  isDataChannelOpen(sessionId: string): boolean {
+    return this.dataChannels.get(sessionId)?.readyState === 'open';
+  }
+
+  private waitForDataChannelOpen(sessionId: string, timeoutMs = 10_000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const dc = this.dataChannels.get(sessionId);
+      if (!dc) {
+        reject(new Error(`Data channel not found for session ${sessionId}`));
+        return;
+      }
+      if (dc.readyState === 'open') {
+        resolve();
+        return;
+      }
+      if (dc.readyState === 'closing' || dc.readyState === 'closed') {
+        reject(new Error(`Data channel already ${dc.readyState} for session ${sessionId}`));
+        return;
+      }
+      const cleanup = () => {
+        clearTimeout(timer);
+        dc.removeEventListener('open', onOpen);
+        dc.removeEventListener('close', onClose);
+        dc.removeEventListener('error', onClose);
+      };
+      const onOpen = () => {
+        cleanup();
+        if (dc.readyState === 'open') {
+          resolve();
+        } else {
+          reject(new Error(`Data channel is ${dc.readyState} after open event for session ${sessionId}`));
+        }
+      };
+      const onClose = () => {
+        cleanup();
+        reject(new Error(`Data channel closed while waiting for session ${sessionId}`));
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Data channel open timeout for session ${sessionId}`));
+      }, timeoutMs);
+      dc.addEventListener('open', onOpen);
+      dc.addEventListener('close', onClose);
+      dc.addEventListener('error', onClose);
+    });
+  }
+
   private configureDataChannelHandlers(
     sessionId: string,
     dataChannel: RTCDataChannel,
     peerConnection: RTCPeerConnection
   ): void {
+    dataChannel.binaryType = 'arraybuffer';
     dataChannel.onopen = () => {
       const debugInfo: Record<string, string | number> = {
         'data_channel.label': dataChannel.label,
@@ -578,13 +663,14 @@ export class WebRTCService implements IWebRTCService {
     peerConnection: RTCPeerConnection
   ): void {
     peerConnection.ontrack = (event: RTCTrackEvent) => {
-      const [remoteStream] = event.streams;
-      if (!remoteStream) {
-        logger.warn(`[WebRTC:${sessionId}] Remote track received without stream`, {
-          'webrtc.track_kind': event.track.kind,
-        });
-        return;
-      }
+      // C++ may not attach a stream to the outbound track; wrap it if needed.
+      const remoteStream =
+        event.streams[0] ??
+        (() => {
+          const s = new MediaStream();
+          s.addTrack(event.track);
+          return s;
+        })();
 
       this.remoteStreams.set(sessionId, remoteStream);
       this.remoteStreamHandlers.get(sessionId)?.(remoteStream);

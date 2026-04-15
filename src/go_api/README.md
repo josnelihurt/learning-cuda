@@ -154,7 +154,6 @@ webserver/
 │   │   ├── list_videos_use_case.go
 │   │   ├── upload_video_use_case.go
 │   │   ├── stream_video_use_case.go
-│   │   ├── video_playback_use_case.go
 │   │   └── list_inputs_use_case.go
 │   ├── domain/          # Domain models and interfaces
 │   │   ├── image.go
@@ -188,6 +187,7 @@ webserver/
 │   │   │   ├── config_handler.go
 │   │   │   ├── file_handler.go
 │   │   │   ├── webrtc_handler.go
+│   │   │   ├── webrtc_session_manager.go
 │   │   │   ├── remote_management_handler.go
 │   │   │   └── vanguard.go
 │   │   ├── http/        # HTTP handlers
@@ -212,6 +212,7 @@ Frontend source: `../front-end/` (Vite in development, embedded static assets in
 - `config_handler.go`: Configuration and system info handler
 - `file_handler.go`: File upload and listing handler
 - `webrtc_handler.go`: WebRTC signaling handler
+- `webrtc_session_manager.go`: Manages WebRTC signaling sessions and peer connections
 - `remote_management_handler.go`: Remote device management (Jetson Nano)
 - `vanguard.go`: REST API transcoder using Vanguard for google.api.http annotations
 
@@ -232,8 +233,7 @@ Static `/data/` assets are served by the Go server in both development and produ
 - `ListAvailableImagesUseCase`: Lists available static images
 - `UploadImageUseCase`: Handles image uploads
 - `ListVideosUseCase` / `UploadVideoUseCase`: Video management
-- `StreamVideoUseCase`: Streams video frames via WebRTC for real-time processing
-- `VideoPlaybackUseCase`: Manages video playback sessions
+- `StreamVideoUseCase`: Streams video frames via WebRTC for real-time processing, manages WebRTC peer connections
 - `ListInputsUseCase`: Lists available input sources
 
 All use cases follow the same pattern: they receive domain models, orchestrate business logic, and return domain models or errors.
@@ -274,6 +274,21 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 - Video repository implementation
 - FFmpeg integration for video processing
 - Preview generation for video files
+
+**WebRTC Infrastructure** (`pkg/infrastructure/webrtc/`):
+- **GoPeer** (`go_peer.go`): WebRTC peer connection management
+  - Implements `StreamVideoPeer` interface for real-time video streaming
+  - Manages WebRTC data channels for frame transport
+  - Handles ICE candidate exchange and connection state
+  - Integrates with C++ WebRTC manager via signaling service
+  - Processes video frames through H.264 codec for streaming
+
+- **WebRTC Signaling Flow**:
+  - Go API receives WebRTC signaling requests via Connect-RPC
+  - `webrtc_handler.go` establishes WebRTC sessions
+  - `webrtc_session_manager.go` manages session lifecycle
+  - GoPeer communicates with C++ WebRTC manager for frame processing
+  - Video frames are streamed via WebRTC data channels using H.264 codec
 
 ### Dependency Injection
 
@@ -379,29 +394,6 @@ sequenceDiagram
     CapabilitiesUC-->>Handler: Filter definitions
     Handler->>Handler: Build ListFiltersResponse
     Handler-->>Client: ListFiltersResponse
-```
-
-#### GetStreamConfig
-
-```mermaid
-sequenceDiagram
-    participant Client as Client
-    participant Handler as ConfigHandler
-    participant FFUseCase as EvaluateFeatureFlagUseCase
-    participant Config as Config Manager
-    
-    Client->>Handler: GetStreamConfig(request)
-    Handler->>Config: Read signaling endpoint
-    Config-->>Handler: WebRTC endpoint
-    
-    Handler->>FFUseCase: EvaluateVariant("frontend_log_level")
-    FFUseCase-->>Handler: logLevel
-    
-    Handler->>FFUseCase: EvaluateBoolean("frontend_console_logging")
-    FFUseCase-->>Handler: consoleLogging
-    
-    Handler->>Handler: Build StreamEndpoints
-    Handler-->>Client: GetStreamConfigResponse
 ```
 
 #### EvaluateFeatureFlag

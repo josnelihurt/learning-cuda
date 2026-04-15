@@ -9,9 +9,13 @@ This directory consolidates operational tooling used during development, CI buil
 - `docker/`: utilities for building images locally, generating certs, and validating host prerequisites, highlighted in [Local Docker Tooling](#local-docker-tooling).
 - `hooks/`: git hook installers and language-specific linters run before commits or pushes.
 - `linters/`: language-agnostic lint orchestration, including the Dockerfile used by the language compliance pipeline.
-- `secrets/`: bootstrap scripts for encrypted secrets material.
+- `secrets/`: bootstrap scripts for encrypted secrets material. `setup.sh` initializes development and production secrets from templates.
 - `test/`: coverage, unit, integration, BDD, E2E, and workflow-local runners mirroring CI behaviour.
-- `tools/`: ad-hoc video and frame analysis helpers for experimentation and debugging.
+- `tools/`: ad-hoc video and frame analysis helpers for experimentation and debugging:
+  - `extract-frames.sh`: extract frames from video files
+  - `generate-video.sh`: generate test video files
+  - `analyze-frames.js`: analyze extracted frames (Node.js)
+  - `analyze-video.js`: analyze video files (Node.js)
 
 ## Interaction Map
 ```mermaid
@@ -47,12 +51,17 @@ flowchart LR
 ### `deployment/jetson-nano`
 - Automates production deployment on Jetson Nano hardware using Ansible playbooks (`deploy.sh` orchestrates `init`, `sync`, and `start`). Aligns with the ARM64 CI workflow outputs.
 
+### `deployment/prox4`
+- Ansible playbooks for Prox4 infrastructure management and provisioning
+- Files: `site.yml` (main playbook), `inventory.yml`, `ansible.cfg`
+- Purpose: Infrastructure setup and configuration for Prox4 deployment targets
+
 ### `deployment/cloud-vm`
 - Automates production deployment of the Go server to a cloud VM (x86_64) using Ansible playbooks. The Go server runs separately from the Jetson Nano deployment, which only hosts the gRPC server (C++ with CUDA) and infrastructure services.
 - **Pipeline**: `deploy.sh` orchestrates Ansible playbooks: `ansible/sync.yml` (sync configuration and secrets) and `ansible/start.yml` (pull images and start services). Also includes `deploy-runner.sh` for provisioning a self-hosted GitHub Actions runner (`learning-cuda-cloud-vm-1`, labels: `self-hosted,Linux,X64,prod,cloud-vm`).
 - **Automation**: Integrated into the x86 CI workflow (`docker-monorepo-build-x86.yml`) to automatically deploy after building and pushing images to GHCR.
 - **Requirements**: SSH access to the cloud VM, Docker installed, user in docker group. Secrets configured in GitHub Actions: `CLOUD_VM_HOST`, `CLOUD_VM_USER`, `CLOUD_VM_SSH_KEY`.
-- **Configuration**: Uses `docker-compose.go-cloud.yml` to deploy only the Go server service, connecting to existing Traefik instance via `public-wan` Docker network.
+- **Configuration**: Uses `docker-compose.go-cloud.yml` (deployed to cloud VM via Ansible sync) to deploy only the Go server service, connecting to existing Traefik instance via `public-wan` Docker network.
 
 ### `deployment/radxa`
 - Automates GitHub Actions runner provisioning on Radxa ARM64 hardware. `deploy-runner.sh` registers runner `learning-cuda-radxa-1` with labels `self-hosted,Linux,ARM64,radxa`. Supports both `RADXA_*` and `JETSON_*` environment variables for compatibility. `test.sh` validates SSH connectivity and Ansible availability. Includes Ansible playbooks for application deployment and Docker orchestration. See [`deployment/radxa/README.md`](radxa/README.md) for full documentation.

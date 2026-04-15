@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import type { ActiveFilterState } from '../filters/FilterPanel';
-import { buildCameraPreviewFilterValue } from '@/shared/camera-preview-filters';
 
 type FrameCapturedPayload = {
   base64data: string;
@@ -207,7 +206,6 @@ export function CameraPreview({
           height: '100%',
           objectFit: 'contain',
           background: 'black',
-          filter: buildCameraPreviewFilterValue(activeFilters),
         }}
       />
       <canvas ref={canvasRef} style={{ display: 'none' }} />

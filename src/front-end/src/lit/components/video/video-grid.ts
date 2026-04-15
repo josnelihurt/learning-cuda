@@ -1,5 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { AcceleratorType } from '../../../gen/common_pb';
+import { ProcessImageRequest } from '../../../gen/image_processor_service_pb';
 import { InputSource } from '../../../gen/config_service_pb';
 import { WebRTCFrameTransportService } from '../../../infrastructure/transport/webrtc-frame-transport';
 import { webrtcService } from '../../../infrastructure/connection/webrtc-service';
@@ -26,7 +28,12 @@ interface GridSource {
   sessionMode: 'frame-processing' | 'camera-mediatrack';
   filters: ActiveFilterState[];
   resolution: string;
+  accelerator: 'gpu' | 'cpu';
   videoId?: string;
+}
+
+function toProtocolAccelerator(value: 'gpu' | 'cpu'): AcceleratorType {
+  return value === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
 }
 
 @customElement('video-grid')
@@ -117,6 +124,41 @@ export class VideoGrid extends LitElement {
     this.toastManager = toastManager;
   }
 
+  private pushCameraFilters(
+    sourceId: string,
+    sessionId: string,
+    filters: ActiveFilterState[],
+    accelerator: 'gpu' | 'cpu'
+  ): void {
+    try {
+      webrtcService.sendControlRequest(
+        sessionId,
+        new ProcessImageRequest({
+          sessionId,
+          genericFilters: filters
+            .filter((filter) => filter.id !== 'none')
+            .map(
+              (filter) => ({
+                filterId: filter.id,
+                parameters: Object.entries(filter.parameters).map(([parameterId, value]) => ({
+                  parameterId,
+                  values: [value],
+                })),
+              })
+            ),
+          accelerator: toProtocolAccelerator(accelerator),
+          apiVersion: '1.0',
+        })
+      );
+    } catch (error) {
+      logger.error('Failed to send live camera filter update', {
+        'error.message': error instanceof Error ? error.message : String(error),
+        'source.id': sourceId,
+        'session.id': sessionId,
+      });
+    }
+  }
+
   addSource(inputSource: InputSource): boolean {
     if (this.sources.length >= this.MAX_SOURCES) {
       this.toastManager?.warning(
@@ -148,7 +190,7 @@ export class VideoGrid extends LitElement {
               const session = await webrtcService.createSession(uniqueId, {
                 mode: 'camera-mediatrack',
                 localStream: stream,
-                useDataChannel: false,
+                useDataChannel: true,
                 onRemoteStream: (remoteStream) => {
                   cameraPreview?.setRemoteStream(remoteStream);
                 },
@@ -159,6 +201,13 @@ export class VideoGrid extends LitElement {
                 this.sources[sourceIndex].sessionMode = session.getMode();
                 this.sources = [...this.sources];
                 this.requestUpdate();
+                const source = this.sources[sourceIndex];
+                this.pushCameraFilters(
+                  uniqueId,
+                  session.getId(),
+                  source.filters.length ? source.filters : [{ id: 'none', parameters: {} }],
+                  source.accelerator
+                );
               }
             } catch (error) {
               logger.error('Failed to create camera MediaTrack session', {
@@ -269,6 +318,7 @@ export class VideoGrid extends LitElement {
       sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
       filters: [{ id: 'none', parameters: {} }],
       resolution: 'original',
+      accelerator: 'gpu',
       videoId: inputSource.type === 'video' ? inputSource.id : undefined,
     };
 
@@ -391,6 +441,7 @@ export class VideoGrid extends LitElement {
     const normalizedFilters = this.normalizeFilterState(filters);
     selectedSource.filters = normalizedFilters;
     selectedSource.resolution = resolution;
+    selectedSource.accelerator = accelerator === 'cpu' ? 'cpu' : 'gpu';
  
     logger.debug(`Applying filters to source ${selectedSource.number}`, {
       'source.number': selectedSource.number,
@@ -400,7 +451,14 @@ export class VideoGrid extends LitElement {
     });
 
     if (selectedSource.type === 'camera') {
-      selectedSource.cameraPreview?.setFilters(normalizedFilters);
+      if (selectedSource.sessionId) {
+        this.pushCameraFilters(
+          selectedSource.id,
+          selectedSource.sessionId,
+          normalizedFilters,
+          selectedSource.accelerator
+        );
+      }
       this.sources = [...this.sources];
       this.requestUpdate();
       return;

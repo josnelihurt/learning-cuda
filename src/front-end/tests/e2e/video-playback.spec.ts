@@ -248,6 +248,7 @@ test.describe('Video Playback', () => {
         });
 
         // Add video
+        await helpers.dismissTourIfActive();
         await page.getByRole('button', { name: /Add Input/i }).click();
         await page.getByRole('button', { name: 'Videos' }).click();
         await page.waitForSelector('[data-testid="video-card-e2e-test"]', { timeout: 10000 });

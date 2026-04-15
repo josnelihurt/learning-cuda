@@ -1,0 +1,32 @@
+{
+  "doc_path": "scripts/deployment/radxa/README.md",
+  "claims_checked": 25,
+  "claims_passed": 21,
+  "claims_failed": 4,
+  "failures": [
+    {
+      "line": 78,
+      "claim": "init.yml - Initialize Radxa server with required dependencies",
+      "expected": "Playbook should initialize Radxa server",
+      "actual": "Playbook initializes 'Jetson Nano deployment' (hosts: jetson) - contains outdated references to Jetson instead of Radxa"
+    },
+    {
+      "line": 79,
+      "claim": "sync.yml - Sync project files to Radxa server",
+      "expected": "Playbook should sync to Radxa server",
+      "actual": "Playbook syncs to 'Jetson Nano' (hosts: jetson) - contains outdated Jetson references"
+    },
+    {
+      "line": 80,
+      "claim": "start.yml - Start Docker services on Radxa server",
+      "expected": "Playbook should start services on Radxa",
+      "actual": "Playbook starts services on 'Jetson Nano' (hosts: jetson) - contains outdated Jetson references"
+    },
+    {
+      "line": 81,
+      "claim": "clean.yml - Clean up deployment artifacts",
+      "expected": "Playbook should clean Radxa deployment",
+      "actual": "Playbook cleans 'Jetson Nano deployment' (hosts: jetson) - contains outdated Jetson references"
+    }
+  ]
+}

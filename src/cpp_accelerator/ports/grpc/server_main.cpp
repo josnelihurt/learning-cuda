@@ -67,10 +67,10 @@ int main(int argc, char** argv) {
 
   auto adapter = std::make_shared<jrb::ports::grpc_service::ProcessorEngineAdapter>(engine);
   auto webrtc_manager =
-      std::make_shared<jrb::ports::grpc_service::WebRTCManager>(engine.get());
+      std::make_shared<jrb::ports::grpc_service::WebRTCManager>(engine);
   auto service =
       std::make_unique<jrb::ports::grpc_service::ImageProcessorServiceImpl>(adapter,
-                                                                            webrtc_manager.get());
+                                                                            webrtc_manager);
   if (!webrtc_manager->Initialize()) {
     spdlog::warn("WebRTCManager failed to initialize");
   } else {

@@ -13,15 +13,18 @@
 
 #include <rtc/rtc.hpp>
 
+#include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
+#include "src/cpp_accelerator/ports/grpc/live_video_processor.h"
+
 namespace jrb::ports::shared_lib {
 class ProcessorEngine;
 }
 
 namespace jrb::ports::grpc_service {
 
-class WebRTCManager {
+class WebRTCManager : public std::enable_shared_from_this<WebRTCManager> {
 public:
-  explicit WebRTCManager(jrb::ports::shared_lib::ProcessorEngine* engine = nullptr);
+  explicit WebRTCManager(std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine = nullptr);
   virtual ~WebRTCManager();
 
   bool Initialize();
@@ -41,13 +44,24 @@ public:
   std::vector<rtc::Candidate> GetPendingLocalCandidates(const std::string& session_id);
   virtual void SendToSession(const std::string& session_id, const std::string& bytes);
 
- private:
+  private:
   struct SessionState {
     std::shared_ptr<rtc::PeerConnection> peer_connection;
     std::shared_ptr<rtc::DataChannel> data_channel;
+    std::shared_ptr<rtc::Track> inbound_video_track;
+    std::shared_ptr<rtc::Track> outbound_video_track;
+    std::shared_ptr<rtc::RtcpReceivingSession> inbound_rtcp_session;
+    std::shared_ptr<rtc::H264RtpDepacketizer> inbound_depacketizer;
+    std::shared_ptr<rtc::RtpPacketizationConfig> outbound_rtp_config;
+    std::shared_ptr<rtc::H264RtpPacketizer> outbound_packetizer;
+    std::shared_ptr<rtc::RtcpSrReporter> outbound_sr_reporter;
+    std::shared_ptr<rtc::RtcpNackResponder> outbound_nack_responder;
+    std::unique_ptr<LiveVideoProcessor> live_video_processor;
+    cuda_learning::ProcessImageRequest live_filter_state;
     std::vector<rtc::Candidate> pending_candidates;
     std::queue<rtc::Candidate> local_candidates_queue;
     std::mutex mutex;
+    std::mutex media_mutex;
     std::mutex candidates_mutex;
     std::condition_variable candidates_cv;
     std::chrono::steady_clock::time_point created_at;
@@ -61,7 +75,7 @@ public:
                               const std::shared_ptr<rtc::DataChannel>& data_channel);
   void UnregisterSessionChannel(const std::string& session_id);
 
-  jrb::ports::shared_lib::ProcessorEngine* engine_;
+  std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;
   std::mutex sessions_mutex_;

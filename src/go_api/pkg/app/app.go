@@ -6,7 +6,10 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
@@ -21,125 +24,109 @@ import (
 type App struct {
 	config                *config.Manager
 	appContext            context.Context
-	useCase               *application.ProcessImageUseCase
+	useCase               *imageapp.ProcessImageUseCase
 	grpcProcessorClient   *processor.GRPCClient
-	processorCapsUC       application.ProcessorCapabilitiesUseCase
-	getSystemInfoUC       *application.GetSystemInfoUseCase
+	processorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
+	getSystemInfoUC       *systemapp.GetSystemInfoUseCase
 	featureFlagRepo       domain.FeatureFlagRepository
-	listInputsUC          *application.ListInputsUseCase
-	evaluateFFUC          *application.EvaluateFeatureFlagUseCase
-	streamVideoUC         *application.StreamVideoUseCase
-	listAvailableImagesUC *application.ListAvailableImagesUseCase
-	uploadImageUC         *application.UploadImageUseCase
-	listVideosUC          *application.ListVideosUseCase
-	uploadVideoUC         *application.UploadVideoUseCase
+	listInputsUC          *videoapp.ListInputsUseCase
+	evaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
+	streamVideoUC         *videoapp.StreamVideoUseCase
+	listAvailableImagesUC *imageapp.ListAvailableImagesUseCase
+	uploadImageUC         *imageapp.UploadImageUseCase
+	listVideosUC          *videoapp.ListVideosUseCase
+	uploadVideoUC         *videoapp.UploadVideoUseCase
 	videoRepository       domain.VideoRepository
 	deviceMonitor         domainInterfaces.MQTTDeviceMonitor
 	interceptors          []connect.Interceptor
 }
 
-type Option func(*App)
+type Deps struct {
+	Config                *config.Manager
+	UseCase               *imageapp.ProcessImageUseCase
+	GRPCProcessorClient   *processor.GRPCClient
+	ProcessorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
+	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase
+	FeatureFlagRepo       domain.FeatureFlagRepository
+	ListInputsUC          *videoapp.ListInputsUseCase
+	EvaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
+	StreamVideoUC         *videoapp.StreamVideoUseCase
+	ListAvailableImagesUC *imageapp.ListAvailableImagesUseCase
+	UploadImageUC         *imageapp.UploadImageUseCase
+	ListVideosUC          *videoapp.ListVideosUseCase
+	UploadVideoUC         *videoapp.UploadVideoUseCase
+	VideoRepository       domain.VideoRepository
+	DeviceMonitor         domainInterfaces.MQTTDeviceMonitor
+}
 
-func New(appContext context.Context, opts ...Option) *App {
+func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {
+	if deps.Config == nil {
+		return nil, errors.New("config is required")
+	}
+	if deps.UseCase == nil {
+		return nil, errors.New("process image use case is required")
+	}
+	if deps.GRPCProcessorClient == nil {
+		return nil, errors.New("gRPC processor client is required")
+	}
+	if deps.ProcessorCapsUC == nil {
+		return nil, errors.New("processor capabilities use case is required")
+	}
+	if deps.GetSystemInfoUC == nil {
+		return nil, errors.New("get system info use case is required")
+	}
+	if deps.FeatureFlagRepo == nil {
+		return nil, errors.New("feature flag repository is required")
+	}
+	if deps.ListInputsUC == nil {
+		return nil, errors.New("list inputs use case is required")
+	}
+	if deps.EvaluateFFUC == nil {
+		return nil, errors.New("evaluate feature flag use case is required")
+	}
+	if deps.StreamVideoUC == nil {
+		return nil, errors.New("stream video use case is required")
+	}
+	if deps.ListAvailableImagesUC == nil {
+		return nil, errors.New("list available images use case is required")
+	}
+	if deps.UploadImageUC == nil {
+		return nil, errors.New("upload image use case is required")
+	}
+	if deps.ListVideosUC == nil {
+		return nil, errors.New("list videos use case is required")
+	}
+	if deps.UploadVideoUC == nil {
+		return nil, errors.New("upload video use case is required")
+	}
+	if deps.DeviceMonitor == nil {
+		return nil, errors.New("MQTT device monitor is required")
+	}
+
 	app := &App{
-		appContext: appContext,
+		config:                deps.Config,
+		appContext:            appContext,
+		useCase:               deps.UseCase,
+		grpcProcessorClient:   deps.GRPCProcessorClient,
+		processorCapsUC:       deps.ProcessorCapsUC,
+		getSystemInfoUC:       deps.GetSystemInfoUC,
+		featureFlagRepo:       deps.FeatureFlagRepo,
+		listInputsUC:          deps.ListInputsUC,
+		evaluateFFUC:          deps.EvaluateFFUC,
+		streamVideoUC:         deps.StreamVideoUC,
+		listAvailableImagesUC: deps.ListAvailableImagesUC,
+		uploadImageUC:         deps.UploadImageUC,
+		listVideosUC:          deps.ListVideosUC,
+		uploadVideoUC:         deps.UploadVideoUC,
+		videoRepository:       deps.VideoRepository,
+		deviceMonitor:         deps.DeviceMonitor,
 	}
 
 	for _, opt := range opts {
 		opt(app)
 	}
 
-	return app
-}
-
-func WithConfig(cfg *config.Manager) Option {
-	return func(a *App) {
-		a.config = cfg
-	}
-}
-
-func WithUseCase(useCase *application.ProcessImageUseCase) Option {
-	return func(a *App) {
-		a.useCase = useCase
-	}
-}
-
-func WithGRPCProcessorClient(client *processor.GRPCClient) Option {
-	return func(a *App) {
-		a.grpcProcessorClient = client
-	}
-}
-
-func WithProcessorCapabilitiesUseCase(uc application.ProcessorCapabilitiesUseCase) Option {
-	return func(a *App) {
-		a.processorCapsUC = uc
-	}
-}
-
-func WithGetSystemInfoUseCase(uc *application.GetSystemInfoUseCase) Option {
-	return func(a *App) {
-		a.getSystemInfoUC = uc
-	}
-}
-
-func WithFeatureFlagRepository(repo domain.FeatureFlagRepository) Option {
-	return func(a *App) {
-		a.featureFlagRepo = repo
-	}
-}
-
-func WithListInputsUseCase(uc *application.ListInputsUseCase) Option {
-	return func(a *App) {
-		a.listInputsUC = uc
-	}
-}
-
-func WithEvaluateFFUseCase(uc *application.EvaluateFeatureFlagUseCase) Option {
-	return func(a *App) {
-		a.evaluateFFUC = uc
-	}
-}
-
-func WithStreamVideoUseCase(uc *application.StreamVideoUseCase) Option {
-	return func(a *App) {
-		a.streamVideoUC = uc
-	}
-}
-
-func WithListAvailableImagesUseCase(uc *application.ListAvailableImagesUseCase) Option {
-	return func(a *App) {
-		a.listAvailableImagesUC = uc
-	}
-}
-
-func WithUploadImageUseCase(uc *application.UploadImageUseCase) Option {
-	return func(a *App) {
-		a.uploadImageUC = uc
-	}
-}
-
-func WithListVideosUseCase(uc *application.ListVideosUseCase) Option {
-	return func(a *App) {
-		a.listVideosUC = uc
-	}
-}
-
-func WithUploadVideoUseCase(uc *application.UploadVideoUseCase) Option {
-	return func(a *App) {
-		a.uploadVideoUC = uc
-	}
-}
-
-func WithVideoRepository(repo domain.VideoRepository) Option {
-	return func(a *App) {
-		a.videoRepository = repo
-	}
-}
-
-func WithDeviceMonitor(monitor domainInterfaces.MQTTDeviceMonitor) Option {
-	return func(a *App) {
-		a.deviceMonitor = monitor
-	}
+	return app, nil
 }
 
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {

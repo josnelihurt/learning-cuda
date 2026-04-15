@@ -5,7 +5,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
@@ -39,10 +40,10 @@ func RegisterConfigService(
 
 func RegisterFileService(
 	mux *http.ServeMux,
-	listAvailableImagesUC *application.ListAvailableImagesUseCase,
-	uploadImageUC *application.UploadImageUseCase,
-	listVideosUC *application.ListVideosUseCase,
-	uploadVideoUC *application.UploadVideoUseCase,
+	listAvailableImagesUC *imageapp.ListAvailableImagesUseCase,
+	uploadImageUC *imageapp.UploadImageUseCase,
+	listVideosUC *videoapp.ListVideosUseCase,
+	uploadVideoUC *videoapp.UploadVideoUseCase,
 	interceptors ...connect.Interceptor,
 ) {
 	fileHandler := NewFileHandler(listAvailableImagesUC, uploadImageUC, listVideosUC, uploadVideoUC)

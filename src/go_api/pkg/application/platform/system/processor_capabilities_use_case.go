@@ -1,4 +1,4 @@
-package application
+package system
 
 import (
 	"context"
@@ -15,11 +15,7 @@ const (
 	ProcessorBackendOriginGRPCServer ProcessorBackendOrigin = "grpc_server"
 )
 
-type ProcessorCapabilitiesUseCase interface {
-	Execute(ctx context.Context, useGRPC bool) (*pb.LibraryCapabilities, ProcessorBackendOrigin, error)
-}
-
-type processorCapabilitiesUseCase struct {
+type ProcessorCapabilitiesUseCase struct {
 	cppRepo  interfaces.ProcessorCapabilitiesRepository
 	grpcRepo interfaces.ProcessorCapabilitiesRepository
 }
@@ -27,14 +23,14 @@ type processorCapabilitiesUseCase struct {
 func NewProcessorCapabilitiesUseCase(
 	cppRepo interfaces.ProcessorCapabilitiesRepository,
 	grpcRepo interfaces.ProcessorCapabilitiesRepository,
-) ProcessorCapabilitiesUseCase {
-	return &processorCapabilitiesUseCase{
+) *ProcessorCapabilitiesUseCase {
+	return &ProcessorCapabilitiesUseCase{
 		cppRepo:  cppRepo,
 		grpcRepo: grpcRepo,
 	}
 }
 
-func (uc *processorCapabilitiesUseCase) Execute(ctx context.Context, useGRPC bool) (*pb.LibraryCapabilities, ProcessorBackendOrigin, error) {
+func (uc *ProcessorCapabilitiesUseCase) Execute(ctx context.Context, useGRPC bool) (*pb.LibraryCapabilities, ProcessorBackendOrigin, error) {
 	if uc.grpcRepo == nil {
 		return nil, "", fmt.Errorf("gRPC processor capabilities repository required")
 	}

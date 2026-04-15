@@ -1,11 +1,11 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWebRTCStream } from './useWebRTCStream';
-import { manageWebRTC } from '../infrastructure/connection/webrtc-manage';
+import { manageWebRTC } from '@/infrastructure/connection/webrtc-manage';
 import type { ActiveFilterState } from '../components/filters/FilterPanel';
 
 // Mock manageWebRTC
-vi.mock('../infrastructure/connection/webrtc-manage', () => ({
+vi.mock('@/infrastructure/connection/webrtc-manage', () => ({
   manageWebRTC: {
     createSession: vi.fn(),
     closeSession: vi.fn(),

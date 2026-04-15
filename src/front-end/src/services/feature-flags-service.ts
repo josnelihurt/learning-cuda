@@ -1,7 +1,7 @@
 import { createPromiseClient, PromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { FeatureFlagsService } from '../gen/feature_flags_connect';
-import { GetFeatureFlagsRequest } from '../gen/feature_flags_pb';
+import { FeatureFlagsService } from '@/gen/feature_flags_connect';
+import { GetFeatureFlagsRequest } from '@/gen/feature_flags_pb';
 import { telemetryService } from './telemetry-service';
 import { logger } from './otel-logger';
 

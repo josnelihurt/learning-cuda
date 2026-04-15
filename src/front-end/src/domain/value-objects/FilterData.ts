@@ -1,4 +1,4 @@
-import { FilterType } from '../../gen/common_pb';
+import { FilterType } from '@/gen/common_pb';
 
 export type FilterTypeId = string;
 

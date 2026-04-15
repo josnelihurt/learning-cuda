@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AcceleratorConfig } from './AcceleratorConfig';
-import { AcceleratorType } from '../../gen/common_pb';
+import { AcceleratorType } from '@/gen/common_pb';
 
 describe('AcceleratorConfig', () => {
   // Test data builders

@@ -1,6 +1,6 @@
-import type { FilterDefinition } from '../../gen/common_pb';
-import type { GenericFilterDefinition } from '../../gen/image_processor_service_pb';
-import type { Filter } from '../../lit/components/app/filter-panel.types';
+import type { FilterDefinition } from '@/gen/common_pb';
+import type { GenericFilterDefinition } from '@/gen/image_processor_service_pb';
+import type { Filter } from '@/domain/value-objects/FilterTypes';
 
 export interface IProcessorCapabilitiesService {
   initialize(): Promise<void>;

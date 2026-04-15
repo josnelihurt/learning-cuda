@@ -12,7 +12,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Info icon is visible in navbar-credit section', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     await expect(versionTooltip).toBeVisible();
     
     const infoBtn = versionTooltip.locator('button.info-btn');
@@ -26,7 +26,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Click interaction shows version tooltip', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     const infoBtn = versionTooltip.locator('button.info-btn');
     const tooltip = versionTooltip.locator('.tooltip');
     
@@ -41,7 +41,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Tooltip contains version information', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     const infoBtn = versionTooltip.locator('button.info-btn');
     const tooltip = versionTooltip.locator('.tooltip');
     
@@ -87,7 +87,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Tooltip is visible when clicked', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     const infoBtn = versionTooltip.locator('button.info-btn');
     const tooltip = versionTooltip.locator('.tooltip');
     
@@ -100,7 +100,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Tooltip hides when clicking close button', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     const infoBtn = versionTooltip.locator('button.info-btn');
     const tooltip = versionTooltip.locator('.tooltip');
     
@@ -114,7 +114,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Tooltip stays visible when hovering over it', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     const infoBtn = versionTooltip.locator('button.info-btn');
     const tooltip = versionTooltip.locator('.tooltip');
     
@@ -126,7 +126,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Version data loads correctly', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     const infoBtn = versionTooltip.locator('button.info-btn');
     const tooltip = versionTooltip.locator('.tooltip');
     
@@ -152,7 +152,7 @@ test.describe('Version Info Tooltip', () => {
   });
 
   test('Version info includes gRPC server version', async ({ page }) => {
-    const versionTooltip = page.locator('version-tooltip-lit');
+    const versionTooltip = page.locator('[data-testid="react-version-tooltip"]');
     const infoBtn = versionTooltip.locator('button.info-btn');
     const tooltip = versionTooltip.locator('.tooltip');
     

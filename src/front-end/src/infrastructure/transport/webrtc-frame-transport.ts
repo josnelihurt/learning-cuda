@@ -1,8 +1,8 @@
 import { createPromiseClient, type PromiseClient } from '@connectrpc/connect';
 import { context, propagation } from '@opentelemetry/api';
-import type { IFrameTransportService } from '../../domain/interfaces/IFrameTransportService';
-import { AcceleratorConfig, FilterData, GrayscaleAlgorithm, ImageData } from '../../domain/value-objects';
-import { ImageProcessorService } from '../../gen/image_processor_service_connect';
+import type { IFrameTransportService } from '@/domain/interfaces/IFrameTransportService';
+import { AcceleratorConfig, FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
+import { ImageProcessorService } from '@/gen/image_processor_service_connect';
 import {
   GenericFilterParameterSelection,
   GenericFilterSelection,
@@ -10,14 +10,12 @@ import {
   ProcessImageResponse,
   StartVideoPlaybackRequest,
   StopVideoPlaybackRequest,
-} from '../../gen/image_processor_service_pb';
-import { BorderMode, GrayscaleType, TraceContext } from '../../gen/common_pb';
-import type { StatsPanel } from '../../lit/components/app/stats-panel';
-import type { CameraPreview } from '../../lit/components/video/camera-preview';
-import type { ToastContainer } from '../../lit/components/app/toast-container';
-import { webrtcService } from '../connection/webrtc-service';
-import { createGrpcConnectTransport } from '../grpc/create-grpc-transport';
-import { logger } from '../observability/otel-logger';
+} from '@/gen/image_processor_service_pb';
+import { BorderMode, GrayscaleType, TraceContext } from '@/gen/common_pb';
+import type { IStatsDisplay, IToastDisplay, ICameraPreview } from './transport-types';
+import { webrtcService } from '@/infrastructure/connection/webrtc-service';
+import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
+import { logger } from '@/infrastructure/observability/otel-logger';
 
 type FrameResultCallback = (data: ProcessImageResponse) => void;
 
@@ -152,9 +150,9 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
 
   constructor(
     private sourceId: string,
-    private statsManager: StatsPanel,
-    private cameraManager: CameraPreview,
-    private toastManager: ToastContainer
+    private statsManager: IStatsDisplay,
+    private cameraManager: ICameraPreview,
+    private toastManager: IToastDisplay
   ) {
     this.client = createPromiseClient(ImageProcessorService, createGrpcConnectTransport());
   }

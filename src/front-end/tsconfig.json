@@ -1,11 +1,11 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false
+    "jsx": "react-jsx"
   },
   "include": [
     "src/**/*.ts",
+    "src/**/*.tsx",
     "src/**/*.d.ts",
     "vite.config.ts"
   ]

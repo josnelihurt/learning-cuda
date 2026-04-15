@@ -1,4 +1,4 @@
-import { AcceleratorType } from '../../gen/common_pb';
+import { AcceleratorType } from '@/gen/common_pb';
 
 export type ValidAcceleratorType = 'cpu' | 'gpu';
 

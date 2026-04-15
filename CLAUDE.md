@@ -74,7 +74,7 @@ src/go_api/
   pkg/infrastructure/ # Repositories, gRPC client
   pkg/interfaces/     # HTTP/WebSocket handlers
 
-src/front-end/        # Lit + React (Vite)
+src/front-end/        # React (Vite)
 ```
 
 
@@ -119,6 +119,6 @@ Proto generation: `./scripts/build/protos.sh`
 - **Backend**: Go with native HTTPS, WebSocket support
 - **Processing**: C++/CUDA via gRPC service (ConnectRPC)
 - **Build**: Bazel for C++/CUDA, Makefile for Go
-- **Frontend**: Lit Web Components + TypeScript with Vite
+- **Frontend**: React + TypeScript with Vite
 - **Observability**: OpenTelemetry, Jaeger tracing, Grafana dashboards, Loki logs
 

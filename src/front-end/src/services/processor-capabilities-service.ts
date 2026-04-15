@@ -1,19 +1,19 @@
 import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ConfigService as ConfigServiceClient } from '../gen/config_service_connect';
-import { ImageProcessorService } from '../gen/image_processor_service_connect';
-import { FilterDefinition } from '../gen/common_pb';
+import { ConfigService as ConfigServiceClient } from '@/gen/config_service_connect';
+import { ImageProcessorService } from '@/gen/image_processor_service_connect';
+import { FilterDefinition } from '@/gen/common_pb';
 import {
   GenericFilterDefinition,
-} from '../gen/image_processor_service_pb';
-import { telemetryService } from '../infrastructure/observability/telemetry-service';
-import { logger } from '../infrastructure/observability/otel-logger';
+} from '@/gen/image_processor_service_pb';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
 import {
   Filter,
   createFilterFromDefinition,
   createFilterFromGenericDefinition,
-} from '../lit/components/app/filter-panel.types';
-import type { IProcessorCapabilitiesService } from '../domain/interfaces/IProcessorCapabilitiesService';
+} from '@/domain/value-objects/FilterTypes';
+import type { IProcessorCapabilitiesService } from '@/domain/interfaces/IProcessorCapabilitiesService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();

@@ -1,4 +1,4 @@
-import type { StaticVideo } from '../../gen/common_pb';
+import type { StaticVideo } from '@/gen/common_pb';
 
 export interface IVideoService {
   initialize(): Promise<void>;

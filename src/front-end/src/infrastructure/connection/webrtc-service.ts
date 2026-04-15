@@ -1,22 +1,22 @@
 import { createPromiseClient, type PromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { logger } from '../observability/otel-logger';
-import { telemetryService } from '../observability/telemetry-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 import type {
   CreateWebRTCSessionOptions,
   IWebRTCService,
-} from '../../domain/interfaces/IWebRTCService';
-import { WebRTCSession } from '../../domain/value-objects/WebRTCSession';
+} from '@/domain/interfaces/IWebRTCService';
+import { WebRTCSession } from '@/domain/value-objects/WebRTCSession';
 import {
   CloseSessionRequest,
   PollEventsRequest,
   SignalingMessage,
   type StartSessionResponse,
   SendIceCandidateRequest,
-} from '../../gen/webrtc_signal_pb';
-import { ProcessImageRequest } from '../../gen/image_processor_service_pb';
-import { WebRTCSignalingService } from '../../gen/webrtc_signal_connect';
-import { tracingInterceptor } from '../grpc/tracing-interceptor';
+} from '@/gen/webrtc_signal_pb';
+import { ProcessImageRequest } from '@/gen/image_processor_service_pb';
+import { WebRTCSignalingService } from '@/gen/webrtc_signal_connect';
+import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 
 type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'error';
 

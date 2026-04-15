@@ -185,6 +185,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
+        ffmpeg \
+        libavcodec60 \
+        libavutil58 \
+        libswscale7 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/cuda/grpc

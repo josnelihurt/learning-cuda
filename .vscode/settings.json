@@ -26,6 +26,14 @@
   "[go]": {
     "editor.defaultFormatter": "golang.go"
   },
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.formatOnSave": true
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.formatOnSave": true
+  },
   "eslint.workingDirectories": [
     {
       "directory": "src/front-end",

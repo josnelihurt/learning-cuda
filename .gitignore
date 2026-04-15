@@ -9,7 +9,6 @@ external
 !src/front-end/src/infrastructure/external
 
 # Editor and caches
-.vscode/
 .idea/
 .cursor/
 .cache/

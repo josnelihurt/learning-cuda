@@ -1,0 +1,39 @@
+{
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}",
+    "--background-index",
+    "--clang-tidy",
+    "--header-insertion=never",
+    "--completion-style=detailed",
+    "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/local/cuda*/bin/nvcc"
+  ],
+  "clangd.path": "/usr/bin/clangd",
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": true
+  },
+  "[c]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": true
+  },
+  "[h]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": true
+  },
+  "[go]": {
+    "editor.defaultFormatter": "golang.go"
+  },
+  "eslint.workingDirectories": [
+    {
+      "directory": "src/front-end",
+      "changeProcessCWD": true
+    }
+  ],
+  "eslint.validate": ["typescript", "typescriptreact"],
+  "go.buildTags": "integration",
+  "go.testFlags": ["-tags=integration"],
+  "git-worktree-menu.worktreeDir": "/home/jrb/code/cuda-learning-dev"
+}

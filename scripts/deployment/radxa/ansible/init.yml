@@ -1,6 +1,6 @@
 ---
-- name: Initialize Jetson Nano deployment
-  hosts: jetson
+- name: Initialize Radxa deployment
+  hosts: radxa
   become: yes
   roles:
     - setup

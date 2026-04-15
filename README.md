@@ -121,10 +121,10 @@ graph TB
     subgraph "Infrastructure Layer"
         GRPCProcessor[gRPC Processor]
         BuildInfo[Build Info Repository]
-        FliptRepo[Flipt Repository]
+        GoFeatureFlagRepository[GO Feature Flag Repository]
         Logger[Logger]
     end
-    
+
     subgraph "C++/CUDA Shared Library"
         SharedLibrary[Shared Library<br/>libcuda_processor.so]
         ProcessorEngine[Processor Engine]
@@ -132,31 +132,31 @@ graph TB
         BlurKernel[Blur Kernels]
         FilterDefs[Filter Definitions]
     end
-    
+
     subgraph "gRPC Services"
         GRPCServerService[gRPC Server<br/>Hosts Shared Library]
         GRPCClientService[gRPC Client]
     end
-    
+
     subgraph "External Services"
-        Flipt[Flipt Feature Flags]
+        GOFeatureFlags[GO Feature Flags]
         Jaeger[Jaeger Tracing]
         Grafana[Grafana Monitoring]
     end
-    
+
     HTTP --> ProcessImage
     WebRTC_Handler --> ProcessImage
     ConnectRPC_Handler --> ListInputs
     ConnectRPC_Handler --> GetSystemInfo
-    
+
     ProcessImage --> Processor
     ListInputs --> Processor
     GetSystemInfo --> SystemInfo
-    
+
     Processor --> GRPCProcessor
     SystemInfo --> BuildInfo
-    FeatureFlags --> FliptRepo
-    
+    FeatureFlags --> GoFeatureFlagRepository
+
     GRPCProcessor --> GRPCClientService
     GRPCClientService --> GRPCServerService
     GRPCServerService --> ProcessorEngine
@@ -164,8 +164,8 @@ graph TB
     SharedLibrary --> GrayscaleKernel
     SharedLibrary --> BlurKernel
     SharedLibrary --> FilterDefs
-    
-    FliptRepo --> Flipt
+
+    GoFeatureFlagRepository --> GOFeatureFlags
     Logger --> Jaeger
     Logger --> Grafana
 ```
@@ -240,7 +240,6 @@ Production-like Docker deployment running locally using pre-built images from Gi
 **Access:**
 - Main app: https://app.localhost
 - Grafana: https://grafana.localhost
-- Flipt: https://flipt.localhost
 - Jaeger: https://jaeger.localhost
 - Reports: https://reports.localhost
 
@@ -269,7 +268,6 @@ Real deployment on Jetson Nano hardware with Traefik as the ingress layer.
 **Services:**
 - Main Application: https://app-cuda-demo.josnelihurt.me
 - Grafana Monitoring: https://grafana-cuda-demo.josnelihurt.me
-- Feature Flags (Flipt): https://flipt-cuda-demo.josnelihurt.me
 - Distributed Tracing (Jaeger): https://jaeger-cuda-demo.josnelihurt.me
 - Test Reports: https://reports-cuda-demo.josnelihurt.me
 
@@ -360,8 +358,7 @@ The app includes a dynamic tools dropdown that adapts to your environment:
 - Grafana Explore - ad-hoc query interface
 
 **Feature Management:**
-- Flipt Feature Flags - runtime configuration
-- Sync Feature Flags - manual synchronization
+- GO Feature Flags - runtime configuration (YAML-based)
 
 **Testing:**
 - BDD Test Reports - Cucumber test results
@@ -498,9 +495,9 @@ The current architecture provides a solid foundation, but the vision extends to 
 - **WebSocket Migration Complete**: The migration from WebSocket to WebRTC has been completed. WebSocket handlers and related infrastructure have been removed from the codebase (commit `9b4a7ac`).
 - **Feature Flags Strategy**: Use feature flags for future enhancements:
   - Enable gradual rollout of new architecture
-  - Collect metrics comparing WebSocket vs WebRTC performance
-  - Validate hypotheses about latency and throughput
-  - Allow quick rollback if issues arise
+  - Collect metrics on WebRTC performance and latency
+  - Validate hypotheses about throughput and resource utilization
+  - Allow quick configuration changes without redeployment
 
 ### Multi-Accelerator Support
 

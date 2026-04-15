@@ -1,0 +1,62 @@
+{
+  "doc_path": "src/go_api/README.md",
+  "claims_checked": 47,
+  "claims_passed": 38,
+  "claims_failed": 9,
+  "failures": [
+    {
+      "line": 156,
+      "claim": "stream_video_use_case.go",
+      "expected": "file exists with correct implementation",
+      "actual": "file exists but README doesn't reflect new WebRTC-based architecture with GoPeer, StreamVideoPeer interfaces"
+    },
+    {
+      "line": 236,
+      "claim": "StreamVideoUseCase: Streams video frames via WebRTC for real-time processing, manages WebRTC peer connections",
+      "expected": "accurate description of current WebRTC streaming implementation",
+      "actual": "description is accurate but incomplete - doesn't mention GoPeer, signaling, or data channel architecture"
+    },
+    {
+      "line": 176,
+      "claim": "pkg/infrastructure/webrtc/",
+      "expected": "WebRTC peer management directory",
+      "actual": "directory exists with go_peer.go implementing full WebRTC peer connection logic, but README lacks details"
+    },
+    {
+      "line": 277,
+      "claim": "pkg/infrastructure/webrtc/",
+      "expected": "detailed WebRTC implementation description",
+      "actual": "README only mentions 'WebRTC peer management' but missing key details: GoPeer, signaling client, data channels, ICE handling"
+    },
+    {
+      "line": 298,
+      "claim": "Protocol Buffers - proto/webrtc_signal.proto",
+      "expected": "WebRTC signaling proto file exists",
+      "actual": "proto file referenced but implementation uses WebRTCSignalingService with bi-directional streaming, not documented"
+    },
+    {
+      "line": 86,
+      "claim": "WebRTC[WebRTC Handlers]",
+      "expected": "WebRTC handlers in architecture diagram",
+      "actual": "accurate but doesn't show WebRTC signaling flow or GoPeer integration"
+    },
+    {
+      "line": 15,
+      "claim": "list_inputs_use_case.go",
+      "expected": "use case file exists",
+      "actual": "file exists but missing from README application layer description"
+    },
+    {
+      "line": 156,
+      "claim": "video_playback_use_case.go",
+      "expected": "use case file listed in directory structure",
+      "actual": "file exists but not mentioned in README - represents legacy video playback pattern"
+    },
+    {
+      "line": 258,
+      "claim": "pkg/infrastructure/processor/",
+      "expected": "processor integration with grpc_processor.go, grpc_client.go, grpc_repository.go",
+      "actual": "all files exist but README doesn't reflect recent WebSocket removal and pure gRPC architecture"
+    }
+  ]
+}

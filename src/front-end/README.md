@@ -39,48 +39,47 @@ graph TB
     subgraph "Application Services Layer"
         ConfigService[ConfigService]
         ProcessorCaps[ProcessorCapabilitiesService]
-        UIService[UIService]
     end
-    
+
     subgraph "Infrastructure Layer"
         subgraph "Transport"
             WebRTCTransport[WebRTCFrameTransport]
         end
-        
+
         subgraph "Data Services"
             VideoService[VideoService]
             FileService[FileService]
             InputSourceService[InputSourceService]
         end
-        
+
         subgraph "External Services"
             FeatureFlags[FeatureFlagsService]
             SystemInfo[SystemInfoService]
             ToolsService[ToolsService]
         end
-        
+
         subgraph "Observability"
             TelemetryService[TelemetryService]
             Logger[Logger]
         end
     end
-    
+
     subgraph "Domain Layer"
         Interfaces[Domain Interfaces]
         ValueObjects[Value Objects]
     end
-    
+
     subgraph "Backend"
         GoServer[Go Web Server]
         GRPCServer[gRPC Server]
     end
-    
+
     AppRoot --> FilterPanel
     AppRoot --> VideoGrid
     AppRoot --> CameraPreview
     AppRoot --> StatsPanel
     AppRoot --> SourceDrawer
-    
+
     FilterPanel --> ProcessorCaps
     CameraPreview --> WebRTCTransport
     VideoGrid --> VideoService
@@ -96,16 +95,13 @@ graph TB
     FeatureFlags --> GoServer
     SystemInfo --> GoServer
     ToolsService --> GoServer
-    
-    UIService --> WebRTCTransport
-    UIService --> ProcessorCaps
-    
+
     ConfigService --> Interfaces
     ProcessorCaps --> Interfaces
     WebRTCTransport --> Interfaces
     VideoService --> Interfaces
     FileService --> Interfaces
-    
+
     TelemetryService --> Logger
     Logger --> GoServer
 ```
@@ -185,11 +181,6 @@ graph TB
 - Notifies listeners when capabilities change
 - Caches filter definitions for performance
 
-**`ui-service.ts`**:
-- Coordinates UI interactions
-- Manages stats, camera, and filter state
-- Bridges components and transport layer
-
 ### Infrastructure Services
 
 #### Transport Layer (`infrastructure/transport/`)
@@ -235,6 +226,23 @@ graph TB
 - Observability tool links
 - Test report access
 
+#### External Services (`infrastructure/external/`)
+
+**`accelerator-health-monitor.ts`**:
+- Monitors GPU/CPU accelerator health status
+- Tracks accelerator availability
+- Provides health metrics and diagnostics
+
+**`grpc-version-service.ts`**:
+- Retrieves gRPC version information
+- Checks backend compatibility
+- Manages version verification
+
+**`remote-management-service.ts`**:
+- Remote device management capabilities
+- Handles remote configuration
+- Manages remote service connections
+
 #### Observability (`infrastructure/observability/`)
 
 **`telemetry-service.ts`**:
@@ -259,6 +267,8 @@ Domain interfaces define contracts without implementation details:
 - **`IVideoService`**: Video operations
 - **`IFileService`**: File operations
 - **`IInputSourceService`**: Input source management
+- **`IToolsService`**: Tools and external services management
+- **`IWebRTCService`**: WebRTC signaling and peer connection management
 - **`ITelemetryService`**: Observability
 - **`ILogger`**: Logging interface
 
@@ -272,6 +282,88 @@ Type-safe domain models:
 - **`GrayscaleAlgorithm`**: Grayscale algorithm types
 - **`ConnectionStatus`**: WebRTC connection state and quality metrics
 - **`WebRTCSession`**: WebRTC session information
+- **`Uuid`**: UUID generation and validation utility
+
+### React Hooks & Context Architecture
+
+The React dashboard uses custom hooks and context providers for state management, replacing the previous UIService approach.
+
+**Custom Hooks** (`react/hooks/`):
+
+- **`useWebRTCStream.ts`**: Manages WebRTC connections for real-time video streaming
+  - Establishes WebRTC peer connections
+  - Handles video frame processing
+  - Manages connection state and quality metrics
+
+- **`useImageProcessing.ts`**: Orchestrates image processing operations
+  - Processes images via Connect-RPC
+  - Manages filter configuration
+  - Tracks processing metrics
+
+- **`useFilters.ts`**: Filter management and selection
+  - Loads available filters from backend
+  - Manages filter order and parameters
+  - Handles drag-and-drop reordering
+
+- **`useConfig.ts`**: Configuration management
+  - Fetches stream configuration
+  - Manages feature flags
+  - Handles system settings
+
+- **`useHealthMonitor.ts`**: System health monitoring
+  - Tracks accelerator availability
+  - Monitors system resources
+  - Provides health status updates
+
+- **`useAsyncGRPC.ts`**: Async gRPC operation management
+  - Handles async gRPC calls with proper error handling
+  - Manages loading states
+  - Provides typed gRPC response handling
+
+- **`useImageUpload.ts`**: Image upload handling
+  - Manages file selection and upload
+  - Tracks upload progress
+  - Validates image formats and sizes
+
+- **`useFiles.ts`**: File management
+  - Lists available files
+  - Manages file operations
+  - Tracks file metadata
+
+- **`useToast.ts`**: Toast notifications
+  - Displays success/error messages
+  - Manages notification queue
+  - Provides notification API
+
+**Context Providers** (`react/context/`):
+
+- **`dashboard-state-context.tsx`**: Global dashboard state
+  - Manages active input sources
+  - Coordinates filter pipelines
+  - Handles UI state (drawers, panels)
+
+- **`service-context.tsx`**: Service dependency injection
+  - Provides application services to components
+  - Manages service lifecycle
+  - Enables testing with mock services
+
+- **`toast-context.tsx`**: Toast notifications
+  - Displays success/error messages
+  - Manages notification queue
+  - Provides notification API
+
+**Service Providers** (`react/providers/`):
+
+- **`app-services-provider.tsx`**: Application services provider
+  - Initializes application-level services
+  - Sets up service dependencies
+  - Wraps application with context providers
+
+- **`grpc-clients-provider.tsx`**: gRPC clients provider
+  - Initializes gRPC client connections
+  - Provides typed gRPC clients to components
+  - Manages client lifecycle
+  - Wraps application with context providers
 
 ## Dependency Injection
 
@@ -388,9 +480,9 @@ front-end/
 │   │   │   ├── files/      # File management
 │   │   │   ├── settings/   # Settings panel
 │   │   │   └── sidebar/    # Sidebar components
-│   │   ├── hooks/          # React hooks
-│   │   ├── context/        # React context providers
-│   │   ├── providers/      # Service providers
+│   │   ├── hooks/          # React hooks (useWebRTCStream, useImageProcessing, useFilters, etc.)
+│   │   ├── context/        # React context providers (dashboard-state, service, toast)
+│   │   ├── providers/      # Service providers (service-provider.tsx)
 │   │   ├── infrastructure/ # React infrastructure
 │   │   └── main.tsx        # React entry point
 │   ├── services/            # Shared services

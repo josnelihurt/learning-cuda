@@ -56,8 +56,9 @@ cuda_learning::GenericFilterParameterType ConvertParameterType(const std::string
 }  // namespace
 
 ImageProcessorServiceImpl::ImageProcessorServiceImpl(
-    std::shared_ptr<ProcessorEngineProvider> engine, WebRTCManager* webrtc_manager)
-    : engine_(std::move(engine)), webrtc_manager_(webrtc_manager) {}
+    std::shared_ptr<ProcessorEngineProvider> engine,
+    std::shared_ptr<WebRTCManager> webrtc_manager)
+    : engine_(std::move(engine)), webrtc_manager_(std::move(webrtc_manager)) {}
 
 ::grpc::Status ImageProcessorServiceImpl::ProcessImage(
     ::grpc::ServerContext* /*context*/, const cuda_learning::ProcessImageRequest* request,
@@ -109,6 +110,12 @@ ImageProcessorServiceImpl::ImageProcessorServiceImpl(
     CopyProcessMetadata(request, &response);
 
     bool ok = engine_->ProcessImage(request, &response);
+    if (!ok || response.code() != 0) {
+      spdlog::warn("StreamProcessVideo frame failed (code={}): {}, skipping frame",
+                   response.code(), response.message());
+      continue;
+    }
+
     if (webrtc_manager_ != nullptr && !request.session_id().empty()) {
       std::string bytes;
       if (!response.SerializeToString(&bytes)) {
@@ -117,15 +124,9 @@ ImageProcessorServiceImpl::ImageProcessorServiceImpl(
       } else {
         webrtc_manager_->SendToSession(request.session_id(), bytes);
       }
-    }
-    if (!ok || response.code() != 0) {
-      spdlog::warn("StreamProcessVideo frame failed (code={}): {}", response.code(),
-                   response.message());
+    } else {
       stream->Write(response);
-      return EngineFailureStatus(response);
     }
-
-    stream->Write(response);
   }
 
   return ::grpc::Status::OK;

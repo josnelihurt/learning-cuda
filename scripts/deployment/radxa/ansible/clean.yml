@@ -1,6 +1,6 @@
 ---
-- name: Clean Jetson Nano deployment
-  hosts: jetson
+- name: Clean Radxa deployment
+  hosts: radxa
   become: yes
   tasks:
     - name: Check if application directory exists

@@ -1,6 +1,6 @@
 ---
-- name: Sync files to Jetson Nano
-  hosts: jetson
+- name: Sync files to Radxa
+  hosts: radxa
   vars:
     deployment_files: "{{ lookup('file', playbook_dir + '/../deployment_files.txt') if lookup('file', playbook_dir + '/../deployment_files.txt', errors='ignore') | length > 0 else playbook_dir + '/../..' }}"
   tasks:

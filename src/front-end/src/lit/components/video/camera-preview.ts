@@ -1,7 +1,11 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { logger } from '../../../infrastructure/observability/otel-logger';
-import { buildCameraPreviewFilterValue, type CameraPreviewFilterState } from '../../../shared/camera-preview-filters';
+
+type CameraPreviewFilterState = {
+  id: string;
+  parameters: Record<string, string>;
+};
 
 interface StatsManager {
   updateCameraStatus(status: string, type: 'success' | 'error' | 'warning' | 'inactive'): void;
@@ -55,7 +59,7 @@ export class CameraPreview extends LitElement {
   render() {
     return html`
       <slot name="hero-image"></slot>
-      <video autoplay playsinline muted style=${`filter: ${buildCameraPreviewFilterValue(this.activeFilters)};`}></video>
+      <video autoplay playsinline muted></video>
       <canvas></canvas>
     `;
   }
@@ -280,7 +284,6 @@ export class CameraPreview extends LitElement {
 
   setFilters(filters: CameraPreviewFilterState[]): void {
     this.activeFilters = filters;
-    this.requestUpdate();
   }
 
   getStream(): MediaStream | null {

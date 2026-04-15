@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import type { StaticImage } from '@/gen/common_pb';
+import { AcceleratorType } from '@/gen/common_pb';
 import type { StatsPanel } from '@/lit/components/app/stats-panel';
 import type { ToastContainer } from '@/lit/components/app/toast-container';
 import type { ActiveFilterState } from '../filters/FilterPanel';
@@ -38,10 +39,15 @@ type GridSource = {
   sessionMode: 'frame-processing' | 'camera-mediatrack';
   filters: ActiveFilterState[];
   resolution: string;
+  accelerator: 'gpu' | 'cpu';
   videoId?: string;
 };
 
 const MAX_SOURCES = 9;
+
+function toProtocolAccelerator(value: 'gpu' | 'cpu'): AcceleratorType {
+  return value === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
+}
 
 function frameResponseToDataUrl(bytes: Uint8Array, width: number, height: number, channels: number): string {
   const rgba = new Uint8ClampedArray(width * height * 4);
@@ -237,6 +243,29 @@ export function VideoGridHost() {
     setSources((current) => current.map((source) => (source.id === sourceId ? updater(source) : source)));
   }, []);
 
+  const sendCameraControlRequest = useCallback(
+    (sessionId: string, sourceId: string, filters: ActiveFilterState[], accelerator: 'gpu' | 'cpu') => {
+      try {
+        webrtcService.sendControlRequest(
+          sessionId,
+          new ProcessImageRequest({
+            sessionId,
+            genericFilters: mapFiltersToGenericSelections(filters),
+            accelerator: toProtocolAccelerator(accelerator),
+            apiVersion: '1.0',
+          })
+        );
+      } catch (error) {
+        logger.error('Failed to send live camera filter update', {
+          'error.message': error instanceof Error ? error.message : String(error),
+          'source.id': sourceId,
+          'session.id': sessionId,
+        });
+      }
+    },
+    [mapFiltersToGenericSelections]
+  );
+
   const createCameraSession = useCallback(
     async (sourceId: string, stream: MediaStream) => {
       if (cameraSessionSourceIdsRef.current.has(sourceId)) {
@@ -252,7 +281,7 @@ export function VideoGridHost() {
         const session = await webrtcService.createSession(sourceId, {
           mode: 'camera-mediatrack',
           localStream: stream,
-          useDataChannel: false,
+          useDataChannel: true,
           onRemoteStream: (remoteStream) => {
             updateSource(sourceId, (current) => ({
               ...current,
@@ -266,6 +295,16 @@ export function VideoGridHost() {
           sessionId: session.getId(),
           sessionMode: session.getMode(),
         }));
+        const currentSource = sourcesRef.current.find((item) => item.id === sourceId) ?? source;
+        const currentFilters = currentSource.filters.length
+          ? currentSource.filters
+          : [{ id: 'none', parameters: {} }];
+        sendCameraControlRequest(
+          session.getId(),
+          sourceId,
+          currentFilters,
+          currentSource.accelerator
+        );
       } catch (error) {
         logger.error('Failed to create camera MediaTrack session', {
           'error.message': error instanceof Error ? error.message : String(error),
@@ -279,7 +318,7 @@ export function VideoGridHost() {
         cameraSessionSourceIdsRef.current.delete(sourceId);
       }
     },
-    [toastManager, updateSource]
+    [sendCameraControlRequest, toastManager, updateSource]
   );
 
   const emitSelectionState = useCallback(
@@ -402,6 +441,7 @@ export function VideoGridHost() {
         sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
         filters: [{ id: 'none', parameters: {} }],
         resolution: 'original',
+        accelerator: 'gpu',
         videoId: inputSource.type === 'video' ? inputSource.id : undefined,
       };
 
@@ -495,6 +535,7 @@ export function VideoGridHost() {
       ...source,
       filters: normalizedFilters,
       resolution: selectedResolution,
+      accelerator: selectedAccelerator,
     }));
 
     if (selectedSource.type === 'video') {
@@ -514,6 +555,14 @@ export function VideoGridHost() {
       return;
     }
     if (selectedSource.type === 'camera') {
+      if (selectedSource.sessionId && webrtcService.isDataChannelOpen(selectedSource.sessionId)) {
+        sendCameraControlRequest(
+          selectedSource.sessionId,
+          selectedSource.id,
+          normalizedFilters,
+          selectedAccelerator
+        );
+      }
       return;
     }
 
@@ -585,6 +634,7 @@ export function VideoGridHost() {
     selectedResolution,
     selectedSourceId,
     updateSource,
+    sendCameraControlRequest,
   ]);
 
   useEffect(() => {

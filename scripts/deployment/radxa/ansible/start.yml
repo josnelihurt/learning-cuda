@@ -1,6 +1,6 @@
 ---
-- name: Start services on Jetson Nano
-  hosts: jetson
+- name: Start services on Radxa
+  hosts: radxa
   become: yes
   tasks:
     - name: Verify repository exists on remote

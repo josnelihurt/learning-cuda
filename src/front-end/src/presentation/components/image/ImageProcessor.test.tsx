@@ -2,9 +2,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ImageProcessor } from './ImageProcessor';
 import type { StaticImage } from '@/gen/common_pb';
-import { ServiceContext } from '../../context/service-context';
-import type { GrpcClients } from '../../context/service-context';
-import { ToastContext, type ToastApi } from '../../context/toast-context';
+import { ServiceContext } from '@/presentation/context/service-context';
+import type { GrpcClients } from '@/presentation/context/service-context';
+import { ToastContext, type ToastApi } from '@/presentation/context/toast-context';
 
 // Mock gRPC client
 const mockProcessImage = vi.fn();

@@ -1,4 +1,4 @@
-import { ConnectionStatus } from '../../domain/value-objects';
+import { ConnectionStatus } from '@/domain/value-objects';
 
 class GrpcConnectionService {
   private connectionState: 'connected' | 'disconnected' | 'connecting' | 'error' = 'disconnected';

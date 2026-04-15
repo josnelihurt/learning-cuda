@@ -5,7 +5,7 @@ import {
   CheckAcceleratorHealthRequest,
   type CheckAcceleratorHealthResponse,
 } from '@/gen/remote_management_service_pb';
-import { useServiceContext } from '../context/service-context';
+import { useServiceContext } from '@/presentation/context/service-context';
 import type { GrpcAsyncError } from './useAsyncGRPC';
 
 export function useHealthMonitor(options?: { pollIntervalMs?: number }) {

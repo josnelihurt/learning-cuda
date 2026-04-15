@@ -4,7 +4,7 @@ import {
   ListFiltersRequest,
   type GenericFilterDefinition,
 } from '@/gen/image_processor_service_pb';
-import { useServiceContext } from '../context/service-context';
+import { useServiceContext } from '@/presentation/context/service-context';
 import type { GrpcAsyncError } from './useAsyncGRPC';
 
 export function useFilters() {

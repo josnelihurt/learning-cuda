@@ -1,7 +1,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import type { ReactElement } from 'react';
-import { ServiceContext, type GrpcClients } from '../context/service-context';
+import { ServiceContext, type GrpcClients } from '@/presentation/context/service-context';
 
 export function renderWithService(
   ui: ReactElement,

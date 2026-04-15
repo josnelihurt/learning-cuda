@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPromiseClient } from '@connectrpc/connect';
-import { ConfigService } from '../../../gen/config_service_connect';
-import { createGrpcConnectTransport } from '../../../infrastructure/grpc/create-grpc-transport';
-import { useToast } from '../../hooks/useToast';
+import { ConfigService } from '@/gen/config_service_connect';
+import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
+import { useToast } from '@/presentation/hooks/useToast';
 import { OpenFeature } from '@openfeature/web-sdk';
 import { GoFeatureFlagWebProvider } from '@openfeature/go-feature-flag-web-provider';
 import './FeatureFlagsModal.css';

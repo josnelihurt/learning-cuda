@@ -1,4 +1,4 @@
-import { useDashboardState } from '../../context/dashboard-state-context';
+import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import styles from './SidebarControls.module.css';
 
 export function SidebarControls() {

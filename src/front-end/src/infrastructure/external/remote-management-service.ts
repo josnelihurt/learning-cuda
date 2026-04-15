@@ -1,6 +1,6 @@
 import { createPromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { RemoteManagementService as RemoteManagementServiceClient } from '../../gen/remote_management_service_connect';
+import { RemoteManagementService as RemoteManagementServiceClient } from '@/gen/remote_management_service_connect';
 import { 
   StartJetsonNanoRequest, 
   StartJetsonNanoResponse,
@@ -9,8 +9,8 @@ import {
   AcceleratorHealthStatus,
   MonitorJetsonNanoRequest,
   MonitorJetsonNanoResponse
-} from '../../gen/remote_management_service_pb';
-import { logger } from '../observability/otel-logger';
+} from '@/gen/remote_management_service_pb';
+import { logger } from '@/infrastructure/observability/otel-logger';
 import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 
 export interface StartJetsonNanoEvent {

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
-import type { ActiveFilterState } from '../filters/FilterPanel';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import { VideoStreamer } from './VideoStreamer';
 
 const dashboardFiltersRef: { current: ActiveFilterState[] } = { current: [] };
@@ -37,7 +37,7 @@ vi.mock('../../hooks/useWebRTCStream', () => ({
   useWebRTCStream: vi.fn(),
 }));
 
-import { useWebRTCStream } from '../../hooks/useWebRTCStream';
+import { useWebRTCStream } from '@/presentation/hooks/useWebRTCStream';
 
 describe('VideoStreamer', () => {
   const mockStartStream = vi.fn().mockResolvedValue(undefined);

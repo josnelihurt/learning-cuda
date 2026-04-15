@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { GrayscaleAlgorithm } from './GrayscaleAlgorithm';
-import { GrayscaleType } from '../../gen/common_pb';
+import { GrayscaleType } from '@/gen/common_pb';
 
 describe('GrayscaleAlgorithm', () => {
   // Test data builders

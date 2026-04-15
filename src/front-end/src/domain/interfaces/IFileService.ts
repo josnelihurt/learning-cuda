@@ -1,4 +1,4 @@
-import type { StaticImage } from '../../gen/config_service_pb';
+import type { StaticImage } from '@/gen/config_service_pb';
 
 export interface IFileService {
   initialize(): Promise<void>;

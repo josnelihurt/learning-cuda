@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { ActiveFilterState } from '../filters/FilterPanel';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 
 type FrameCapturedPayload = {
   base64data: string;

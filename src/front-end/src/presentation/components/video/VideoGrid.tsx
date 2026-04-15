@@ -1,6 +1,6 @@
 import { CameraPreview } from './CameraPreview';
 import { VideoSourceCard } from './VideoSourceCard';
-import type { ActiveFilterState } from '../filters/FilterPanel';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import './video-grid.css';
 
 export type GridSource = {

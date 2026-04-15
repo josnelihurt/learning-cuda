@@ -1,10 +1,10 @@
 import { createPromiseClient, Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ImageProcessorService } from '../../gen/image_processor_service_connect';
-import { GetVersionInfoRequest } from '../../gen/image_processor_service_pb';
-import { TraceContext } from '../../gen/common_pb';
-import { telemetryService } from '../observability/telemetry-service';
-import { logger } from '../observability/otel-logger';
+import { ImageProcessorService } from '@/gen/image_processor_service_connect';
+import { GetVersionInfoRequest } from '@/gen/image_processor_service_pb';
+import { TraceContext } from '@/gen/common_pb';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const traceHeaders = telemetryService.getTraceHeaders();

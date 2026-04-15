@@ -1,10 +1,10 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useImageProcessing } from './useImageProcessing';
-import type { ActiveFilterState } from '../components/filters/FilterPanel';
-import type { GrpcClients } from '../context/service-context';
-import { ServiceContext } from '../context/service-context';
-import { ToastContext, type ToastApi } from '../context/toast-context';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import type { GrpcClients } from '@/presentation/context/service-context';
+import { ServiceContext } from '@/presentation/context/service-context';
+import { ToastContext, type ToastApi } from '@/presentation/context/toast-context';
 import type {
   ProcessImageRequest,
   ProcessImageResponse,

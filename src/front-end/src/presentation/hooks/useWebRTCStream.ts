@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { manageWebRTC } from '@/infrastructure/connection/webrtc-manage';
 import { useToast } from './useToast';
-import type { ActiveFilterState } from '../components/filters/FilterPanel';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'failed';
 

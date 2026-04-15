@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { ActiveFilterState } from '../components/filters/FilterPanel';
-import { useAppServices } from '../providers/app-services-provider';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import { useAppServices } from '@/presentation/providers/app-services-provider';
 
 export type AcceleratorChoice = 'gpu' | 'cpu';
 

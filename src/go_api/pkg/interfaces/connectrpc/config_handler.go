@@ -3,48 +3,47 @@ package connectrpc
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type ConfigHandler struct {
-	getStreamConfigUseCase *application.GetStreamConfigUseCase
-	featureFlagRepo        domain.FeatureFlagRepository
-	listInputsUseCase      *application.ListInputsUseCase
-	evaluateFFUseCase      *application.EvaluateFeatureFlagUseCase
-	getSystemInfoUseCase   *application.GetSystemInfoUseCase
-	configManager          *config.Manager
-	processorCapsUC        application.ProcessorCapabilitiesUseCase
+	featureFlagRepo      domain.FeatureFlagRepository
+	listInputsUseCase    *videoapp.ListInputsUseCase
+	evaluateFFUseCase    *ffapp.EvaluateFeatureFlagUseCase
+	getSystemInfoUseCase *systemapp.GetSystemInfoUseCase
+	configManager        *config.Manager
+	processorCapsUC      *systemapp.ProcessorCapabilitiesUseCase
 }
 
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
-	GetStreamConfigUC *application.GetStreamConfigUseCase
-	FeatureFlagRepo   domain.FeatureFlagRepository
-	ListInputsUC      *application.ListInputsUseCase
-	EvaluateFFUC      *application.EvaluateFeatureFlagUseCase
-	GetSystemInfoUC   *application.GetSystemInfoUseCase
-	ConfigManager     *config.Manager
-	ProcessorCapsUC   application.ProcessorCapabilitiesUseCase
+	FeatureFlagRepo domain.FeatureFlagRepository
+	ListInputsUC    *videoapp.ListInputsUseCase
+	EvaluateFFUC    *ffapp.EvaluateFeatureFlagUseCase
+	GetSystemInfoUC *systemapp.GetSystemInfoUseCase
+	ConfigManager   *config.Manager
+	ProcessorCapsUC *systemapp.ProcessorCapabilitiesUseCase
 }
 
 func NewConfigHandler(deps ConfigHandlerDeps) *ConfigHandler {
 	return &ConfigHandler{
-		getStreamConfigUseCase: deps.GetStreamConfigUC,
-		featureFlagRepo:        deps.FeatureFlagRepo,
-		listInputsUseCase:      deps.ListInputsUC,
-		evaluateFFUseCase:      deps.EvaluateFFUC,
-		getSystemInfoUseCase:   deps.GetSystemInfoUC,
-		configManager:          deps.ConfigManager,
-		processorCapsUC:        deps.ProcessorCapsUC,
+		featureFlagRepo:      deps.FeatureFlagRepo,
+		listInputsUseCase:    deps.ListInputsUC,
+		evaluateFFUseCase:    deps.EvaluateFFUC,
+		getSystemInfoUseCase: deps.GetSystemInfoUC,
+		configManager:        deps.ConfigManager,
+		processorCapsUC:      deps.ProcessorCapsUC,
 	}
 }
 
@@ -53,12 +52,14 @@ func (h *ConfigHandler) GetStreamConfig(
 	req *connect.Request[pb.GetStreamConfigRequest],
 ) (*connect.Response[pb.GetStreamConfigResponse], error) {
 	span := trace.SpanFromContext(ctx)
+	_ = req
 
-	streamConfig, err := h.getStreamConfigUseCase.Execute(ctx)
-	if err != nil {
-		span.RecordError(err)
-		log.Printf("Failed to get stream config: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+	if h.configManager == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("config manager not available"))
+	}
+
+	if h.configManager.Server.WebRTCSignalingEndpoint == "" {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("webrtc signaling endpoint not configured"))
 	}
 
 	logLevel, err := h.evaluateFFUseCase.EvaluateString(ctx, "frontend_log_level", "default", "INFO")
@@ -71,28 +72,20 @@ func (h *ConfigHandler) GetStreamConfig(
 		consoleLogging = true
 	}
 
-	// Force transport_format to "json" if empty
-	transportFormat := streamConfig.TransportFormat
-	if transportFormat == "" {
-		transportFormat = "json"
-		log.Printf("DEBUG: Forced transport_format to 'json' (was empty)")
-	}
-
+	// Return WebRTC signaling endpoint via ConnectRPC
 	endpoints := []*pb.StreamEndpoint{
 		{
-			Type:            "websocket",
-			Endpoint:        streamConfig.WebsocketEndpoint,
-			TransportFormat: transportFormat,
-			LogLevel:        logLevel,
-			ConsoleLogging:  consoleLogging,
+			Type:           "webrtc",
+			Endpoint:       h.configManager.Server.WebRTCSignalingEndpoint,
+			LogLevel:       logLevel,
+			ConsoleLogging: consoleLogging,
 		},
 	}
 
-	log.Printf("DEBUG: StreamEndpoint console_logging value: %v", consoleLogging)
+	logger.FromContext(ctx).Debug().Bool("console_logging", consoleLogging).Msg("StreamEndpoint console_logging value")
 
 	span.SetAttributes(
-		attribute.String("config.endpoint", streamConfig.WebsocketEndpoint),
-		attribute.String("config.transport_format", streamConfig.TransportFormat),
+		attribute.String("config.endpoint", h.configManager.Server.WebRTCSignalingEndpoint),
 		attribute.String("config.log_level", logLevel),
 		attribute.Bool("config.console_logging", consoleLogging),
 		attribute.Int("config.endpoint_count", len(endpoints)),
@@ -172,7 +165,7 @@ func (h *ConfigHandler) ListInputs(
 	sources, err := h.listInputsUseCase.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to list input sources: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list input sources")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -242,8 +235,10 @@ func (h *ConfigHandler) GetAvailableTools(
 		attribute.Int("tools.category_count", len(categories)),
 	)
 
-	log.Printf("GetAvailableTools: returning %d categories for environment: %s",
-		len(categories), h.configManager.Environment)
+	logger.FromContext(ctx).Debug().
+		Int("category_count", len(categories)).
+		Str("environment", h.configManager.Environment).
+		Msg("GetAvailableTools: returning categories")
 
 	return connect.NewResponse(&pb.GetAvailableToolsResponse{
 		Categories: categories,
@@ -282,7 +277,7 @@ func (h *ConfigHandler) GetSystemInfo(
 	systemInfo, err := h.getSystemInfoUseCase.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
-		log.Printf("Failed to get system info: %v", err)
+		logger.FromContext(ctx).Error().Err(err).Msg("Failed to get system info")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -310,8 +305,10 @@ func (h *ConfigHandler) GetSystemInfo(
 		attribute.String("system.environment", systemInfo.Environment),
 	)
 
-	log.Printf("GetSystemInfo: returning system info for environment: %s, go_version: %s",
-		systemInfo.Environment, systemInfo.Version.GoVersion)
+	logger.FromContext(ctx).Debug().
+		Str("environment", systemInfo.Environment).
+		Str("go_version", systemInfo.Version.GoVersion).
+		Msg("GetSystemInfo: returning system info")
 
 	return connect.NewResponse(response), nil
 }
@@ -350,8 +347,12 @@ func (h *ConfigHandler) GetProcessorStatus(
 		CurrentLibrary: caps.LibraryVersion,
 	}
 
-	log.Printf("GetProcessorStatus: returning capabilities with %d filters, api_version: %s, library_version: %s, origin: %s",
-		len(caps.Filters), caps.ApiVersion, caps.LibraryVersion, origin)
+	logger.FromContext(ctx).Debug().
+		Int("filter_count", len(caps.Filters)).
+		Str("api_version", caps.ApiVersion).
+		Str("library_version", caps.LibraryVersion).
+		Str("origin", string(origin)).
+		Msg("GetProcessorStatus: returning capabilities")
 
 	return connect.NewResponse(response), nil
 }

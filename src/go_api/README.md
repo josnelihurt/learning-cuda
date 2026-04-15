@@ -16,7 +16,7 @@ From project root:
 
 This will:
 1. Build the server and frontend
-2. Start services (Flipt, Jaeger, etc.)
+2. Start services (Goff feature flags, Jaeger, etc.)
 3. Enable hot reload for frontend (Vite dev server)
 4. Start the Go server with hot reload support
 
@@ -83,8 +83,8 @@ graph TB
     
     subgraph "Go Interfaces Layer"
         ConnectRPC[Connect-RPC Handlers]
-        WebSocket[WebSocket Handlers]
-        AuxHTTP[Aux HTTP: data, ws, flipt proxy]
+        WebRTC[WebRTC Handlers]
+        AuxHTTP[Aux HTTP: health, logs, trace, data proxy]
         Vanguard[Vanguard Transcoder]
     end
     
@@ -104,7 +104,7 @@ graph TB
     
     subgraph "Go Infrastructure Layer"
         GRPCProcessor[GRPCProcessor]
-        FeatureFlags[Flipt Integration]
+        FeatureFlags[Goff Integration]
         FileSystem[File System Repos]
     end
     
@@ -113,7 +113,7 @@ graph TB
     end
     
     Browser --> AuxHTTP
-    Browser --> WebSocket
+    Browser --> WebRTC
     Browser --> ConnectRPC
     Browser --> Vanguard
     API --> ConnectRPC
@@ -122,7 +122,7 @@ graph TB
     ConnectRPC --> ProcessImageUC
     ConnectRPC --> ConfigUC
     ConnectRPC --> FileUC
-    WebSocket --> ProcessImageUC
+    WebRTC --> ProcessImageUC
     Vanguard --> ProcessImageUC
     
     ProcessImageUC --> ImageProcessor
@@ -147,27 +147,53 @@ webserver/
 │   ├── application/     # Use cases (business logic)
 │   │   ├── process_image_use_case.go
 │   │   ├── processor_capabilities_use_case.go
-│   │   ├── get_stream_config_use_case.go
-│   │   ├── sync_feature_flags_use_case.go
+│   │   ├── evaluate_feature_flag_use_case.go
+│   │   ├── get_system_info_use_case.go
 │   │   ├── list_available_images_use_case.go
-│   │   └── upload_image_use_case.go
+│   │   ├── upload_image_use_case.go
+│   │   ├── list_videos_use_case.go
+│   │   ├── upload_video_use_case.go
+│   │   ├── stream_video_use_case.go
+│   │   └── list_inputs_use_case.go
 │   ├── domain/          # Domain models and interfaces
 │   │   ├── image.go
 │   │   ├── processor.go
 │   │   ├── video.go
+│   │   ├── video_player.go
 │   │   ├── feature_flag.go
+│   │   ├── system_info.go
+│   │   ├── device_status.go
+│   │   ├── processing_options.go
 │   │   └── interfaces/
 │   ├── infrastructure/  # External integrations
 │   │   ├── processor/   # C++/CUDA integration
 │   │   │   ├── grpc_processor.go
-│   │   │   └── grpc_client.go
-│   │   ├── featureflags/# Flipt integration
+│   │   │   ├── grpc_client.go
+│   │   │   └── grpc_repository.go
+│   │   ├── featureflags/# Goff integration (YAML-based)
 │   │   ├── filesystem/  # File repositories
 │   │   ├── video/       # Video repositories
-│   │   └── build/       # Build info repository
-│   ├── interfaces/      # HTTP/WebSocket/Connect-RPC handlers
+│   │   ├── webrtc/      # WebRTC peer management
+│   │   ├── mqtt/        # MQTT device monitoring
+│   │   ├── http/        # HTTP utilities
+│   │   ├── image/       # Image codec
+│   │   ├── logger/      # Structured logging
+│   │   ├── config/      # Config repository
+│   │   ├── version/     # Version info
+│   │   └── build/       # Build info
+│   ├── interfaces/      # HTTP/Connect-RPC handlers
 │   │   ├── connectrpc/  # Connect-RPC handlers
-│   │   ├── websocket/   # WebSocket handlers
+│   │   │   ├── handler.go
+│   │   │   ├── config_handler.go
+│   │   │   ├── file_handler.go
+│   │   │   ├── webrtc_handler.go
+│   │   │   ├── webrtc_session_manager.go
+│   │   │   ├── remote_management_handler.go
+│   │   │   └── vanguard.go
+│   │   ├── http/        # HTTP handlers
+│   │   │   ├── health_handler.go
+│   │   │   ├── logs_proxy.go
+│   │   │   └── trace_proxy.go
 │   │   └── adapters/   # Protocol adapters
 │   ├── config/          # Configuration management
 │   ├── container/       # Dependency injection
@@ -175,7 +201,7 @@ webserver/
 │   └── telemetry/       # OpenTelemetry integration
 ```
 
-Frontend source: `../front-end/` (Vite in development, Nginx image in production).
+Frontend source: `../front-end/` (Vite in development, embedded static assets in production).
 
 ## Key Components
 
@@ -185,26 +211,30 @@ Frontend source: `../front-end/` (Vite in development, Nginx image in production
 - `handler.go`: Main image processor handler implementing Connect-RPC service interface
 - `config_handler.go`: Configuration and system info handler
 - `file_handler.go`: File upload and listing handler
+- `webrtc_handler.go`: WebRTC signaling handler
+- `webrtc_session_manager.go`: Manages WebRTC signaling sessions and peer connections
+- `remote_management_handler.go`: Remote device management (Jetson Nano)
 - `vanguard.go`: REST API transcoder using Vanguard for google.api.http annotations
 
-**WebSocket Handler** (`pkg/interfaces/websocket/`):
-- Real-time bidirectional communication for video/image processing
-- Session management for multiple concurrent connections
-- Streams processing results back to clients
+**HTTP Handlers** (`pkg/interfaces/http/`):
+- `health_handler.go`: Health check endpoints
+- `logs_proxy.go`: Loki logs proxy
+- `trace_proxy.go`: Jaeger trace proxy
 
-**WebSocket `/ws`** is registered directly in `pkg/app/app.go` using `pkg/interfaces/websocket/`.
-Static `/data/` assets are served by Nginx in production (volume-mounted from `./data`); in dev the Go server handles them via the filesystem.
+Static `/data/` assets are served by the Go server in both development and production.
 
 ### Application Layer
 
 **Use Cases** (`pkg/application/`):
 - `ProcessImageUseCase`: Orchestrates image processing business logic
 - `ProcessorCapabilitiesUseCase`: Queries available filters and accelerators
-- `GetStreamConfigUseCase`: Retrieves streaming configuration
-- `SyncFeatureFlagsUseCase`: Synchronizes feature flags from Flipt
+- `EvaluateFeatureFlagUseCase`: Evaluates feature flags from Goff YAML configuration
+- `GetSystemInfoUseCase`: Retrieves system information and build details
 - `ListAvailableImagesUseCase`: Lists available static images
 - `UploadImageUseCase`: Handles image uploads
 - `ListVideosUseCase` / `UploadVideoUseCase`: Video management
+- `StreamVideoUseCase`: Streams video frames via WebRTC for real-time processing, manages WebRTC peer connections
+- `ListInputsUseCase`: Lists available input sources
 
 All use cases follow the same pattern: they receive domain models, orchestrate business logic, and return domain models or errors.
 
@@ -214,7 +244,11 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 - `Image`: Core image domain model with data, dimensions, format
 - `Processor`: ImageProcessor interface defining processing contract
 - `Video`: Video domain model and repository interface
+- `VideoPlayer`: Video player interface for playback management
 - `FeatureFlag`: Feature flag domain model
+- `SystemInfo`: System information and build details
+- `DeviceStatus`: Device monitoring status
+- `ProcessingOptions`: Image/video processing configuration options
 
 **Repository Interfaces** (`pkg/domain/interfaces/`):
 - Define contracts for data access without implementation details
@@ -228,9 +262,9 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 - Implements `domain.ImageProcessor` interface
 
 **Feature Flags** (`pkg/infrastructure/featureflags/`):
-- Flipt client integration for feature flag management
-- Repository pattern for feature flag persistence
-- HTTP API client for Flipt server communication
+- Goff client integration for feature flag management (YAML-based)
+- Repository pattern for feature flag evaluation
+- Local YAML file configuration (not Flipt server)
 
 **File System** (`pkg/infrastructure/filesystem/`):
 - Static image repository implementation
@@ -240,6 +274,21 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 - Video repository implementation
 - FFmpeg integration for video processing
 - Preview generation for video files
+
+**WebRTC Infrastructure** (`pkg/infrastructure/webrtc/`):
+- **GoPeer** (`go_peer.go`): WebRTC peer connection management
+  - Implements `StreamVideoPeer` interface for real-time video streaming
+  - Manages WebRTC data channels for frame transport
+  - Handles ICE candidate exchange and connection state
+  - Integrates with C++ WebRTC manager via signaling service
+  - Processes video frames through H.264 codec for streaming
+
+- **WebRTC Signaling Flow**:
+  - Go API receives WebRTC signaling requests via Connect-RPC
+  - `webrtc_handler.go` establishes WebRTC sessions
+  - `webrtc_session_manager.go` manages session lifecycle
+  - GoPeer communicates with C++ WebRTC manager for frame processing
+  - Video frames are streamed via WebRTC data channels using H.264 codec
 
 ### Dependency Injection
 
@@ -251,17 +300,17 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 **App** (`pkg/app/`):
 - Application setup and HTTP server configuration
 - Registers all handlers and middleware
-- Configures routing (Connect-RPC, REST via Vanguard, WebSocket, static files)
+- Configures routing (Connect-RPC, REST via Vanguard, WebRTC signaling, static files)
 
 ## Features
 
 - **CUDA Acceleration**: GPU-powered image processing via gRPC remote service
 - **Connect-RPC**: Type-safe RPC with HTTP/JSON and gRPC support
 - **Vanguard**: RESTful API transcoding using google.api.http annotations
-- **Protocol Buffers**: Multiple proto services (config_service, file_service, image_processor_service)
+- **Protocol Buffers**: Multiple proto services (config_service, file_service, image_processor_service, webrtc_signal)
 - **Hot Reload**: Frontend development with Vite, Go hot reload for templates
 - **Clean Architecture**: Domain → Application → Infrastructure → Interfaces layers
-- **WebSocket**: Real-time video/image processing
+- **WebRTC**: Real-time video/image streaming with WebRTC signaling
 - **OpenTelemetry**: Distributed tracing integration
 
 ### Initialization Flow
@@ -347,50 +396,24 @@ sequenceDiagram
     Handler-->>Client: ListFiltersResponse
 ```
 
-#### GetStreamConfig
+#### EvaluateFeatureFlag
 
 ```mermaid
 sequenceDiagram
     participant Client as Client
     participant Handler as ConfigHandler
-    participant StreamConfigUC as GetStreamConfigUseCase
-    participant FFUseCase as EvaluateFeatureFlagUseCase
-    participant Config as Config Manager
+    participant EvalUC as EvaluateFeatureFlagUseCase
+    participant GoffRepo as GoffRepository
+    participant YAML as YAML File
     
-    Client->>Handler: GetStreamConfig(request)
-    Handler->>StreamConfigUC: Execute(ctx)
-    StreamConfigUC->>Config: GetStreamConfig()
-    Config-->>StreamConfigUC: StreamConfig
-    
-    Handler->>FFUseCase: EvaluateVariant("frontend_log_level")
-    FFUseCase-->>Handler: logLevel
-    
-    Handler->>FFUseCase: EvaluateBoolean("frontend_console_logging")
-    FFUseCase-->>Handler: consoleLogging
-    
-    Handler->>Handler: Build StreamEndpoints
-    Handler-->>Client: GetStreamConfigResponse
-```
-
-#### SyncFeatureFlags
-
-```mermaid
-sequenceDiagram
-    participant Client as Client
-    participant Handler as ConfigHandler
-    participant SyncUC as SyncFeatureFlagsUseCase
-    participant FFRepo as FeatureFlagRepository
-    participant Flipt as Flipt Server
-    
-    Client->>Handler: SyncFeatureFlags(request)
-    Handler->>Handler: Build feature flag definitions
-    Handler->>SyncUC: Execute(ctx, flags)
-    SyncUC->>FFRepo: SyncFlags(flags)
-    FFRepo->>Flipt: Create/Update flags
-    Flipt-->>FFRepo: Success
-    FFRepo-->>SyncUC: Success
-    SyncUC-->>Handler: Success
-    Handler-->>Client: SyncFeatureFlagsResponse
+    Client->>Handler: EvaluateFeatureFlag(request)
+    Handler->>EvalUC: EvaluateString/EvaluateBoolean(ctx, flagKey)
+    EvalUC->>GoffRepo: GetFlag(flagKey)
+    GoffRepo->>YAML: Read configuration
+    YAML-->>GoffRepo: Flag data
+    GoffRepo-->>EvalUC: Flag value
+    EvalUC-->>Handler: Flag evaluation result
+    Handler-->>Client: EvaluateFeatureFlagResponse
 ```
 
 #### GetSystemInfo
@@ -521,6 +544,8 @@ The project uses multiple proto service definitions:
 - `proto/config_service.proto` - Configuration and system info (with REST annotations)
 - `proto/file_service.proto` - File upload and listing (with REST annotations)
 - `proto/image_processor_service.proto` - Image processing operations (with REST annotations)
+- `proto/webrtc_signal.proto` - WebRTC signaling service
+- `proto/remote_management_service.proto` - Remote device management
 - `proto/common.proto` - Shared message types
 
 All services include `google.api.http` annotations for RESTful routing via Vanguard transcoder.
@@ -548,7 +573,9 @@ npm install
 npm run dev  # Vite dev server (full stack: ../scripts/dev/start.sh)
 ```
 
-**Build:**
+**Production:**
+In production, the frontend is built with Vite and embedded as static assets in the Go binary. No separate Nginx server is needed.
+
 ```bash
 cd ../front-end && npm run build
 ```

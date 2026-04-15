@@ -64,22 +64,6 @@ func (tc *TestContext) iUploadNonMP4FileNamed(filename string) error {
 	return tc.WhenIUploadNonMP4File(filename)
 }
 
-func (tc *TestContext) iReceiveTheFirstVideoFrame() error {
-	return tc.WhenIReceiveTheFirstVideoFrame()
-}
-
-func (tc *TestContext) iCollectVideoFrames(frameCount int) error {
-	return tc.WhenICollectVideoFrames(frameCount)
-}
-
-func (tc *TestContext) iReceiveVideoFrames(frameCount int) error {
-	return tc.WhenIReceiveVideoFrames(frameCount)
-}
-
-func (tc *TestContext) iReceiveTheFirstVideoFrames(frameCount int) error {
-	return tc.WhenIReceiveVideoFrames(frameCount)
-}
-
 func (tc *TestContext) iQueryVideoMetadataFor(videoID string) error {
 	return tc.WhenIQueryVideoMetadataFor(videoID)
 }
@@ -100,10 +84,6 @@ func InitializeWhenSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I upload a valid MP4 video named "([^"]*)"$`, tc.iUploadValidMP4VideoNamed)
 	ctx.Step(`^I upload an MP4 video larger than 100MB$`, tc.iUploadMP4VideoLargerThan100MB)
 	ctx.Step(`^I upload a non-MP4 file named "([^"]*)"$`, tc.iUploadNonMP4FileNamed)
-	ctx.Step(`^I receive the first video frame$`, tc.iReceiveTheFirstVideoFrame)
-	ctx.Step(`^I collect (\d+) video frames$`, tc.iCollectVideoFrames)
-	ctx.Step(`^I receive (\d+) video frames$`, tc.iReceiveVideoFrames)
-	ctx.Step(`^I receive the first (\d+) video frames$`, tc.iReceiveTheFirstVideoFrames)
 	ctx.Step(`^I query video metadata for "([^"]*)"$`, tc.iQueryVideoMetadataFor)
 	ctx.Step(`^I call GetSystemInfo$`, tc.iCallGetSystemInfo)
 }

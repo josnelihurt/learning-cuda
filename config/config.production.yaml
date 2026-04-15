@@ -3,19 +3,9 @@ environment: "production"
 server:
   http_port: "0.0.0.0:8080"
   https_port: "0.0.0.0:8443"
+  webrtc_signaling_endpoint: "/cuda_learning.WebRTCSignalingService/StartSession"
   tls:
     enabled: false
-
-stream:
-  transport_format: "json"
-  websocket_endpoint: "/ws"
-
-features:
-  use_binary_protocol: false
-  enable_grpc_streaming: false
-  enable_observability: true
-  stream.transport_format: "json"
-  stream.websocket_endpoint: ""
 
 go_feature_flag:
   enabled: true
@@ -25,8 +15,8 @@ go_feature_flag:
 observability:
   service_name: "cuda-image-processor"
   service_version: "1.0.0"
-  otel_collector_grpc_endpoint: "otel-collector:4317"
-  otel_collector_http_endpoint: "http://otel-collector:4318"
+  otel_collector_grpc_endpoint: "alpha.local.josnelihurt.me:4317"
+  otel_collector_http_endpoint: "https://alpha.local.josnelihurt.me:4318"
   trace_sampling_rate: 1.0
 
 logging:

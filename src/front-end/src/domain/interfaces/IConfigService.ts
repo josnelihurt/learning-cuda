@@ -1,7 +1,5 @@
 export interface IConfigService {
   initialize(): Promise<void>;
-  getTransportFormat(): 'json' | 'binary';
-  getWebSocketEndpoint(): string;
   isInitialized(): boolean;
   getLogLevel(): string;
   getConsoleLogging(): boolean;

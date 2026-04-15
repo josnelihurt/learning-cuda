@@ -1,6 +1,6 @@
 import { ConnectionStatus, ConnectionState } from './ConnectionStatus';
 
-export type ConnectionType = 'websocket' | 'grpc' | 'webrtc';
+export type ConnectionType = 'transport' | 'grpc' | 'webrtc';
 
 export class ConnectionInfo {
   private constructor(
@@ -24,8 +24,8 @@ export class ConnectionInfo {
     return new ConnectionInfo(type, status, label);
   }
 
-  static websocket(status: ConnectionStatus): ConnectionInfo {
-    return new ConnectionInfo('websocket', status, 'ws');
+  static transport(status: ConnectionStatus): ConnectionInfo {
+    return new ConnectionInfo('transport', status, 'Frames');
   }
 
   static grpc(status: ConnectionStatus): ConnectionInfo {
@@ -68,4 +68,3 @@ export class ConnectionInfo {
     );
   }
 }
-

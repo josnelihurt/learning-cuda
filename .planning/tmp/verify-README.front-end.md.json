@@ -1,0 +1,80 @@
+{
+  "doc_path": "src/front-end/README.md",
+  "claims_checked": 67,
+  "claims_passed": 55,
+  "claims_failed": 12,
+  "failures": [
+    {
+      "line": 48,
+      "claim": "WSTransport[WebSocketFrameTransport]",
+      "expected": "WebSocketFrameTransport implementation in infrastructure/transport/",
+      "actual": "File not found. WebSocket transport has been removed from the codebase."
+    },
+    {
+      "line": 49,
+      "claim": "GRPCTransport[GRPCFrameTransport]",
+      "expected": "GRPCFrameTransport implementation in infrastructure/transport/",
+      "actual": "File not found. gRPC transport has been removed from the codebase."
+    },
+    {
+      "line": 92,
+      "claim": "FrameTransport --> WSTransport",
+      "expected": "FrameTransportService aggregates WebSocket transport",
+      "actual": "FrameTransportService class does not exist. Only WebRTCFrameTransportService is present."
+    },
+    {
+      "line": 93,
+      "claim": "FrameTransport --> GRPCTransport",
+      "expected": "FrameTransportService aggregates gRPC transport",
+      "actual": "FrameTransportService class does not exist. Only WebRTCFrameTransportService is present."
+    },
+    {
+      "line": 212,
+      "claim": "websocket-frame-transport.ts",
+      "expected": "File exists at infrastructure/transport/websocket-frame-transport.ts",
+      "actual": "File not found. WebSocket transport implementation removed."
+    },
+    {
+      "line": 217,
+      "claim": "grpc-frame-transport.ts",
+      "expected": "File exists at infrastructure/transport/grpc-frame-transport.ts",
+      "actual": "File not found. gRPC transport implementation removed."
+    },
+    {
+      "line": 206,
+      "claim": "frame-transport-service.ts",
+      "expected": "File exists at infrastructure/transport/frame-transport-service.ts",
+      "actual": "File not found. Main transport abstraction class removed."
+    },
+    {
+      "line": 314,
+      "claim": "WebSocket (default): Traditional bidirectional communication",
+      "expected": "WebSocket transport available as default option",
+      "actual": "WebSocket transport removed. WebRTC is now the only transport method."
+    },
+    {
+      "line": 315,
+      "claim": "gRPC: Bidirectional streaming via Connect-RPC (default and only method)",
+      "expected": "gRPC transport available as default option",
+      "actual": "gRPC transport removed. WebRTC is now the only transport method."
+    },
+    {
+      "line": 223,
+      "claim": "WebRTC implementation (stub, not yet implemented)",
+      "expected": "WebRTC transport is a stub/not implemented",
+      "actual": "WebRTC transport is fully implemented as WebRTCFrameTransportService with complete functionality."
+    },
+    {
+      "line": 316,
+      "claim": "The FrameTransportService selects the appropriate transport based on feature flags",
+      "expected": "FrameTransportService exists and handles transport selection",
+      "actual": "FrameTransportService class does not exist. No transport selection logic found."
+    },
+    {
+      "line": 292,
+      "claim": "ConnectionStatus: Connection state and metadata",
+      "expected": "ValueObject ConnectionStatus exists",
+      "actual": "File exists but connection state management is now in ConnectionInfo.ts. ConnectionStatus exists but may be obsolete."
+    }
+  ]
+}

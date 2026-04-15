@@ -1,15 +1,17 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { AcceleratorType } from '../../../gen/common_pb';
+import { ProcessImageRequest } from '../../../gen/image_processor_service_pb';
 import { InputSource } from '../../../gen/config_service_pb';
-import { WebSocketService } from '../../../infrastructure/transport/websocket-frame-transport';
+import { WebRTCFrameTransportService } from '../../../infrastructure/transport/webrtc-frame-transport';
+import { webrtcService } from '../../../infrastructure/connection/webrtc-service';
 import type { ActiveFilterState } from '../app/filter-panel.types';
-import { FilterData, WebRTCSession } from '../../../domain/value-objects';
+import { FilterData } from '../../../domain/value-objects';
 import type { StatsPanel } from '../app/stats-panel';
 import type { CameraPreview } from './camera-preview';
 import './camera-preview';
 import type { ToastContainer } from '../app/toast-container';
 import { logger } from '../../../infrastructure/observability/otel-logger';
-import { webrtcService } from '../../../infrastructure/connection/webrtc-service';
 import './video-source-card';
 
 interface GridSource {
@@ -20,12 +22,18 @@ interface GridSource {
   imagePath: string;
   originalImageSrc: string;
   currentImageSrc: string;
-  ws: WebSocketService | null;
+  transport: WebRTCFrameTransportService | null;
   cameraPreview: CameraPreview | null;
+  sessionId: string | null;
+  sessionMode: 'frame-processing' | 'camera-mediatrack';
   filters: ActiveFilterState[];
   resolution: string;
+  accelerator: 'gpu' | 'cpu';
   videoId?: string;
-  webrtcSession?: WebRTCSession;
+}
+
+function toProtocolAccelerator(value: 'gpu' | 'cpu'): AcceleratorType {
+  return value === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
 }
 
 @customElement('video-grid')
@@ -116,6 +124,41 @@ export class VideoGrid extends LitElement {
     this.toastManager = toastManager;
   }
 
+  private pushCameraFilters(
+    sourceId: string,
+    sessionId: string,
+    filters: ActiveFilterState[],
+    accelerator: 'gpu' | 'cpu'
+  ): void {
+    try {
+      webrtcService.sendControlRequest(
+        sessionId,
+        new ProcessImageRequest({
+          sessionId,
+          genericFilters: filters
+            .filter((filter) => filter.id !== 'none')
+            .map(
+              (filter) => ({
+                filterId: filter.id,
+                parameters: Object.entries(filter.parameters).map(([parameterId, value]) => ({
+                  parameterId,
+                  values: [value],
+                })),
+              })
+            ),
+          accelerator: toProtocolAccelerator(accelerator),
+          apiVersion: '1.0',
+        })
+      );
+    } catch (error) {
+      logger.error('Failed to send live camera filter update', {
+        'error.message': error instanceof Error ? error.message : String(error),
+        'source.id': sourceId,
+        'session.id': sessionId,
+      });
+    }
+  }
+
   addSource(inputSource: InputSource): boolean {
     if (this.sources.length >= this.MAX_SOURCES) {
       this.toastManager?.warning(
@@ -129,73 +172,74 @@ export class VideoGrid extends LitElement {
     const uniqueId = `${inputSource.id}-${number}`;
 
     let cameraPreview: CameraPreview | null = null;
-    let ws: WebSocketService | null = null;
+    let transport: WebRTCFrameTransportService | null = null;
 
     if (inputSource.type === 'camera') {
       cameraPreview = document.createElement('camera-preview') as CameraPreview;
       if (this.statsManager && this.toastManager) {
         cameraPreview.setManagers(this.statsManager, this.toastManager);
       }
-
-      ws = new WebSocketService(this.statsManager!, cameraPreview, this.toastManager!);
-      if (this.statsManager && 'setWebSocketService' in this.statsManager) {
-        (this.statsManager as any).setWebSocketService(ws);
-      }
-      ws.connect();
-
-      ws.onFrameResult((data) => {
-        const sourceIndex = this.sources.findIndex((s) => s.number === number);
-        if (sourceIndex !== -1 && data.response) {
-          let binary = '';
-          const len = data.response.imageData.byteLength;
-          for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(data.response.imageData[i]);
-          }
-          const imageData = btoa(binary);
-          this.sources[sourceIndex].currentImageSrc = `data:image/png;base64,${imageData}`;
-          this.sources = [...this.sources];
-          this.requestUpdate();
-        }
-      });
+      cameraPreview.setFilters([{ id: 'none', parameters: {} }]);
 
       setTimeout(async () => {
         if (cameraPreview) {
           const success = await cameraPreview.start();
-          if (success && ws) {
-            cameraPreview.startCapture((base64Data: string, width: number, height: number) => {
-              // Add data URI prefix since ImageData expects it
-              const dataUri = `data:image/jpeg;base64,${base64Data}`;
-              // Use current filters from the source
+          const stream = cameraPreview.getStream();
+          if (success && stream) {
+            try {
+              const session = await webrtcService.createSession(uniqueId, {
+                mode: 'camera-mediatrack',
+                localStream: stream,
+                useDataChannel: true,
+                onRemoteStream: (remoteStream) => {
+                  cameraPreview?.setRemoteStream(remoteStream);
+                },
+              });
               const sourceIndex = this.sources.findIndex((s) => s.id === uniqueId);
-              const source = sourceIndex !== -1 ? this.sources[sourceIndex] : null;
-              const filters = source?.filters || [{ id: 'none', parameters: {} }];
-              const filterObjects = this.mapFiltersToValueObjects(filters);
-              ws!.sendFrame(dataUri, width, height, filterObjects, 'gpu');
-            });
+              if (sourceIndex !== -1) {
+                this.sources[sourceIndex].sessionId = session.getId();
+                this.sources[sourceIndex].sessionMode = session.getMode();
+                this.sources = [...this.sources];
+                this.requestUpdate();
+                const source = this.sources[sourceIndex];
+                this.pushCameraFilters(
+                  uniqueId,
+                  session.getId(),
+                  source.filters.length ? source.filters : [{ id: 'none', parameters: {} }],
+                  source.accelerator
+                );
+              }
+            } catch (error) {
+              logger.error('Failed to create camera MediaTrack session', {
+                'error.message': error instanceof Error ? error.message : String(error),
+                'source.id': uniqueId,
+              });
+              this.toastManager?.warning(
+                'Camera transport unavailable',
+                'Live local preview is active, but the remote camera MediaTrack session could not be established.'
+              );
+            }
           }
         }
       }, 500);
     } else if (inputSource.type === 'video') {
-      ws = new WebSocketService(
+      transport = new WebRTCFrameTransportService(
+        uniqueId,
         this.statsManager!,
         document.createElement('camera-preview') as CameraPreview,
         this.toastManager!
       );
-      if (this.statsManager && 'setWebSocketService' in this.statsManager) {
-        (this.statsManager as any).setWebSocketService(ws);
+      if (this.statsManager && 'setTransportService' in this.statsManager) {
+        (this.statsManager as any).setTransportService(transport);
       }
-      ws.connect();
+      transport.connect();
 
-      ws.onFrameResult((data) => {
+      transport.onFrameResult((data) => {
         const sourceIndex = this.sources.findIndex((s) => s.number === number);
         if (sourceIndex !== -1) {
-          const frameData = data.videoFrame || data.response;
-          if (!frameData) return;
-
           let binary = '';
-          const len = (frameData as any).imageData?.byteLength || (frameData as any).frameData?.byteLength || 0;
-          const imageBytes = (frameData as any).imageData || (frameData as any).frameData;
-          if (!imageBytes) return;
+          const len = data.imageData.byteLength;
+          const imageBytes = data.imageData;
 
           for (let i = 0; i < len; i++) {
             binary += String.fromCharCode(imageBytes[i]);
@@ -209,40 +253,41 @@ export class VideoGrid extends LitElement {
       });
 
       const tryStartVideo = () => {
-        if (ws!.isConnected()) {
-          logger.debug('WebSocket is connected, starting video', {
+        if (transport!.isConnected()) {
+          logger.debug('Frame transport is connected, starting video', {
             'video.id': inputSource.id,
           });
           const defaultFilters = this.mapFiltersToValueObjects([{ id: 'none', parameters: {} }]);
-          ws!.sendStartVideo(inputSource.id, defaultFilters, 'gpu');
+          transport!.sendStartVideo(inputSource.id, defaultFilters, 'gpu');
         } else {
-          logger.debug('WebSocket not ready, retrying in 100ms...');
+          logger.debug('Frame transport not ready, retrying in 100ms...');
           setTimeout(tryStartVideo, 100);
         }
       };
       setTimeout(tryStartVideo, 100);
     } else {
-      ws = new WebSocketService(
+      transport = new WebRTCFrameTransportService(
+        uniqueId,
         this.statsManager!,
         document.createElement('camera-preview') as CameraPreview,
         this.toastManager!
       );
-      if (this.statsManager && 'setWebSocketService' in this.statsManager) {
-        (this.statsManager as any).setWebSocketService(ws);
+      if (this.statsManager && 'setTransportService' in this.statsManager) {
+        (this.statsManager as any).setTransportService(transport);
       }
-      ws.connect();
+      transport.connect();
 
-      ws.onFrameResult((data) => {
+      transport.onFrameResult((data) => {
         logger.debug('Frame result for source', {
           'source.number': number,
-          'frame.success': data.success,
+          'frame.success': data.code === 0,
         });
         const sourceIndex = this.sources.findIndex((s) => s.number === number);
-        if (sourceIndex !== -1 && data.response) {
+        if (sourceIndex !== -1) {
           let binary = '';
-          const len = data.response.imageData.byteLength;
+          const len = data.imageData.byteLength;
           for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(data.response.imageData[i]);
+            binary += String.fromCharCode(data.imageData[i]);
           }
           const imageData = btoa(binary);
           const newSrc = `data:image/png;base64,${imageData}`;
@@ -267,10 +312,13 @@ export class VideoGrid extends LitElement {
       imagePath: sourceImagePath,
       originalImageSrc: sourceImagePath,
       currentImageSrc: sourceImagePath,
-      ws,
+      transport,
       cameraPreview,
+      sessionId: null,
+      sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
       filters: [{ id: 'none', parameters: {} }],
       resolution: 'original',
+      accelerator: 'gpu',
       videoId: inputSource.type === 'video' ? inputSource.id : undefined,
     };
 
@@ -285,27 +333,6 @@ export class VideoGrid extends LitElement {
       'grid.total': this.sources.length,
     });
 
-    webrtcService
-      .createSession(uniqueId)
-      .then((session) => {
-        const sourceIndex = this.sources.findIndex((s) => s.id === uniqueId);
-        if (sourceIndex !== -1) {
-          this.sources[sourceIndex].webrtcSession = session;
-          this.sources = [...this.sources];
-          // Heartbeat will be started automatically when data channel opens
-          logger.info(`WebRTC session created for source`, {
-            'source.id': uniqueId,
-            'session.id': session.getId(),
-          });
-        }
-      })
-      .catch((error) => {
-        logger.debug(`Failed to create WebRTC session for source (non-critical)`, {
-          'source.id': uniqueId,
-          'error.message': error instanceof Error ? error.message : String(error),
-        });
-      });
-
     this.requestUpdate();
     return true;
   }
@@ -314,20 +341,11 @@ export class VideoGrid extends LitElement {
     const source = this.sources.find((s) => s.id === sourceId);
     if (!source) return;
 
-    if (source.webrtcSession) {
-      webrtcService.stopHeartbeat(source.webrtcSession.getId());
-      webrtcService
-        .closeSession(source.webrtcSession.getId())
-        .catch((error) => {
-          logger.debug(`Failed to close WebRTC session (non-critical)`, {
-            'session.id': source.webrtcSession?.getId(),
-            'error.message': error instanceof Error ? error.message : String(error),
-          });
-        });
+    if (source.transport) {
+      source.transport.disconnect();
     }
-
-    if (source.ws) {
-      source.ws.disconnect();
+    if (source.sessionId) {
+      void webrtcService.closeSession(source.sessionId);
     }
 
     if (source.cameraPreview) {
@@ -423,6 +441,7 @@ export class VideoGrid extends LitElement {
     const normalizedFilters = this.normalizeFilterState(filters);
     selectedSource.filters = normalizedFilters;
     selectedSource.resolution = resolution;
+    selectedSource.accelerator = accelerator === 'cpu' ? 'cpu' : 'gpu';
  
     logger.debug(`Applying filters to source ${selectedSource.number}`, {
       'source.number': selectedSource.number,
@@ -431,8 +450,22 @@ export class VideoGrid extends LitElement {
       resolution: resolution,
     });
 
-    if (!selectedSource.ws || !selectedSource.ws.isConnected()) {
-      logger.error('WebSocket not connected for source', {
+    if (selectedSource.type === 'camera') {
+      if (selectedSource.sessionId) {
+        this.pushCameraFilters(
+          selectedSource.id,
+          selectedSource.sessionId,
+          normalizedFilters,
+          selectedSource.accelerator
+        );
+      }
+      this.sources = [...this.sources];
+      this.requestUpdate();
+      return;
+    }
+
+    if (!selectedSource.transport || !selectedSource.transport.isConnected()) {
+      logger.error('Frame transport not connected for source', {
         'source.number': selectedSource.number,
       });
       return;
@@ -446,15 +479,15 @@ export class VideoGrid extends LitElement {
           filters: normalizedFilters.map((f) => f.id).join(','),
           accelerator: accelerator,
         });
-        selectedSource.ws.sendStopVideo(videoId);
+        selectedSource.transport.sendStopVideo(videoId);
 
         setTimeout(() => {
-          if (selectedSource.ws && selectedSource.ws.isConnected()) {
+          if (selectedSource.transport && selectedSource.transport.isConnected()) {
             logger.debug('Starting video with filters', {
               filters: normalizedFilters.map((f) => f.id).join(','),
             });
             const filterData = this.mapFiltersToValueObjects(normalizedFilters);
-            selectedSource.ws.sendStartVideo(videoId, filterData, accelerator);
+            selectedSource.transport.sendStartVideo(videoId, filterData, accelerator);
           }
         }, 200);
       } catch (error) {
@@ -463,11 +496,6 @@ export class VideoGrid extends LitElement {
         });
         this.toastManager?.error('Filter Error', 'Failed to update video filters');
       }
-      return;
-    }
-
-    if (selectedSource.type === 'camera') {
-      logger.debug('Camera filter update not yet implemented');
       return;
     }
 
@@ -519,7 +547,7 @@ export class VideoGrid extends LitElement {
       });
 
       const filterData = this.mapFiltersToValueObjects(normalizedFilters);
-      const response = await selectedSource.ws.sendSingleFrame(
+      const response = await selectedSource.transport.sendSingleFrame(
         imageData,
         targetWidth,
         targetHeight,
@@ -527,14 +555,14 @@ export class VideoGrid extends LitElement {
         accelerator
       );
 
-      if (response.success && response.response) {
+      if (response.code === 0) {
         logger.debug('Filter applied, updating image for source', {
           'source.number': selectedSource.number,
         });
         let binary = '';
-        const len = response.response.imageData.byteLength;
+        const len = response.imageData.byteLength;
         for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(response.response.imageData[i]);
+          binary += String.fromCharCode(response.imageData[i]);
         }
         const processedImageData = btoa(binary);
         const sourceIndex = this.sources.findIndex((s) => s.id === selectedSource.id);

@@ -7,22 +7,23 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockCapabilitiesProvider struct {
 	capabilities *pb.LibraryCapabilities
-	origin       application.ProcessorBackendOrigin
+	origin       systemapp.ProcessorBackendOrigin
 }
 
-func (m *mockCapabilitiesProvider) Execute(_ context.Context, _ bool) (*pb.LibraryCapabilities, application.ProcessorBackendOrigin, error) {
+func (m *mockCapabilitiesProvider) Execute(_ context.Context, _ bool) (*pb.LibraryCapabilities, systemapp.ProcessorBackendOrigin, error) {
 	if m.capabilities == nil {
 		return nil, "", errors.New("capabilities not available")
 	}
 	if m.origin == "" {
-		m.origin = application.ProcessorBackendOriginGRPCServer
+		m.origin = systemapp.ProcessorBackendOriginGRPCServer
 	}
 	return m.capabilities, m.origin, nil
 }
@@ -90,12 +91,12 @@ func makeBlurFilterDefinition() *pb.FilterDefinition {
 func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	tests := []struct {
 		name         string
-		provider     application.ProcessorCapabilitiesUseCase
+		provider     *mockCapabilitiesProvider
 		assertResult func(t *testing.T, resp *connect.Response[pb.ListFiltersResponse], err error)
 	}{
 		{
 			name:     "Success_ReturnsGenericFilters",
-			provider: &mockCapabilitiesProvider{capabilities: makeLibraryCapabilities(), origin: application.ProcessorBackendOriginGRPCServer},
+			provider: &mockCapabilitiesProvider{capabilities: makeLibraryCapabilities(), origin: systemapp.ProcessorBackendOriginGRPCServer},
 			assertResult: func(t *testing.T, resp *connect.Response[pb.ListFiltersResponse], err error) {
 				// Assert
 				require.NoError(t, err)
@@ -138,7 +139,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			sut := NewImageProcessorHandlerWithGRPC((*application.ProcessImageUseCase)(nil), tt.provider, nil, &mockGRPCClient{})
+			sut := NewImageProcessorHandlerWithGRPC((*imageapp.ProcessImageUseCase)(nil), tt.provider, nil, nil, &mockGRPCClient{})
 			req := connect.NewRequest(&pb.ListFiltersRequest{})
 
 			// Act

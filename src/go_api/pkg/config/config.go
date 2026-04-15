@@ -13,7 +13,6 @@ type Manager struct {
 	Environment       string              `mapstructure:"environment"`
 	GoFeatureFlag     GoFeatureFlagConfig `mapstructure:"go_feature_flag"`
 	Server            ServerConfig        `mapstructure:"server"`
-	Stream            StreamConfig        `mapstructure:"stream"`
 	Observability     ObservabilityConfig `mapstructure:"observability"`
 	Logging           LoggerConfig        `mapstructure:"logging"`
 	Processor         ProcessorConfig     `mapstructure:"processor"`
@@ -80,14 +79,12 @@ func setDefaults(v *viper.Viper) {
 		"environment":         "development",
 		"http_client_timeout": "10s",
 
-		"server.http_port":     ":8080",
-		"server.https_port":    ":8443",
-		"server.tls.enabled":   true,
-		"server.tls.cert_file": ".secrets/localhost+2.pem",
-		"server.tls.key_file":  ".secrets/localhost+2-key.pem",
-
-		"stream.transport_format":   "json",
-		"stream.websocket_endpoint": "/ws",
+		"server.http_port":                 ":8080",
+		"server.https_port":                ":8443",
+		"server.webrtc_signaling_endpoint": "/cuda_learning.WebRTCSignalingService/StartSession",
+		"server.tls.enabled":               true,
+		"server.tls.cert_file":             ".secrets/localhost+2.pem",
+		"server.tls.key_file":              ".secrets/localhost+2-key.pem",
 
 		"observability.enabled":                      true,
 		"observability.service_name":                 "cuda-image-processor",

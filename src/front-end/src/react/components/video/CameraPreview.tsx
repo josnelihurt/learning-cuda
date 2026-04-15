@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { ActiveFilterState } from '../filters/FilterPanel';
 
 type FrameCapturedPayload = {
   base64data: string;
@@ -12,7 +13,11 @@ type CameraPreviewProps = {
   height?: number;
   fps?: number;
   quality?: number;
+  captureFrames?: boolean;
+  remoteStream?: MediaStream | null;
+  activeFilters?: ActiveFilterState[];
   onFrameCaptured: (payload: FrameCapturedPayload) => void;
+  onStreamReady?: (stream: MediaStream) => void;
   onCameraStatus: (status: string, type: 'success' | 'error' | 'warning' | 'inactive') => void;
   onCameraError: (title: string, message: string) => void;
 };
@@ -22,7 +27,11 @@ export function CameraPreview({
   height = 480,
   fps = 15,
   quality = 0.7,
+  captureFrames = true,
+  remoteStream = null,
+  activeFilters = [],
   onFrameCaptured,
+  onStreamReady,
   onCameraStatus,
   onCameraError,
 }: CameraPreviewProps) {
@@ -31,6 +40,7 @@ export function CameraPreview({
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<number | null>(null);
   const onFrameCapturedRef = useRef(onFrameCaptured);
+  const onStreamReadyRef = useRef(onStreamReady);
   const onCameraStatusRef = useRef(onCameraStatus);
   const onCameraErrorRef = useRef(onCameraError);
 
@@ -43,8 +53,68 @@ export function CameraPreview({
   }, [onCameraStatus]);
 
   useEffect(() => {
+    onStreamReadyRef.current = onStreamReady;
+  }, [onStreamReady]);
+
+  useEffect(() => {
     onCameraErrorRef.current = onCameraError;
   }, [onCameraError]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    if (!remoteStream) {
+      video.srcObject = streamRef.current;
+      if (video.srcObject) {
+        void video.play().catch(() => undefined);
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const probe = document.createElement('video');
+    probe.muted = true;
+    probe.playsInline = true;
+    probe.srcObject = remoteStream;
+
+    const tryPromoteRemoteStream = async () => {
+      try {
+        await probe.play();
+      } catch {
+        return;
+      }
+
+      const isPlayable = await new Promise<boolean>((resolve) => {
+        const deadline = window.setTimeout(() => resolve(false), 1500);
+
+        const checkPlayback = () => {
+          if (probe.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA || probe.videoWidth > 0) {
+            clearTimeout(deadline);
+            resolve(true);
+            return;
+          }
+          window.requestAnimationFrame(checkPlayback);
+        };
+
+        checkPlayback();
+      });
+
+      if (!cancelled && isPlayable) {
+        video.srcObject = remoteStream;
+        void video.play().catch(() => undefined);
+      }
+    };
+
+    void tryPromoteRemoteStream();
+
+    return () => {
+      cancelled = true;
+      probe.srcObject = null;
+    };
+  }, [remoteStream]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +146,7 @@ export function CameraPreview({
           video.onloadedmetadata = () => resolve();
         });
         await video.play();
+        onStreamReadyRef.current?.(stream);
 
         canvas.width = width;
         canvas.height = height;
@@ -86,16 +157,18 @@ export function CameraPreview({
           throw new Error('Camera canvas context is not available');
         }
 
-        intervalRef.current = window.setInterval(() => {
-          if (!video.videoWidth) {
-            return;
-          }
-          const timestamp = performance.now();
-          ctx.drawImage(video, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', quality);
-          const base64data = dataUrl.split(',')[1] ?? '';
-          onFrameCapturedRef.current({ base64data, width, height, timestamp });
-        }, 1000 / fps);
+        if (captureFrames) {
+          intervalRef.current = window.setInterval(() => {
+            if (!video.videoWidth) {
+              return;
+            }
+            const timestamp = performance.now();
+            ctx.drawImage(video, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            const base64data = dataUrl.split(',')[1] ?? '';
+            onFrameCapturedRef.current({ base64data, width, height, timestamp });
+          }, 1000 / fps);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         onCameraErrorRef.current('Camera Error', message);
@@ -119,11 +192,22 @@ export function CameraPreview({
       }
       onCameraStatusRef.current('Inactive', 'inactive');
     };
-  }, [fps, height, quality, width]);
+  }, [captureFrames, fps, height, quality, width]);
 
   return (
     <>
-      <video ref={videoRef} autoPlay playsInline muted style={{ position: 'absolute', opacity: 0 }} />
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          background: 'black',
+        }}
+      />
       <canvas ref={canvasRef} style={{ display: 'none' }} />
     </>
   );

@@ -6,7 +6,10 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
@@ -14,7 +17,6 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/http"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/websocket"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -22,132 +24,109 @@ import (
 type App struct {
 	config                *config.Manager
 	appContext            context.Context
-	useCase               *application.ProcessImageUseCase
-	grpcProcessor         domain.ImageProcessor
+	useCase               *imageapp.ProcessImageUseCase
 	grpcProcessorClient   *processor.GRPCClient
-	processorCapsUC       application.ProcessorCapabilitiesUseCase
-	getStreamConfigUC     *application.GetStreamConfigUseCase
-	getSystemInfoUC       *application.GetSystemInfoUseCase
+	processorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
+	getSystemInfoUC       *systemapp.GetSystemInfoUseCase
 	featureFlagRepo       domain.FeatureFlagRepository
-	listInputsUC          *application.ListInputsUseCase
-	evaluateFFUC          *application.EvaluateFeatureFlagUseCase
-	listAvailableImagesUC *application.ListAvailableImagesUseCase
-	uploadImageUC         *application.UploadImageUseCase
-	listVideosUC          *application.ListVideosUseCase
-	uploadVideoUC         *application.UploadVideoUseCase
+	listInputsUC          *videoapp.ListInputsUseCase
+	evaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
+	streamVideoUC         *videoapp.StreamVideoUseCase
+	listAvailableImagesUC *imageapp.ListAvailableImagesUseCase
+	uploadImageUC         *imageapp.UploadImageUseCase
+	listVideosUC          *videoapp.ListVideosUseCase
+	uploadVideoUC         *videoapp.UploadVideoUseCase
 	videoRepository       domain.VideoRepository
 	deviceMonitor         domainInterfaces.MQTTDeviceMonitor
 	interceptors          []connect.Interceptor
 }
 
-type Option func(*App)
+type Deps struct {
+	Config                *config.Manager
+	UseCase               *imageapp.ProcessImageUseCase
+	GRPCProcessorClient   *processor.GRPCClient
+	ProcessorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
+	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase
+	FeatureFlagRepo       domain.FeatureFlagRepository
+	ListInputsUC          *videoapp.ListInputsUseCase
+	EvaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
+	StreamVideoUC         *videoapp.StreamVideoUseCase
+	ListAvailableImagesUC *imageapp.ListAvailableImagesUseCase
+	UploadImageUC         *imageapp.UploadImageUseCase
+	ListVideosUC          *videoapp.ListVideosUseCase
+	UploadVideoUC         *videoapp.UploadVideoUseCase
+	VideoRepository       domain.VideoRepository
+	DeviceMonitor         domainInterfaces.MQTTDeviceMonitor
+}
 
-func New(appContext context.Context, opts ...Option) *App {
+func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {
+	if deps.Config == nil {
+		return nil, errors.New("config is required")
+	}
+	if deps.UseCase == nil {
+		return nil, errors.New("process image use case is required")
+	}
+	if deps.GRPCProcessorClient == nil {
+		return nil, errors.New("gRPC processor client is required")
+	}
+	if deps.ProcessorCapsUC == nil {
+		return nil, errors.New("processor capabilities use case is required")
+	}
+	if deps.GetSystemInfoUC == nil {
+		return nil, errors.New("get system info use case is required")
+	}
+	if deps.FeatureFlagRepo == nil {
+		return nil, errors.New("feature flag repository is required")
+	}
+	if deps.ListInputsUC == nil {
+		return nil, errors.New("list inputs use case is required")
+	}
+	if deps.EvaluateFFUC == nil {
+		return nil, errors.New("evaluate feature flag use case is required")
+	}
+	if deps.StreamVideoUC == nil {
+		return nil, errors.New("stream video use case is required")
+	}
+	if deps.ListAvailableImagesUC == nil {
+		return nil, errors.New("list available images use case is required")
+	}
+	if deps.UploadImageUC == nil {
+		return nil, errors.New("upload image use case is required")
+	}
+	if deps.ListVideosUC == nil {
+		return nil, errors.New("list videos use case is required")
+	}
+	if deps.UploadVideoUC == nil {
+		return nil, errors.New("upload video use case is required")
+	}
+	if deps.DeviceMonitor == nil {
+		return nil, errors.New("MQTT device monitor is required")
+	}
+
 	app := &App{
-		appContext: appContext,
+		config:                deps.Config,
+		appContext:            appContext,
+		useCase:               deps.UseCase,
+		grpcProcessorClient:   deps.GRPCProcessorClient,
+		processorCapsUC:       deps.ProcessorCapsUC,
+		getSystemInfoUC:       deps.GetSystemInfoUC,
+		featureFlagRepo:       deps.FeatureFlagRepo,
+		listInputsUC:          deps.ListInputsUC,
+		evaluateFFUC:          deps.EvaluateFFUC,
+		streamVideoUC:         deps.StreamVideoUC,
+		listAvailableImagesUC: deps.ListAvailableImagesUC,
+		uploadImageUC:         deps.UploadImageUC,
+		listVideosUC:          deps.ListVideosUC,
+		uploadVideoUC:         deps.UploadVideoUC,
+		videoRepository:       deps.VideoRepository,
+		deviceMonitor:         deps.DeviceMonitor,
 	}
 
 	for _, opt := range opts {
 		opt(app)
 	}
 
-	return app
-}
-
-func WithConfig(cfg *config.Manager) Option {
-	return func(a *App) {
-		a.config = cfg
-	}
-}
-
-func WithUseCase(useCase *application.ProcessImageUseCase) Option {
-	return func(a *App) {
-		a.useCase = useCase
-	}
-}
-
-func WithGRPCProcessor(proc domain.ImageProcessor) Option {
-	return func(a *App) {
-		a.grpcProcessor = proc
-	}
-}
-
-func WithGRPCProcessorClient(client *processor.GRPCClient) Option {
-	return func(a *App) {
-		a.grpcProcessorClient = client
-	}
-}
-
-func WithProcessorCapabilitiesUseCase(uc application.ProcessorCapabilitiesUseCase) Option {
-	return func(a *App) {
-		a.processorCapsUC = uc
-	}
-}
-
-func WithGetStreamConfigUseCase(uc *application.GetStreamConfigUseCase) Option {
-	return func(a *App) {
-		a.getStreamConfigUC = uc
-	}
-}
-
-func WithGetSystemInfoUseCase(uc *application.GetSystemInfoUseCase) Option {
-	return func(a *App) {
-		a.getSystemInfoUC = uc
-	}
-}
-
-func WithFeatureFlagRepository(repo domain.FeatureFlagRepository) Option {
-	return func(a *App) {
-		a.featureFlagRepo = repo
-	}
-}
-
-func WithListInputsUseCase(uc *application.ListInputsUseCase) Option {
-	return func(a *App) {
-		a.listInputsUC = uc
-	}
-}
-
-func WithEvaluateFFUseCase(uc *application.EvaluateFeatureFlagUseCase) Option {
-	return func(a *App) {
-		a.evaluateFFUC = uc
-	}
-}
-
-func WithListAvailableImagesUseCase(uc *application.ListAvailableImagesUseCase) Option {
-	return func(a *App) {
-		a.listAvailableImagesUC = uc
-	}
-}
-
-func WithUploadImageUseCase(uc *application.UploadImageUseCase) Option {
-	return func(a *App) {
-		a.uploadImageUC = uc
-	}
-}
-
-func WithListVideosUseCase(uc *application.ListVideosUseCase) Option {
-	return func(a *App) {
-		a.listVideosUC = uc
-	}
-}
-
-func WithUploadVideoUseCase(uc *application.UploadVideoUseCase) Option {
-	return func(a *App) {
-		a.uploadVideoUC = uc
-	}
-}
-
-func WithVideoRepository(repo domain.VideoRepository) Option {
-	return func(a *App) {
-		a.videoRepository = repo
-	}
-}
-
-func WithDeviceMonitor(monitor domainInterfaces.MQTTDeviceMonitor) Option {
-	return func(a *App) {
-		a.deviceMonitor = monitor
-	}
+	return app, nil
 }
 
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
@@ -194,19 +173,19 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.useCase,
 		a.processorCapsUC,
 		a.evaluateFFUC,
+		a.streamVideoUC,
 		a.grpcProcessorClient,
 	)
 
 	connectrpc.RegisterConfigService(
 		mux,
 		connectrpc.ConfigHandlerDeps{
-			GetStreamConfigUC: a.getStreamConfigUC,
-			FeatureFlagRepo:   a.featureFlagRepo,
-			ListInputsUC:      a.listInputsUC,
-			EvaluateFFUC:      a.evaluateFFUC,
-			GetSystemInfoUC:   a.getSystemInfoUC,
-			ConfigManager:     a.config,
-			ProcessorCapsUC:   a.processorCapsUC,
+			FeatureFlagRepo: a.featureFlagRepo,
+			ListInputsUC:    a.listInputsUC,
+			EvaluateFFUC:    a.evaluateFFUC,
+			GetSystemInfoUC: a.getSystemInfoUC,
+			ConfigManager:   a.config,
+			ProcessorCapsUC: a.processorCapsUC,
 		},
 		a.interceptors...,
 	)
@@ -217,6 +196,12 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.uploadImageUC,
 		a.listVideosUC,
 		a.uploadVideoUC,
+		a.interceptors...,
+	)
+
+	connectrpc.RegisterWebRTCSignalingService(
+		mux,
+		a.grpcProcessorClient,
 		a.interceptors...,
 	)
 
@@ -232,7 +217,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 
 	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
 		ImageProcessorHandler: rpcHandler,
-		GetStreamConfigUC:     a.getStreamConfigUC,
 		FeatureFlagRepo:       a.featureFlagRepo,
 		ListInputsUC:          a.listInputsUC,
 		EvaluateFFUC:          a.evaluateFFUC,
@@ -261,18 +245,6 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 	logger.Global().Info().Msg("Health endpoint registered at /health")
 }
 
-func (a *App) setupWebSocketHandler(mux *http.ServeMux) {
-	wsHandler := websocket.NewHandler(a.useCase, a.config.Stream, a.videoRepository, a.evaluateFFUC, a.grpcProcessor)
-	mux.HandleFunc("/ws", wsHandler.HandleWebSocket)
-	logger.Global().Info().Msg("WebSocket endpoint registered at /ws")
-}
-
-func (a *App) setupWebRTCSignalingWebSocket(mux *http.ServeMux) {
-	webrtcHandler := websocket.NewWebRTCSignalingHandler(a.grpcProcessorClient)
-	mux.HandleFunc("/ws/webrtc-signaling", webrtcHandler.HandleWebRTCSignaling)
-	logger.Global().Info().Msg("WebRTC signaling WebSocket endpoint registered at /ws/webrtc-signaling")
-}
-
 func (a *App) Run() error {
 	log := logger.Global()
 	defer func() {
@@ -295,8 +267,6 @@ func (a *App) Run() error {
 	a.setupObservability(mux)
 
 	a.setupHealthEndpoint(mux)
-	a.setupWebSocketHandler(mux)
-	a.setupWebRTCSignalingWebSocket(mux)
 	a.setupConnectRPCServices(mux)
 	handler := a.makeTelemetryMiddleware(mux)
 
@@ -305,7 +275,6 @@ func (a *App) Run() error {
 	go func() {
 		log.Info().
 			Str("port", a.config.Server.HTTPPort).
-			Str("transport", a.config.Stream.TransportFormat).
 			Msg("Starting HTTP server")
 		if err := http.ListenAndServe(a.config.Server.HTTPPort, handler); err != nil {
 			errChan <- err

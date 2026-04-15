@@ -2,7 +2,6 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { ConnectionStatus, ConnectionInfo } from '../../../domain/value-objects';
 import { container } from '../../../application/di';
-import type { IWebSocketService } from '../../../domain/interfaces/IWebSocketService';
 import type { IWebRTCService } from '../../../domain/interfaces/IWebRTCService';
 import { grpcConnectionService } from '../../../infrastructure/connection/grpc-connection-service';
 import './connection-status-card';
@@ -291,17 +290,17 @@ export class StatsPanel extends LitElement {
     }
   }
 
-  @state() private wsService: (IWebSocketService & { getConnectionStatus?: () => any }) | null = null;
+  @state() private transportService: { getConnectionStatus?: () => any } | null = null;
   @state() private webrtcService: (IWebRTCService & { getConnectionStatus?: () => any }) | null = null;
 
   private updateConnections(): void {
     try {
-      const wsStatus = this.wsService?.getConnectionStatus?.() || { state: 'disconnected' as const, lastRequest: null, lastRequestTime: null };
+      const transportStatus = this.transportService?.getConnectionStatus?.() || { state: 'disconnected' as const, lastRequest: null, lastRequestTime: null };
       const webrtcStatus = this.webrtcService?.getConnectionStatus?.() || { state: 'disconnected' as const, lastRequest: null, lastRequestTime: null };
       const grpcStatus = grpcConnectionService.getConnectionStatus();
 
       this.connections = [
-        ConnectionInfo.websocket(ConnectionStatus.create(wsStatus.state, wsStatus.lastRequest, wsStatus.lastRequestTime)),
+        ConnectionInfo.transport(ConnectionStatus.create(transportStatus.state, transportStatus.lastRequest, transportStatus.lastRequestTime)),
         ConnectionInfo.grpc(ConnectionStatus.create(grpcStatus.state, grpcStatus.lastRequest, grpcStatus.lastRequestTime)),
         ConnectionInfo.webrtc(ConnectionStatus.create(webrtcStatus.state, webrtcStatus.lastRequest, webrtcStatus.lastRequestTime)),
       ];
@@ -310,8 +309,8 @@ export class StatsPanel extends LitElement {
     }
   }
 
-  setWebSocketService(service: IWebSocketService & { getConnectionStatus?: () => any }): void {
-    this.wsService = service;
+  setTransportService(service: { getConnectionStatus?: () => any }): void {
+    this.transportService = service;
     this.updateConnections();
   }
 
@@ -398,7 +397,9 @@ export class StatsPanel extends LitElement {
     this.cameraStatusType = type;
   }
 
-  updateWebSocketStatus(status: 'connected' | 'disconnected' | 'connecting', text: string): void {
+  updateTransportStatus(status: 'connected' | 'disconnected' | 'connecting', text: string): void {
+    void status;
+    void text;
     this.updateConnections();
   }
 

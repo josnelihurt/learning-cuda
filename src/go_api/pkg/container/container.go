@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
@@ -19,6 +22,7 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/version"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/video"
+	webrtcinfra "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/webrtc"
 )
 
 type Container struct {
@@ -28,17 +32,15 @@ type Container struct {
 	FeatureFlagRepo domain.FeatureFlagRepository
 	VideoRepository domain.VideoRepository
 
-	ProcessImageUseCase        *application.ProcessImageUseCase
-	EvaluateFeatureFlagUseCase *application.EvaluateFeatureFlagUseCase
-	GetStreamConfigUseCase     *application.GetStreamConfigUseCase
-	GetSystemInfoUseCase       *application.GetSystemInfoUseCase
-	ListInputsUseCase          *application.ListInputsUseCase
-	// ListAvailableImagesUseCase handles listing available images
-	// language: english-only
-	ListAvailableImagesUseCase *application.ListAvailableImagesUseCase //nolint:language
-	UploadImageUseCase         *application.UploadImageUseCase
-	ListVideosUseCase          *application.ListVideosUseCase
-	UploadVideoUseCase         *application.UploadVideoUseCase
+	ProcessImageUseCase        *imageapp.ProcessImageUseCase
+	EvaluateFeatureFlagUseCase *ffapp.EvaluateFeatureFlagUseCase
+	GetSystemInfoUseCase       *systemapp.GetSystemInfoUseCase
+	ListInputsUseCase          *videoapp.ListInputsUseCase
+	ListAvailableImagesUseCase *imageapp.ListAvailableImagesUseCase
+	UploadImageUseCase         *imageapp.UploadImageUseCase
+	ListVideosUseCase          *videoapp.ListVideosUseCase
+	UploadVideoUseCase         *videoapp.UploadVideoUseCase
+	StreamVideoUseCase         *videoapp.StreamVideoUseCase
 
 	GRPCProcessorClient *processor.GRPCClient
 	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
@@ -101,22 +103,31 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		Str("grpc_address", cfg.Processor.GRPCServerAddress).
 		Msg("gRPC client initialized successfully")
 
-	evaluateFFUseCase := application.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
-	getStreamConfigUseCase := application.NewGetStreamConfigUseCase(evaluateFFUseCase, cfg.Stream)
+	evaluateFFUseCase := ffapp.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 
-	getSystemInfoUseCase := application.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
+	getSystemInfoUseCase := systemapp.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
 
 	videoRepo := video.NewFileVideoRepository(context.Background(), "data/videos", "data/video_previews") //nolint:contextcheck
-	listInputsUseCase := application.NewListInputsUseCase(videoRepo)
+	listInputsUseCase := videoapp.NewListInputsUseCase(videoRepo)
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
 	// Create use case for listing available images
 	// language: english-only
-	listAvailableImagesUseCase := application.NewListAvailableImagesUseCase(staticImageRepo) //nolint:language
-	uploadImageUseCase := application.NewUploadImageUseCase(staticImageRepo)
+	listAvailableImagesUseCase := imageapp.NewListAvailableImagesUseCase(staticImageRepo) //nolint:language
+	uploadImageUseCase := imageapp.NewUploadImageUseCase(staticImageRepo)
 
-	listVideosUseCase := application.NewListVideosUseCase(videoRepo)
-	uploadVideoUseCase := application.NewUploadVideoUseCase(videoRepo, "data/videos", "data/video_previews")
+	listVideosUseCase := videoapp.NewListVideosUseCase(videoRepo)
+	uploadVideoUseCase := videoapp.NewUploadVideoUseCase(videoRepo, "data/videos", "data/video_previews")
+	streamVideoUseCase := videoapp.NewStreamVideoUseCase(
+		ctx,
+		videoRepo,
+		func(videoPath string) (videoapp.StreamVideoPlayer, error) {
+			return video.NewFFmpegVideoPlayer(videoPath)
+		},
+		func(browserSessionID string) (videoapp.StreamVideoPeer, error) {
+			return webrtcinfra.NewGoPeer(grpcClient, browserSessionID), nil
+		},
+	)
 
 	var deviceMonitor domainInterfaces.MQTTDeviceMonitor
 	if cfg.MQTT.Broker != "" {
@@ -135,13 +146,13 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		FeatureFlagRepo:            featureFlagRepo,
 		VideoRepository:            videoRepo,
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
-		GetStreamConfigUseCase:     getStreamConfigUseCase,
 		GetSystemInfoUseCase:       getSystemInfoUseCase,
 		ListInputsUseCase:          listInputsUseCase,
 		ListAvailableImagesUseCase: listAvailableImagesUseCase,
 		UploadImageUseCase:         uploadImageUseCase,
 		ListVideosUseCase:          listVideosUseCase,
 		UploadVideoUseCase:         uploadVideoUseCase,
+		StreamVideoUseCase:         streamVideoUseCase,
 		GRPCProcessorClient:        grpcClient,
 		DeviceMonitor:              deviceMonitor,
 	}, nil

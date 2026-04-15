@@ -43,7 +43,7 @@ export function useFiles() {
         }
       }
     })();
-  }, [showError]);
+  }, [toast]);
 
   useEffect(() => {
     fetchImages();

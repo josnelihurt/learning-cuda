@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/app"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/container"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
@@ -43,32 +44,33 @@ func main() {
 	}
 
 	grpcProcessor := processor.NewGRPCProcessor(di.GRPCProcessorClient)
-	processImageUseCase := application.NewProcessImageUseCase(grpcProcessor)
+	processImageUseCase := imageapp.NewProcessImageUseCase(grpcProcessor)
 
-	processorCapsUseCase := application.NewProcessorCapabilitiesUseCase(
+	processorCapsUseCase := systemapp.NewProcessorCapabilitiesUseCase(
 		nil,
 		processor.NewGRPCRepository(di.GRPCProcessorClient),
 	)
 
-	server := app.New(
-		ctx,
-		app.WithConfig(di.Config),
-		app.WithUseCase(processImageUseCase),
-		app.WithGRPCProcessor(grpcProcessor),
-		app.WithGRPCProcessorClient(di.GRPCProcessorClient),
-		app.WithProcessorCapabilitiesUseCase(processorCapsUseCase),
-		app.WithGetStreamConfigUseCase(di.GetStreamConfigUseCase),
-		app.WithGetSystemInfoUseCase(di.GetSystemInfoUseCase),
-		app.WithFeatureFlagRepository(di.FeatureFlagRepo),
-		app.WithListInputsUseCase(di.ListInputsUseCase),
-		app.WithEvaluateFFUseCase(di.EvaluateFeatureFlagUseCase),
-		app.WithListAvailableImagesUseCase(di.ListAvailableImagesUseCase),
-		app.WithUploadImageUseCase(di.UploadImageUseCase),
-		app.WithListVideosUseCase(di.ListVideosUseCase),
-		app.WithUploadVideoUseCase(di.UploadVideoUseCase),
-		app.WithVideoRepository(di.VideoRepository),
-		app.WithDeviceMonitor(di.DeviceMonitor),
-	)
+	server, err := app.New(ctx, app.Deps{
+		Config:                di.Config,
+		UseCase:               processImageUseCase,
+		GRPCProcessorClient:   di.GRPCProcessorClient,
+		ProcessorCapsUC:       processorCapsUseCase,
+		GetSystemInfoUC:       di.GetSystemInfoUseCase,
+		FeatureFlagRepo:       di.FeatureFlagRepo,
+		ListInputsUC:          di.ListInputsUseCase,
+		EvaluateFFUC:          di.EvaluateFeatureFlagUseCase,
+		StreamVideoUC:         di.StreamVideoUseCase,
+		ListAvailableImagesUC: di.ListAvailableImagesUseCase,
+		UploadImageUC:         di.UploadImageUseCase,
+		ListVideosUC:          di.ListVideosUseCase,
+		UploadVideoUC:         di.UploadVideoUseCase,
+		VideoRepository:       di.VideoRepository,
+		DeviceMonitor:         di.DeviceMonitor,
+	})
+	if err != nil {
+		logger.Global().Fatal().Err(err).Msg("Failed to initialize app")
+	}
 
 	errChan := make(chan error, 1)
 	go func() {

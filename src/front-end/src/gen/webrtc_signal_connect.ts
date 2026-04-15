@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { SignalingMessage } from "./webrtc_signal_pb.js";
+import { CloseSessionRequest, CloseSessionResponse, PollEventsRequest, PollEventsResponse, SendIceCandidateRequest, SendIceCandidateResponse, SignalingMessage, StartSessionRequest, StartSessionResponse } from "./webrtc_signal_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -12,6 +12,42 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const WebRTCSignalingService = {
   typeName: "cuda_learning.WebRTCSignalingService",
   methods: {
+    /**
+     * @generated from rpc cuda_learning.WebRTCSignalingService.StartSession
+     */
+    startSession: {
+      name: "StartSession",
+      I: StartSessionRequest,
+      O: StartSessionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.WebRTCSignalingService.SendIceCandidate
+     */
+    sendIceCandidate: {
+      name: "SendIceCandidate",
+      I: SendIceCandidateRequest,
+      O: SendIceCandidateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.WebRTCSignalingService.PollEvents
+     */
+    pollEvents: {
+      name: "PollEvents",
+      I: PollEventsRequest,
+      O: PollEventsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.WebRTCSignalingService.CloseSession
+     */
+    closeSession: {
+      name: "CloseSession",
+      I: CloseSessionRequest,
+      O: CloseSessionResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * @generated from rpc cuda_learning.WebRTCSignalingService.SignalingStream
      */

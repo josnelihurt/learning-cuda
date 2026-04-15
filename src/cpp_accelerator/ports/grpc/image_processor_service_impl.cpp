@@ -10,6 +10,8 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
+#include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
+
 namespace jrb::ports::grpc_service {
 
 namespace {
@@ -54,8 +56,9 @@ cuda_learning::GenericFilterParameterType ConvertParameterType(const std::string
 }  // namespace
 
 ImageProcessorServiceImpl::ImageProcessorServiceImpl(
-    std::shared_ptr<ProcessorEngineProvider> engine)
-    : engine_(std::move(engine)) {}
+    std::shared_ptr<ProcessorEngineProvider> engine,
+    std::shared_ptr<WebRTCManager> webrtc_manager)
+    : engine_(std::move(engine)), webrtc_manager_(std::move(webrtc_manager)) {}
 
 ::grpc::Status ImageProcessorServiceImpl::ProcessImage(
     ::grpc::ServerContext* /*context*/, const cuda_learning::ProcessImageRequest* request,
@@ -108,13 +111,22 @@ ImageProcessorServiceImpl::ImageProcessorServiceImpl(
 
     bool ok = engine_->ProcessImage(request, &response);
     if (!ok || response.code() != 0) {
-      spdlog::warn("StreamProcessVideo frame failed (code={}): {}", response.code(),
-                   response.message());
-      stream->Write(response);
-      return EngineFailureStatus(response);
+      spdlog::warn("StreamProcessVideo frame failed (code={}): {}, skipping frame",
+                   response.code(), response.message());
+      continue;
     }
 
-    stream->Write(response);
+    if (webrtc_manager_ != nullptr && !request.session_id().empty()) {
+      std::string bytes;
+      if (!response.SerializeToString(&bytes)) {
+        spdlog::error("Failed to serialize StreamProcessVideo response for session {}",
+                      request.session_id());
+      } else {
+        webrtc_manager_->SendToSession(request.session_id(), bytes);
+      }
+    } else {
+      stream->Write(response);
+    }
   }
 
   return ::grpc::Status::OK;

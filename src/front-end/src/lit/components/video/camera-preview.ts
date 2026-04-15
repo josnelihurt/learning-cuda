@@ -2,6 +2,11 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { logger } from '../../../infrastructure/observability/otel-logger';
 
+type CameraPreviewFilterState = {
+  id: string;
+  parameters: Record<string, string>;
+};
+
 interface StatsManager {
   updateCameraStatus(status: string, type: 'success' | 'error' | 'warning' | 'inactive'): void;
 }
@@ -28,9 +33,11 @@ export class CameraPreview extends LitElement {
   private statsManager: StatsManager | null = null;
   private toastManager: ToastManager | null = null;
   private stream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
   private frameInterval: number | null = null;
   private lastFrameTime = 0;
   private onFrameCallback: FrameCallback | null = null;
+  private activeFilters: CameraPreviewFilterState[] = [];
 
   static styles = css`
     :host {
@@ -38,9 +45,10 @@ export class CameraPreview extends LitElement {
     }
 
     video {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: black;
     }
 
     canvas {
@@ -168,6 +176,7 @@ export class CameraPreview extends LitElement {
     if (this.videoElement?.srcObject) {
       this.videoElement.srcObject = null;
     }
+    this.remoteStream = null;
 
     this.statsManager?.updateCameraStatus('Inactive', 'inactive');
   }
@@ -224,6 +233,61 @@ export class CameraPreview extends LitElement {
 
   setProcessing(isProcessing: boolean): void {
     this.isProcessing = isProcessing;
+  }
+
+  setRemoteStream(stream: MediaStream | null): void {
+    this.remoteStream = stream;
+    if (this.videoElement) {
+      if (!this.remoteStream) {
+        this.videoElement.srcObject = this.stream;
+        if (this.videoElement.srcObject) {
+          void this.videoElement.play().catch(() => undefined);
+        }
+        return;
+      }
+
+      const probe = document.createElement('video');
+      probe.muted = true;
+      probe.playsInline = true;
+      probe.srcObject = this.remoteStream;
+
+      void probe
+        .play()
+        .then(
+          () =>
+            new Promise<boolean>((resolve) => {
+              const deadline = window.setTimeout(() => resolve(false), 1500);
+              const checkPlayback = () => {
+                if (probe.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA || probe.videoWidth > 0) {
+                  clearTimeout(deadline);
+                  resolve(true);
+                  return;
+                }
+                window.requestAnimationFrame(checkPlayback);
+              };
+              checkPlayback();
+            })
+        )
+        .then((isPlayable) => {
+          if (!isPlayable || !this.videoElement) {
+            return;
+          }
+          this.videoElement.srcObject = this.remoteStream;
+          void this.videoElement.play().catch(() => undefined);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          probe.srcObject = null;
+        });
+    }
+  }
+
+  setFilters(filters: CameraPreviewFilterState[]): void {
+    this.activeFilters = filters;
+  }
+
+  getStream(): MediaStream | null {
+    return this.stream;
   }
 
   getLastFrameTime(): number {

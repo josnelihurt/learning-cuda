@@ -9,7 +9,7 @@ The frontend is a **multi-page application (MPA)** that provides real-time image
 1. **React Dashboard** (`/`) - Full React 19 application with components, hooks, and context providers
 2. **Lit Dashboard** (`/lit`) - Original Lit Web Components application
 
-Both communicate with the Go backend via WebSocket, Connect-RPC (gRPC-Web), and support WebRTC integration for low-latency frame streaming.
+Both communicate with the Go backend via Connect-RPC (gRPC-Web) for service calls and WebRTC for real-time frame streaming.
 
 **Key Features:**
 - Real-time webcam processing with GPU/CPU filter selection
@@ -39,62 +39,52 @@ graph TB
     subgraph "Application Services Layer"
         ConfigService[ConfigService]
         ProcessorCaps[ProcessorCapabilitiesService]
-        UIService[UIService]
     end
-    
+
     subgraph "Infrastructure Layer"
         subgraph "Transport"
-            FrameTransport[FrameTransportService]
-            WSTransport[WebSocketFrameTransport]
-            GRPCTransport[GRPCFrameTransport]
             WebRTCTransport[WebRTCFrameTransport]
         end
-        
+
         subgraph "Data Services"
             VideoService[VideoService]
             FileService[FileService]
             InputSourceService[InputSourceService]
         end
-        
+
         subgraph "External Services"
             FeatureFlags[FeatureFlagsService]
             SystemInfo[SystemInfoService]
             ToolsService[ToolsService]
         end
-        
+
         subgraph "Observability"
             TelemetryService[TelemetryService]
             Logger[Logger]
         end
     end
-    
+
     subgraph "Domain Layer"
         Interfaces[Domain Interfaces]
         ValueObjects[Value Objects]
     end
-    
+
     subgraph "Backend"
         GoServer[Go Web Server]
         GRPCServer[gRPC Server]
     end
-    
+
     AppRoot --> FilterPanel
     AppRoot --> VideoGrid
     AppRoot --> CameraPreview
     AppRoot --> StatsPanel
     AppRoot --> SourceDrawer
-    
+
     FilterPanel --> ProcessorCaps
-    CameraPreview --> FrameTransport
+    CameraPreview --> WebRTCTransport
     VideoGrid --> VideoService
     
     ProcessorCaps --> GRPCServer
-    FrameTransport --> WSTransport
-    FrameTransport --> GRPCTransport
-    FrameTransport --> WebRTCTransport
-    
-    WSTransport --> GoServer
-    GRPCTransport --> GRPCServer
     WebRTCTransport --> GRPCServer
     
     VideoService --> GoServer
@@ -105,16 +95,13 @@ graph TB
     FeatureFlags --> GoServer
     SystemInfo --> GoServer
     ToolsService --> GoServer
-    
-    UIService --> FrameTransport
-    UIService --> ProcessorCaps
-    
+
     ConfigService --> Interfaces
     ProcessorCaps --> Interfaces
-    FrameTransport --> Interfaces
+    WebRTCTransport --> Interfaces
     VideoService --> Interfaces
     FileService --> Interfaces
-    
+
     TelemetryService --> Logger
     Logger --> GoServer
 ```
@@ -170,7 +157,7 @@ graph TB
 
 **`connection-status-card`** (`components/app/connection-status-card.ts`):
 - Displays current connection status
-- Shows transport type (WebSocket, gRPC, WebRTC)
+- Shows WebRTC connection state and quality
 - Connection quality indicators
 
 **`tools-dropdown`** (`components/ui/tools-dropdown.ts`):
@@ -194,35 +181,16 @@ graph TB
 - Notifies listeners when capabilities change
 - Caches filter definitions for performance
 
-**`ui-service.ts`**:
-- Coordinates UI interactions
-- Manages stats, camera, and filter state
-- Bridges components and transport layer
-
 ### Infrastructure Services
 
 #### Transport Layer (`infrastructure/transport/`)
 
-**`frame-transport-service.ts`**:
-- Main transport abstraction implementing `IFrameTransportService`
-- Selects appropriate transport based on feature flags
-- Aggregates WebSocket, gRPC, and WebRTC transports
-- Provides unified interface for frame transmission
-
-**`websocket-frame-transport.ts`**:
-- WebSocket implementation for frame transmission
-- Real-time bidirectional communication
-- Handles connection lifecycle and reconnection
-
-**`grpc-frame-transport.ts`**:
-- gRPC bidirectional streaming for frame transmission
-- Uses Connect-RPC for browser compatibility
-- Lower latency than WebSocket for high-throughput scenarios
-
 **`webrtc-frame-transport.ts`**:
-- WebRTC implementation (stub, not yet implemented)
-- Planned for peer-to-peer low-latency streaming
-- Will enable direct browser-to-gRPC server communication
+- WebRTC implementation for real-time frame streaming
+- Peer-to-peer communication with the gRPC server
+- Uses WebRTC data channels for low-latency frame transmission
+- Handles WebRTC signaling through Connect-RPC
+- Connection lifecycle management and reconnection handling
 
 #### Data Services (`infrastructure/data/`)
 
@@ -258,6 +226,23 @@ graph TB
 - Observability tool links
 - Test report access
 
+#### External Services (`infrastructure/external/`)
+
+**`accelerator-health-monitor.ts`**:
+- Monitors GPU/CPU accelerator health status
+- Tracks accelerator availability
+- Provides health metrics and diagnostics
+
+**`grpc-version-service.ts`**:
+- Retrieves gRPC version information
+- Checks backend compatibility
+- Manages version verification
+
+**`remote-management-service.ts`**:
+- Remote device management capabilities
+- Handles remote configuration
+- Manages remote service connections
+
 #### Observability (`infrastructure/observability/`)
 
 **`telemetry-service.ts`**:
@@ -276,12 +261,14 @@ graph TB
 
 Domain interfaces define contracts without implementation details:
 
-- **`IFrameTransportService`**: Frame transmission abstraction
+- **`IFrameTransportService`**: Frame transmission interface (WebRTC implementation)
 - **`IConfigService`**: Configuration management
 - **`IProcessorCapabilitiesService`**: Filter capabilities
 - **`IVideoService`**: Video operations
 - **`IFileService`**: File operations
 - **`IInputSourceService`**: Input source management
+- **`IToolsService`**: Tools and external services management
+- **`IWebRTCService`**: WebRTC signaling and peer connection management
 - **`ITelemetryService`**: Observability
 - **`ILogger`**: Logging interface
 
@@ -293,8 +280,90 @@ Type-safe domain models:
 - **`FilterData`**: Filter configuration and parameters
 - **`AcceleratorConfig`**: GPU/CPU accelerator selection
 - **`GrayscaleAlgorithm`**: Grayscale algorithm types
-- **`ConnectionStatus`**: Connection state and metadata
+- **`ConnectionStatus`**: WebRTC connection state and quality metrics
 - **`WebRTCSession`**: WebRTC session information
+- **`Uuid`**: UUID generation and validation utility
+
+### React Hooks & Context Architecture
+
+The React dashboard uses custom hooks and context providers for state management, replacing the previous UIService approach.
+
+**Custom Hooks** (`react/hooks/`):
+
+- **`useWebRTCStream.ts`**: Manages WebRTC connections for real-time video streaming
+  - Establishes WebRTC peer connections
+  - Handles video frame processing
+  - Manages connection state and quality metrics
+
+- **`useImageProcessing.ts`**: Orchestrates image processing operations
+  - Processes images via Connect-RPC
+  - Manages filter configuration
+  - Tracks processing metrics
+
+- **`useFilters.ts`**: Filter management and selection
+  - Loads available filters from backend
+  - Manages filter order and parameters
+  - Handles drag-and-drop reordering
+
+- **`useConfig.ts`**: Configuration management
+  - Fetches stream configuration
+  - Manages feature flags
+  - Handles system settings
+
+- **`useHealthMonitor.ts`**: System health monitoring
+  - Tracks accelerator availability
+  - Monitors system resources
+  - Provides health status updates
+
+- **`useAsyncGRPC.ts`**: Async gRPC operation management
+  - Handles async gRPC calls with proper error handling
+  - Manages loading states
+  - Provides typed gRPC response handling
+
+- **`useImageUpload.ts`**: Image upload handling
+  - Manages file selection and upload
+  - Tracks upload progress
+  - Validates image formats and sizes
+
+- **`useFiles.ts`**: File management
+  - Lists available files
+  - Manages file operations
+  - Tracks file metadata
+
+- **`useToast.ts`**: Toast notifications
+  - Displays success/error messages
+  - Manages notification queue
+  - Provides notification API
+
+**Context Providers** (`react/context/`):
+
+- **`dashboard-state-context.tsx`**: Global dashboard state
+  - Manages active input sources
+  - Coordinates filter pipelines
+  - Handles UI state (drawers, panels)
+
+- **`service-context.tsx`**: Service dependency injection
+  - Provides application services to components
+  - Manages service lifecycle
+  - Enables testing with mock services
+
+- **`toast-context.tsx`**: Toast notifications
+  - Displays success/error messages
+  - Manages notification queue
+  - Provides notification API
+
+**Service Providers** (`react/providers/`):
+
+- **`app-services-provider.tsx`**: Application services provider
+  - Initializes application-level services
+  - Sets up service dependencies
+  - Wraps application with context providers
+
+- **`grpc-clients-provider.tsx`**: gRPC clients provider
+  - Initializes gRPC client connections
+  - Provides typed gRPC clients to components
+  - Manages client lifecycle
+  - Wraps application with context providers
 
 ## Dependency Injection
 
@@ -306,18 +375,21 @@ Type-safe domain models:
 
 **Service Resolution:**
 - Application services: Singleton instances
-- Transport services: Factory methods with component dependencies
+- Transport service: WebRTCFrameTransportService with component dependencies
 - Infrastructure services: Singleton instances with lazy initialization
 
 ## Transport Selection
 
-The `FrameTransportService` selects the appropriate transport based on feature flags:
+The frontend uses **WebRTC** as the primary transport for real-time frame streaming:
 
-1. **WebSocket** (default): Traditional bidirectional communication
-2. **gRPC**: Bidirectional streaming via Connect-RPC (default and only method)
-3. **WebRTC** (future): Peer-to-peer low-latency streaming
+- **WebRTC**: Peer-to-peer low-latency streaming via WebRTC data channels
+- Signaling is handled through Connect-RPC WebRTC services
+- Components use the `IFrameTransportService` interface, implemented by `WebRTCFrameTransportService`
 
-The selection is transparent to components—they use the unified `IFrameTransportService` interface.
+The transport provides:
+- Direct browser-to-gRTC server communication
+- Low-latency frame transmission for real-time processing
+- Automatic connection management and reconnection
 
 ## Development
 
@@ -377,7 +449,8 @@ npm run test:e2e:dev  # Development mode
 - **Vite**: Build tool and dev server with MPA support
 - **Vitest**: Unit testing framework
 - **Playwright**: E2E testing
-- **Connect-RPC**: gRPC-Web client library
+- **Connect-RPC**: gRPC-Web client library for service calls and WebRTC signaling
+- **WebRTC**: Real-time peer-to-peer frame streaming
 - **OpenTelemetry**: Distributed tracing
 - **Shepherd.js**: Guided tour library
 
@@ -407,9 +480,9 @@ front-end/
 │   │   │   ├── files/      # File management
 │   │   │   ├── settings/   # Settings panel
 │   │   │   └── sidebar/    # Sidebar components
-│   │   ├── hooks/          # React hooks
-│   │   ├── context/        # React context providers
-│   │   ├── providers/      # Service providers
+│   │   ├── hooks/          # React hooks (useWebRTCStream, useImageProcessing, useFilters, etc.)
+│   │   ├── context/        # React context providers (dashboard-state, service, toast)
+│   │   ├── providers/      # Service providers (service-provider.tsx)
 │   │   ├── infrastructure/ # React infrastructure
 │   │   └── main.tsx        # React entry point
 │   ├── services/            # Shared services

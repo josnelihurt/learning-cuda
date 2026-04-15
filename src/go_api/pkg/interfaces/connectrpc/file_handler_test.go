@@ -6,7 +6,8 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,10 +26,10 @@ func makeValidStaticImage() *domain.StaticImage {
 func TestNewFileHandler(t *testing.T) {
 	// Act
 	sut := NewFileHandler(
-		&application.ListAvailableImagesUseCase{},
-		&application.UploadImageUseCase{},
-		&application.ListVideosUseCase{},
-		&application.UploadVideoUseCase{},
+		&imageapp.ListAvailableImagesUseCase{},
+		&imageapp.UploadImageUseCase{},
+		&videoapp.ListVideosUseCase{},
+		&videoapp.UploadVideoUseCase{},
 	)
 
 	// Assert

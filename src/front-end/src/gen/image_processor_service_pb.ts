@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3 } from "@bufbuild/protobuf";
 import { AcceleratorType, FilterType, GaussianBlurParameters, GrayscaleType, LibraryCapabilities, TraceContext } from "./common_pb.js";
 
 /**
@@ -446,6 +446,11 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
   genericFilters: GenericFilterSelection[] = [];
 
   /**
+   * @generated from field: string session_id = 29 [json_name = "session_id"];
+   */
+  sessionId = "";
+
+  /**
    * OpenTelemetry trace context propagation (deprecated - use trace_context instead)
    *
    * @generated from field: string trace_id = 15 [json_name = "trace_id"];
@@ -489,6 +494,7 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
     { no: 13, name: "grayscale_type", jsonName: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
     { no: 25, name: "blur_params", jsonName: "blur_params", kind: "message", T: GaussianBlurParameters },
     { no: 27, name: "generic_filters", jsonName: "generic_filters", kind: "message", T: GenericFilterSelection, repeated: true },
+    { no: 29, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "trace_id", jsonName: "trace_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 17, name: "span_id", jsonName: "span_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "trace_flags", jsonName: "trace_flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
@@ -595,6 +601,268 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
 }
 
 /**
+ * @generated from message cuda_learning.StartVideoPlaybackRequest
+ */
+export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest> {
+  /**
+   * @generated from field: string video_id = 1 [json_name = "video_id"];
+   */
+  videoId = "";
+
+  /**
+   * @generated from field: string session_id = 3 [json_name = "session_id"];
+   */
+  sessionId = "";
+
+  /**
+   * @generated from field: repeated cuda_learning.FilterType filters = 5;
+   */
+  filters: FilterType[] = [];
+
+  /**
+   * @generated from field: cuda_learning.AcceleratorType accelerator = 7;
+   */
+  accelerator = AcceleratorType.UNSPECIFIED;
+
+  /**
+   * @generated from field: cuda_learning.GrayscaleType grayscale_type = 9 [json_name = "grayscale_type"];
+   */
+  grayscaleType = GrayscaleType.UNSPECIFIED;
+
+  /**
+   * @generated from field: cuda_learning.GaussianBlurParameters blur_params = 11 [json_name = "blur_params"];
+   */
+  blurParams?: GaussianBlurParameters;
+
+  /**
+   * @generated from field: repeated cuda_learning.GenericFilterSelection generic_filters = 13 [json_name = "generic_filters"];
+   */
+  genericFilters: GenericFilterSelection[] = [];
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 15 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  /**
+   * @generated from field: string api_version = 17 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  constructor(data?: PartialMessage<StartVideoPlaybackRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StartVideoPlaybackRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "video_id", jsonName: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "filters", kind: "enum", T: proto3.getEnumType(FilterType), repeated: true },
+    { no: 7, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
+    { no: 9, name: "grayscale_type", jsonName: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
+    { no: 11, name: "blur_params", jsonName: "blur_params", kind: "message", T: GaussianBlurParameters },
+    { no: 13, name: "generic_filters", jsonName: "generic_filters", kind: "message", T: GenericFilterSelection, repeated: true },
+    { no: 15, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 17, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartVideoPlaybackRequest {
+    return new StartVideoPlaybackRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartVideoPlaybackRequest {
+    return new StartVideoPlaybackRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartVideoPlaybackRequest {
+    return new StartVideoPlaybackRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined, b: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined): boolean {
+    return proto3.util.equals(StartVideoPlaybackRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.StartVideoPlaybackResponse
+ */
+export class StartVideoPlaybackResponse extends Message<StartVideoPlaybackResponse> {
+  /**
+   * @generated from field: int32 code = 1;
+   */
+  code = 0;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message = "";
+
+  /**
+   * @generated from field: string session_id = 5 [json_name = "session_id"];
+   */
+  sessionId = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 7 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  /**
+   * @generated from field: string api_version = 9 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  constructor(data?: PartialMessage<StartVideoPlaybackResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StartVideoPlaybackResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 9, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartVideoPlaybackResponse {
+    return new StartVideoPlaybackResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartVideoPlaybackResponse {
+    return new StartVideoPlaybackResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartVideoPlaybackResponse {
+    return new StartVideoPlaybackResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartVideoPlaybackResponse | PlainMessage<StartVideoPlaybackResponse> | undefined, b: StartVideoPlaybackResponse | PlainMessage<StartVideoPlaybackResponse> | undefined): boolean {
+    return proto3.util.equals(StartVideoPlaybackResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.StopVideoPlaybackRequest
+ */
+export class StopVideoPlaybackRequest extends Message<StopVideoPlaybackRequest> {
+  /**
+   * @generated from field: string session_id = 1 [json_name = "session_id"];
+   */
+  sessionId = "";
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  /**
+   * @generated from field: string api_version = 5 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  constructor(data?: PartialMessage<StopVideoPlaybackRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StopVideoPlaybackRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 5, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StopVideoPlaybackRequest {
+    return new StopVideoPlaybackRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StopVideoPlaybackRequest {
+    return new StopVideoPlaybackRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StopVideoPlaybackRequest {
+    return new StopVideoPlaybackRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined, b: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined): boolean {
+    return proto3.util.equals(StopVideoPlaybackRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.StopVideoPlaybackResponse
+ */
+export class StopVideoPlaybackResponse extends Message<StopVideoPlaybackResponse> {
+  /**
+   * @generated from field: int32 code = 1;
+   */
+  code = 0;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message = "";
+
+  /**
+   * @generated from field: string session_id = 5 [json_name = "session_id"];
+   */
+  sessionId = "";
+
+  /**
+   * @generated from field: bool stopped = 7;
+   */
+  stopped = false;
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 9 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  /**
+   * @generated from field: string api_version = 11 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  constructor(data?: PartialMessage<StopVideoPlaybackResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StopVideoPlaybackResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "stopped", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 11, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StopVideoPlaybackResponse {
+    return new StopVideoPlaybackResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StopVideoPlaybackResponse {
+    return new StopVideoPlaybackResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StopVideoPlaybackResponse {
+    return new StopVideoPlaybackResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StopVideoPlaybackResponse | PlainMessage<StopVideoPlaybackResponse> | undefined, b: StopVideoPlaybackResponse | PlainMessage<StopVideoPlaybackResponse> | undefined): boolean {
+    return proto3.util.equals(StopVideoPlaybackResponse, a, b);
+  }
+}
+
+/**
  * Lifecycle management
  *
  * @generated from message cuda_learning.InitRequest
@@ -697,313 +965,6 @@ export class InitResponse extends Message<InitResponse> {
 
   static equals(a: InitResponse | PlainMessage<InitResponse> | undefined, b: InitResponse | PlainMessage<InitResponse> | undefined): boolean {
     return proto3.util.equals(InitResponse, a, b);
-  }
-}
-
-/**
- * WebSocket stream messages
- *
- * @generated from message cuda_learning.WebSocketFrameRequest
- */
-export class WebSocketFrameRequest extends Message<WebSocketFrameRequest> {
-  /**
-   * @generated from field: string type = 1;
-   */
-  type = "";
-
-  /**
-   * @generated from field: cuda_learning.ProcessImageRequest request = 3;
-   */
-  request?: ProcessImageRequest;
-
-  /**
-   * @generated from field: cuda_learning.StartVideoPlaybackRequest start_video_request = 4;
-   */
-  startVideoRequest?: StartVideoPlaybackRequest;
-
-  /**
-   * @generated from field: cuda_learning.StopVideoPlaybackRequest stop_video_request = 6;
-   */
-  stopVideoRequest?: StopVideoPlaybackRequest;
-
-  /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 5 [json_name = "trace_context"];
-   */
-  traceContext?: TraceContext;
-
-  constructor(data?: PartialMessage<WebSocketFrameRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.WebSocketFrameRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "request", kind: "message", T: ProcessImageRequest },
-    { no: 4, name: "start_video_request", kind: "message", T: StartVideoPlaybackRequest },
-    { no: 6, name: "stop_video_request", kind: "message", T: StopVideoPlaybackRequest },
-    { no: 5, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WebSocketFrameRequest {
-    return new WebSocketFrameRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WebSocketFrameRequest {
-    return new WebSocketFrameRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WebSocketFrameRequest {
-    return new WebSocketFrameRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: WebSocketFrameRequest | PlainMessage<WebSocketFrameRequest> | undefined, b: WebSocketFrameRequest | PlainMessage<WebSocketFrameRequest> | undefined): boolean {
-    return proto3.util.equals(WebSocketFrameRequest, a, b);
-  }
-}
-
-/**
- * @generated from message cuda_learning.WebSocketFrameResponse
- */
-export class WebSocketFrameResponse extends Message<WebSocketFrameResponse> {
-  /**
-   * @generated from field: string type = 1;
-   */
-  type = "";
-
-  /**
-   * @generated from field: bool success = 3;
-   */
-  success = false;
-
-  /**
-   * @generated from field: string error = 5;
-   */
-  error = "";
-
-  /**
-   * @generated from field: cuda_learning.ProcessImageResponse response = 7;
-   */
-  response?: ProcessImageResponse;
-
-  /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 9 [json_name = "trace_context"];
-   */
-  traceContext?: TraceContext;
-
-  /**
-   * @generated from field: cuda_learning.VideoFrameUpdate video_frame = 11 [json_name = "video_frame"];
-   */
-  videoFrame?: VideoFrameUpdate;
-
-  constructor(data?: PartialMessage<WebSocketFrameResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.WebSocketFrameResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "success", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "error", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "response", kind: "message", T: ProcessImageResponse },
-    { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-    { no: 11, name: "video_frame", jsonName: "video_frame", kind: "message", T: VideoFrameUpdate },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WebSocketFrameResponse {
-    return new WebSocketFrameResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WebSocketFrameResponse {
-    return new WebSocketFrameResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WebSocketFrameResponse {
-    return new WebSocketFrameResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined, b: WebSocketFrameResponse | PlainMessage<WebSocketFrameResponse> | undefined): boolean {
-    return proto3.util.equals(WebSocketFrameResponse, a, b);
-  }
-}
-
-/**
- * @generated from message cuda_learning.StartVideoPlaybackRequest
- */
-export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest> {
-  /**
-   * @generated from field: string video_id = 1;
-   */
-  videoId = "";
-
-  /**
-   * @generated from field: repeated cuda_learning.FilterType filters = 3;
-   */
-  filters: FilterType[] = [];
-
-  /**
-   * @generated from field: cuda_learning.AcceleratorType accelerator = 5;
-   */
-  accelerator = AcceleratorType.UNSPECIFIED;
-
-  /**
-   * @generated from field: cuda_learning.GrayscaleType grayscale_type = 7;
-   */
-  grayscaleType = GrayscaleType.UNSPECIFIED;
-
-  /**
-   * @generated from field: cuda_learning.GaussianBlurParameters blur_params = 11 [json_name = "blur_params"];
-   */
-  blurParams?: GaussianBlurParameters;
-
-  /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 9 [json_name = "trace_context"];
-   */
-  traceContext?: TraceContext;
-
-  constructor(data?: PartialMessage<StartVideoPlaybackRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.StartVideoPlaybackRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "filters", kind: "enum", T: proto3.getEnumType(FilterType), repeated: true },
-    { no: 5, name: "accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
-    { no: 7, name: "grayscale_type", kind: "enum", T: proto3.getEnumType(GrayscaleType) },
-    { no: 11, name: "blur_params", jsonName: "blur_params", kind: "message", T: GaussianBlurParameters },
-    { no: 9, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartVideoPlaybackRequest {
-    return new StartVideoPlaybackRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartVideoPlaybackRequest {
-    return new StartVideoPlaybackRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartVideoPlaybackRequest {
-    return new StartVideoPlaybackRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined, b: StartVideoPlaybackRequest | PlainMessage<StartVideoPlaybackRequest> | undefined): boolean {
-    return proto3.util.equals(StartVideoPlaybackRequest, a, b);
-  }
-}
-
-/**
- * @generated from message cuda_learning.StopVideoPlaybackRequest
- */
-export class StopVideoPlaybackRequest extends Message<StopVideoPlaybackRequest> {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId = "";
-
-  /**
-   * @generated from field: cuda_learning.TraceContext trace_context = 3 [json_name = "trace_context"];
-   */
-  traceContext?: TraceContext;
-
-  constructor(data?: PartialMessage<StopVideoPlaybackRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.StopVideoPlaybackRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StopVideoPlaybackRequest {
-    return new StopVideoPlaybackRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StopVideoPlaybackRequest {
-    return new StopVideoPlaybackRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StopVideoPlaybackRequest {
-    return new StopVideoPlaybackRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined, b: StopVideoPlaybackRequest | PlainMessage<StopVideoPlaybackRequest> | undefined): boolean {
-    return proto3.util.equals(StopVideoPlaybackRequest, a, b);
-  }
-}
-
-/**
- * @generated from message cuda_learning.VideoFrameUpdate
- */
-export class VideoFrameUpdate extends Message<VideoFrameUpdate> {
-  /**
-   * @generated from field: string session_id = 1 [json_name = "session_id"];
-   */
-  sessionId = "";
-
-  /**
-   * @generated from field: bytes frame_data = 3 [json_name = "frame_data"];
-   */
-  frameData = new Uint8Array(0);
-
-  /**
-   * @generated from field: int32 frame_number = 5 [json_name = "frame_number"];
-   */
-  frameNumber = 0;
-
-  /**
-   * @generated from field: int64 timestamp_ms = 7 [json_name = "timestamp_ms"];
-   */
-  timestampMs = protoInt64.zero;
-
-  /**
-   * @generated from field: bool is_last_frame = 9 [json_name = "is_last_frame"];
-   */
-  isLastFrame = false;
-
-  /**
-   * @generated from field: int32 frame_id = 11 [json_name = "frame_id"];
-   */
-  frameId = 0;
-
-  constructor(data?: PartialMessage<VideoFrameUpdate>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "cuda_learning.VideoFrameUpdate";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "frame_data", jsonName: "frame_data", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 5, name: "frame_number", jsonName: "frame_number", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 7, name: "timestamp_ms", jsonName: "timestamp_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 9, name: "is_last_frame", jsonName: "is_last_frame", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 11, name: "frame_id", jsonName: "frame_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VideoFrameUpdate {
-    return new VideoFrameUpdate().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): VideoFrameUpdate {
-    return new VideoFrameUpdate().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): VideoFrameUpdate {
-    return new VideoFrameUpdate().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: VideoFrameUpdate | PlainMessage<VideoFrameUpdate> | undefined, b: VideoFrameUpdate | PlainMessage<VideoFrameUpdate> | undefined): boolean {
-    return proto3.util.equals(VideoFrameUpdate, a, b);
   }
 }
 

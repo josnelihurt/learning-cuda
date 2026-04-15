@@ -13,9 +13,12 @@
 
 namespace jrb::ports::grpc_service {
 
+class WebRTCManager;
+
 class ImageProcessorServiceImpl final : public cuda_learning::ImageProcessorService::Service {
 public:
-  explicit ImageProcessorServiceImpl(std::shared_ptr<ProcessorEngineProvider> engine);
+  explicit ImageProcessorServiceImpl(std::shared_ptr<ProcessorEngineProvider> engine,
+                                     std::shared_ptr<WebRTCManager> webrtc_manager = nullptr);
   ~ImageProcessorServiceImpl() override = default;
 
   ::grpc::Status ProcessImage(::grpc::ServerContext* context,
@@ -45,6 +48,7 @@ private:
   void PopulateListFiltersResponse(cuda_learning::ListFiltersResponse* response) const;
 
   std::shared_ptr<ProcessorEngineProvider> engine_;
+  std::shared_ptr<WebRTCManager> webrtc_manager_;
 };
 
 }  // namespace jrb::ports::grpc_service

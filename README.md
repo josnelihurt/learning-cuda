@@ -54,7 +54,7 @@ graph TB
     end
     
     subgraph "API Layer"
-        WS[WebSocket]
+        WebRTCSignaling[WebRTC Signaling]
         ConnectRPC[Connect-RPC]
     end
     
@@ -78,9 +78,9 @@ graph TB
     end
     
     Browser --> UI
-    UI --> WS
+    UI --> WebRTCSignaling
     UI --> ConnectRPC
-    WS --> API
+    WebRTCSignaling --> API
     ConnectRPC --> API
     API --> Services
     Services --> UseCases
@@ -101,7 +101,7 @@ graph TB
 graph TB
     subgraph "Interfaces Layer"
         HTTP[HTTP Handlers]
-        WS_Handler[WebSocket Handler]
+        WebRTC_Handler[WebRTC Signaling Handler]
         ConnectRPC_Handler[Connect-RPC Handler]
     end
     
@@ -121,10 +121,10 @@ graph TB
     subgraph "Infrastructure Layer"
         GRPCProcessor[gRPC Processor]
         BuildInfo[Build Info Repository]
-        FliptRepo[Flipt Repository]
+        GoFeatureFlagRepository[GO Feature Flag Repository]
         Logger[Logger]
     end
-    
+
     subgraph "C++/CUDA Shared Library"
         SharedLibrary[Shared Library<br/>libcuda_processor.so]
         ProcessorEngine[Processor Engine]
@@ -132,31 +132,31 @@ graph TB
         BlurKernel[Blur Kernels]
         FilterDefs[Filter Definitions]
     end
-    
+
     subgraph "gRPC Services"
         GRPCServerService[gRPC Server<br/>Hosts Shared Library]
         GRPCClientService[gRPC Client]
     end
-    
+
     subgraph "External Services"
-        Flipt[Flipt Feature Flags]
+        GOFeatureFlags[GO Feature Flags]
         Jaeger[Jaeger Tracing]
         Grafana[Grafana Monitoring]
     end
-    
+
     HTTP --> ProcessImage
-    WS_Handler --> ProcessImage
+    WebRTC_Handler --> ProcessImage
     ConnectRPC_Handler --> ListInputs
     ConnectRPC_Handler --> GetSystemInfo
-    
+
     ProcessImage --> Processor
     ListInputs --> Processor
     GetSystemInfo --> SystemInfo
-    
+
     Processor --> GRPCProcessor
     SystemInfo --> BuildInfo
-    FeatureFlags --> FliptRepo
-    
+    FeatureFlags --> GoFeatureFlagRepository
+
     GRPCProcessor --> GRPCClientService
     GRPCClientService --> GRPCServerService
     GRPCServerService --> ProcessorEngine
@@ -164,8 +164,8 @@ graph TB
     SharedLibrary --> GrayscaleKernel
     SharedLibrary --> BlurKernel
     SharedLibrary --> FilterDefs
-    
-    FliptRepo --> Flipt
+
+    GoFeatureFlagRepository --> GOFeatureFlags
     Logger --> Jaeger
     Logger --> Grafana
 ```
@@ -197,7 +197,7 @@ The gRPC server hosts the shared library (`libcuda_processor.so`), which contain
 - Go server can run without NVIDIA containers (cloud deployment)
 - GPU processing isolated to dedicated hardware (Jetson Nano, GPU servers)
 - Enables scaling processing independently from web server
-- Foundation for future microservices evolution with WebRTC support
+- WebRTC signaling implementation for real-time frame transport
 
 ## Setup
 
@@ -240,7 +240,6 @@ Production-like Docker deployment running locally using pre-built images from Gi
 **Access:**
 - Main app: https://app.localhost
 - Grafana: https://grafana.localhost
-- Flipt: https://flipt.localhost
 - Jaeger: https://jaeger.localhost
 - Reports: https://reports.localhost
 
@@ -262,14 +261,13 @@ Production-like Docker deployment running locally using pre-built images from Gi
 
 ### Production
 
-Real deployment on Jetson Nano hardware with Cloudflare tunnel for external access.
+Real deployment on Jetson Nano hardware with Traefik as the ingress layer.
 
 **Production URL:** https://app-cuda-demo.josnelihurt.me
 
 **Services:**
 - Main Application: https://app-cuda-demo.josnelihurt.me
 - Grafana Monitoring: https://grafana-cuda-demo.josnelihurt.me
-- Feature Flags (Flipt): https://flipt-cuda-demo.josnelihurt.me
 - Distributed Tracing (Jaeger): https://jaeger-cuda-demo.josnelihurt.me
 - Test Reports: https://reports-cuda-demo.josnelihurt.me
 
@@ -286,7 +284,7 @@ Real deployment on Jetson Nano hardware with Cloudflare tunnel for external acce
 ```
 
 **Configuration:** `config/config.production.yaml`
-- Cloudflare tunnel for external access
+- External access managed by deployment networking and DNS
 - Ansible automation
 - Production-optimized Docker configuration
 - Unified logging configuration
@@ -307,11 +305,11 @@ Skip when needed: `git commit --no-verify` or `git push --no-verify`
 
 ## Tech
 
-- Go server with native HTTPS support handling WebSocket
+- Go server with native HTTPS support with WebRTC signaling
 - C++/CUDA doing the processing via gRPC service
 - Protocol Buffers for C++/Go communication
 - Bazel for C++/CUDA builds, Makefile for Go
-- **Production**: Jetson Nano deployment with Cloudflare tunnel
+- **Production**: Jetson Nano deployment with Traefik ingress
 - **Deployment**: Ansible automation for infrastructure management
 
 **Frontend**: Lit Web Components for core UI + React dashboard, TypeScript with Vite bundler.
@@ -360,8 +358,7 @@ The app includes a dynamic tools dropdown that adapts to your environment:
 - Grafana Explore - ad-hoc query interface
 
 **Feature Management:**
-- Flipt Feature Flags - runtime configuration
-- Sync Feature Flags - manual synchronization
+- GO Feature Flags - runtime configuration (YAML-based)
 
 **Testing:**
 - BDD Test Reports - Cucumber test results
@@ -437,7 +434,7 @@ src/go_api/
     container/         # Dependency injection
     domain/            # Domain logic
     infrastructure/    # Repositories, gRPC client
-    interfaces/        # HTTP/WebSocket handlers
+    interfaces/        # HTTP/WebRTC signaling handlers
     telemetry/         # Observability
 
 src/front-end/        # Lit Web Components + React (Vite)
@@ -494,13 +491,13 @@ The current architecture provides a solid foundation, but the vision extends to 
 **Current Challenge**: The gRPC server requires NVIDIA containers for CUDA processing, but the Go web server is now decoupled and can run without GPU dependencies. This enables cloud deployment of the web server while GPU processing remains on dedicated hardware.
 
 **Planned Evolution**:
-- **WebRTC Integration**: Replace WebSocket with WebRTC for direct frame streaming to the CUDA microservice. This addresses latency concerns inherent in microservices architectures by enabling peer-to-peer communication with minimal overhead.
-- **WebSocket Deprecation**: Gradually migrate from WebSocket to WebRTC using feature flags. This allows A/B testing and metrics collection to validate performance improvements and ensure smooth transition.
-- **Feature Flags Strategy**: Use feature flags throughout the migration to:
+- **WebRTC Integration**: WebRTC signaling is now the primary transport for real-time frame streaming, replacing the previous WebSocket implementation. The system uses WebRTC for direct peer-to-peer communication with minimal overhead, addressing latency concerns inherent in microservices architectures.
+- **WebSocket Migration Complete**: The migration from WebSocket to WebRTC has been completed. WebSocket handlers and related infrastructure have been removed from the codebase (commit `9b4a7ac`).
+- **Feature Flags Strategy**: Use feature flags for future enhancements:
   - Enable gradual rollout of new architecture
-  - Collect metrics comparing WebSocket vs WebRTC performance
-  - Validate hypotheses about latency and throughput
-  - Allow quick rollback if issues arise
+  - Collect metrics on WebRTC performance and latency
+  - Validate hypotheses about throughput and resource utilization
+  - Allow quick configuration changes without redeployment
 
 ### Multi-Accelerator Support
 
@@ -533,8 +530,8 @@ The current architecture provides a solid foundation, but the vision extends to 
 
 
 **Metrics & Validation**: Feature flags enable continuous metrics collection:
-- Latency comparison: WebSocket vs WebRTC
-- Throughput analysis: CGO vs gRPC vs WebRTC
+- Latency analysis: WebRTC signaling performance
+- Throughput analysis: gRPC vs WebRTC transport
 - Performance benchmarks: CUDA vs OpenCL vs ARM
 - Resource utilization across different architectures
 

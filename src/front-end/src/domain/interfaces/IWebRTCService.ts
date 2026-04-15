@@ -1,4 +1,12 @@
-import type { WebRTCSession } from '../value-objects/WebRTCSession';
+import type { WebRTCSession, WebRTCSessionMode } from '../value-objects/WebRTCSession';
+import type { ProcessImageRequest } from '../../gen/image_processor_service_pb';
+
+export type CreateWebRTCSessionOptions = {
+  mode?: WebRTCSessionMode;
+  useDataChannel?: boolean;
+  localStream?: MediaStream | null;
+  onRemoteStream?: (stream: MediaStream) => void;
+};
 
 export interface IWebRTCService {
   initialize(): Promise<void>;
@@ -8,10 +16,11 @@ export interface IWebRTCService {
   getUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream>;
   isSupported(): boolean;
   setupPingChannel(sessionId: string): Promise<void>;
-  createSession(sourceId: string): Promise<WebRTCSession>;
+  createSession(sourceId: string, options?: CreateWebRTCSessionOptions): Promise<WebRTCSession>;
+  getDataChannel(sessionId: string): RTCDataChannel | null;
+  sendControlRequest(sessionId: string, request: ProcessImageRequest): void;
   closeSession(sessionId: string): Promise<void>;
   startHeartbeat(sessionId: string, intervalMs: number): void;
   stopHeartbeat(sessionId: string): void;
   getActiveSessions(): WebRTCSession[];
 }
-

@@ -351,6 +351,116 @@ export class CloseSessionResponse extends Message<CloseSessionResponse> {
 }
 
 /**
+ * @generated from message cuda_learning.PollEventsRequest
+ */
+export class PollEventsRequest extends Message<PollEventsRequest> {
+  /**
+   * @generated from field: string session_id = 1 [json_name = "session_id"];
+   */
+  sessionId = "";
+
+  /**
+   * @generated from field: int64 cursor = 3;
+   */
+  cursor = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 timeout_ms = 5 [json_name = "timeout_ms"];
+   */
+  timeoutMs = protoInt64.zero;
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 7 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<PollEventsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.PollEventsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "cursor", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 5, name: "timeout_ms", jsonName: "timeout_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 7, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PollEventsRequest {
+    return new PollEventsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PollEventsRequest {
+    return new PollEventsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PollEventsRequest {
+    return new PollEventsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PollEventsRequest | PlainMessage<PollEventsRequest> | undefined, b: PollEventsRequest | PlainMessage<PollEventsRequest> | undefined): boolean {
+    return proto3.util.equals(PollEventsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.PollEventsResponse
+ */
+export class PollEventsResponse extends Message<PollEventsResponse> {
+  /**
+   * @generated from field: repeated cuda_learning.SignalingMessage events = 1;
+   */
+  events: SignalingMessage[] = [];
+
+  /**
+   * @generated from field: int64 next_cursor = 3 [json_name = "next_cursor"];
+   */
+  nextCursor = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 poll_timeout_ms = 5 [json_name = "poll_timeout_ms"];
+   */
+  pollTimeoutMs = protoInt64.zero;
+
+  /**
+   * @generated from field: cuda_learning.TraceContext trace_context = 7 [json_name = "trace_context"];
+   */
+  traceContext?: TraceContext;
+
+  constructor(data?: PartialMessage<PollEventsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.PollEventsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "events", kind: "message", T: SignalingMessage, repeated: true },
+    { no: 3, name: "next_cursor", jsonName: "next_cursor", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 5, name: "poll_timeout_ms", jsonName: "poll_timeout_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 7, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PollEventsResponse {
+    return new PollEventsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PollEventsResponse {
+    return new PollEventsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PollEventsResponse {
+    return new PollEventsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PollEventsResponse | PlainMessage<PollEventsResponse> | undefined, b: PollEventsResponse | PlainMessage<PollEventsResponse> | undefined): boolean {
+    return proto3.util.equals(PollEventsResponse, a, b);
+  }
+}
+
+/**
  * @generated from message cuda_learning.KeepAlive
  */
 export class KeepAlive extends Message<KeepAlive> {

@@ -5,7 +5,7 @@ This directory contains checksums for integration tests.
 ## Images
 
 Test images are loaded from the project's `data/` directory to avoid duplication:
-- `../../../../data/lena.png`: Standard test image used for image processing validation
+- `../../../../../data/lena.png`: Standard test image used for image processing validation
 
 ## Checksums
 

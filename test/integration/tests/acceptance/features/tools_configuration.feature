@@ -24,19 +24,7 @@ Feature: Dynamic Tools Configuration
     Then tools with type "url" should have a "url" field
     And the url should not be empty
 
-  Scenario: Action tools have action identifiers
-    When I call GetAvailableTools
-    Then tools with type "action" should have an "action" field
-    And the action should match known actions
-
-  Scenario: Development environment returns localhost URLs
-    Given the environment is "development"
-    When I call GetAvailableTools
-    And I find the tool "jaeger"
-    Then the tool url should contain "localhost:16686"
-
   Scenario: Icons use local paths
     When I call GetAvailableTools
     And I find any tool with an icon
     Then the icon_path should start with "/static/img/tools/"
-

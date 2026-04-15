@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, createEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FilterPanel, type ActiveFilterState } from './FilterPanel';
 import type {
@@ -82,6 +82,32 @@ afterEach(() => {
   vi.clearAllMocks();
   document.body.replaceChildren();
 });
+
+// --- Helpers ---
+
+/** Returns all filter cards in current render order. */
+function getFilterCards(): HTMLElement[] {
+  const filtersList = screen.getByText('Filters').nextElementSibling as HTMLElement;
+  return Array.from(filtersList.querySelectorAll('[data-filter-name]')) as HTMLElement[];
+}
+
+/** Fires a dragStart event with a mocked dataTransfer to avoid JSDOM setDragImage errors. */
+function fireDragStart(element: HTMLElement): void {
+  const event = createEvent.dragStart(element);
+  Object.defineProperty(event, 'dataTransfer', {
+    value: {
+      effectAllowed: 'move',
+      dropEffect: 'move',
+      setData: vi.fn(),
+      getData: vi.fn(),
+      setDragImage: vi.fn(),
+    },
+    writable: true,
+  });
+  fireEvent(element, event);
+}
+
+// --- Tests ---
 
 describe('FilterPanel', () => {
   it('renders filter list with all filters', () => {
@@ -171,6 +197,25 @@ describe('FilterPanel', () => {
     expect(filterBody.className).not.toContain('expanded');
   });
 
+  it('Success_CollapsingExpandedFilterKeepsItEnabled', () => {
+    const onFiltersChange = vi.fn();
+    render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+
+    const blurCard = screen.getByTestId('filter-checkbox-blur').closest('[data-filter-id="blur"]') as HTMLElement;
+    const blurHeader = blurCard.querySelector('[class*="filterHeader"]') as HTMLElement;
+    const checkbox = screen.getByTestId('filter-checkbox-blur') as HTMLInputElement;
+
+    // Expand (auto-enables)
+    fireEvent.click(blurHeader);
+    expect(checkbox.checked).toBe(true);
+
+    // Collapse — should remain enabled
+    fireEvent.click(blurHeader);
+    expect(checkbox.checked).toBe(true);
+    const filterBody = blurCard.querySelector('[class*="filterBody"]') as HTMLElement;
+    expect(filterBody.className).not.toContain('expanded');
+  });
+
   it('renders number input control', () => {
     const onFiltersChange = vi.fn();
     render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
@@ -212,6 +257,21 @@ describe('FilterPanel', () => {
     expect(screen.getByText('Reflect')).toBeInTheDocument();
   });
 
+  it('Success_SelectParameterChangesOnRadioClick', () => {
+    const onFiltersChange = vi.fn();
+    render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+
+    const blurCard = screen.getByTestId('filter-checkbox-blur').closest('[data-filter-id="blur"]') as HTMLElement;
+    fireEvent.click(blurCard.querySelector('[class*="filterHeader"]') as HTMLElement);
+
+    const reflectRadio = screen.getByTestId('filter-parameter-blur-mode-reflect') as HTMLInputElement;
+    fireEvent.click(reflectRadio);
+
+    const lastCall = onFiltersChange.mock.calls.at(-1)![0] as ActiveFilterState[];
+    const blurFilter = lastCall.find((f) => f.id === 'blur');
+    expect(blurFilter?.parameters.mode).toBe('reflect');
+  });
+
   it('renders slider for range parameter', () => {
     const onFiltersChange = vi.fn();
     render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
@@ -233,6 +293,21 @@ describe('FilterPanel', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
+  it('Success_RangeParameterUpdatesOnSliderChange', () => {
+    const onFiltersChange = vi.fn();
+    render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+
+    const grayscaleCard = screen.getByTestId('filter-checkbox-grayscale').closest('[data-filter-id="grayscale"]') as HTMLElement;
+    fireEvent.click(grayscaleCard.querySelector('[class*="filterHeader"]') as HTMLElement);
+
+    const slider = screen.getByTestId('filter-parameter-grayscale-intensity') as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: '1.5' } });
+
+    const lastCall = onFiltersChange.mock.calls.at(-1)![0] as ActiveFilterState[];
+    const grayscaleFilter = lastCall.find((f) => f.id === 'grayscale');
+    expect(grayscaleFilter?.parameters.intensity).toBe('1.5');
+  });
+
   it('renders checkbox for checkbox parameter', () => {
     const onFiltersChange = vi.fn();
     render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
@@ -246,6 +321,23 @@ describe('FilterPanel', () => {
     const checkbox = screen.getByTestId('filter-parameter-grayscale-enabled') as HTMLInputElement;
     expect(checkbox.type).toBe('checkbox');
     expect(checkbox.checked).toBe(true);
+  });
+
+  it('Success_CheckboxParameterTogglesOnChange', () => {
+    const onFiltersChange = vi.fn();
+    render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+
+    const grayscaleCard = screen.getByTestId('filter-checkbox-grayscale').closest('[data-filter-id="grayscale"]') as HTMLElement;
+    fireEvent.click(grayscaleCard.querySelector('[class*="filterHeader"]') as HTMLElement);
+
+    const paramCheckbox = screen.getByTestId('filter-parameter-grayscale-enabled') as HTMLInputElement;
+    expect(paramCheckbox.checked).toBe(true);
+
+    fireEvent.click(paramCheckbox);
+
+    const lastCall = onFiltersChange.mock.calls.at(-1)![0] as ActiveFilterState[];
+    const grayscaleFilter = lastCall.find((f) => f.id === 'grayscale');
+    expect(grayscaleFilter?.parameters.enabled).toBe('false');
   });
 
   it('updates parameter value and calls onFiltersChange', () => {
@@ -295,6 +387,24 @@ describe('FilterPanel', () => {
     );
 
     expect(mockToastError).toHaveBeenCalledWith('Invalid Value', expect.stringContaining('at most 10'));
+  });
+
+  it('Error_ClampsNumberInputBelowMin', async () => {
+    const onFiltersChange = vi.fn();
+    render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+
+    const blurCard = screen.getByTestId('filter-checkbox-blur').closest('[data-filter-id="blur"]') as HTMLElement;
+    fireEvent.click(blurCard.querySelector('[class*="filterHeader"]') as HTMLElement);
+
+    const numberInput = screen.getByTestId('filter-parameter-blur-radius') as HTMLInputElement;
+    fireEvent.change(numberInput, { target: { value: '-5' } });
+
+    await waitFor(() => {
+      expect(numberInput.value).toBe('1');
+    });
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalled(), { timeout: 500 });
+    expect(mockToastError).toHaveBeenCalledWith('Invalid Value', expect.stringContaining('at least 1'));
   });
 
   it('supports drag and drop reordering', async () => {
@@ -348,5 +458,160 @@ describe('FilterPanel', () => {
 
     const reflectRadio = screen.getByTestId('filter-parameter-blur-mode-reflect') as HTMLInputElement;
     expect(reflectRadio.checked).toBe(true);
+  });
+
+  // --- Drag and Drop ---
+
+  describe('Drag and Drop', () => {
+    it('Success_ReordersFiltersAfterDragAndDrop', () => {
+      const onFiltersChange = vi.fn();
+      render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+
+      const [firstCard, secondCard] = getFilterCards();
+      expect(firstCard.getAttribute('data-filter-name')).toBe('Gaussian Blur');
+      expect(secondCard.getAttribute('data-filter-name')).toBe('Grayscale');
+
+      fireDragStart(firstCard);
+      fireEvent.dragEnter(secondCard);
+      fireEvent.drop(secondCard);
+
+      const [newFirst, newSecond] = getFilterCards();
+      expect(newFirst.getAttribute('data-filter-name')).toBe('Grayscale');
+      expect(newSecond.getAttribute('data-filter-name')).toBe('Gaussian Blur');
+    });
+
+    it('Success_ReorderCallsOnFiltersChangeWithNewOrder', () => {
+      const onFiltersChange = vi.fn();
+      render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+
+      // Enable both filters first so they show up in active filters
+      fireEvent.click(screen.getByTestId('filter-checkbox-blur'));
+      fireEvent.click(screen.getByTestId('filter-checkbox-grayscale'));
+      onFiltersChange.mockClear();
+
+      const [firstCard, secondCard] = getFilterCards();
+      fireDragStart(firstCard);
+      fireEvent.dragEnter(secondCard);
+      fireEvent.drop(secondCard);
+
+      expect(onFiltersChange).toHaveBeenCalled();
+      const lastCall = onFiltersChange.mock.calls.at(-1)![0] as ActiveFilterState[];
+      expect(lastCall[0].id).toBe('grayscale');
+      expect(lastCall[1].id).toBe('blur');
+    });
+
+    it('Success_AppliesDraggingClassToSourceCard', () => {
+      render(<FilterPanel filters={mockFilters} onFiltersChange={vi.fn()} />);
+
+      const [firstCard] = getFilterCards();
+      expect(firstCard.className).not.toContain('dragging');
+
+      fireDragStart(firstCard);
+
+      expect(firstCard.className).toContain('dragging');
+    });
+
+    it('Success_AppliesDragOverHighlightToTargetCard', () => {
+      render(<FilterPanel filters={mockFilters} onFiltersChange={vi.fn()} />);
+
+      const [firstCard, secondCard] = getFilterCards();
+      fireDragStart(firstCard);
+      fireEvent.dragEnter(secondCard);
+
+      expect(secondCard.className).toContain('dragOver');
+      expect(firstCard.className).not.toContain('dragOver');
+    });
+
+    it('Success_SourceCardHasNoDragOverHighlight', () => {
+      render(<FilterPanel filters={mockFilters} onFiltersChange={vi.fn()} />);
+
+      const [firstCard] = getFilterCards();
+      fireDragStart(firstCard);
+      fireEvent.dragEnter(firstCard);
+
+      // Source card should not get dragOver highlight (draggedIndex === dragOverIndex)
+      expect(firstCard.className).not.toContain('dragOver');
+    });
+
+    it('Success_ClearsAllDragStateOnDragEnd', () => {
+      render(<FilterPanel filters={mockFilters} onFiltersChange={vi.fn()} />);
+
+      const [firstCard, secondCard] = getFilterCards();
+      fireDragStart(firstCard);
+      fireEvent.dragEnter(secondCard);
+
+      expect(firstCard.className).toContain('dragging');
+      expect(secondCard.className).toContain('dragOver');
+
+      fireEvent.dragEnd(firstCard);
+
+      expect(firstCard.className).not.toContain('dragging');
+      expect(secondCard.className).not.toContain('dragOver');
+    });
+
+    it('Edge_NoReorderWhenDroppedOnSameCard', () => {
+      const onFiltersChange = vi.fn();
+      render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+      onFiltersChange.mockClear();
+
+      const [firstCard] = getFilterCards();
+      fireDragStart(firstCard);
+      fireEvent.drop(firstCard);
+
+      // Order unchanged
+      const [newFirst, newSecond] = getFilterCards();
+      expect(newFirst.getAttribute('data-filter-name')).toBe('Gaussian Blur');
+      expect(newSecond.getAttribute('data-filter-name')).toBe('Grayscale');
+
+      // No extra onFiltersChange call (localFilters did not change)
+      expect(onFiltersChange).not.toHaveBeenCalled();
+    });
+
+    it('Edge_DragLeaveRemovesHighlightWhenCursorExitsCard', () => {
+      render(<FilterPanel filters={mockFilters} onFiltersChange={vi.fn()} />);
+
+      const [firstCard, secondCard] = getFilterCards();
+      fireDragStart(firstCard);
+      fireEvent.dragEnter(secondCard);
+      expect(secondCard.className).toContain('dragOver');
+
+      // Simulate leaving the card for an element outside it
+      const leaveEvent = createEvent.dragLeave(secondCard);
+      Object.defineProperty(leaveEvent, 'relatedTarget', { value: document.body, writable: true });
+      fireEvent(secondCard, leaveEvent);
+
+      expect(secondCard.className).not.toContain('dragOver');
+    });
+
+    it('Edge_DragLeaveDoesNotRemoveHighlightWhenMovingBetweenChildren', () => {
+      render(<FilterPanel filters={mockFilters} onFiltersChange={vi.fn()} />);
+
+      const [firstCard, secondCard] = getFilterCards();
+      fireDragStart(firstCard);
+      fireEvent.dragEnter(secondCard);
+      expect(secondCard.className).toContain('dragOver');
+
+      // Simulate leaving to a child element of the card (e.g. the header inside)
+      const childEl = secondCard.querySelector('[class*="filterHeader"]') as HTMLElement;
+      const leaveEvent = createEvent.dragLeave(secondCard);
+      Object.defineProperty(leaveEvent, 'relatedTarget', { value: childEl, writable: true });
+      fireEvent(secondCard, leaveEvent);
+
+      // dragOver highlight should remain since relatedTarget is a child
+      expect(secondCard.className).toContain('dragOver');
+    });
+
+    it('Edge_CanReorderFromSecondToFirst', () => {
+      render(<FilterPanel filters={mockFilters} onFiltersChange={vi.fn()} />);
+
+      const [firstCard, secondCard] = getFilterCards();
+      fireDragStart(secondCard);
+      fireEvent.dragEnter(firstCard);
+      fireEvent.drop(firstCard);
+
+      const [newFirst, newSecond] = getFilterCards();
+      expect(newFirst.getAttribute('data-filter-name')).toBe('Grayscale');
+      expect(newSecond.getAttribute('data-filter-name')).toBe('Gaussian Blur');
+    });
   });
 });

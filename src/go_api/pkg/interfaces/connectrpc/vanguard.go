@@ -6,7 +6,10 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/vanguard"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
@@ -15,17 +18,16 @@ import (
 // VanguardConfig groups all dependencies needed to setup Vanguard transcoder
 type VanguardConfig struct {
 	ImageProcessorHandler *ImageProcessorHandler
-	GetStreamConfigUC     *application.GetStreamConfigUseCase
 	FeatureFlagRepo       domain.FeatureFlagRepository
-	ListInputsUC          *application.ListInputsUseCase
-	EvaluateFFUC          *application.EvaluateFeatureFlagUseCase
-	GetSystemInfoUC       *application.GetSystemInfoUseCase
+	ListInputsUC          *videoapp.ListInputsUseCase
+	EvaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
+	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase
 	ConfigManager         *config.Manager
-	ProcessorCapsUC       application.ProcessorCapabilitiesUseCase
-	ListAvailableImagesUC *application.ListAvailableImagesUseCase
-	UploadImageUC         *application.UploadImageUseCase
-	ListVideosUC          *application.ListVideosUseCase
-	UploadVideoUC         *application.UploadVideoUseCase
+	ProcessorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
+	ListAvailableImagesUC *imageapp.ListAvailableImagesUseCase
+	UploadImageUC         *imageapp.UploadImageUseCase
+	ListVideosUC          *videoapp.ListVideosUseCase
+	UploadVideoUC         *videoapp.UploadVideoUseCase
 	Interceptors          []connect.Interceptor
 }
 
@@ -43,13 +45,12 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 	)
 
 	configHandler := NewConfigHandler(ConfigHandlerDeps{
-		GetStreamConfigUC: cfg.GetStreamConfigUC,
-		FeatureFlagRepo:   cfg.FeatureFlagRepo,
-		ListInputsUC:      cfg.ListInputsUC,
-		EvaluateFFUC:      cfg.EvaluateFFUC,
-		GetSystemInfoUC:   cfg.GetSystemInfoUC,
-		ConfigManager:     cfg.ConfigManager,
-		ProcessorCapsUC:   cfg.ProcessorCapsUC,
+		FeatureFlagRepo: cfg.FeatureFlagRepo,
+		ListInputsUC:    cfg.ListInputsUC,
+		EvaluateFFUC:    cfg.EvaluateFFUC,
+		GetSystemInfoUC: cfg.GetSystemInfoUC,
+		ConfigManager:   cfg.ConfigManager,
+		ProcessorCapsUC: cfg.ProcessorCapsUC,
 	})
 	_, configConnectHandler := genconnect.NewConfigServiceHandler(configHandler, opts...)
 

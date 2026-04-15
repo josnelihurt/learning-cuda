@@ -331,14 +331,13 @@ cpp_accelerator/
 │   └── filters/          # Filter equivalence tests
 │       └── blur_equivalence_test.cpp
 ├── ports/               # Ports layer - external adapters
-│   ├── cgo/             # CGO C++ interop (deprecated, not used by Go server)
-│   │   └── cgo_api.cpp
-│   ├── grpc/            # gRPC service implementation (primary integration path)
+│   ├── grpc/            # gRPC & WebRTC service implementation (primary integration path)
 │   │   ├── image_processor_service_impl.h/cpp
 │   │   ├── processor_engine_adapter.h/cpp
 │   │   ├── processor_engine_provider.h
-│   │   ├── webrtc_manager.h/cpp
-│   │   ├── webrtc_signaling_service_impl.h/cpp
+│   │   ├── webrtc_manager.h/cpp              # WebRTC session management
+│   │   ├── webrtc_signaling_service_impl.h/cpp # WebRTC signaling
+│   │   ├── live_video_processor.h/cpp         # Real-time video processing
 │   │   └── server_main.cpp
 │   └── shared_lib/      # Shared library exports
 │       ├── processor_api.h
@@ -351,8 +350,6 @@ cpp_accelerator/
 │   ├── telemetry.h/cpp  # OpenTelemetry integration
 │   ├── otel_log_sink.h/cpp  # OpenTelemetry log sink for spdlog
 │   └── result.h         # Error handling types
-├── cmd/                 # Command-line utilities
-│   └── hello_cuda/      # CUDA hello world example
 ├── docker-build-base/   # Docker build infrastructure
 │   ├── Dockerfile       # Base image for Bazel builds
 │   └── Dockerfile.mock  # Mock image for testing
@@ -399,25 +396,59 @@ The library provides a gRPC service implementation (`ImageProcessorServiceImpl`)
 
 The gRPC service uses the `ProcessorEngineProvider` interface pattern to abstract the underlying processing engine. `ProcessorEngineAdapter` adapts the `ProcessorEngine` (from shared_lib port) to the provider interface, enabling the same processing logic to be used by both C API and gRPC interfaces.
 
-### Command Pattern
+### WebRTC Real-time Video Processing
 
-The library implements a command pattern for program execution through the `CommandFactory` and `ICommand` interface.
+The library provides WebRTC-based real-time video streaming capabilities through WebRTCManager and WebRTCSignalingService.
 
 **Components**:
 
+- **WebRTCManager** (`webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, and session lifecycle
+  - Creates and manages WebRTC PeerConnection instances
+  - Handles ICE candidate exchange between peers
+  - Integrates with LiveVideoProcessor for frame processing
+  - Cleans up inactive sessions
+
+- **WebRTCSignalingServiceImpl** (`webrtc_signaling_service_impl.h/cpp`): Implements the signaling protocol for WebRTC session establishment
+  - Implements `WebRTCSignalingService` from `webrtc_signal.proto`
+  - Supports bidirectional streaming via `SignalingStream`
+  - Exposes HTTP endpoints for signaling operations
+  - Handles SDP offer/answer exchange
+
+- **LiveVideoProcessor** (`live_video_processor.h/cpp`): Handles real-time video decoding, filtering, and re-encoding
+  - Decodes incoming H.264 video frames
+  - Applies filters in real-time using ProcessorEngine
+  - Re-encodes processed frames back to H.264
+  - Manages frame buffers and timing
+
+**Proto Services** (from `webrtc_signal.proto`):
+
+- **StartSession**: Establishes WebRTC session with SDP offer
+- **SendIceCandidate**: Exchanges ICE candidates for connection establishment
+- **PollEvents**: Polls for signaling events (candidates, answers)
+- **CloseSession**: Closes WebRTC session and releases resources
+- **SignalingStream**: Bidirectional streaming for real-time signaling events
+
+**Architecture**:
+
+WebRTC replaces WebSocket for real-time video transport, providing:
+- Lower latency through peer-to-peer communication
+- H.264 video codec support for efficient streaming
+- Direct integration with ProcessorEngine for per-frame processing
+- ICE candidate handling for NAT traversal
+
+### Command Pattern
+
+The library previously implemented a command pattern for program execution through `CommandFactory` and `ICommand` interface.
+
+**NOTE**: All commands have been migrated to `FilterPipeline`. The `CommandFactory::register_commands()` method is now empty and kept as a placeholder. The command pattern infrastructure is maintained for potential future use but is not currently active in the processing pipeline.
+
+**Historical Components**:
+
 - **ICommand**: Interface defining command execution contract
-  - `execute()`: Returns `Result<void>` indicating success or failure
+- **CommandFactory**: Factory for creating commands (now placeholder)
+- **ProgramConfig**: Configuration structure for program execution
 
-- **CommandFactory**: Factory for creating commands based on program type
-  - `create(ProgramType, ProgramConfig)`: Creates appropriate command instance
-  - Supports `ProgramType` enum: `Passthrough`, `CudaImageFilters`, `CpuImageFilters`
-
-- **ProgramConfig**: Configuration structure containing:
-  - `input_image_path`: Source image file path
-  - `output_image_path`: Destination image file path
-  - `program_type`: Type of processing program to execute
-
-The command factory integrates with `ConfigManager` to parse command-line arguments and create the appropriate command for execution.
+Current processing is handled directly by `FilterPipeline` which orchestrates filter chains without the command pattern abstraction layer.
 
 ### Buffer Pool
 
@@ -611,7 +642,7 @@ To add a new filter (e.g., Gaussian Blur):
 1. **Domain**: Implement `IFilter` interface if needed (current filters use existing interfaces)
 2. **Infrastructure**: Implement CPU and CUDA filter classes
 3. **Application**: Filters are automatically usable via FilterPipeline
-4. **Ports**: Update C API handlers in `ports/cgo/` and `ports/shared_lib/` if new parameters required
+4. **Ports**: Update the service/shared-library adapters if new parameters are required
 
 Example flow for a new filter:
 ```
@@ -619,7 +650,7 @@ proto/common.proto: Define filter parameters (if needed)
 infrastructure/cpu/: Implement CPU filter class
 infrastructure/cuda/: Implement CUDA filter class
 ports/shared_lib/: Wire up parameters to filters in cuda_processor_impl.cpp
-ports/cgo/: Wire up parameters to filters in cgo_api.cpp (if using CGO)
+ports/grpc/: Wire up parameters to filters when the service transport needs them
 ```
 
 The FilterPipeline automatically handles filter composition and execution order.
@@ -640,38 +671,38 @@ The library includes comprehensive test coverage across all layers:
 
 Run all tests:
 ```bash
-bazel test //cpp_accelerator/...
+bazel test //src/cpp_accelerator/...
 ```
 
 Run specific test:
 ```bash
-bazel test //cpp_accelerator/core:logger_test
-bazel test //cpp_accelerator/application/pipeline:filter_pipeline_test
-bazel test //cpp_accelerator/application/commands:commands_test
-bazel test //cpp_accelerator/infrastructure/filters:blur_equivalence_test
-bazel test //cpp_accelerator/ports/grpc:image_processor_service_impl_test
+bazel test //src/cpp_accelerator/core:logger_test
+bazel test //src/cpp_accelerator/application/pipeline:filter_pipeline_test
+bazel test //src/cpp_accelerator/application/commands:commands_test
+bazel test //src/cpp_accelerator/infrastructure/filters:blur_equivalence_test
+bazel test //src/cpp_accelerator/ports/grpc:image_processor_service_impl_test
 ```
 
 Run equivalence tests to verify CPU/CUDA consistency:
 ```bash
-bazel test //cpp_accelerator/infrastructure/filters:blur_equivalence_test
+bazel test //src/cpp_accelerator/infrastructure/filters:blur_equivalence_test
 ```
 
 ## Building
 
 Build shared library:
 ```bash
-bazel build //cpp_accelerator/ports/shared_lib:libcuda_processor.so
+bazel build //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so
 ```
 
 Build gRPC server:
 ```bash
-bazel build //cpp_accelerator/ports/grpc:image_processor_grpc_server
+bazel build //src/cpp_accelerator/ports/grpc:image_processor_grpc_server
 ```
 
 Build all:
 ```bash
-bazel build //cpp_accelerator/...
+bazel build //src/cpp_accelerator/...
 ```
 
 ## Version Compatibility
@@ -682,4 +713,3 @@ The library uses semantic versioning:
 - **Patch**: Bug fixes, backward compatible
 
 The C API checks version compatibility at runtime to prevent mismatched library/loader combinations.
-

@@ -33,6 +33,12 @@ export class TestHelpers {
 
   async dismissTourIfActive(): Promise<void> {
     try {
+      const reactSkipButton = this.page.getByRole('button', { name: 'Skip' }).first();
+      if (await reactSkipButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await reactSkipButton.click({ force: true });
+        await this.page.waitForTimeout(500);
+      }
+
       await this.page.waitForSelector('app-tour', { timeout: 2000, state: 'attached' }).catch(() => {
         // Tour might not be present, ignore
       });
@@ -399,4 +405,3 @@ export class TestHelpers {
     );
   }
 }
-

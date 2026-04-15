@@ -1,6 +1,24 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 
 cc_library(
+    name = "live_video_processor_lib",
+    srcs = ["live_video_processor.cpp"],
+    hdrs = ["live_video_processor.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//proto:image_processor_service_cc_proto",
+        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+        "@spdlog",
+    ],
+    linkopts = [
+        "-lavcodec",
+        "-lavutil",
+        "-lswscale",
+    ],
+)
+
+cc_library(
     name = "processor_engine_contract",
     hdrs = ["processor_engine_provider.h"],
     visibility = ["//visibility:public"],
@@ -27,6 +45,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":processor_engine_contract",
+        ":webrtc_manager_lib",
         "//proto:image_processor_service_cc_proto",
         "//proto:image_processor_service_grpc",
         "@com_github_grpc_grpc//:grpc++",
@@ -40,6 +59,9 @@ cc_library(
     hdrs = ["webrtc_manager.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":live_video_processor_lib",
+        "//proto:image_processor_service_cc_proto",
+        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
         "@spdlog",
         "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
     ],
@@ -90,4 +112,3 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
-

@@ -331,8 +331,6 @@ cpp_accelerator/
 │   └── filters/          # Filter equivalence tests
 │       └── blur_equivalence_test.cpp
 ├── ports/               # Ports layer - external adapters
-│   ├── cgo/             # CGO C++ interop (deprecated, not used by Go server)
-│   │   └── cgo_api.cpp
 │   ├── grpc/            # gRPC service implementation (primary integration path)
 │   │   ├── image_processor_service_impl.h/cpp
 │   │   ├── processor_engine_adapter.h/cpp
@@ -351,8 +349,6 @@ cpp_accelerator/
 │   ├── telemetry.h/cpp  # OpenTelemetry integration
 │   ├── otel_log_sink.h/cpp  # OpenTelemetry log sink for spdlog
 │   └── result.h         # Error handling types
-├── cmd/                 # Command-line utilities
-│   └── hello_cuda/      # CUDA hello world example
 ├── docker-build-base/   # Docker build infrastructure
 │   ├── Dockerfile       # Base image for Bazel builds
 │   └── Dockerfile.mock  # Mock image for testing
@@ -611,7 +607,7 @@ To add a new filter (e.g., Gaussian Blur):
 1. **Domain**: Implement `IFilter` interface if needed (current filters use existing interfaces)
 2. **Infrastructure**: Implement CPU and CUDA filter classes
 3. **Application**: Filters are automatically usable via FilterPipeline
-4. **Ports**: Update C API handlers in `ports/cgo/` and `ports/shared_lib/` if new parameters required
+4. **Ports**: Update the service/shared-library adapters if new parameters are required
 
 Example flow for a new filter:
 ```
@@ -619,7 +615,7 @@ proto/common.proto: Define filter parameters (if needed)
 infrastructure/cpu/: Implement CPU filter class
 infrastructure/cuda/: Implement CUDA filter class
 ports/shared_lib/: Wire up parameters to filters in cuda_processor_impl.cpp
-ports/cgo/: Wire up parameters to filters in cgo_api.cpp (if using CGO)
+ports/grpc/: Wire up parameters to filters when the service transport needs them
 ```
 
 The FilterPipeline automatically handles filter composition and execution order.
@@ -682,4 +678,3 @@ The library uses semantic versioning:
 - **Patch**: Bug fixes, backward compatible
 
 The C API checks version compatibility at runtime to prevent mismatched library/loader combinations.
-

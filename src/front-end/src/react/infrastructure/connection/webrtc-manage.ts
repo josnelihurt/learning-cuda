@@ -1,8 +1,3 @@
-/**
- * Singleton instance of WebRTCService
- * Exported for use throughout the React application
- */
+import { webrtcService as manageWebRTC } from '@/infrastructure/connection/webrtc-service';
 
-import { WebRTCService } from './WebRTCService';
-
-export const manageWebRTC = new WebRTCService();
+export { manageWebRTC };

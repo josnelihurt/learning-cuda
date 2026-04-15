@@ -127,7 +127,7 @@ export function SettingsPanel() {
                     className={styles.select}
                   >
                     <option value="gRPC">gRPC</option>
-                    <option value="WebSocket">WebSocket</option>
+                    <option value="webrtc">WebRTC</option>
                   </select>
                 </div>
 
@@ -138,7 +138,7 @@ export function SettingsPanel() {
                     value={endpoint.endpoint}
                     onChange={(e) => updateEndpoint(index, 'endpoint', e.target.value)}
                     className={`${styles.input} ${validationErrors[index] ? styles.inputError : ''}`}
-                    placeholder="e.g., /ws or grpc://localhost:50051"
+                    placeholder="e.g., /cuda_learning.WebRTCSignalingService/StartSession"
                   />
                   {validationErrors[index] && (
                     <span className={styles.validationError}>{validationErrors[index]}</span>

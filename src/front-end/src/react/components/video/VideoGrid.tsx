@@ -1,5 +1,6 @@
 import { CameraPreview } from './CameraPreview';
 import { VideoSourceCard } from './VideoSourceCard';
+import type { ActiveFilterState } from '../filters/FilterPanel';
 import './video-grid.css';
 
 export type GridSource = {
@@ -8,6 +9,8 @@ export type GridSource = {
   name: string;
   type: string;
   imageSrc: string;
+  remoteStream?: MediaStream | null;
+  filters?: ActiveFilterState[];
 };
 
 type CameraFramePayload = {
@@ -24,6 +27,7 @@ type VideoGridProps = {
   onCloseSource: (sourceId: string) => void;
   onChangeImageRequest: (sourceId: string, sourceNumber: number) => void;
   onCameraFrame: (sourceId: string, payload: CameraFramePayload) => void;
+  onCameraStreamReady: (sourceId: string, stream: MediaStream) => void;
   onCameraStatus: (status: string, type: 'success' | 'error' | 'warning' | 'inactive') => void;
   onCameraError: (title: string, message: string) => void;
 };
@@ -43,6 +47,7 @@ export function VideoGrid({
   onCloseSource,
   onChangeImageRequest,
   onCameraFrame,
+  onCameraStreamReady,
   onCameraStatus,
   onCameraError,
 }: VideoGridProps) {
@@ -76,7 +81,11 @@ export function VideoGrid({
           >
             {source.type === 'camera' ? (
               <CameraPreview
+                captureFrames={false}
+                remoteStream={source.remoteStream ?? null}
+                activeFilters={source.filters ?? []}
                 onFrameCaptured={(payload) => onCameraFrame(source.id, payload)}
+                onStreamReady={(stream) => onCameraStreamReady(source.id, stream)}
                 onCameraStatus={onCameraStatus}
                 onCameraError={onCameraError}
               />

@@ -10,16 +10,9 @@ func NewTestContext() *TestContext {
 }
 
 func (tc *TestContext) Reset() {
-	if tc.BDDContext != nil {
-		tc.BDDContext.CloseWebSocket()
-	}
 	if tc.serviceURL != "" {
 		tc.BDDContext = NewBDDContext(tc.serviceURL)
 	}
 }
 
-func (tc *TestContext) CloseWebSocket() {
-	if tc.BDDContext != nil {
-		tc.BDDContext.CloseWebSocket()
-	}
-}
+func (tc *TestContext) CloseWebSocket() {}

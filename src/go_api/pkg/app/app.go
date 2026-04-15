@@ -22,13 +22,13 @@ type App struct {
 	config                *config.Manager
 	appContext            context.Context
 	useCase               *application.ProcessImageUseCase
-	grpcProcessor         domain.ImageProcessor
 	grpcProcessorClient   *processor.GRPCClient
 	processorCapsUC       application.ProcessorCapabilitiesUseCase
 	getSystemInfoUC       *application.GetSystemInfoUseCase
 	featureFlagRepo       domain.FeatureFlagRepository
 	listInputsUC          *application.ListInputsUseCase
 	evaluateFFUC          *application.EvaluateFeatureFlagUseCase
+	streamVideoUC         *application.StreamVideoUseCase
 	listAvailableImagesUC *application.ListAvailableImagesUseCase
 	uploadImageUC         *application.UploadImageUseCase
 	listVideosUC          *application.ListVideosUseCase
@@ -61,12 +61,6 @@ func WithConfig(cfg *config.Manager) Option {
 func WithUseCase(useCase *application.ProcessImageUseCase) Option {
 	return func(a *App) {
 		a.useCase = useCase
-	}
-}
-
-func WithGRPCProcessor(proc domain.ImageProcessor) Option {
-	return func(a *App) {
-		a.grpcProcessor = proc
 	}
 }
 
@@ -103,6 +97,12 @@ func WithListInputsUseCase(uc *application.ListInputsUseCase) Option {
 func WithEvaluateFFUseCase(uc *application.EvaluateFeatureFlagUseCase) Option {
 	return func(a *App) {
 		a.evaluateFFUC = uc
+	}
+}
+
+func WithStreamVideoUseCase(uc *application.StreamVideoUseCase) Option {
+	return func(a *App) {
+		a.streamVideoUC = uc
 	}
 }
 
@@ -186,6 +186,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.useCase,
 		a.processorCapsUC,
 		a.evaluateFFUC,
+		a.streamVideoUC,
 		a.grpcProcessorClient,
 	)
 
@@ -208,6 +209,12 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.uploadImageUC,
 		a.listVideosUC,
 		a.uploadVideoUC,
+		a.interceptors...,
+	)
+
+	connectrpc.RegisterWebRTCSignalingService(
+		mux,
+		a.grpcProcessorClient,
 		a.interceptors...,
 	)
 

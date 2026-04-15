@@ -16,12 +16,12 @@ import (
 )
 
 type ConfigHandler struct {
-	featureFlagRepo   domain.FeatureFlagRepository
-	listInputsUseCase *application.ListInputsUseCase
-	evaluateFFUseCase *application.EvaluateFeatureFlagUseCase
+	featureFlagRepo      domain.FeatureFlagRepository
+	listInputsUseCase    *application.ListInputsUseCase
+	evaluateFFUseCase    *application.EvaluateFeatureFlagUseCase
 	getSystemInfoUseCase *application.GetSystemInfoUseCase
-	configManager     *config.Manager
-	processorCapsUC   application.ProcessorCapabilitiesUseCase
+	configManager        *config.Manager
+	processorCapsUC      application.ProcessorCapabilitiesUseCase
 }
 
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
@@ -36,12 +36,12 @@ type ConfigHandlerDeps struct {
 
 func NewConfigHandler(deps ConfigHandlerDeps) *ConfigHandler {
 	return &ConfigHandler{
-		featureFlagRepo:   deps.FeatureFlagRepo,
-		listInputsUseCase: deps.ListInputsUC,
-		evaluateFFUseCase: deps.EvaluateFFUC,
+		featureFlagRepo:      deps.FeatureFlagRepo,
+		listInputsUseCase:    deps.ListInputsUC,
+		evaluateFFUseCase:    deps.EvaluateFFUC,
 		getSystemInfoUseCase: deps.GetSystemInfoUC,
-		configManager:     deps.ConfigManager,
-		processorCapsUC:   deps.ProcessorCapsUC,
+		configManager:        deps.ConfigManager,
+		processorCapsUC:      deps.ProcessorCapsUC,
 	}
 }
 
@@ -50,6 +50,15 @@ func (h *ConfigHandler) GetStreamConfig(
 	req *connect.Request[pb.GetStreamConfigRequest],
 ) (*connect.Response[pb.GetStreamConfigResponse], error) {
 	span := trace.SpanFromContext(ctx)
+	_ = req
+
+	if h.configManager == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("config manager not available"))
+	}
+
+	if h.configManager.Server.WebRTCSignalingEndpoint == "" {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("webrtc signaling endpoint not configured"))
+	}
 
 	logLevel, err := h.evaluateFFUseCase.EvaluateString(ctx, "frontend_log_level", "default", "INFO")
 	if err != nil || logLevel == "" {
@@ -64,8 +73,8 @@ func (h *ConfigHandler) GetStreamConfig(
 	// Return WebRTC signaling endpoint via ConnectRPC
 	endpoints := []*pb.StreamEndpoint{
 		{
-			Type:           "webrtc-signaling",
-			Endpoint:       "/webrtc.SignalingService/Signaling",
+			Type:           "webrtc",
+			Endpoint:       h.configManager.Server.WebRTCSignalingEndpoint,
 			LogLevel:       logLevel,
 			ConsoleLogging: consoleLogging,
 		},
@@ -74,7 +83,7 @@ func (h *ConfigHandler) GetStreamConfig(
 	logger.FromContext(ctx).Debug().Bool("console_logging", consoleLogging).Msg("StreamEndpoint console_logging value")
 
 	span.SetAttributes(
-		attribute.String("config.endpoint", "/webrtc.SignalingService/Signaling"),
+		attribute.String("config.endpoint", h.configManager.Server.WebRTCSignalingEndpoint),
 		attribute.String("config.log_level", logLevel),
 		attribute.Bool("config.console_logging", consoleLogging),
 		attribute.Int("config.endpoint_count", len(endpoints)),

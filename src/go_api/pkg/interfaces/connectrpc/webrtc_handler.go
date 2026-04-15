@@ -17,13 +17,76 @@ type WebRTCSignalingClient interface {
 }
 
 type WebRTCSignalingHandler struct {
-	client WebRTCSignalingClient
+	client  WebRTCSignalingClient
+	manager *WebRTCSignalingSessionManager
 }
 
 func NewWebRTCSignalingHandler(client WebRTCSignalingClient) *WebRTCSignalingHandler {
 	return &WebRTCSignalingHandler{
-		client: client,
+		client:  client,
+		manager: NewWebRTCSignalingSessionManager(client),
 	}
+}
+
+func (h *WebRTCSignalingHandler) StartSession(
+	ctx context.Context,
+	req *connect.Request[pb.StartSessionRequest],
+) (*connect.Response[pb.StartSessionResponse], error) {
+	resp, err := h.manager.StartSession(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+func (h *WebRTCSignalingHandler) SendIceCandidate(
+	ctx context.Context,
+	req *connect.Request[pb.SendIceCandidateRequest],
+) (*connect.Response[pb.SendIceCandidateResponse], error) {
+	resp, err := h.manager.SendIceCandidate(ctx, req.Msg)
+	if err != nil {
+		if errors.Is(err, errSignalingSessionNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+func (h *WebRTCSignalingHandler) PollEvents(
+	ctx context.Context,
+	req *connect.Request[pb.PollEventsRequest],
+) (*connect.Response[pb.PollEventsResponse], error) {
+	resp, err := h.manager.PollEvents(ctx, req.Msg)
+	if err != nil {
+		switch {
+		case errors.Is(err, errSignalingSessionNotFound):
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		case errors.Is(err, errSignalingSessionClosed):
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		default:
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+func (h *WebRTCSignalingHandler) CloseSession(
+	ctx context.Context,
+	req *connect.Request[pb.CloseSessionRequest],
+) (*connect.Response[pb.CloseSessionResponse], error) {
+	resp, err := h.manager.CloseSession(ctx, req.Msg)
+	if err != nil {
+		if errors.Is(err, errSignalingSessionNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(resp), nil
 }
 
 func getMessageTypeString(msg *pb.SignalingMessage) string {

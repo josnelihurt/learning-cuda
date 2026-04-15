@@ -3,6 +3,7 @@ environment: "development"
 server:
   http_port: ":8080"
   https_port: ":8443"
+  webrtc_signaling_endpoint: "/cuda_learning.WebRTCSignalingService/StartSession"
   tls:
     enabled: true
     cert_file: ".secrets/localhost+2.pem"

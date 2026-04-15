@@ -19,6 +19,7 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/version"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/video"
+	webrtcinfra "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/webrtc"
 )
 
 type Container struct {
@@ -38,6 +39,7 @@ type Container struct {
 	UploadImageUseCase         *application.UploadImageUseCase
 	ListVideosUseCase          *application.ListVideosUseCase
 	UploadVideoUseCase         *application.UploadVideoUseCase
+	StreamVideoUseCase         *application.StreamVideoUseCase
 
 	GRPCProcessorClient *processor.GRPCClient
 	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
@@ -115,6 +117,16 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	listVideosUseCase := application.NewListVideosUseCase(videoRepo)
 	uploadVideoUseCase := application.NewUploadVideoUseCase(videoRepo, "data/videos", "data/video_previews")
+	streamVideoUseCase := application.NewStreamVideoUseCase(
+		ctx,
+		videoRepo,
+		func(videoPath string) (application.StreamVideoPlayer, error) {
+			return video.NewFFmpegVideoPlayer(videoPath)
+		},
+		func(browserSessionID string) (application.StreamVideoPeer, error) {
+			return webrtcinfra.NewGoPeer(grpcClient, browserSessionID), nil
+		},
+	)
 
 	var deviceMonitor domainInterfaces.MQTTDeviceMonitor
 	if cfg.MQTT.Broker != "" {
@@ -139,6 +151,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		UploadImageUseCase:         uploadImageUseCase,
 		ListVideosUseCase:          listVideosUseCase,
 		UploadVideoUseCase:         uploadVideoUseCase,
+		StreamVideoUseCase:         streamVideoUseCase,
 		GRPCProcessorClient:        grpcClient,
 		DeviceMonitor:              deviceMonitor,
 	}, nil

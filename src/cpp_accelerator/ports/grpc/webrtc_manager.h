@@ -13,12 +13,16 @@
 
 #include <rtc/rtc.hpp>
 
+namespace jrb::ports::shared_lib {
+class ProcessorEngine;
+}
+
 namespace jrb::ports::grpc_service {
 
 class WebRTCManager {
 public:
-  WebRTCManager();
-  ~WebRTCManager();
+  explicit WebRTCManager(jrb::ports::shared_lib::ProcessorEngine* engine = nullptr);
+  virtual ~WebRTCManager();
 
   bool Initialize();
   void Shutdown();
@@ -35,8 +39,9 @@ public:
                              std::string* error_message);
 
   std::vector<rtc::Candidate> GetPendingLocalCandidates(const std::string& session_id);
+  virtual void SendToSession(const std::string& session_id, const std::string& bytes);
 
-private:
+ private:
   struct SessionState {
     std::shared_ptr<rtc::PeerConnection> peer_connection;
     std::shared_ptr<rtc::DataChannel> data_channel;
@@ -52,11 +57,17 @@ private:
   std::shared_ptr<SessionState> GetSession(const std::string& session_id);
   void RemoveSession(const std::string& session_id);
   void CleanupInactiveSessions(int timeout_seconds = 30);
+  void RegisterSessionChannel(const std::string& session_id,
+                              const std::shared_ptr<rtc::DataChannel>& data_channel);
+  void UnregisterSessionChannel(const std::string& session_id);
 
+  jrb::ports::shared_lib::ProcessorEngine* engine_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;
   std::mutex sessions_mutex_;
   std::unordered_map<std::string, std::shared_ptr<SessionState>> sessions_;
+  std::mutex session_channels_mutex_;
+  std::unordered_map<std::string, std::weak_ptr<rtc::DataChannel>> session_channels_;
   std::atomic<bool> cleanup_running_;
   std::thread cleanup_thread_;
 };

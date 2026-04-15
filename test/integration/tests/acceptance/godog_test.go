@@ -43,11 +43,6 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		return ctx, nil
 	})
 
-	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-		testCtx.CloseWebSocket()
-		return ctx, nil
-	})
-
 	steps.InitializeGivenSteps(ctx, testCtx)
 	steps.InitializeWhenSteps(ctx, testCtx)
 	steps.InitializeThenSteps(ctx, testCtx)

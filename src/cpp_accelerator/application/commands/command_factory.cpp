@@ -9,7 +9,7 @@ CommandFactory::CommandFactory() {
 void CommandFactory::register_commands() {
   // Command factory is currently empty as all commands have been migrated to FilterPipeline.
   // This factory is kept as a placeholder for future command implementations if needed.
-  // Production code uses FilterPipeline directly via ports/cgo and ports/shared_lib.
+  // Production code uses FilterPipeline directly via the active service and shared library ports.
 }
 
 std::unique_ptr<ICommand> CommandFactory::create(

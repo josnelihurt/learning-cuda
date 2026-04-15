@@ -18,14 +18,30 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/gorilla/websocket"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 var rootPath = "/"
+
+func repoPath(parts ...string) string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return filepath.Join(parts...)
+	}
+
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil {
+			return filepath.Join(append([]string{dir}, parts...)...)
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return filepath.Join(parts...)
+		}
+		dir = parent
+	}
+}
 
 type BDDContext struct {
 	httpClient             *http.Client
@@ -41,8 +57,6 @@ type BDDContext struct {
 	currentImageHeight     int32
 	currentChannels        int32
 	processedImage         []byte
-	wsConnection           *websocket.Conn
-	wsResponse             *pb.WebSocketFrameResponse
 	lastError              error
 	checksums              map[string]string
 	inputSources           []*pb.InputSource
@@ -55,9 +69,6 @@ type BDDContext struct {
 	uploadedImage          *pb.StaticImage
 	availableVideos        []*pb.StaticVideo
 	uploadedVideo          *pb.StaticVideo
-	videoFrames            []*pb.VideoFrameUpdate
-	frameCollector         chan *pb.VideoFrameUpdate
-	stopCollector          chan bool
 	receivedLogLevel       string
 	receivedConsoleLogging bool
 	otlpLogsReceived       bool
@@ -247,7 +258,6 @@ func (c *BDDContext) ThenTheResponseShouldContainEndpoint(expected string) error
 	return nil
 }
 
-
 func (c *BDDContext) ThenTheResponseStatusShouldBe(statusCode int) error {
 	if c.lastResponse == nil {
 		return fmt.Errorf("no response available")
@@ -308,7 +318,7 @@ func (c *BDDContext) loadChecksums() {
 }
 
 func (c *BDDContext) GivenIHaveImage(imageName string) error {
-	imagePath := filepath.Join("..", "..", "..", "data", imageName)
+	imagePath := repoPath("data", imageName)
 
 	pngData, err := os.ReadFile(imagePath)
 	if err != nil {
@@ -556,259 +566,6 @@ func (c *BDDContext) WhenICallStreamProcessVideo() error {
 	return nil
 }
 
-func (c *BDDContext) WhenIConnectToWebSocket(transportFormat string) error {
-	wsURL := c.serviceBaseURL
-	if wsURL[:5] == "https" {
-		wsURL = "wss" + wsURL[5:]
-	} else {
-		wsURL = "ws" + wsURL[4:]
-	}
-	wsURL += "/ws"
-
-	dialer := websocket.Dialer{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	conn, resp, err := dialer.Dial(wsURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to connect to websocket: %w", err)
-	}
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-
-	c.wsConnection = conn
-	c.defaultFormat = transportFormat
-	return nil
-}
-
-func (c *BDDContext) WhenISendWebSocketFrame(filter, accelerator, grayscaleType string) error {
-	if c.wsConnection == nil {
-		return fmt.Errorf("websocket not connected")
-	}
-
-	filterEnum := parseFilterType(filter)
-	acceleratorEnum := parseAcceleratorType(accelerator)
-	grayscaleEnum := parseGrayscaleType(grayscaleType)
-
-	frameReq := &pb.WebSocketFrameRequest{
-		Type: "process_frame",
-		Request: &pb.ProcessImageRequest{
-			ImageData:     c.currentImagePNG,
-			Width:         c.currentImageWidth,
-			Height:        c.currentImageHeight,
-			Channels:      c.currentChannels,
-			Filters:       []pb.FilterType{filterEnum},
-			Accelerator:   acceleratorEnum,
-			GrayscaleType: grayscaleEnum,
-		},
-	}
-
-	var messageData []byte
-	var err error
-	var messageType int
-
-	if c.defaultFormat == "binary" {
-		messageData, err = proto.Marshal(frameReq)
-		messageType = websocket.BinaryMessage
-	} else {
-		messageData, err = protojson.Marshal(frameReq)
-		messageType = websocket.TextMessage
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to marshal frame request: %w", err)
-	}
-
-	c.wsConnection.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if writeErr := c.wsConnection.WriteMessage(messageType, messageData); writeErr != nil {
-		return fmt.Errorf("failed to send websocket message: %w", writeErr)
-	}
-
-	c.wsConnection.SetReadDeadline(time.Now().Add(10 * time.Second))
-	msgType, responseData, err := c.wsConnection.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("failed to read websocket response: %w", err)
-	}
-
-	var frameResp pb.WebSocketFrameResponse
-	if msgType == websocket.BinaryMessage {
-		err = proto.Unmarshal(responseData, &frameResp)
-	} else {
-		err = protojson.Unmarshal(responseData, &frameResp)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal websocket response: %w", err)
-	}
-
-	c.wsResponse = &frameResp
-	if frameResp.Response != nil {
-		c.processedImage = frameResp.Response.ImageData
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenISendWebSocketFrameWithBlurFilter(accelerator string, kernelSize int, sigma float64, borderMode string, separable bool) error {
-	if c.wsConnection == nil {
-		return fmt.Errorf("websocket not connected")
-	}
-
-	acceleratorEnum := parseAcceleratorType(accelerator)
-
-	borderModeEnum := pb.BorderMode_BORDER_MODE_REFLECT
-	switch borderMode {
-	case "CLAMP":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_CLAMP
-	case "REFLECT":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_REFLECT
-	case "WRAP":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_WRAP
-	}
-
-	blurParams := &pb.GaussianBlurParameters{
-		KernelSize: int32(kernelSize),
-		Sigma:      float32(sigma),
-		BorderMode: borderModeEnum,
-		Separable:  separable,
-	}
-
-	frameReq := &pb.WebSocketFrameRequest{
-		Type: "process_frame",
-		Request: &pb.ProcessImageRequest{
-			ImageData:     c.currentImagePNG,
-			Width:         c.currentImageWidth,
-			Height:        c.currentImageHeight,
-			Channels:      c.currentChannels,
-			Filters:       []pb.FilterType{pb.FilterType_FILTER_TYPE_BLUR},
-			Accelerator:   acceleratorEnum,
-			GrayscaleType: pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED,
-			BlurParams:    blurParams,
-		},
-	}
-
-	var messageData []byte
-	var err error
-	var messageType int
-
-	if c.defaultFormat == "binary" {
-		messageData, err = proto.Marshal(frameReq)
-		messageType = websocket.BinaryMessage
-	} else {
-		messageData, err = protojson.Marshal(frameReq)
-		messageType = websocket.TextMessage
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to marshal frame request: %w", err)
-	}
-
-	c.wsConnection.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if writeErr := c.wsConnection.WriteMessage(messageType, messageData); writeErr != nil {
-		return fmt.Errorf("failed to send websocket message: %w", writeErr)
-	}
-
-	readTimeout := 10 * time.Second
-	if kernelSize >= 7 {
-		readTimeout = 120 * time.Second
-	}
-	c.wsConnection.SetReadDeadline(time.Now().Add(readTimeout))
-	msgType, responseData, err := c.wsConnection.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("failed to read websocket response: %w", err)
-	}
-
-	var frameResp pb.WebSocketFrameResponse
-	if msgType == websocket.BinaryMessage {
-		err = proto.Unmarshal(responseData, &frameResp)
-	} else {
-		err = protojson.Unmarshal(responseData, &frameResp)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal websocket response: %w", err)
-	}
-
-	c.wsResponse = &frameResp
-	if frameResp.Response != nil {
-		c.processedImage = frameResp.Response.ImageData
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenISendInvalidWebSocketFrame(errorType string) error {
-	if c.wsConnection == nil {
-		return fmt.Errorf("websocket not connected")
-	}
-
-	var frameReq *pb.WebSocketFrameRequest
-
-	switch errorType {
-	case "empty_request":
-		frameReq = &pb.WebSocketFrameRequest{
-			Type:    "process_frame",
-			Request: nil,
-		}
-	case "empty_image":
-		frameReq = &pb.WebSocketFrameRequest{
-			Type: "process_frame",
-			Request: &pb.ProcessImageRequest{
-				ImageData:   []byte{},
-				Width:       0,
-				Height:      0,
-				Channels:    0,
-				Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-				Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
-			},
-		}
-	}
-
-	var messageData []byte
-	var err error
-
-	if c.defaultFormat == "binary" {
-		messageData, err = proto.Marshal(frameReq)
-	} else {
-		messageData, err = protojson.Marshal(frameReq)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to marshal frame request: %w", err)
-	}
-
-	messageType := websocket.TextMessage
-	if c.defaultFormat == "binary" {
-		messageType = websocket.BinaryMessage
-	}
-
-	c.wsConnection.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	if writeErr := c.wsConnection.WriteMessage(messageType, messageData); writeErr != nil {
-		return fmt.Errorf("failed to send websocket message: %w", writeErr)
-	}
-
-	c.wsConnection.SetReadDeadline(time.Now().Add(10 * time.Second))
-	msgType, responseData, err := c.wsConnection.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("failed to read websocket response: %w", err)
-	}
-
-	var frameResp pb.WebSocketFrameResponse
-	if msgType == websocket.BinaryMessage {
-		err = proto.Unmarshal(responseData, &frameResp)
-	} else {
-		err = protojson.Unmarshal(responseData, &frameResp)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal websocket response: %w", err)
-	}
-
-	c.wsResponse = &frameResp
-	return nil
-}
-
 func (c *BDDContext) ThenTheProcessingShouldSucceed() error {
 	if c.lastError != nil {
 		return fmt.Errorf("expected success but got error: %w", c.lastError)
@@ -843,30 +600,6 @@ func (c *BDDContext) ThenTheImageChecksumShouldMatch(imageName, filter, accelera
 	return nil
 }
 
-func (c *BDDContext) ThenTheWebSocketResponseShouldBeSuccess() error {
-	if c.wsResponse == nil {
-		return fmt.Errorf("no websocket response available")
-	}
-
-	if !c.wsResponse.Success {
-		return fmt.Errorf("websocket response was not successful: %s", c.wsResponse.Error)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) ThenTheWebSocketResponseShouldBeError() error {
-	if c.wsResponse == nil {
-		return fmt.Errorf("no websocket response available")
-	}
-
-	if c.wsResponse.Success {
-		return fmt.Errorf("expected error but websocket response was successful")
-	}
-
-	return nil
-}
-
 func (c *BDDContext) ThenTheResponseShouldBeUnimplemented() error {
 	if c.lastError == nil {
 		return fmt.Errorf("expected Unimplemented error but got success")
@@ -880,22 +613,6 @@ func (c *BDDContext) ThenTheResponseShouldBeUnimplemented() error {
 	}
 
 	return nil
-}
-
-func (c *BDDContext) CloseWebSocket() {
-	if c != nil && c.wsConnection != nil {
-		if c.stopCollector != nil {
-			select {
-			case c.stopCollector <- true:
-			default:
-			}
-		}
-		c.wsConnection.Close()
-		c.wsConnection = nil
-	}
-	c.videoFrames = nil
-	c.frameCollector = nil
-	c.stopCollector = nil
 }
 
 func (c *BDDContext) getChecksumKeys() []string {
@@ -1659,9 +1376,9 @@ func (c *BDDContext) WhenIUploadValidMP4Video(filename string) error {
 	var testVideoData []byte
 	if filename == "preview-test.mp4" {
 		paths := []string{
-			"/data/videos/test-small.mp4",
-			"../../../data/videos/test-small.mp4",
-			"./data/videos/test-small.mp4",
+			filepath.Join(rootPath, "data", "videos", "test-small.mp4"),
+			repoPath("data", "videos", "test-small.mp4"),
+			filepath.Join("data", "videos", "test-small.mp4"),
 		}
 		found := false
 		for _, path := range paths {
@@ -1770,8 +1487,8 @@ func (c *BDDContext) ThenThePreviewFileShouldExistOnFilesystem() error {
 	}
 
 	paths := []string{
+		repoPath("data", "video_previews", c.uploadedVideo.Id+".png"),
 		filepath.Join("data", "video_previews", c.uploadedVideo.Id+".png"),
-		filepath.Join("..", "..", "..", "data", "video_previews", c.uploadedVideo.Id+".png"),
 		filepath.Join(rootPath, "data", "video_previews", c.uploadedVideo.Id+".png"),
 	}
 
@@ -1790,8 +1507,8 @@ func (c *BDDContext) ThenThePreviewShouldBeAValidPNGImage() error {
 	}
 
 	paths := []string{
+		repoPath("data", "video_previews", c.uploadedVideo.Id+".png"),
 		filepath.Join("data", "video_previews", c.uploadedVideo.Id+".png"),
-		filepath.Join("..", "..", "..", "data", "video_previews", c.uploadedVideo.Id+".png"),
 		filepath.Join(rootPath, "data", "video_previews", c.uploadedVideo.Id+".png"),
 	}
 
@@ -1859,213 +1576,6 @@ func (c *BDDContext) ThenTheVideoShouldHavePreviewImagePath(videoID string) erro
 	return fmt.Errorf("video %s not found in response", videoID)
 }
 
-func (c *BDDContext) connectVideoWebSocket() error {
-	if c.wsConnection != nil {
-		return nil
-	}
-
-	dialer := websocket.Dialer{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	conn, resp, err := dialer.Dial("wss://localhost:8443/ws", nil)
-	if err != nil {
-		return fmt.Errorf("failed to connect WebSocket: %w", err)
-	}
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-
-	c.wsConnection = conn
-	c.videoFrames = make([]*pb.VideoFrameUpdate, 0)
-	c.frameCollector = make(chan *pb.VideoFrameUpdate, 100)
-	c.stopCollector = make(chan bool, 1)
-
-	go c.collectVideoFrames()
-
-	return nil
-}
-
-func (c *BDDContext) collectVideoFrames() {
-	for {
-		select {
-		case <-c.stopCollector:
-			return
-		default:
-			_, message, err := c.wsConnection.ReadMessage()
-			if err != nil {
-				return
-			}
-
-			var response pb.WebSocketFrameResponse
-			if unmarshalErr := protojson.Unmarshal(message, &response); unmarshalErr != nil {
-				continue
-			}
-
-			if response.Type == "video_frame" && response.VideoFrame != nil {
-				c.frameCollector <- response.VideoFrame
-			}
-		}
-	}
-}
-
-func (c *BDDContext) GivenIStartVideoPlaybackForVideoWithDefaultFilters(videoID string) error {
-	if err := c.connectVideoWebSocket(); err != nil {
-		return fmt.Errorf("WebSocket connection failed: %w", err)
-	}
-
-	time.Sleep(500 * time.Millisecond)
-
-	request := &pb.WebSocketFrameRequest{
-		Type: "start_video",
-		StartVideoRequest: &pb.StartVideoPlaybackRequest{
-			VideoId:       videoID,
-			Filters:       []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-			Accelerator:   pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
-			GrayscaleType: pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED,
-		},
-	}
-
-	messageBytes, err := protojson.Marshal(request)
-	if err != nil {
-		return fmt.Errorf("marshal failed: %w", err)
-	}
-
-	if err := c.wsConnection.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
-		return fmt.Errorf("send failed: %w", err)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenIReceiveTheFirstVideoFrame() error {
-	timeout := time.After(5 * time.Second)
-
-	select {
-	case frame := <-c.frameCollector:
-		c.videoFrames = append(c.videoFrames, frame)
-		return nil
-	case <-timeout:
-		return fmt.Errorf("timeout waiting for first frame")
-	}
-}
-
-func (c *BDDContext) ThenTheFrameShouldHaveField(fieldName string) error {
-	if len(c.videoFrames) == 0 {
-		return fmt.Errorf("no frames received")
-	}
-
-	switch fieldName {
-	case "frame_id":
-		return nil
-	default:
-		return fmt.Errorf("unknown field: %s", fieldName)
-	}
-}
-
-func (c *BDDContext) ThenTheFrameIDShouldBe(expectedID int) error {
-	if len(c.videoFrames) == 0 {
-		return fmt.Errorf("no frames received")
-	}
-
-	actualID := int(c.videoFrames[0].FrameId)
-	if actualID != expectedID {
-		return fmt.Errorf("expected frame_id %d, got %d", expectedID, actualID)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenICollectVideoFrames(frameCount int) error {
-	timeout := time.After(10 * time.Second)
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case frame := <-c.frameCollector:
-			c.videoFrames = append(c.videoFrames, frame)
-			if len(c.videoFrames) >= frameCount {
-				return nil
-			}
-		case <-timeout:
-			return fmt.Errorf("timeout: collected %d frames, expected %d",
-				len(c.videoFrames), frameCount)
-		case <-ticker.C:
-		}
-	}
-}
-
-func (c *BDDContext) ThenAllFrameIDsShouldBeSequentialStartingFrom(startID int) error {
-	if len(c.videoFrames) == 0 {
-		return fmt.Errorf("no frames received")
-	}
-
-	for i, frame := range c.videoFrames {
-		expectedID := startID + i
-		actualID := int(frame.FrameId)
-		if actualID != expectedID {
-			return fmt.Errorf("frame %d: expected frame_id %d, got %d",
-				i, expectedID, actualID)
-		}
-	}
-
-	return nil
-}
-
-func (c *BDDContext) ThenFrameIDShouldComeBeforeFrameID(firstID, secondID int) error {
-	if len(c.videoFrames) < 2 {
-		return fmt.Errorf("need at least 2 frames, got %d", len(c.videoFrames))
-	}
-
-	frame0 := int(c.videoFrames[firstID].FrameId)
-	frame1 := int(c.videoFrames[secondID].FrameId)
-
-	if frame0 >= frame1 {
-		return fmt.Errorf("frame_id %d (%d) should be before %d (%d)",
-			firstID, frame0, secondID, frame1)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) ThenFrameIDShouldBeTheLastCollectedFrameID(frameID int) error {
-	if len(c.videoFrames) == 0 {
-		return fmt.Errorf("no frames received")
-	}
-
-	lastFrame := c.videoFrames[len(c.videoFrames)-1]
-	actualID := int(lastFrame.FrameId)
-
-	if actualID != frameID {
-		return fmt.Errorf("last frame_id: expected %d, got %d", frameID, actualID)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenIReceiveVideoFrames(frameCount int) error {
-	return c.WhenICollectVideoFrames(frameCount)
-}
-
-func (c *BDDContext) ThenEachFramesFrameIDShouldMatchItsFrameNumber() error {
-	if len(c.videoFrames) == 0 {
-		return fmt.Errorf("no frames received")
-	}
-
-	for i, frame := range c.videoFrames {
-		frameID := int(frame.FrameId)
-		frameNumber := int(frame.FrameNumber)
-
-		if frameID != frameNumber {
-			return fmt.Errorf("frame %d: frame_id (%d) != frame_number (%d)",
-				i, frameID, frameNumber)
-		}
-	}
-
-	return nil
-}
-
 func (c *BDDContext) WhenIQueryVideoMetadataFor(videoID string) error {
 	if videoID != "e2e-test" {
 		return fmt.Errorf("metadata only available for e2e-test video")
@@ -2074,7 +1584,7 @@ func (c *BDDContext) WhenIQueryVideoMetadataFor(videoID string) error {
 }
 
 func (c *BDDContext) ThenTheMetadataShouldContainFrames(frameCount int) error {
-	metadataPath := filepath.Join("..", "..", "..", "webserver", "pkg", "infrastructure", "video", "test_video_metadata.go")
+	metadataPath := repoPath("src", "go_api", "pkg", "infrastructure", "video", "test_video_metadata.go")
 
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
@@ -2102,7 +1612,7 @@ func (c *BDDContext) ThenTheMetadataShouldContainFrames(frameCount int) error {
 }
 
 func (c *BDDContext) ThenFrameShouldHaveASHA256Hash(frameID int) error {
-	metadataPath := filepath.Join("..", "..", "..", "webserver", "pkg", "infrastructure", "video", "test_video_metadata.go")
+	metadataPath := repoPath("src", "go_api", "pkg", "infrastructure", "video", "test_video_metadata.go")
 
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
@@ -2340,4 +1850,3 @@ func (c *BDDContext) ThenTheFieldShouldNotBeEmpty(field string) error {
 	}
 	return nil
 }
-

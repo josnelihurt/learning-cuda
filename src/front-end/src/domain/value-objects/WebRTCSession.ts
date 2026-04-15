@@ -1,12 +1,21 @@
 import { Uuid } from './Uuid';
 
+export type WebRTCSessionMode = 'frame-processing' | 'video-playback' | 'camera-mediatrack';
+
 export class WebRTCSession {
   private readonly sessionId: string;
   private readonly sourceId: string;
   private readonly createdAt: Date;
+  private readonly mode: WebRTCSessionMode;
   private lastHeartbeat: Date;
 
-  constructor(sessionId: string, sourceId: string, createdAt?: Date, lastHeartbeat?: Date) {
+  constructor(
+    sessionId: string,
+    sourceId: string,
+    createdAt?: Date,
+    lastHeartbeat?: Date,
+    mode: WebRTCSessionMode = 'frame-processing'
+  ) {
     Uuid.validate(sessionId);
     
     if (!sourceId || sourceId.trim() === '') {
@@ -17,6 +26,7 @@ export class WebRTCSession {
     this.sourceId = sourceId.trim();
     this.createdAt = createdAt || new Date();
     this.lastHeartbeat = lastHeartbeat || this.createdAt;
+    this.mode = mode;
 
     if (this.lastHeartbeat < this.createdAt) {
       throw new Error('Last heartbeat cannot be before creation time');
@@ -35,6 +45,10 @@ export class WebRTCSession {
     return new Date(this.createdAt);
   }
 
+  getMode(): WebRTCSessionMode {
+    return this.mode;
+  }
+
   getLastHeartbeat(): Date {
     return new Date(this.lastHeartbeat);
   }
@@ -44,7 +58,7 @@ export class WebRTCSession {
     if (now < this.lastHeartbeat) {
       return this;
     }
-    return new WebRTCSession(this.sessionId, this.sourceId, this.createdAt, now);
+    return new WebRTCSession(this.sessionId, this.sourceId, this.createdAt, now, this.mode);
   }
 
   isExpired(timeoutMs: number): boolean {
@@ -57,9 +71,8 @@ export class WebRTCSession {
     return this.sessionId === other.sessionId;
   }
 
-  static create(sourceId: string): WebRTCSession {
+  static create(sourceId: string, mode: WebRTCSessionMode = 'frame-processing'): WebRTCSession {
     const sessionId = Uuid.generate();
-    return new WebRTCSession(sessionId, sourceId);
+    return new WebRTCSession(sessionId, sourceId, undefined, undefined, mode);
   }
 }
-

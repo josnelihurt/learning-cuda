@@ -16,6 +16,7 @@
 #include "absl/strings/str_cat.h"
 
 #include "src/cpp_accelerator/ports/grpc/processor_engine_provider.h"
+#include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
 
 namespace jrb::ports::grpc_service {
 
@@ -90,11 +91,27 @@ private:
   cuda_learning::GetCapabilitiesResponse capabilities_response_;
 };
 
+class FakeWebRTCManager : public WebRTCManager {
+public:
+  FakeWebRTCManager() : WebRTCManager(nullptr) {}
+
+  void SendToSession(const std::string& session_id, const std::string& bytes) override {
+    last_session_id = session_id;
+    ++send_calls;
+    ASSERT_TRUE(last_response.ParseFromString(bytes));
+  }
+
+  std::string last_session_id;
+  int send_calls = 0;
+  cuda_learning::ProcessImageResponse last_response;
+};
+
 class ImageProcessorGrpcServiceTest : public ::testing::Test {
 protected:
   void SetUp() override {
     provider_ = std::make_shared<FakeEngineProvider>();
-    service_ = std::make_unique<ImageProcessorServiceImpl>(provider_);
+    webrtc_manager_ = std::make_unique<FakeWebRTCManager>();
+    service_ = std::make_unique<ImageProcessorServiceImpl>(provider_, webrtc_manager_.get());
 
     grpc::ServerBuilder builder;
     builder.RegisterService(service_.get());
@@ -116,6 +133,7 @@ protected:
   }
 
   std::shared_ptr<FakeEngineProvider> provider_;
+  std::unique_ptr<FakeWebRTCManager> webrtc_manager_;
   std::unique_ptr<ImageProcessorServiceImpl> service_;
   std::unique_ptr<cuda_learning::ImageProcessorService::Stub> stub_;
   std::unique_ptr<grpc::Server> server_;
@@ -200,6 +218,35 @@ TEST_F(ImageProcessorGrpcServiceTest, StreamProcessVideoHandlesMultipleFrames) {
   auto status = stream->Finish();
   EXPECT_TRUE(status.ok());
   EXPECT_EQ(responses, 3);
+}
+
+TEST_F(ImageProcessorGrpcServiceTest, StreamProcessVideoRoutesSessionFramesToWebRTCManager) {
+  grpc::ClientContext context;
+  auto stream = stub_->StreamProcessVideo(&context);
+  ASSERT_NE(stream, nullptr);
+
+  cuda_learning::ProcessImageRequest request;
+  request.set_api_version("v1");
+  request.set_session_id("browser-session");
+  request.mutable_trace_context()->set_traceparent("trace-session");
+  request.set_width(2);
+  request.set_height(2);
+  request.set_channels(1);
+  request.set_image_data("xy");
+
+  ASSERT_TRUE(stream->Write(request));
+  stream->WritesDone();
+
+  cuda_learning::ProcessImageResponse response;
+  ASSERT_TRUE(stream->Read(&response));
+  auto status = stream->Finish();
+
+  EXPECT_TRUE(status.ok());
+  EXPECT_EQ(webrtc_manager_->send_calls, 1);
+  EXPECT_EQ(webrtc_manager_->last_session_id, "browser-session");
+  EXPECT_EQ(webrtc_manager_->last_response.code(), 0);
+  EXPECT_EQ(webrtc_manager_->last_response.image_data(), "xy");
+  EXPECT_EQ(webrtc_manager_->last_response.trace_context().traceparent(), "trace-session");
 }
 
 TEST_F(ImageProcessorGrpcServiceTest, GetVersionInfoReturnsVersionData) {

@@ -75,6 +75,9 @@ test/coverage/
 node_modules/
 coverage.out
 
+# Local-only: scripts/deployment removed from git history (secrets / infra)
+scripts/deployment/
+
 # Deployment sensitive files
 deployment/.env
 deployment/ansible/inventory.yml

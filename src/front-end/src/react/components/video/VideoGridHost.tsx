@@ -6,9 +6,9 @@ import type { ToastContainer } from '@/lit/components/app/toast-container';
 import type { ActiveFilterState } from '../filters/FilterPanel';
 import { useAppServices } from '../../providers/app-services-provider';
 import { useDashboardState } from '../../context/dashboard-state-context';
-import { WebSocketService } from '@/infrastructure/transport/websocket-frame-transport';
-import { FilterData } from '@/domain/value-objects';
+import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
+import { FilterData } from '@/domain/value-objects';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { VideoGrid } from './VideoGrid';
 import { SourceDrawer } from './SourceDrawer';
@@ -17,6 +17,12 @@ import { ImageSelectorModal } from './ImageSelectorModal';
 import { AcceleratorStatusFab } from './AcceleratorStatusFab';
 import { useToast } from '../../hooks/useToast';
 import { StatsPanel as ReactStatsPanel } from '../app/StatsPanel';
+import { useServiceContext } from '../../context/service-context';
+import {
+  GenericFilterParameterSelection,
+  GenericFilterSelection,
+  ProcessImageRequest,
+} from '@/gen/image_processor_service_pb';
 
 type GridSource = {
   id: string;
@@ -26,14 +32,95 @@ type GridSource = {
   imagePath: string;
   originalImageSrc: string;
   currentImageSrc: string;
-  ws: WebSocketService | null;
+  transport: WebRTCFrameTransportService | null;
+  remoteStream: MediaStream | null;
+  sessionId: string | null;
+  sessionMode: 'frame-processing' | 'camera-mediatrack';
   filters: ActiveFilterState[];
   resolution: string;
   videoId?: string;
-  webrtcSessionId?: string;
 };
 
 const MAX_SOURCES = 9;
+
+function frameResponseToDataUrl(bytes: Uint8Array, width: number, height: number, channels: number): string {
+  const rgba = new Uint8ClampedArray(width * height * 4);
+
+  if (channels === 1) {
+    for (let index = 0; index < width * height; index += 1) {
+      const value = bytes[index] ?? 0;
+      const offset = index * 4;
+      rgba[offset] = value;
+      rgba[offset + 1] = value;
+      rgba[offset + 2] = value;
+      rgba[offset + 3] = 255;
+    }
+  } else if (channels === 3) {
+    for (let index = 0; index < width * height; index += 1) {
+      const srcOffset = index * 3;
+      const dstOffset = index * 4;
+      rgba[dstOffset] = bytes[srcOffset] ?? 0;
+      rgba[dstOffset + 1] = bytes[srcOffset + 1] ?? 0;
+      rgba[dstOffset + 2] = bytes[srcOffset + 2] ?? 0;
+      rgba[dstOffset + 3] = 255;
+    }
+  } else {
+    for (let index = 0; index < width * height; index += 1) {
+      const srcOffset = index * channels;
+      const dstOffset = index * 4;
+      rgba[dstOffset] = bytes[srcOffset] ?? 0;
+      rgba[dstOffset + 1] = bytes[srcOffset + 1] ?? 0;
+      rgba[dstOffset + 2] = bytes[srcOffset + 2] ?? 0;
+      rgba[dstOffset + 3] = channels >= 4 ? (bytes[srcOffset + 3] ?? 255) : 255;
+    }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Canvas context is not available');
+  }
+
+  context.putImageData(new ImageData(rgba, width, height), 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
+async function rasterizeImageToRgb(
+  imageSrc: string,
+  width: number,
+  height: number
+): Promise<Uint8Array> {
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error('Failed to load original image'));
+    image.src = imageSrc;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Canvas context is not available');
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  const raster = context.getImageData(0, 0, width, height);
+  const rgb = new Uint8Array(width * height * 3);
+
+  for (let index = 0, pixel = 0; index < raster.data.length; index += 4, pixel += 3) {
+    rgb[pixel] = raster.data[index];
+    rgb[pixel + 1] = raster.data[index + 1];
+    rgb[pixel + 2] = raster.data[index + 2];
+  }
+
+  return rgb;
+}
 
 export function VideoGridHost() {
   const [sources, setSources] = useState<GridSource[]>([]);
@@ -54,9 +141,11 @@ export function VideoGridHost() {
   const nextNumberRef = useRef(1);
   const defaultSourceInitializedRef = useRef(false);
   const cameraFrameTimeRef = useRef<Record<string, number>>({});
+  const cameraSessionSourceIdsRef = useRef<Set<string>>(new Set());
   const pendingSourceNumberForImageChangeRef = useRef<number | null>(null);
   const sourcesRef = useRef<GridSource[]>([]);
   const { container, ready } = useAppServices();
+  const { imageProcessorClient } = useServiceContext();
   const toast = useToast();
   const {
     activeFilters,
@@ -78,7 +167,7 @@ export function VideoGridHost() {
           setCameraStatus(status);
           setCameraStatusType(type);
         },
-        updateWebSocketStatus: () => undefined,
+        updateTransportStatus: () => undefined,
         updateProcessingStats: (processingTime: number) => {
           setFrames((current) => current + 1);
           const instantFps = 1000 / processingTime;
@@ -99,10 +188,10 @@ export function VideoGridHost() {
             processingTimesRef.current.length;
           setTime(`${avgTime.toFixed(0)}ms`);
         },
-        setWebSocketService: () => undefined,
+        setTransportService: () => undefined,
       }) as Pick<
         StatsPanel,
-        'updateCameraStatus' | 'updateWebSocketStatus' | 'updateProcessingStats' | 'setWebSocketService'
+        'updateCameraStatus' | 'updateTransportStatus' | 'updateProcessingStats' | 'setTransportService'
       >,
     []
   );
@@ -124,9 +213,74 @@ export function VideoGridHost() {
     []
   );
 
+  const mapFiltersToGenericSelections = useCallback(
+    (filters: ActiveFilterState[]): GenericFilterSelection[] =>
+      filters
+        .filter((filter) => filter.id !== 'none')
+        .map((filter) => {
+          const selection = new GenericFilterSelection({
+            filterId: filter.id,
+            parameters: Object.entries(filter.parameters).map(
+              ([parameterId, value]) =>
+                new GenericFilterParameterSelection({
+                  parameterId,
+                  values: [value],
+                })
+            ),
+          });
+          return selection;
+        }),
+    []
+  );
+
   const updateSource = useCallback((sourceId: string, updater: (source: GridSource) => GridSource) => {
     setSources((current) => current.map((source) => (source.id === sourceId ? updater(source) : source)));
   }, []);
+
+  const createCameraSession = useCallback(
+    async (sourceId: string, stream: MediaStream) => {
+      if (cameraSessionSourceIdsRef.current.has(sourceId)) {
+        return;
+      }
+      const source = sourcesRef.current.find((item) => item.id === sourceId);
+      if (!source || source.sessionId) {
+        return;
+      }
+
+      cameraSessionSourceIdsRef.current.add(sourceId);
+      try {
+        const session = await webrtcService.createSession(sourceId, {
+          mode: 'camera-mediatrack',
+          localStream: stream,
+          useDataChannel: false,
+          onRemoteStream: (remoteStream) => {
+            updateSource(sourceId, (current) => ({
+              ...current,
+              remoteStream,
+            }));
+          },
+        });
+
+        updateSource(sourceId, (current) => ({
+          ...current,
+          sessionId: session.getId(),
+          sessionMode: session.getMode(),
+        }));
+      } catch (error) {
+        logger.error('Failed to create camera MediaTrack session', {
+          'error.message': error instanceof Error ? error.message : String(error),
+          'source.id': sourceId,
+        });
+        toastManager.warning(
+          'Camera transport unavailable',
+          'Live local preview is active, but the remote camera MediaTrack session could not be established.'
+        );
+      } finally {
+        cameraSessionSourceIdsRef.current.delete(sourceId);
+      }
+    },
+    [toastManager, updateSource]
+  );
 
   const emitSelectionState = useCallback(
     (source: GridSource | null) => {
@@ -154,15 +308,15 @@ export function VideoGridHost() {
     if (!source) {
       return;
     }
-    if (source.webrtcSessionId) {
-      webrtcService.stopHeartbeat(source.webrtcSessionId);
-      void webrtcService.closeSession(source.webrtcSessionId).catch((error) => {
-        logger.error('Failed to close WebRTC session', {
+    source.transport?.disconnect();
+    if (source.sessionId) {
+      void webrtcService.closeSession(source.sessionId).catch((error) => {
+        logger.error('Failed to close camera MediaTrack session', {
           'error.message': error instanceof Error ? error.message : String(error),
+          'source.id': sourceId,
         });
       });
     }
-    source.ws?.disconnect();
     setSources((current) => current.filter((item) => item.id !== sourceId));
     setSelectedSourceId((currentSelected) => {
       if (currentSelected !== sourceId) {
@@ -178,14 +332,14 @@ export function VideoGridHost() {
     });
   }, [emitSelectionState]);
 
-  const activeWsService = useMemo(() => {
+  const activeTransportService = useMemo(() => {
     if (selectedSourceId) {
       const selected = sources.find((source) => source.id === selectedSourceId);
-      if (selected?.ws) {
-        return selected.ws;
+      if (selected?.transport) {
+        return selected.transport;
       }
     }
-    return sources.find((source) => source.ws)?.ws ?? null;
+    return sources.find((source) => source.transport)?.transport ?? null;
   }, [selectedSourceId, sources]);
 
   const addSource = useCallback(
@@ -205,27 +359,31 @@ export function VideoGridHost() {
         getLastFrameTime: () =>
           cameraFrameTimeRef.current[uniqueId] ?? performance.now(),
       };
-      const ws = new WebSocketService(statsManager as StatsPanel, cameraManager as never, toastManager);
-      ws?.connect();
-      statsManager.setWebSocketService(ws);
-      if (ws) {
-        ws.onFrameResult((data) => {
-          const frameData = data.videoFrame ?? data.response;
-          if (!frameData) {
+      const transport =
+        inputSource.type === 'camera'
+          ? null
+          : new WebRTCFrameTransportService(
+              uniqueId,
+              statsManager as StatsPanel,
+              cameraManager as never,
+              toastManager
+            );
+      if (transport) {
+        transport.connect();
+        statsManager.setTransportService(transport);
+        transport.onFrameResult((data) => {
+          if (!data.imageData?.byteLength || data.width <= 0 || data.height <= 0) {
             return;
           }
-          const bytes = (frameData as { imageData?: Uint8Array; frameData?: Uint8Array }).imageData ??
-            (frameData as { imageData?: Uint8Array; frameData?: Uint8Array }).frameData;
-          if (!bytes) {
-            return;
-          }
-          let binary = '';
-          for (let index = 0; index < bytes.byteLength; index += 1) {
-            binary += String.fromCharCode(bytes[index]);
-          }
+
           updateSource(uniqueId, (source) => ({
             ...source,
-            currentImageSrc: `data:image/png;base64,${btoa(binary)}`,
+            currentImageSrc: frameResponseToDataUrl(
+              data.imageData,
+              data.width,
+              data.height,
+              data.channels || 4
+            ),
           }));
         });
       }
@@ -238,36 +396,31 @@ export function VideoGridHost() {
         imagePath: sourceImagePath,
         originalImageSrc: sourceImagePath,
         currentImageSrc: sourceImagePath,
-        ws,
+        transport,
+        remoteStream: null,
+        sessionId: null,
+        sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
         filters: [{ id: 'none', parameters: {} }],
         resolution: 'original',
         videoId: inputSource.type === 'video' ? inputSource.id : undefined,
       };
 
       setSources((current) => [...current, source]);
-      if (sourcesRef.current.length === 0) {
+          if (sourcesRef.current.length === 0) {
         setSelectedSourceId(uniqueId);
         emitSelectionState(source);
       }
 
       if (inputSource.type === 'video') {
         const tryStartVideo = () => {
-          if (ws?.isConnected()) {
-            ws.sendStartVideo(inputSource.id, mapFiltersToValueObjects(source.filters), 'gpu');
+          if (transport.isConnected()) {
+            transport.sendStartVideo(inputSource.id, mapFiltersToValueObjects(source.filters), 'gpu');
             return;
           }
           setTimeout(tryStartVideo, 100);
         };
         setTimeout(tryStartVideo, 100);
       }
-
-      void webrtcService.createSession(uniqueId).then((session) => {
-        updateSource(uniqueId, (current) => ({ ...current, webrtcSessionId: session.getId() }));
-      }).catch((error) => {
-        logger.error('Failed to create WebRTC session', {
-          'error.message': error instanceof Error ? error.message : String(error),
-        });
-      });
     },
     [emitSelectionState, mapFiltersToValueObjects, statsManager, toastManager, updateSource]
   );
@@ -344,18 +497,18 @@ export function VideoGridHost() {
       resolution: selectedResolution,
     }));
 
-    if (!selectedSource.ws || !selectedSource.ws.isConnected()) {
-      logger.error('WebSocket not connected for selected source', {
-        'source.id': selectedSource.id,
-      });
-      return;
-    }
     if (selectedSource.type === 'video') {
+      if (!selectedSource.transport || !selectedSource.transport.isConnected()) {
+        logger.error('Frame transport not connected for selected source', {
+          'source.id': selectedSource.id,
+        });
+        return;
+      }
       const videoId = selectedSource.videoId || selectedSource.name;
-      selectedSource.ws.sendStopVideo(videoId);
+      selectedSource.transport.sendStopVideo(videoId);
       setTimeout(() => {
-        if (selectedSource.ws?.isConnected()) {
-          selectedSource.ws.sendStartVideo(videoId, mapFiltersToValueObjects(normalizedFilters), selectedAccelerator);
+        if (selectedSource.transport?.isConnected()) {
+          selectedSource.transport.sendStartVideo(videoId, mapFiltersToValueObjects(normalizedFilters), selectedAccelerator);
         }
       }, 200);
       return;
@@ -373,47 +526,59 @@ export function VideoGridHost() {
           originalImg.onerror = () => reject(new Error('Failed to load original image'));
           originalImg.src = selectedSource.originalImageSrc;
         });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return;
-        }
         const originalWidth = originalImg.naturalWidth || originalImg.width || 512;
         const originalHeight = originalImg.naturalHeight || originalImg.height || 512;
         const factor = selectedResolution === 'half' ? 2 : selectedResolution === 'quarter' ? 4 : 1;
         const targetWidth = Math.floor(originalWidth / factor);
         const targetHeight = Math.floor(originalHeight / factor);
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-        ctx.drawImage(originalImg, 0, 0, targetWidth, targetHeight);
-        const imageData = canvas.toDataURL('image/png');
-        const response = await selectedSource.ws!.sendSingleFrame(
-          imageData,
-          targetWidth,
-          targetHeight,
-          mapFiltersToValueObjects(normalizedFilters),
-          selectedAccelerator
-        );
-        if (response.success && response.response) {
-          let binary = '';
-          const bytes = response.response.imageData;
-          for (let index = 0; index < bytes.byteLength; index += 1) {
-            binary += String.fromCharCode(bytes[index]);
-          }
+
+        const request = new ProcessImageRequest({
+          imageData: await rasterizeImageToRgb(selectedSource.originalImageSrc, targetWidth, targetHeight),
+          width: targetWidth,
+          height: targetHeight,
+          channels: 3,
+          genericFilters: mapFiltersToGenericSelections(normalizedFilters),
+          apiVersion: '1.0',
+        });
+
+        const response = await imageProcessorClient.processImage(request);
+        if (
+          response.code === 0 &&
+          response.imageData?.byteLength &&
+          response.width > 0 &&
+          response.height > 0
+        ) {
           updateSource(selectedSource.id, (source) => ({
             ...source,
-            currentImageSrc: `data:image/png;base64,${btoa(binary)}`,
+            currentImageSrc: frameResponseToDataUrl(
+              response.imageData,
+              response.width,
+              response.height,
+              response.channels || 4
+            ),
           }));
+          return;
         }
+
+        toastManager.error(
+          'Static image processing failed',
+          response.message || 'The image processor did not return a processed image.'
+        );
       } catch (error) {
         logger.error('Error applying static image filter', {
           'error.message': error instanceof Error ? error.message : String(error),
         });
+        toastManager.error(
+          'Static image processing failed',
+          error instanceof Error ? error.message : 'Unknown processing error'
+        );
       }
     };
     void applyForStatic();
   }, [
     activeFilters,
+    imageProcessorClient,
+    mapFiltersToGenericSelections,
     mapFiltersToValueObjects,
     ready,
     selectedAccelerator,
@@ -425,14 +590,9 @@ export function VideoGridHost() {
   useEffect(() => {
     const stopAllSources = () => {
       sourcesRef.current.forEach((source) => {
-        source.ws?.disconnect();
-        if (source.webrtcSessionId) {
-          webrtcService.stopHeartbeat(source.webrtcSessionId);
-          void webrtcService.closeSession(source.webrtcSessionId).catch((error) => {
-            logger.error('Failed to close WebRTC session on cleanup', {
-              'error.message': error instanceof Error ? error.message : String(error),
-            });
-          });
+        source.transport?.disconnect();
+        if (source.sessionId) {
+          void webrtcService.closeSession(source.sessionId);
         }
       });
     };
@@ -452,6 +612,8 @@ export function VideoGridHost() {
           name: source.name,
           type: source.type,
           imageSrc: source.currentImageSrc || source.imagePath,
+          remoteStream: source.remoteStream,
+          filters: source.filters,
         }))}
         selectedSourceId={selectedSourceId}
         onSelectSource={selectSourceById}
@@ -474,11 +636,14 @@ export function VideoGridHost() {
         onCameraFrame={(sourceId, payload) => {
           cameraFrameTimeRef.current[sourceId] = payload.timestamp;
           const source = sourcesRef.current.find((item) => item.id === sourceId);
-          if (!source?.ws?.isConnected()) {
+          if (!source || source.sessionMode === 'camera-mediatrack') {
+            return;
+          }
+          if (!source?.transport?.isConnected()) {
             return;
           }
           const filters = source.filters.length ? source.filters : [{ id: 'none', parameters: {} }];
-          source.ws.sendFrame(
+          source.transport.sendFrame(
             `data:image/jpeg;base64,${payload.base64data}`,
             payload.width,
             payload.height,
@@ -486,6 +651,7 @@ export function VideoGridHost() {
             selectedAccelerator
           );
         }}
+        onCameraStreamReady={createCameraSession}
         onCameraStatus={(status, type) => statsManager.updateCameraStatus(status, type)}
         onCameraError={(title, message) => toastManager.error(title, message)}
         data-testid="video-grid-host"
@@ -511,7 +677,7 @@ export function VideoGridHost() {
         frames={frames}
         cameraStatus={cameraStatus}
         cameraStatusType={cameraStatusType}
-        wsService={activeWsService}
+        transportService={activeTransportService}
       />
     </>
   );

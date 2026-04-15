@@ -9,7 +9,7 @@ type StatsPanelProps = {
   frames: number;
   cameraStatus: string;
   cameraStatusType: 'success' | 'error' | 'warning' | 'inactive';
-  wsService?: {
+  transportService?: {
     getConnectionStatus: () => {
       state: 'connected' | 'disconnected' | 'connecting' | 'error';
       lastRequest: string | null;
@@ -21,7 +21,7 @@ type StatsPanelProps = {
 type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'error';
 
 type ConnectionSnapshot = {
-  label: 'ws' | 'gRPC' | 'WebRTC';
+  label: 'Frames' | 'gRPC' | 'WebRTC';
   state: ConnectionState;
   lastRequest: string | null;
   lastRequestTime: Date | null;
@@ -57,17 +57,17 @@ export function StatsPanel({
   frames,
   cameraStatus,
   cameraStatusType,
-  wsService = null,
+  transportService = null,
 }: StatsPanelProps) {
   const [connections, setConnections] = useState<ConnectionSnapshot[]>([
-    { label: 'ws', state: 'disconnected', lastRequest: null, lastRequestTime: null },
+    { label: 'Frames', state: 'disconnected', lastRequest: null, lastRequestTime: null },
     { label: 'gRPC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
     { label: 'WebRTC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
   ]);
 
   useEffect(() => {
     const updateConnections = () => {
-      const wsStatus = wsService?.getConnectionStatus() ?? {
+      const transportStatus = transportService?.getConnectionStatus() ?? {
         state: 'disconnected' as const,
         lastRequest: null,
         lastRequestTime: null,
@@ -77,10 +77,10 @@ export function StatsPanel({
 
       setConnections([
         {
-          label: 'ws',
-          state: normalizeState(wsStatus.state),
-          lastRequest: wsStatus.lastRequest,
-          lastRequestTime: wsStatus.lastRequestTime,
+          label: 'Frames',
+          state: normalizeState(transportStatus.state),
+          lastRequest: transportStatus.lastRequest,
+          lastRequestTime: transportStatus.lastRequestTime,
         },
         {
           label: 'gRPC',
@@ -102,7 +102,7 @@ export function StatsPanel({
     return () => {
       clearInterval(intervalId);
     };
-  }, [wsService]);
+  }, [transportService]);
 
   const cameraStatusClassName = useMemo(
     () => `camera-status-${cameraStatusType}`,

@@ -54,9 +54,6 @@ flowchart LR
 - **Requirements**: SSH access to the cloud VM, Docker installed, user in docker group. Secrets configured in GitHub Actions: `CLOUD_VM_HOST`, `CLOUD_VM_USER`, `CLOUD_VM_SSH_KEY`.
 - **Configuration**: Uses `docker-compose.go-cloud.yml` to deploy only the Go server service, connecting to existing Traefik instance via `public-wan` Docker network.
 
-### `deployment/local_dev`
-- Provides `start.sh` for fast local stacks without cloud dependencies, targeting developers iterating on scripts or runtime settings.
-
 ### `deployment/radxa`
 - Automates GitHub Actions runner provisioning on Radxa ARM64 hardware. `deploy-runner.sh` registers runner `learning-cuda-radxa-1` with labels `self-hosted,Linux,ARM64,radxa`. Supports both `RADXA_*` and `JETSON_*` environment variables for compatibility. `test.sh` validates SSH connectivity and Ansible availability. Includes Ansible playbooks for application deployment and Docker orchestration. See [`deployment/radxa/README.md`](radxa/README.md) for full documentation.
 

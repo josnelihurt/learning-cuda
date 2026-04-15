@@ -58,7 +58,7 @@ const TOUR_STEPS: TourStep[] = [
     selector: '[data-testid="react-stats-panel"], stats-panel',
     title: 'Connection Status',
     description:
-      'Monitor connection status for WebSocket, gRPC, and WebRTC. Each card shows the connection state, last request, and time since last activity. Hover over the protocol name to see the full connection state.',
+      'Monitor connection status for frame transport, gRPC, and WebRTC. Each card shows the connection state, last request, and time since last activity. Hover over the protocol name to see the full connection state.',
   },
   {
     id: 'stats-panel-toggle',

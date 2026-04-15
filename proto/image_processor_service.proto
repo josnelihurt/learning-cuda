@@ -69,6 +69,7 @@ message ProcessImageRequest {
   GrayscaleType grayscale_type = 13 [json_name = "grayscale_type"];
   GaussianBlurParameters blur_params = 25 [json_name = "blur_params"];
   repeated GenericFilterSelection generic_filters = 27 [json_name = "generic_filters"];
+  string session_id = 29 [json_name = "session_id"];
   
   // OpenTelemetry trace context propagation (deprecated - use trace_context instead)
   string trace_id = 15 [json_name = "trace_id"];
@@ -91,6 +92,41 @@ message ProcessImageResponse {
   string api_version = 15 [json_name = "api_version"];
 }
 
+message StartVideoPlaybackRequest {
+  string video_id = 1 [json_name = "video_id"];
+  string session_id = 3 [json_name = "session_id"];
+  repeated FilterType filters = 5 [json_name = "filters"];
+  AcceleratorType accelerator = 7 [json_name = "accelerator"];
+  GrayscaleType grayscale_type = 9 [json_name = "grayscale_type"];
+  GaussianBlurParameters blur_params = 11 [json_name = "blur_params"];
+  repeated GenericFilterSelection generic_filters = 13 [json_name = "generic_filters"];
+  TraceContext trace_context = 15 [json_name = "trace_context"];
+  string api_version = 17 [json_name = "api_version"];
+}
+
+message StartVideoPlaybackResponse {
+  int32 code = 1 [json_name = "code"];
+  string message = 3 [json_name = "message"];
+  string session_id = 5 [json_name = "session_id"];
+  TraceContext trace_context = 7 [json_name = "trace_context"];
+  string api_version = 9 [json_name = "api_version"];
+}
+
+message StopVideoPlaybackRequest {
+  string session_id = 1 [json_name = "session_id"];
+  TraceContext trace_context = 3 [json_name = "trace_context"];
+  string api_version = 5 [json_name = "api_version"];
+}
+
+message StopVideoPlaybackResponse {
+  int32 code = 1 [json_name = "code"];
+  string message = 3 [json_name = "message"];
+  string session_id = 5 [json_name = "session_id"];
+  bool stopped = 7 [json_name = "stopped"];
+  TraceContext trace_context = 9 [json_name = "trace_context"];
+  string api_version = 11 [json_name = "api_version"];
+}
+
 // Lifecycle management
 message InitRequest {
   int32 cuda_device_id = 1;
@@ -103,47 +139,6 @@ message InitResponse {
   string message = 3;
   TraceContext trace_context = 5 [json_name = "trace_context"];
   string api_version = 7 [json_name = "api_version"];
-}
-
-// WebSocket stream messages
-message WebSocketFrameRequest {
-  string type = 1 [json_name = "type"];
-  ProcessImageRequest request = 3 [json_name = "request"];
-  StartVideoPlaybackRequest start_video_request = 4 [json_name = "startVideoRequest"];
-  StopVideoPlaybackRequest stop_video_request = 6 [json_name = "stopVideoRequest"];
-  TraceContext trace_context = 5 [json_name = "trace_context"];
-}
-
-message WebSocketFrameResponse {
-  string type = 1 [json_name = "type"];
-  bool success = 3 [json_name = "success"];
-  string error = 5 [json_name = "error"];
-  ProcessImageResponse response = 7 [json_name = "response"];
-  TraceContext trace_context = 9 [json_name = "trace_context"];
-  VideoFrameUpdate video_frame = 11 [json_name = "video_frame"];
-}
-
-message StartVideoPlaybackRequest {
-  string video_id = 1 [json_name = "videoId"];
-  repeated FilterType filters = 3 [json_name = "filters"];
-  AcceleratorType accelerator = 5 [json_name = "accelerator"];
-  GrayscaleType grayscale_type = 7 [json_name = "grayscaleType"];
-  GaussianBlurParameters blur_params = 11 [json_name = "blur_params"];
-  TraceContext trace_context = 9 [json_name = "trace_context"];
-}
-
-message StopVideoPlaybackRequest {
-  string session_id = 1 [json_name = "sessionId"];
-  TraceContext trace_context = 3 [json_name = "trace_context"];
-}
-
-message VideoFrameUpdate {
-  string session_id = 1 [json_name = "session_id"];
-  bytes frame_data = 3 [json_name = "frame_data"];
-  int32 frame_number = 5 [json_name = "frame_number"];
-  int64 timestamp_ms = 7 [json_name = "timestamp_ms"];
-  bool is_last_frame = 9 [json_name = "is_last_frame"];
-  int32 frame_id = 11 [json_name = "frame_id"];
 }
 
 // Capabilities query (internal use)
@@ -187,9 +182,22 @@ service ImageProcessorService {
       get: "/api/v1/filters"
     };
   }
+
+  rpc StartVideoPlayback(StartVideoPlaybackRequest) returns (StartVideoPlaybackResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/process/video/start"
+      body: "*"
+    };
+  }
+
+  rpc StopVideoPlayback(StopVideoPlaybackRequest) returns (StopVideoPlaybackResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/process/video/stop"
+      body: "*"
+    };
+  }
   
   rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
   
   rpc GetVersionInfo(GetVersionInfoRequest) returns (GetVersionInfoResponse);
 }
-

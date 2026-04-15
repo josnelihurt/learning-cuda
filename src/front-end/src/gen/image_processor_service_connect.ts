@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetVersionInfoRequest, GetVersionInfoResponse, ListFiltersRequest, ListFiltersResponse, ProcessImageRequest, ProcessImageResponse } from "./image_processor_service_pb.js";
+import { GetVersionInfoRequest, GetVersionInfoResponse, ListFiltersRequest, ListFiltersResponse, ProcessImageRequest, ProcessImageResponse, StartVideoPlaybackRequest, StartVideoPlaybackResponse, StopVideoPlaybackRequest, StopVideoPlaybackResponse } from "./image_processor_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -28,6 +28,24 @@ export const ImageProcessorService = {
       name: "ListFilters",
       I: ListFiltersRequest,
       O: ListFiltersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.ImageProcessorService.StartVideoPlayback
+     */
+    startVideoPlayback: {
+      name: "StartVideoPlayback",
+      I: StartVideoPlaybackRequest,
+      O: StartVideoPlaybackResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc cuda_learning.ImageProcessorService.StopVideoPlayback
+     */
+    stopVideoPlayback: {
+      name: "StopVideoPlayback",
+      I: StopVideoPlaybackRequest,
+      O: StopVideoPlaybackResponse,
       kind: MethodKind.Unary,
     },
     /**

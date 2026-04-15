@@ -27,6 +27,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":processor_engine_contract",
+        ":webrtc_manager_lib",
         "//proto:image_processor_service_cc_proto",
         "//proto:image_processor_service_grpc",
         "@com_github_grpc_grpc//:grpc++",
@@ -40,6 +41,8 @@ cc_library(
     hdrs = ["webrtc_manager.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//proto:image_processor_service_cc_proto",
+        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
         "@spdlog",
         "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
     ],
@@ -90,4 +93,3 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
-

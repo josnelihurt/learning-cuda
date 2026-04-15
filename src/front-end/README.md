@@ -9,7 +9,7 @@ The frontend is a **multi-page application (MPA)** that provides real-time image
 1. **React Dashboard** (`/`) - Full React 19 application with components, hooks, and context providers
 2. **Lit Dashboard** (`/lit`) - Original Lit Web Components application
 
-Both communicate with the Go backend via WebSocket, Connect-RPC (gRPC-Web), and support WebRTC integration for low-latency frame streaming.
+Both communicate with the Go backend via Connect-RPC (gRPC-Web) for service calls and WebRTC for real-time frame streaming.
 
 **Key Features:**
 - Real-time webcam processing with GPU/CPU filter selection
@@ -44,9 +44,6 @@ graph TB
     
     subgraph "Infrastructure Layer"
         subgraph "Transport"
-            FrameTransport[FrameTransportService]
-            WSTransport[WebSocketFrameTransport]
-            GRPCTransport[GRPCFrameTransport]
             WebRTCTransport[WebRTCFrameTransport]
         end
         
@@ -85,16 +82,10 @@ graph TB
     AppRoot --> SourceDrawer
     
     FilterPanel --> ProcessorCaps
-    CameraPreview --> FrameTransport
+    CameraPreview --> WebRTCTransport
     VideoGrid --> VideoService
     
     ProcessorCaps --> GRPCServer
-    FrameTransport --> WSTransport
-    FrameTransport --> GRPCTransport
-    FrameTransport --> WebRTCTransport
-    
-    WSTransport --> GoServer
-    GRPCTransport --> GRPCServer
     WebRTCTransport --> GRPCServer
     
     VideoService --> GoServer
@@ -106,12 +97,12 @@ graph TB
     SystemInfo --> GoServer
     ToolsService --> GoServer
     
-    UIService --> FrameTransport
+    UIService --> WebRTCTransport
     UIService --> ProcessorCaps
     
     ConfigService --> Interfaces
     ProcessorCaps --> Interfaces
-    FrameTransport --> Interfaces
+    WebRTCTransport --> Interfaces
     VideoService --> Interfaces
     FileService --> Interfaces
     
@@ -170,7 +161,7 @@ graph TB
 
 **`connection-status-card`** (`components/app/connection-status-card.ts`):
 - Displays current connection status
-- Shows transport type (WebSocket, gRPC, WebRTC)
+- Shows WebRTC connection state and quality
 - Connection quality indicators
 
 **`tools-dropdown`** (`components/ui/tools-dropdown.ts`):
@@ -203,26 +194,12 @@ graph TB
 
 #### Transport Layer (`infrastructure/transport/`)
 
-**`frame-transport-service.ts`**:
-- Main transport abstraction implementing `IFrameTransportService`
-- Selects appropriate transport based on feature flags
-- Aggregates WebSocket, gRPC, and WebRTC transports
-- Provides unified interface for frame transmission
-
-**`websocket-frame-transport.ts`**:
-- WebSocket implementation for frame transmission
-- Real-time bidirectional communication
-- Handles connection lifecycle and reconnection
-
-**`grpc-frame-transport.ts`**:
-- gRPC bidirectional streaming for frame transmission
-- Uses Connect-RPC for browser compatibility
-- Lower latency than WebSocket for high-throughput scenarios
-
 **`webrtc-frame-transport.ts`**:
-- WebRTC implementation (stub, not yet implemented)
-- Planned for peer-to-peer low-latency streaming
-- Will enable direct browser-to-gRPC server communication
+- WebRTC implementation for real-time frame streaming
+- Peer-to-peer communication with the gRPC server
+- Uses WebRTC data channels for low-latency frame transmission
+- Handles WebRTC signaling through Connect-RPC
+- Connection lifecycle management and reconnection handling
 
 #### Data Services (`infrastructure/data/`)
 
@@ -276,7 +253,7 @@ graph TB
 
 Domain interfaces define contracts without implementation details:
 
-- **`IFrameTransportService`**: Frame transmission abstraction
+- **`IFrameTransportService`**: Frame transmission interface (WebRTC implementation)
 - **`IConfigService`**: Configuration management
 - **`IProcessorCapabilitiesService`**: Filter capabilities
 - **`IVideoService`**: Video operations
@@ -293,7 +270,7 @@ Type-safe domain models:
 - **`FilterData`**: Filter configuration and parameters
 - **`AcceleratorConfig`**: GPU/CPU accelerator selection
 - **`GrayscaleAlgorithm`**: Grayscale algorithm types
-- **`ConnectionStatus`**: Connection state and metadata
+- **`ConnectionStatus`**: WebRTC connection state and quality metrics
 - **`WebRTCSession`**: WebRTC session information
 
 ## Dependency Injection
@@ -306,18 +283,21 @@ Type-safe domain models:
 
 **Service Resolution:**
 - Application services: Singleton instances
-- Transport services: Factory methods with component dependencies
+- Transport service: WebRTCFrameTransportService with component dependencies
 - Infrastructure services: Singleton instances with lazy initialization
 
 ## Transport Selection
 
-The `FrameTransportService` selects the appropriate transport based on feature flags:
+The frontend uses **WebRTC** as the primary transport for real-time frame streaming:
 
-1. **WebSocket** (default): Traditional bidirectional communication
-2. **gRPC**: Bidirectional streaming via Connect-RPC (default and only method)
-3. **WebRTC** (future): Peer-to-peer low-latency streaming
+- **WebRTC**: Peer-to-peer low-latency streaming via WebRTC data channels
+- Signaling is handled through Connect-RPC WebRTC services
+- Components use the `IFrameTransportService` interface, implemented by `WebRTCFrameTransportService`
 
-The selection is transparent to components—they use the unified `IFrameTransportService` interface.
+The transport provides:
+- Direct browser-to-gRTC server communication
+- Low-latency frame transmission for real-time processing
+- Automatic connection management and reconnection
 
 ## Development
 
@@ -377,7 +357,8 @@ npm run test:e2e:dev  # Development mode
 - **Vite**: Build tool and dev server with MPA support
 - **Vitest**: Unit testing framework
 - **Playwright**: E2E testing
-- **Connect-RPC**: gRPC-Web client library
+- **Connect-RPC**: gRPC-Web client library for service calls and WebRTC signaling
+- **WebRTC**: Real-time peer-to-peer frame streaming
 - **OpenTelemetry**: Distributed tracing
 - **Shepherd.js**: Guided tour library
 

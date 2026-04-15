@@ -2,6 +2,7 @@ package connectrpc
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
@@ -14,6 +15,7 @@ import (
 
 type ImageProcessorHandler struct {
 	useCase       *application.ProcessImageUseCase
+	streamVideoUC *application.StreamVideoUseCase
 	adapter       *adapters.ProtobufAdapter
 	filterCodec   *adapters.FilterCodec
 	capabilities  application.ProcessorCapabilitiesUseCase
@@ -27,12 +29,14 @@ func NewImageProcessorHandlerWithGRPC(
 	useCase *application.ProcessImageUseCase,
 	capabilitiesUC application.ProcessorCapabilitiesUseCase,
 	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
+	streamVideoUC *application.StreamVideoUseCase,
 	grpcClient interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	},
 ) *ImageProcessorHandler {
 	return &ImageProcessorHandler{
 		useCase:       useCase,
+		streamVideoUC: streamVideoUC,
 		adapter:       adapters.NewProtobufAdapter(),
 		filterCodec:   adapters.NewFilterCodec(),
 		capabilities:  capabilitiesUC,
@@ -97,16 +101,46 @@ func (h *ImageProcessorHandler) ListFilters(
 	return res, nil
 }
 
+func (h *ImageProcessorHandler) StartVideoPlayback(
+	ctx context.Context,
+	req *connect.Request[pb.StartVideoPlaybackRequest],
+) (*connect.Response[pb.StartVideoPlaybackResponse], error) {
+	if h.streamVideoUC == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stream video use case not configured"))
+	}
+
+	resp, err := h.streamVideoUC.Start(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(mapStreamVideoError(err), err)
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+func (h *ImageProcessorHandler) StopVideoPlayback(
+	ctx context.Context,
+	req *connect.Request[pb.StopVideoPlaybackRequest],
+) (*connect.Response[pb.StopVideoPlaybackResponse], error) {
+	if h.streamVideoUC == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stream video use case not configured"))
+	}
+
+	resp, err := h.streamVideoUC.Stop(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(mapStreamVideoError(err), err)
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
 func (h *ImageProcessorHandler) StreamProcessVideo(
 	ctx context.Context,
 	stream *connect.BidiStream[pb.ProcessImageRequest, pb.ProcessImageResponse],
 ) error {
-	// TODO: Implement this to replace WebSocket handler
-	// This should replace: webserver/pkg/interfaces/websocket/handler.go HandleWebSocket method
-	// Benefits: Type-safe streaming, unified protocol (Connect-RPC), better error handling
-	// Implementation: Use stream.Receive() loop, call useCase.Execute, stream.Send() responses
-	// Add tracing, handle context cancellation, manage backpressure
-	return connect.NewError(connect.CodeUnimplemented, nil)
+	return connect.NewError(
+		connect.CodeUnimplemented,
+		errors.New("StreamProcessVideo is not implemented; use StartVideoPlayback/StopVideoPlayback"),
+	)
 }
 
 func (h *ImageProcessorHandler) GetVersionInfo(
@@ -124,6 +158,20 @@ func (h *ImageProcessorHandler) GetVersionInfo(
 	}
 
 	return connect.NewResponse(resp), nil
+}
+
+func mapStreamVideoError(err error) connect.Code {
+	switch {
+	case errors.Is(err, application.ErrVideoPlaybackMissingVideoID),
+		errors.Is(err, application.ErrVideoPlaybackMissingSession):
+		return connect.CodeInvalidArgument
+	case errors.Is(err, application.ErrVideoPlaybackAlreadyRunning):
+		return connect.CodeAlreadyExists
+	case errors.Is(err, application.ErrVideoPlaybackNotRunning):
+		return connect.CodeNotFound
+	default:
+		return connect.CodeInternal
+	}
 }
 
 var _ genconnect.ImageProcessorServiceHandler = (*ImageProcessorHandler)(nil)

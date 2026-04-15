@@ -30,6 +30,27 @@ interface FilterState {
   parameterValues: Record<string, string>;
 }
 
+function areFilterStatesEqual(left: FilterState[], right: FilterState[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((leftFilter, index) => {
+    const rightFilter = right[index];
+    if (!rightFilter) {
+      return false;
+    }
+
+    return (
+      leftFilter.id === rightFilter.id &&
+      leftFilter.name === rightFilter.name &&
+      leftFilter.enabled === rightFilter.enabled &&
+      leftFilter.expanded === rightFilter.expanded &&
+      JSON.stringify(leftFilter.parameterValues) === JSON.stringify(rightFilter.parameterValues)
+    );
+  });
+}
+
 export function FilterPanel({
   filters: propFilters,
   onFiltersChange,
@@ -76,8 +97,26 @@ export function FilterPanel({
       });
     }
 
-    setLocalFilters(initialFilterStates);
+    setLocalFilters((prev) => (areFilterStatesEqual(prev, initialFilterStates) ? prev : initialFilterStates));
   }, [filters, initialActiveFilters]);
+
+  const getActiveFilters = useCallback((filterStates: FilterState[]): ActiveFilterState[] => {
+    const active = filterStates.filter((f) => f.enabled);
+    if (active.length === 0) {
+      return [{ id: 'none', parameters: {} }];
+    }
+    return active.map((filter) => ({
+      id: filter.id,
+      parameters: { ...filter.parameterValues },
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (localFilters.length === 0) {
+      return;
+    }
+    onFiltersChange(getActiveFilters(localFilters));
+  }, [getActiveFilters, localFilters, onFiltersChange]);
 
   const { error: showError } = useToast();
 
@@ -109,11 +148,10 @@ export function FilterPanel({
         }
 
         newFilters[index] = filter;
-        onFiltersChange(getActiveFilters(newFilters));
         return newFilters;
       });
     },
-    [onFiltersChange]
+    []
   );
 
   const handleCheckboxChange = useCallback(
@@ -125,11 +163,10 @@ export function FilterPanel({
           enabled,
           expanded: enabled ? newFilters[index].expanded : false,
         };
-        onFiltersChange(getActiveFilters(newFilters));
         return newFilters;
       });
     },
-    [onFiltersChange]
+    []
   );
 
   const handleParameterChange = useCallback(
@@ -147,11 +184,10 @@ export function FilterPanel({
           }
           return filter;
         });
-        onFiltersChange(getActiveFilters(newFilters));
         return newFilters;
       });
     },
-    [onFiltersChange]
+    []
   );
 
   const handleNumberInputChange = useCallback(
@@ -216,25 +252,13 @@ export function FilterPanel({
         const newFilters = [...prev];
         const [draggedFilter] = newFilters.splice(draggedIndex, 1);
         newFilters.splice(dropIndex, 0, draggedFilter);
-        onFiltersChange(getActiveFilters(newFilters));
         return newFilters;
       });
 
       setDraggedIndex(null);
     },
-    [draggedIndex, onFiltersChange]
+    [draggedIndex]
   );
-
-  const getActiveFilters = (filterStates: FilterState[]): ActiveFilterState[] => {
-    const active = filterStates.filter((f) => f.enabled);
-    if (active.length === 0) {
-      return [{ id: 'none', parameters: {} }];
-    }
-    return active.map((filter) => ({
-      id: filter.id,
-      parameters: { ...filter.parameterValues },
-    }));
-  };
 
   const renderParameterControl = (filter: FilterState, param: GenericFilterParameter) => {
     const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';

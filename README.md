@@ -54,7 +54,7 @@ graph TB
     end
     
     subgraph "API Layer"
-        WS[WebSocket]
+        WebRTCSignaling[WebRTC Signaling]
         ConnectRPC[Connect-RPC]
     end
     
@@ -78,9 +78,9 @@ graph TB
     end
     
     Browser --> UI
-    UI --> WS
+    UI --> WebRTCSignaling
     UI --> ConnectRPC
-    WS --> API
+    WebRTCSignaling --> API
     ConnectRPC --> API
     API --> Services
     Services --> UseCases
@@ -101,7 +101,7 @@ graph TB
 graph TB
     subgraph "Interfaces Layer"
         HTTP[HTTP Handlers]
-        WS_Handler[WebSocket Handler]
+        WebRTC_Handler[WebRTC Signaling Handler]
         ConnectRPC_Handler[Connect-RPC Handler]
     end
     
@@ -145,7 +145,7 @@ graph TB
     end
     
     HTTP --> ProcessImage
-    WS_Handler --> ProcessImage
+    WebRTC_Handler --> ProcessImage
     ConnectRPC_Handler --> ListInputs
     ConnectRPC_Handler --> GetSystemInfo
     
@@ -197,7 +197,7 @@ The gRPC server hosts the shared library (`libcuda_processor.so`), which contain
 - Go server can run without NVIDIA containers (cloud deployment)
 - GPU processing isolated to dedicated hardware (Jetson Nano, GPU servers)
 - Enables scaling processing independently from web server
-- Foundation for future microservices evolution with WebRTC support
+- WebRTC signaling implementation for real-time frame transport
 
 ## Setup
 
@@ -307,7 +307,7 @@ Skip when needed: `git commit --no-verify` or `git push --no-verify`
 
 ## Tech
 
-- Go server with native HTTPS support handling WebSocket
+- Go server with native HTTPS support with WebRTC signaling
 - C++/CUDA doing the processing via gRPC service
 - Protocol Buffers for C++/Go communication
 - Bazel for C++/CUDA builds, Makefile for Go
@@ -437,7 +437,7 @@ src/go_api/
     container/         # Dependency injection
     domain/            # Domain logic
     infrastructure/    # Repositories, gRPC client
-    interfaces/        # HTTP/WebSocket handlers
+    interfaces/        # HTTP/WebRTC signaling handlers
     telemetry/         # Observability
 
 src/front-end/        # Lit Web Components + React (Vite)
@@ -494,9 +494,9 @@ The current architecture provides a solid foundation, but the vision extends to 
 **Current Challenge**: The gRPC server requires NVIDIA containers for CUDA processing, but the Go web server is now decoupled and can run without GPU dependencies. This enables cloud deployment of the web server while GPU processing remains on dedicated hardware.
 
 **Planned Evolution**:
-- **WebRTC Integration**: Replace WebSocket with WebRTC for direct frame streaming to the CUDA microservice. This addresses latency concerns inherent in microservices architectures by enabling peer-to-peer communication with minimal overhead.
-- **WebSocket Deprecation**: Gradually migrate from WebSocket to WebRTC using feature flags. This allows A/B testing and metrics collection to validate performance improvements and ensure smooth transition.
-- **Feature Flags Strategy**: Use feature flags throughout the migration to:
+- **WebRTC Integration**: WebRTC signaling is now the primary transport for real-time frame streaming, replacing the previous WebSocket implementation. The system uses WebRTC for direct peer-to-peer communication with minimal overhead, addressing latency concerns inherent in microservices architectures.
+- **WebSocket Migration Complete**: The migration from WebSocket to WebRTC has been completed. WebSocket handlers and related infrastructure have been removed from the codebase (commit `9b4a7ac`).
+- **Feature Flags Strategy**: Use feature flags for future enhancements:
   - Enable gradual rollout of new architecture
   - Collect metrics comparing WebSocket vs WebRTC performance
   - Validate hypotheses about latency and throughput
@@ -533,8 +533,8 @@ The current architecture provides a solid foundation, but the vision extends to 
 
 
 **Metrics & Validation**: Feature flags enable continuous metrics collection:
-- Latency comparison: WebSocket vs WebRTC
-- Throughput analysis: CGO vs gRPC vs WebRTC
+- Latency analysis: WebRTC signaling performance
+- Throughput analysis: gRPC vs WebRTC transport
 - Performance benchmarks: CUDA vs OpenCL vs ARM
 - Resource utilization across different architectures
 

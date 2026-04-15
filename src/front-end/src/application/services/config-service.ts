@@ -53,7 +53,6 @@ class StreamConfigService implements IConfigService {
             span?.setAttribute('config.endpoint_count', response.endpoints.length);
             span?.setAttribute('config.type', this.config.type);
             span?.setAttribute('config.endpoint', this.config.endpoint);
-            span?.setAttribute('config.transport_format', this.config.transportFormat);
             span?.setAttribute('config.log_level', this.logLevel);
             span?.setAttribute('config.console_logging', this.consoleLogging);
 
@@ -62,7 +61,6 @@ class StreamConfigService implements IConfigService {
             logger.info('Stream configuration loaded', {
               'config.type': this.config.type,
               'config.endpoint': this.config.endpoint,
-              'config.transport_format': this.config.transportFormat,
               'config.log_level': this.logLevel,
               'config.console_logging': String(this.consoleLogging),
             });
@@ -70,9 +68,8 @@ class StreamConfigService implements IConfigService {
             span?.addEvent('No endpoints configured, using defaults');
             logger.warn('No stream endpoints configured, using defaults');
             this.config = new StreamEndpoint({
-              type: 'websocket',
-              endpoint: '/ws',
-              transportFormat: 'json',
+              type: 'webrtc',
+              endpoint: '/cuda_learning.WebRTCSignalingService/StartSession',
             });
           }
         } catch (error) {
@@ -84,31 +81,14 @@ class StreamConfigService implements IConfigService {
             'error.message': error instanceof Error ? error.message : String(error),
           });
           this.config = new StreamEndpoint({
-            type: 'websocket',
-            endpoint: '/ws',
-            transportFormat: 'json',
+            type: 'webrtc',
+            endpoint: '/cuda_learning.WebRTCSignalingService/StartSession',
           });
         }
       }
     );
 
     return this.initPromise;
-  }
-
-  getTransportFormat(): 'json' | 'binary' {
-    if (!this.config) {
-      logger.warn('Config not initialized, returning default: json');
-      return 'json';
-    }
-    return this.config.transportFormat === 'binary' ? 'binary' : 'json';
-  }
-
-  getWebSocketEndpoint(): string {
-    if (!this.config) {
-      logger.warn('Config not initialized, returning default: /ws');
-      return '/ws';
-    }
-    return this.config.endpoint;
   }
 
   isInitialized(): boolean {

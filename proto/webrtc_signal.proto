@@ -49,6 +49,20 @@ message CloseSessionResponse {
   TraceContext trace_context = 5 [json_name = "trace_context"];
 }
 
+message PollEventsRequest {
+  string session_id = 1 [json_name = "session_id"];
+  int64 cursor = 3 [json_name = "cursor"];
+  int64 timeout_ms = 5 [json_name = "timeout_ms"];
+  TraceContext trace_context = 7 [json_name = "trace_context"];
+}
+
+message PollEventsResponse {
+  repeated SignalingMessage events = 1 [json_name = "events"];
+  int64 next_cursor = 3 [json_name = "next_cursor"];
+  int64 poll_timeout_ms = 5 [json_name = "poll_timeout_ms"];
+  TraceContext trace_context = 7 [json_name = "trace_context"];
+}
+
 message KeepAlive {
   int64 timestamp = 1 [json_name = "timestamp"];
 }
@@ -66,7 +80,32 @@ message SignalingMessage {
 }
 
 service WebRTCSignalingService {
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse) {
+    option (google.api.http) = {
+      post: "/api/webrtc/sessions"
+      body: "*"
+    };
+  }
+
+  rpc SendIceCandidate(SendIceCandidateRequest) returns (SendIceCandidateResponse) {
+    option (google.api.http) = {
+      post: "/api/webrtc/sessions/{session_id}/candidates"
+      body: "*"
+    };
+  }
+
+  rpc PollEvents(PollEventsRequest) returns (PollEventsResponse) {
+    option (google.api.http) = {
+      get: "/api/webrtc/sessions/{session_id}/events"
+    };
+  }
+
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse) {
+    option (google.api.http) = {
+      delete: "/api/webrtc/sessions/{session_id}"
+    };
+  }
+
   rpc SignalingStream(stream SignalingMessage) returns (stream SignalingMessage);
 }
-
 

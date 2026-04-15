@@ -4,9 +4,9 @@
 
 This directory contains BDD-style acceptance tests that validate the behavior of the CUDA image processing service, including:
 - Image processing via ConnectRPC (Grayscale, Gaussian Blur, Multi-filter)
-- WebSocket real-time processing
+- WebRTC real-time frame streaming
 - Input source management (static images, videos, camera)
-- Video playback and frame ID tracking
+- Video playback and management
 - Processor capabilities and system information
 - Tools configuration
 
@@ -16,11 +16,11 @@ Before running these tests, ensure the following:
 
 ### 1. Proto Files Generated
 
-If you've modified `proto/image_processing.proto`, regenerate the proto files:
+If you've modified `proto/image_processor_service.proto`, regenerate the proto files:
 
 ```bash
 # Option 1: Run setup script (checks and regenerates if needed)
-./integration/tests/acceptance/scripts/setup.sh
+./test/integration/tests/acceptance/scripts/setup.sh
 
 # Option 2: Manually regenerate
 docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
@@ -70,13 +70,6 @@ go test ./integration/tests/acceptance -run TestFeatures -v \
   -godog.format=pretty,cucumber:cucumber-report.json,junit:junit-report.xml
 ```
 
-### Legacy Tests (Deprecated)
-
-The original Go-native tests still work:
-```bash
-go test ./integration/tests/acceptance -run TestFeatureFlagsAcceptance -v
-```
-
 ### Skip in short mode
 
 Tests are skipped when running with `-short` flag:
@@ -86,7 +79,7 @@ go test -short ./integration/tests/acceptance  # Will skip these tests
 
 ## Test Features
 
-The test suite includes 11 feature files covering:
+The test suite includes 9 feature files covering:
 
 ### Image Processing Features
 - **`features/image_processing.feature`** (22 scenarios)
@@ -95,11 +88,6 @@ The test suite includes 11 feature files covering:
   - Gaussian Blur filters (various kernel sizes, sigma values, border modes)
   - Multi-filter combinations (Grayscale + Blur, Blur + Grayscale)
   - Error scenarios (invalid filters, missing parameters)
-
-- **`features/websocket_processing.feature`** (9 scenarios)
-  - Real-time image processing via WebSocket
-  - Frame-by-frame video processing
-  - Error handling for malformed requests
 
 ### Input Source Features
 - **`features/input_sources.feature`** (3 scenarios)
@@ -115,9 +103,6 @@ The test suite includes 11 feature files covering:
   - Listing available videos
   - Uploading MP4 videos
   - Video metadata validation
-
-- **`features/video_frame_id.feature`** (6 scenarios)
-  - Sequential frame ID tracking during video processing
 
 ### System Features
 - **`features/processor_capabilities.feature`** (5 scenarios)
@@ -145,7 +130,7 @@ The tests follow the **Given/When/Then** BDD pattern with step definitions organ
 - `steps/given_steps.go` - Setup steps (service running, config values)
 - `steps/when_steps.go` - Action steps (calling endpoints, processing images)
 - `steps/then_steps.go` - Assertion steps (validating responses)
-- `steps/image_steps.go` - Image processing and WebSocket steps
+- `steps/image_steps.go` - Image processing and WebRTC steps
 - `steps/input_source_steps.go` - Input source and available image steps
 - `steps/video_steps.go` - Video playback and frame tracking steps
 
@@ -155,14 +140,12 @@ The tests follow the **Given/When/Then** BDD pattern with step definitions organ
 - `steps/bdd_context.go` - BDDContext with business logic and client management
 
 ### Test Data
-- `testdata/checksums.json` - MD5 checksums for deterministic image processing validation
+- `testdata/checksums.json` - SHA-256 checksums for deterministic image processing validation
 - `scripts/generate_checksums.go` - Tool for regenerating checksums after visual inspection
 
 ### Then (Assertion)
 - `ThenTheResponseShouldContainTransportFormat()` - Validates transport format
 - `ThenTheResponseShouldContainEndpoint()` - Validates endpoint
-- `ThenFliptShouldHaveFlag()` - Verifies flag exists in Flipt
-- `ThenFliptShouldHaveFlagWithValue()` - Verifies flag value in Flipt
 
 ## Files
 
@@ -175,7 +158,7 @@ The tests follow the **Given/When/Then** BDD pattern with step definitions organ
 - `steps/image_steps.go` - Image processing and WebSocket steps
 - `steps/input_source_steps.go` - Input source and available image steps
 - `steps/video_steps.go` - Video playback and frame tracking steps
-- `features/` - Gherkin feature files (11 features)
+- `features/` - Gherkin feature files (9 features)
 - `README.md` - This file
 
 ## Architecture
@@ -197,9 +180,10 @@ cd test/integration/tests/acceptance/scripts
 ```
 
 This script:
-1. Verifies the service is running
-2. Generates checksums automatically if needed
-3. Executes tests with a 120-second timeout
+1. Changes to project root directory
+2. Verifies the service is running
+3. Generates checksums automatically if needed
+4. Executes tests with a 120-second timeout
 
 ## Test Combinations
 
@@ -237,14 +221,14 @@ This script:
 
 If your feature requires a new RPC endpoint:
 
-1. **Edit `proto/image_processing.proto`**:
+1. **Edit `proto/image_processor_service.proto`**:
    ```protobuf
    message ListInputsRequest {}
-   
+
    message ListInputsResponse {
      repeated InputSource sources = 1 [json_name = "sources"];
    }
-   
+
    service ConfigService {
      rpc ListInputs(ListInputsRequest) returns (ListInputsResponse);
    }
@@ -252,7 +236,7 @@ If your feature requires a new RPC endpoint:
 
 2. **Generate proto files**:
    ```bash
-   ./integration/tests/acceptance/scripts/setup.sh
+   ./test/integration/tests/acceptance/scripts/setup.sh
    # or manually:
    docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
    ```
@@ -260,7 +244,7 @@ If your feature requires a new RPC endpoint:
 3. **Verify generation**:
    ```bash
    # Check that types are generated
-   grep -q "ListInputs" proto/gen/image_processing.pb.go && echo "✅ Proto generated"
+   grep -q "ListInputs" src/front-end/src/gen/image_processor_service_pb.go && echo "✅ Proto generated"
    ```
 
 #### Step 2: Write BDD Scenarios
@@ -315,7 +299,7 @@ If your feature requires a new RPC endpoint:
 
 This is a real example from this codebase showing the complete BDD workflow:
 
-**1. Define Proto** (`proto/image_processing.proto`):
+**1. Define Proto** (`proto/image_processor_service.proto`):
 ```protobuf
 message InputSource {
   string id = 1 [json_name = "id"];
@@ -338,7 +322,7 @@ service ConfigService {
 
 **2. Generate Proto**:
 ```bash
-./integration/tests/acceptance/scripts/setup.sh
+./test/integration/tests/acceptance/scripts/setup.sh
 ```
 
 **3. Create Feature** (`features/input_sources.feature`):
@@ -395,17 +379,6 @@ Error: service is not running at https://localhost:8443
 
 **Solution:** Start the service with `./scripts/dev/start.sh`
 
-### Flipt not accessible
-
-```
-Error: failed to clean Flipt: Get "http://localhost:8081/api/v1/namespaces/default/flags": dial tcp [::1]:8081: connect: connection refused
-```
-
-**Solution:** Ensure Flipt is running:
-```bash
-docker compose -f docker-compose.dev.yml up -d flipt
-```
-
 ### Certificate errors
 
 ```
@@ -432,13 +405,7 @@ The suite now includes comprehensive tests for:
    - 3 error scenarios (empty image, zero dimensions, invalid channels)
    - Checksum validation for consistent output
 
-2. **`websocket_processing.feature`** - Real-time WebSocket Processing
-   - JSON and Binary transport formats
-   - 4 successful frame processing scenarios
-   - 2 error scenarios (empty request, empty image)
-   - Checksum validation for processed frames
-
-3. **`streaming_service.feature`** - Streaming Service Status
+2. **`streaming_service.feature`** - Streaming Service Status
    - Validates StreamProcessVideo returns Unimplemented
 
 ### Generating Test Checksums
@@ -450,7 +417,7 @@ Before running image processing tests, generate checksums:
 ./scripts/dev/start.sh
 
 # In another terminal, generate checksums
-cd integration/tests/acceptance/scripts
+cd test/integration/tests/acceptance/scripts
 ./run_checksum_generation.sh
 ```
 
@@ -479,7 +446,6 @@ Tests use SHA-256 checksums to validate that:
 - Image processing produces consistent results
 - GPU and CPU implementations match expected outputs
 - Different grayscale algorithms produce correct transformations
-- WebSocket processing matches ConnectRPC results
 
 ## Next Steps
 
@@ -491,7 +457,6 @@ After these tests pass (baseline validation), you can proceed with the architect
 - [ ] Add tests for batch processing
 - [ ] Add performance benchmarks
 - [ ] Integrate tests into Bazel build system
-- [ ] Add tests for Flipt service unavailability scenarios
 - [ ] Add CI/CD pipeline integration
-- [ ] Add performance/load tests for flag evaluation
+- [ ] Add performance/load tests for feature flag evaluation
 

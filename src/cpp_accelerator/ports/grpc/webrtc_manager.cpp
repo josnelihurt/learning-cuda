@@ -1,14 +1,59 @@
 #include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
 
-#include <spdlog/spdlog.h>
 #include <chrono>
+#include <cstring>
+#include <exception>
 #include <future>
-#include <rtc/rtc.hpp>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <string_view>
 #include <thread>
+#include <variant>
+#include <vector>
+
+#include <spdlog/spdlog.h>
+#include <rtc/rtc.hpp>
+
+#include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 namespace jrb::ports::grpc_service {
 
-WebRTCManager::WebRTCManager() : initialized_(false), cleanup_running_(false) {
+namespace {
+
+constexpr std::string_view kGoVideoSessionPrefix = "go-video-";
+
+bool IsGoVideoSession(const std::string& value) {
+  return value.rfind(kGoVideoSessionPrefix, 0) == 0;
+}
+
+bool ShouldRegisterSessionChannel(const std::string& session_id, const std::string& label) {
+  return !IsGoVideoSession(session_id) && !IsGoVideoSession(label);
+}
+
+rtc::binary StringToBinary(const std::string& payload) {
+  rtc::binary data(payload.size());
+  if (!payload.empty()) {
+    std::memcpy(data.data(), payload.data(), payload.size());
+  }
+  return data;
+}
+
+void CopyProcessMetadata(const cuda_learning::ProcessImageRequest& request,
+                         cuda_learning::ProcessImageResponse* response) {
+  if (response == nullptr) {
+    return;
+  }
+
+  response->set_api_version(request.api_version());
+  response->mutable_trace_context()->CopyFrom(request.trace_context());
+}
+
+}  // namespace
+
+WebRTCManager::WebRTCManager(jrb::ports::shared_lib::ProcessorEngine* engine)
+    : engine_(engine), initialized_(false), cleanup_running_(false) {
   rtc::InitLogger(rtc::LogLevel::Info);
 }
 
@@ -86,6 +131,10 @@ void WebRTCManager::Shutdown() {
     }
   }
   sessions_.clear();
+  {
+    std::lock_guard<std::mutex> channels_lock(session_channels_mutex_);
+    session_channels_.clear();
+  }
   config_.reset();
   initialized_ = false;
   spdlog::info("WebRTCManager shut down");
@@ -251,46 +300,84 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 
     // Register callback to receive remote data channel from client
     // This must be done BEFORE setRemoteDescription to ensure we capture the channel
-    session->peer_connection->onDataChannel([session_id, session](
+    session->peer_connection->onDataChannel([this, session_id, session](
                                                 std::shared_ptr<rtc::DataChannel> data_channel) {
       spdlog::info("[WebRTC:{}] Remote data channel received: {}", session_id,
                    data_channel->label());
       session->data_channel = data_channel;
+      const std::string label = data_channel->label();
 
       // Register callbacks on the received data channel
-      data_channel->onOpen([session_id, session]() {
+      data_channel->onOpen([this, session_id, label, session, data_channel]() {
+        {
+          std::lock_guard<std::mutex> lock(session->mutex);
+          session->last_heartbeat = std::chrono::steady_clock::now();
+        }
+        if (ShouldRegisterSessionChannel(session_id, label)) {
+          RegisterSessionChannel(session_id, data_channel);
+        }
         spdlog::info("[WebRTC:{}] Remote data channel opened successfully - isOpen: {}", session_id,
-                     session->data_channel ? session->data_channel->isOpen() : false);
+                     data_channel->isOpen());
       });
 
-      data_channel->onMessage([session_id, session](rtc::message_variant data) {
-        spdlog::info("[WebRTC:{}] onMessage callback triggered", session_id);
-        if (std::holds_alternative<std::string>(data)) {
-          std::string message = std::get<std::string>(data);
-          spdlog::info("[WebRTC:{}] Received message on data channel: '{}' (length: {})",
-                       session_id, message, message.length());
-          if (message == "ping") {
-            std::lock_guard<std::mutex> lock(session->mutex);
-            if (session->data_channel && session->data_channel->isOpen()) {
-              session->last_heartbeat = std::chrono::steady_clock::now();
-              bool send_result = session->data_channel->send("pong");
-              spdlog::info("[WebRTC:{}] Sent pong response (result: {}) and updated heartbeat",
-                           session_id, send_result);
-            } else {
-              spdlog::warn("[WebRTC:{}] Cannot send pong - data channel not open (isOpen: {})",
-                           session_id,
-                           session->data_channel ? session->data_channel->isOpen() : false);
-            }
-          } else {
-            spdlog::warn("[WebRTC:{}] Received non-ping message: '{}'", session_id, message);
-          }
-        } else {
-          spdlog::warn("[WebRTC:{}] Received non-string message (variant type)", session_id);
+      data_channel->onMessage([this, session_id, session, data_channel](rtc::message_variant data) {
+        {
+          std::lock_guard<std::mutex> lock(session->mutex);
+          session->last_heartbeat = std::chrono::steady_clock::now();
+        }
+
+        if (!std::holds_alternative<rtc::binary>(data)) {
+          spdlog::warn("[WebRTC:{}] Ignoring non-binary data channel message", session_id);
+          return;
+        }
+
+        if (engine_ == nullptr) {
+          spdlog::error("[WebRTC:{}] Cannot process frame: processor engine unavailable",
+                        session_id);
+          return;
+        }
+
+        const auto& payload = std::get<rtc::binary>(data);
+        cuda_learning::ProcessImageRequest request;
+        if (!request.ParseFromArray(payload.data(), static_cast<int>(payload.size()))) {
+          spdlog::warn("[WebRTC:{}] Failed to parse ProcessImageRequest ({} bytes)", session_id,
+                       payload.size());
+          return;
+        }
+
+        cuda_learning::ProcessImageResponse response;
+        CopyProcessMetadata(request, &response);
+
+        const bool ok = engine_->ProcessImage(request, &response);
+        if (!ok || response.code() != 0) {
+          spdlog::warn("[WebRTC:{}] DataChannel frame processing failed (code={}): {}", session_id,
+                       response.code(), response.message());
+        }
+
+        std::string output;
+        if (!response.SerializeToString(&output)) {
+          spdlog::error("[WebRTC:{}] Failed to serialize ProcessImageResponse", session_id);
+          return;
+        }
+
+        if (!data_channel->isOpen()) {
+          spdlog::warn("[WebRTC:{}] Cannot send ProcessImageResponse: data channel closed",
+                       session_id);
+          return;
+        }
+
+        if (!data_channel->send(StringToBinary(output))) {
+          spdlog::warn("[WebRTC:{}] Failed to send ProcessImageResponse on data channel",
+                       session_id);
         }
       });
 
-      data_channel->onClosed(
-          [session_id]() { spdlog::warn("[WebRTC:{}] Remote data channel closed", session_id); });
+      data_channel->onClosed([this, session_id, label]() {
+        if (ShouldRegisterSessionChannel(session_id, label)) {
+          UnregisterSessionChannel(session_id);
+        }
+        spdlog::warn("[WebRTC:{}] Remote data channel closed", session_id);
+      });
 
       data_channel->onError([session_id](std::string err) {
         spdlog::error("[WebRTC:{}] Remote data channel error: {}", session_id, err);
@@ -540,6 +627,45 @@ std::vector<rtc::Candidate> WebRTCManager::GetPendingLocalCandidates(
   return candidates;
 }
 
+void WebRTCManager::SendToSession(const std::string& session_id, const std::string& bytes) {
+  if (session_id.empty()) {
+    spdlog::warn("[WebRTC] Cannot route response to empty session id");
+    return;
+  }
+
+  std::shared_ptr<rtc::DataChannel> channel;
+  {
+    std::lock_guard<std::mutex> lock(session_channels_mutex_);
+    auto it = session_channels_.find(session_id);
+    if (it == session_channels_.end()) {
+      spdlog::warn("[WebRTC:{}] No routable data channel registered for session", session_id);
+      return;
+    }
+    channel = it->second.lock();
+    if (!channel) {
+      session_channels_.erase(it);
+      spdlog::warn("[WebRTC:{}] Routable data channel expired", session_id);
+      return;
+    }
+  }
+
+  if (!channel->isOpen()) {
+    spdlog::warn("[WebRTC:{}] Cannot route response: data channel is not open", session_id);
+    return;
+  }
+
+  if (!channel->send(StringToBinary(bytes))) {
+    spdlog::warn("[WebRTC:{}] Failed to route response to session", session_id);
+    return;
+  }
+
+  auto session = GetSession(session_id);
+  if (session) {
+    std::lock_guard<std::mutex> lock(session->mutex);
+    session->last_heartbeat = std::chrono::steady_clock::now();
+  }
+}
+
 std::shared_ptr<WebRTCManager::SessionState> WebRTCManager::GetSession(
     const std::string& session_id) {
   std::lock_guard<std::mutex> lock(sessions_mutex_);
@@ -551,8 +677,11 @@ std::shared_ptr<WebRTCManager::SessionState> WebRTCManager::GetSession(
 }
 
 void WebRTCManager::RemoveSession(const std::string& session_id) {
-  std::lock_guard<std::mutex> lock(sessions_mutex_);
-  sessions_.erase(session_id);
+  {
+    std::lock_guard<std::mutex> lock(sessions_mutex_);
+    sessions_.erase(session_id);
+  }
+  UnregisterSessionChannel(session_id);
   spdlog::info("[WebRTC:{}] Session removed", session_id);
 }
 
@@ -587,12 +716,25 @@ void WebRTCManager::CleanupInactiveSessions(int timeout_seconds) {
 
   for (const auto& session_id : sessions_to_remove) {
     sessions_.erase(session_id);
+    UnregisterSessionChannel(session_id);
     spdlog::info("[WebRTC:{}] Inactive session removed", session_id);
   }
 
   if (!sessions_to_remove.empty()) {
     spdlog::info("Cleaned up {} inactive WebRTC session(s)", sessions_to_remove.size());
   }
+}
+
+void WebRTCManager::RegisterSessionChannel(
+    const std::string& session_id, const std::shared_ptr<rtc::DataChannel>& data_channel) {
+  std::lock_guard<std::mutex> lock(session_channels_mutex_);
+  session_channels_[session_id] = data_channel;
+  spdlog::info("[WebRTC:{}] Registered routable browser data channel", session_id);
+}
+
+void WebRTCManager::UnregisterSessionChannel(const std::string& session_id) {
+  std::lock_guard<std::mutex> lock(session_channels_mutex_);
+  session_channels_.erase(session_id);
 }
 
 }  // namespace jrb::ports::grpc_service

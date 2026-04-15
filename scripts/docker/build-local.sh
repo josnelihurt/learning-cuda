@@ -123,15 +123,27 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 if [[ -z "${BAZEL_REMOTE_CACHE:-}" ]]; then
-  CACHE_HOST="192.168.10.80"
-  CACHE_STATUS_URL="http://${CACHE_HOST}:9090/status"
-  if curl -sf --connect-timeout 2 --max-time 4 "${CACHE_STATUS_URL}" >/dev/null 2>&1; then
-    export BAZEL_REMOTE_CACHE="grpc://${CACHE_HOST}:9092"
-    export BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="true"
-    echo "Detected bazel-remote cache at ${CACHE_HOST}"
-  else
-    echo "Bazel-remote cache not reachable; proceeding without remote cache."
+  # Self-hosted pools may sit on different LANs (e.g. prox4 vs prox3); try each bazel-remote
+  # HTTP status endpoint until one responds. Override with BAZEL_REMOTE_CACHE_CANDIDATE_HOSTS
+  # (space-separated) or set BAZEL_REMOTE_CACHE directly.
+  read -r -a _bazel_cache_hosts <<< "${BAZEL_REMOTE_CACHE_CANDIDATE_HOSTS:-192.168.10.80 192.168.30.60}"
+  _bazel_cache_found=""
+  for _h in "${_bazel_cache_hosts[@]}"; do
+    if [[ -z "${_h}" ]]; then
+      continue
+    fi
+    if curl -sf --connect-timeout 2 --max-time 4 "http://${_h}:9090/status" >/dev/null 2>&1; then
+      export BAZEL_REMOTE_CACHE="grpc://${_h}:9092"
+      export BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="true"
+      echo "Detected bazel-remote cache at ${_h}"
+      _bazel_cache_found=1
+      break
+    fi
+  done
+  if [[ -z "${_bazel_cache_found}" ]]; then
+    echo "Bazel-remote cache not reachable at ${_bazel_cache_hosts[*]}; proceeding without remote cache."
   fi
+  unset _h _bazel_cache_hosts _bazel_cache_found
 fi
 
 HOST_ARCH="${ARCH_DEFAULT}"

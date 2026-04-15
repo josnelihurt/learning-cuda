@@ -438,7 +438,7 @@ src/go_api/
     telemetry/         # Observability
 
 src/front-end/        # React (Vite)
-  src/react/           # React dashboard
+  src/presentation/    # React dashboard (presentation layer)
   src/shared/          # Shared utilities
 
 scripts/               # organized scripts (dev/, test/, docker/, tools/, hooks/)

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { manageWebRTC } from '../infrastructure/connection/webrtc-manage';
+import { manageWebRTC } from '@/infrastructure/connection/webrtc-manage';
 import { useToast } from './useToast';
 import type { ActiveFilterState } from '../components/filters/FilterPanel';
 

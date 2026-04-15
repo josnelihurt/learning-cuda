@@ -3,8 +3,8 @@ import { createPromiseClient } from '@connectrpc/connect';
 import { ConfigService } from '@/gen/config_service_connect';
 import type { ToolCategory } from '@/gen/config_service_pb';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
-import { useAppServices } from '../../providers/app-services-provider';
-import { useToast } from '../../hooks/useToast';
+import { useAppServices } from '@/presentation/providers/app-services-provider';
+import { useToast } from '@/presentation/hooks/useToast';
 import styles from './NavbarControls.module.css';
 
 declare const __APP_VERSION__: string;

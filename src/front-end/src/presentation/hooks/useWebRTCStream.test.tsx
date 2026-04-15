@@ -2,7 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useWebRTCStream } from './useWebRTCStream';
 import { manageWebRTC } from '@/infrastructure/connection/webrtc-manage';
-import type { ActiveFilterState } from '../components/filters/FilterPanel';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 
 // Mock manageWebRTC
 vi.mock('@/infrastructure/connection/webrtc-manage', () => ({

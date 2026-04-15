@@ -1,4 +1,4 @@
-import type { InputSource, StaticImage, StaticVideo } from '../../gen/config_service_pb';
+import type { InputSource, StaticImage, StaticVideo } from '@/gen/config_service_pb';
 
 export interface IInputSourceService {
   initialize(): Promise<void>;

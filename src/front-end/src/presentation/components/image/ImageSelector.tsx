@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { StaticImage } from '@/gen/common_pb';
-import { useFiles } from '../../hooks/useFiles';
-import { FileList } from '../files/FileList';
+import { useFiles } from '@/presentation/hooks/useFiles';
+import { FileList } from '@/presentation/components/files/FileList';
 import styles from './ImageSelector.module.css';
 
 interface ImageSelectorProps {

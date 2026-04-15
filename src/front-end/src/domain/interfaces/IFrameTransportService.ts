@@ -1,5 +1,5 @@
-import type { ProcessImageResponse } from '../../gen/image_processor_service_pb';
-import type { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '../value-objects';
+import type { ProcessImageResponse } from '@/gen/image_processor_service_pb';
+import type { ImageData, FilterData, AcceleratorConfig, GrayscaleAlgorithm } from '@/domain/value-objects';
 
 export interface IFrameTransportService {
   connect(): void;

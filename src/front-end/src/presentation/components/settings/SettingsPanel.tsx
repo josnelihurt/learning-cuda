@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { GetStreamConfigResponse, StreamEndpoint } from '@/gen/config_service_pb';
-import { useConfig } from '../../hooks/useConfig';
-import { useToast } from '../../hooks/useToast';
+import { useConfig } from '@/presentation/hooks/useConfig';
+import { useToast } from '@/presentation/hooks/useToast';
 import styles from './SettingsPanel.module.css';
 
 export function SettingsPanel() {

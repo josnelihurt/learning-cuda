@@ -1,12 +1,12 @@
 import { createPromiseClient, PromiseClient, Interceptor } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ConfigService } from '../../gen/config_service_connect';
-import { FileService } from '../../gen/file_service_connect';
-import { InputSource } from '../../gen/config_service_pb';
-import { StaticImage, StaticVideo } from '../../gen/common_pb';
-import { telemetryService } from '../observability/telemetry-service';
-import { logger } from '../observability/otel-logger';
-import type { IInputSourceService } from '../../domain/interfaces/IInputSourceService';
+import { ConfigService } from '@/gen/config_service_connect';
+import { FileService } from '@/gen/file_service_connect';
+import { InputSource } from '@/gen/config_service_pb';
+import { StaticImage, StaticVideo } from '@/gen/common_pb';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
+import type { IInputSourceService } from '@/domain/interfaces/IInputSourceService';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();

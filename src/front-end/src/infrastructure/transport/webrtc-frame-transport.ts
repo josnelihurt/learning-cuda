@@ -1,8 +1,8 @@
 import { createPromiseClient, type PromiseClient } from '@connectrpc/connect';
 import { context, propagation } from '@opentelemetry/api';
-import type { IFrameTransportService } from '../../domain/interfaces/IFrameTransportService';
-import { AcceleratorConfig, FilterData, GrayscaleAlgorithm, ImageData } from '../../domain/value-objects';
-import { ImageProcessorService } from '../../gen/image_processor_service_connect';
+import type { IFrameTransportService } from '@/domain/interfaces/IFrameTransportService';
+import { AcceleratorConfig, FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
+import { ImageProcessorService } from '@/gen/image_processor_service_connect';
 import {
   GenericFilterParameterSelection,
   GenericFilterSelection,
@@ -10,12 +10,12 @@ import {
   ProcessImageResponse,
   StartVideoPlaybackRequest,
   StopVideoPlaybackRequest,
-} from '../../gen/image_processor_service_pb';
-import { BorderMode, GrayscaleType, TraceContext } from '../../gen/common_pb';
+} from '@/gen/image_processor_service_pb';
+import { BorderMode, GrayscaleType, TraceContext } from '@/gen/common_pb';
 import type { IStatsDisplay, IToastDisplay, ICameraPreview } from './transport-types';
-import { webrtcService } from '../connection/webrtc-service';
-import { createGrpcConnectTransport } from '../grpc/create-grpc-transport';
-import { logger } from '../observability/otel-logger';
+import { webrtcService } from '@/infrastructure/connection/webrtc-service';
+import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
+import { logger } from '@/infrastructure/observability/otel-logger';
 
 type FrameResultCallback = (data: ProcessImageResponse) => void;
 

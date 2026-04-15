@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { ImageUpload } from './ImageUpload';
-import { FilterPanel, type ActiveFilterState } from '../filters/FilterPanel';
-import { useImageProcessing } from '../../hooks/useImageProcessing';
+import { FilterPanel, type ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import { useImageProcessing } from '@/presentation/hooks/useImageProcessing';
 import type { StaticImage } from '@/gen/common_pb';
 import styles from './ImageProcessor.module.css';
 

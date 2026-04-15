@@ -1,4 +1,4 @@
-import { GrayscaleType } from '../../gen/common_pb';
+import { GrayscaleType } from '@/gen/common_pb';
 
 export type ValidGrayscaleType = 'bt601' | 'bt709' | 'average' | 'lightness' | 'luminosity';
 

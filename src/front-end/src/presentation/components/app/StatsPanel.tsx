@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { grpcConnectionService } from '../../../infrastructure/connection/grpc-connection-service';
-import { webrtcService } from '../../../infrastructure/connection/webrtc-service';
+import { grpcConnectionService } from '@/infrastructure/connection/grpc-connection-service';
+import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import './StatsPanel.css';
 
 type StatsPanelProps = {

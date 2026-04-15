@@ -1,4 +1,4 @@
-import type { ToolCategory } from '../../gen/config_service_pb';
+import type { ToolCategory } from '@/gen/config_service_pb';
 
 export interface IToolsService {
   initialize(): Promise<void>;

@@ -26,7 +26,18 @@
     ],
     "no-console": ["warn", { "allow": ["warn", "error"] }],
     "prefer-const": "error",
-    "no-var": "error"
+    "no-var": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["../*"],
+            "message": "Use '@/' alias instead of relative '../' imports."
+          }
+        ]
+      }
+    ]
   },
   "ignorePatterns": [
     "node_modules",

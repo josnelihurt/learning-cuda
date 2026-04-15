@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { useWebRTCStream } from '../../hooks/useWebRTCStream';
+import { useWebRTCStream } from '@/presentation/hooks/useWebRTCStream';
 import { VideoSourceSelector } from './VideoSourceSelector';
 import { VideoCanvas } from './VideoCanvas';
 import type { StaticImage } from '@/gen/common_pb';
-import { useDashboardState } from '../../context/dashboard-state-context';
+import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import styles from './VideoStreamer.module.css';
 
 export function VideoStreamer() {

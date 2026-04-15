@@ -1,10 +1,10 @@
 import { createPromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { FileService } from '../../gen/file_service_connect';
-import type { StaticImage } from '../../gen/config_service_pb';
-import { telemetryService } from '../observability/telemetry-service';
-import { logger } from '../observability/otel-logger';
-import type { IFileService } from '../../domain/interfaces/IFileService';
+import { FileService } from '@/gen/file_service_connect';
+import type { StaticImage } from '@/gen/config_service_pb';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
+import type { IFileService } from '@/domain/interfaces/IFileService';
 
 class FileServiceClient implements IFileService {
   private client;

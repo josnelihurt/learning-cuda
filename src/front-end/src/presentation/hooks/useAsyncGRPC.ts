@@ -6,8 +6,8 @@ import {
   type DependencyList,
 } from 'react';
 import { ConnectError } from '@connectrpc/connect';
-import { useServiceContext } from '../context/service-context';
-import type { GrpcClients } from '../context/service-context';
+import { useServiceContext } from '@/presentation/context/service-context';
+import type { GrpcClients } from '@/presentation/context/service-context';
 
 export type GrpcAsyncError = { message: string; code?: string };
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileList } from '../files/FileList';
+import { FileList } from '@/presentation/components/files/FileList';
 import type { StaticImage } from '@/gen/common_pb';
 import styles from './VideoSourceSelector.module.css';
 

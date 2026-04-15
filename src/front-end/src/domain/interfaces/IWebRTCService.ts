@@ -1,5 +1,5 @@
-import type { WebRTCSession, WebRTCSessionMode } from '../value-objects/WebRTCSession';
-import type { ProcessImageRequest } from '../../gen/image_processor_service_pb';
+import type { WebRTCSession, WebRTCSessionMode } from '@/domain/value-objects/WebRTCSession';
+import type { ProcessImageRequest } from '@/gen/image_processor_service_pb';
 
 export type CreateWebRTCSessionOptions = {
   mode?: WebRTCSessionMode;

@@ -1,5 +1,5 @@
-import { FilterPanel } from '../filters/FilterPanel';
-import { useDashboardState } from '../../context/dashboard-state-context';
+import { FilterPanel } from '@/presentation/components/filters/FilterPanel';
+import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import { SidebarControls } from './SidebarControls';
 
 export function SidebarColumn() {

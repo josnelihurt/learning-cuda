@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FilterData } from './FilterData';
-import { FilterType } from '../../gen/common_pb';
+import { FilterType } from '@/gen/common_pb';
 
 describe('FilterData', () => {
   it('creates none filter by default', () => {

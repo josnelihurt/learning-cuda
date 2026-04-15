@@ -1,5 +1,5 @@
 import type { Interceptor } from '@connectrpc/connect';
-import { telemetryService } from '../observability/telemetry-service';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 
 export const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();

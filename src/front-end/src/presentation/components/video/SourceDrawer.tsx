@@ -1,7 +1,7 @@
 import React from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import { useState } from 'react';
-import { ImageUpload } from '../image/ImageUpload';
+import { ImageUpload } from '@/presentation/components/image/ImageUpload';
 import { VideoUpload } from './VideoUpload';
 import { VideoSelector } from './VideoSelector';
 

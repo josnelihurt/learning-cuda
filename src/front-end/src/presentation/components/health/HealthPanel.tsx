@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { memo } from 'react';
 import styles from './HealthPanel.module.css';
-import type { GrpcAsyncError } from '../../hooks/useAsyncGRPC';
+import type { GrpcAsyncError } from '@/presentation/hooks/useAsyncGRPC';
 
 export interface HealthPanelProps {
   isHealthy: boolean;

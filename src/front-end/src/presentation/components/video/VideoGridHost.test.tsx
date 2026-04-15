@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act, screen, fireEvent } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { ToastProvider } from '../../context/toast-context';
-import { GrpcClientsProvider } from '../../providers/grpc-clients-provider';
-import { DashboardStateProvider } from '../../context/dashboard-state-context';
+import { ToastProvider } from '@/presentation/context/toast-context';
+import { GrpcClientsProvider } from '@/presentation/providers/grpc-clients-provider';
+import { DashboardStateProvider } from '@/presentation/context/dashboard-state-context';
 import { VideoGridHost } from './VideoGridHost';
 
 const serviceMocks = vi.hoisted(() => ({

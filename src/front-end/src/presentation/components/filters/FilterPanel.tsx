@@ -4,8 +4,8 @@ import type {
   GenericFilterParameter,
   GenericFilterParameterOption,
 } from '@/gen/image_processor_service_pb';
-import { useFilters } from '../../hooks/useFilters';
-import { useToast } from '../../hooks/useToast';
+import { useFilters } from '@/presentation/hooks/useFilters';
+import { useToast } from '@/presentation/hooks/useToast';
 import styles from './FilterPanel.module.css';
 
 export interface ActiveFilterState {

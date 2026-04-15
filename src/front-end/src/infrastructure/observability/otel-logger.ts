@@ -1,6 +1,6 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { telemetryService } from './telemetry-service';
-import type { ILogger } from '../../domain/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces/ILogger';
 
 declare const __APP_VERSION__: string;
 

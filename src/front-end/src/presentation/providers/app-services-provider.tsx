@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { container } from '@/application/di';
-import { ensureReactDashboardBootstrap } from '../bootstrap-react-dashboard';
+import { ensureReactDashboardBootstrap } from '@/presentation/bootstrap-react-dashboard';
 
 export type AppServicesContextValue = {
   container: typeof container;

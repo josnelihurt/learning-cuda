@@ -3,9 +3,9 @@ import type { InputSource } from '@/gen/config_service_pb';
 import type { StaticImage } from '@/gen/common_pb';
 import { AcceleratorType } from '@/gen/common_pb';
 import type { IStatsDisplay, IToastDisplay } from '@/infrastructure/transport/transport-types';
-import type { ActiveFilterState } from '../filters/FilterPanel';
-import { useAppServices } from '../../providers/app-services-provider';
-import { useDashboardState } from '../../context/dashboard-state-context';
+import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import { useAppServices } from '@/presentation/providers/app-services-provider';
+import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { FilterData } from '@/domain/value-objects';
@@ -15,9 +15,9 @@ import { SourceDrawer } from './SourceDrawer';
 import { AddSourceFab } from './AddSourceFab';
 import { ImageSelectorModal } from './ImageSelectorModal';
 import { AcceleratorStatusFab } from './AcceleratorStatusFab';
-import { useToast } from '../../hooks/useToast';
-import { StatsPanel as ReactStatsPanel } from '../app/StatsPanel';
-import { useServiceContext } from '../../context/service-context';
+import { useToast } from '@/presentation/hooks/useToast';
+import { StatsPanel as ReactStatsPanel } from '@/presentation/components/app/StatsPanel';
+import { useServiceContext } from '@/presentation/context/service-context';
 import {
   GenericFilterParameterSelection,
   GenericFilterSelection,

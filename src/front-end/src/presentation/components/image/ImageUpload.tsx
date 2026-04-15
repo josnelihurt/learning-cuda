@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useImageUpload } from '../../hooks/useImageUpload';
+import { useImageUpload } from '@/presentation/hooks/useImageUpload';
 import type { StaticImage } from '@/gen/config_service_pb';
 import styles from './ImageUpload.module.css';
 

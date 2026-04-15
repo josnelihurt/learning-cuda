@@ -1,8 +1,8 @@
 import { createPromiseClient, PromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ConfigService } from '../../gen/config_service_connect';
-import { telemetryService } from '../observability/telemetry-service';
-import { logger } from '../observability/otel-logger';
+import { ConfigService } from '@/gen/config_service_connect';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
 
 type FeatureFlagValue = string | boolean | null;
 

@@ -1,12 +1,12 @@
 import { createPromiseClient, PromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ConfigService as ConfigServiceClient } from '../../gen/config_service_connect';
-import { StreamEndpoint } from '../../gen/config_service_pb';
-import { telemetryService } from '../../infrastructure/observability/telemetry-service';
-import { logger } from '../../infrastructure/observability/otel-logger';
-import type { IConfigService } from '../../domain/interfaces/IConfigService';
-import { grpcConnectionService } from '../../infrastructure/connection/grpc-connection-service';
-import { tracingInterceptor } from '../../infrastructure/grpc/tracing-interceptor';
+import { ConfigService as ConfigServiceClient } from '@/gen/config_service_connect';
+import { StreamEndpoint } from '@/gen/config_service_pb';
+import { telemetryService } from '@/infrastructure/observability/telemetry-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
+import type { IConfigService } from '@/domain/interfaces/IConfigService';
+import { grpcConnectionService } from '@/infrastructure/connection/grpc-connection-service';
+import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 
 class StreamConfigService implements IConfigService {
   private client: PromiseClient<typeof ConfigServiceClient>;

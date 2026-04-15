@@ -1,4 +1,4 @@
-package application
+package image
 
 import (
 	"context"

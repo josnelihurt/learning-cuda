@@ -7,7 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
@@ -17,21 +19,21 @@ import (
 
 type ConfigHandler struct {
 	featureFlagRepo      domain.FeatureFlagRepository
-	listInputsUseCase    *application.ListInputsUseCase
-	evaluateFFUseCase    *application.EvaluateFeatureFlagUseCase
-	getSystemInfoUseCase *application.GetSystemInfoUseCase
+	listInputsUseCase    *videoapp.ListInputsUseCase
+	evaluateFFUseCase    *ffapp.EvaluateFeatureFlagUseCase
+	getSystemInfoUseCase *systemapp.GetSystemInfoUseCase
 	configManager        *config.Manager
-	processorCapsUC      application.ProcessorCapabilitiesUseCase
+	processorCapsUC      *systemapp.ProcessorCapabilitiesUseCase
 }
 
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
 	FeatureFlagRepo domain.FeatureFlagRepository
-	ListInputsUC    *application.ListInputsUseCase
-	EvaluateFFUC    *application.EvaluateFeatureFlagUseCase
-	GetSystemInfoUC *application.GetSystemInfoUseCase
+	ListInputsUC    *videoapp.ListInputsUseCase
+	EvaluateFFUC    *ffapp.EvaluateFeatureFlagUseCase
+	GetSystemInfoUC *systemapp.GetSystemInfoUseCase
 	ConfigManager   *config.Manager
-	ProcessorCapsUC application.ProcessorCapabilitiesUseCase
+	ProcessorCapsUC *systemapp.ProcessorCapabilitiesUseCase
 }
 
 func NewConfigHandler(deps ConfigHandlerDeps) *ConfigHandler {

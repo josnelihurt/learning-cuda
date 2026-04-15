@@ -6,24 +6,25 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type FileHandler struct {
-	listAvailableImagesUseCase *application.ListAvailableImagesUseCase
-	uploadImageUseCase         *application.UploadImageUseCase
-	listAvailableVideosUseCase *application.ListVideosUseCase
-	uploadVideoUseCase         *application.UploadVideoUseCase
+	listAvailableImagesUseCase *imageapp.ListAvailableImagesUseCase
+	uploadImageUseCase         *imageapp.UploadImageUseCase
+	listAvailableVideosUseCase *videoapp.ListVideosUseCase
+	uploadVideoUseCase         *videoapp.UploadVideoUseCase
 }
 
 func NewFileHandler(
-	listAvailableImagesUC *application.ListAvailableImagesUseCase,
-	uploadImageUC *application.UploadImageUseCase,
-	listAvailableVideosUC *application.ListVideosUseCase,
-	uploadVideoUC *application.UploadVideoUseCase,
+	listAvailableImagesUC *imageapp.ListAvailableImagesUseCase,
+	uploadImageUC *imageapp.UploadImageUseCase,
+	listAvailableVideosUC *videoapp.ListVideosUseCase,
+	uploadVideoUC *videoapp.UploadVideoUseCase,
 ) *FileHandler {
 	return &FileHandler{
 		listAvailableImagesUseCase: listAvailableImagesUC,
@@ -159,9 +160,9 @@ func (h *FileHandler) UploadVideo(
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to upload video")
 
 		code := connect.CodeInternal
-		if errors.Is(err, application.ErrFileTooLarge) {
+		if errors.Is(err, videoapp.ErrFileTooLarge) {
 			code = connect.CodeInvalidArgument
-		} else if errors.Is(err, application.ErrInvalidFormat) {
+		} else if errors.Is(err, videoapp.ErrInvalidFormat) {
 			code = connect.CodeInvalidArgument
 		}
 

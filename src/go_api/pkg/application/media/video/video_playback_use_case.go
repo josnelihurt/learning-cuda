@@ -1,4 +1,4 @@
-package application
+package video
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,13 +16,13 @@ import (
 type VideoPlaybackUseCase struct {
 	videoRepository domain.VideoRepository
 	videoPlayer     domain.VideoPlayer
-	imageProcessor  *ProcessImageUseCase
+	imageProcessor  *imageapp.ProcessImageUseCase
 }
 
 func NewVideoPlaybackUseCase(
 	videoRepository domain.VideoRepository,
 	videoPlayer domain.VideoPlayer,
-	imageProcessor *ProcessImageUseCase,
+	imageProcessor *imageapp.ProcessImageUseCase,
 ) *VideoPlaybackUseCase {
 	return &VideoPlaybackUseCase{
 		videoRepository: videoRepository,

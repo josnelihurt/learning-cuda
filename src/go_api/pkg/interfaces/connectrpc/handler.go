@@ -7,29 +7,36 @@ import (
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/application"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/adapters"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type ImageProcessorHandler struct {
-	useCase       *application.ProcessImageUseCase
-	streamVideoUC *application.StreamVideoUseCase
+	useCase       *imageapp.ProcessImageUseCase
+	streamVideoUC *videoapp.StreamVideoUseCase
 	adapter       *adapters.ProtobufAdapter
 	filterCodec   *adapters.FilterCodec
-	capabilities  application.ProcessorCapabilitiesUseCase
-	evaluateFFUse *application.EvaluateFeatureFlagUseCase
+	capabilities  processorCapabilitiesProvider
+	evaluateFFUse *ffapp.EvaluateFeatureFlagUseCase
 	grpcClient    interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	}
 }
 
+type processorCapabilitiesProvider interface {
+	Execute(ctx context.Context, useGRPC bool) (*pb.LibraryCapabilities, systemapp.ProcessorBackendOrigin, error)
+}
+
 func NewImageProcessorHandlerWithGRPC(
-	useCase *application.ProcessImageUseCase,
-	capabilitiesUC application.ProcessorCapabilitiesUseCase,
-	evaluateFFUse *application.EvaluateFeatureFlagUseCase,
-	streamVideoUC *application.StreamVideoUseCase,
+	useCase *imageapp.ProcessImageUseCase,
+	capabilitiesUC processorCapabilitiesProvider,
+	evaluateFFUse *ffapp.EvaluateFeatureFlagUseCase,
+	streamVideoUC *videoapp.StreamVideoUseCase,
 	grpcClient interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	},
@@ -162,12 +169,12 @@ func (h *ImageProcessorHandler) GetVersionInfo(
 
 func mapStreamVideoError(err error) connect.Code {
 	switch {
-	case errors.Is(err, application.ErrVideoPlaybackMissingVideoID),
-		errors.Is(err, application.ErrVideoPlaybackMissingSession):
+	case errors.Is(err, videoapp.ErrVideoPlaybackMissingVideoID),
+		errors.Is(err, videoapp.ErrVideoPlaybackMissingSession):
 		return connect.CodeInvalidArgument
-	case errors.Is(err, application.ErrVideoPlaybackAlreadyRunning):
+	case errors.Is(err, videoapp.ErrVideoPlaybackAlreadyRunning):
 		return connect.CodeAlreadyExists
-	case errors.Is(err, application.ErrVideoPlaybackNotRunning):
+	case errors.Is(err, videoapp.ErrVideoPlaybackNotRunning):
 		return connect.CodeNotFound
 	default:
 		return connect.CodeInternal

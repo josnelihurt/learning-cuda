@@ -1,7 +1,7 @@
 {
   "name": "cuda-image-processor-web",
   "version": "1.0.0",
-  "description": "Frontend for CUDA Image Processor with Lit Web Components",
+  "description": "Frontend for CUDA Image Processor with React",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -33,7 +33,6 @@
     "@connectrpc/connect": "^1.7.0",
     "@connectrpc/connect-web": "^1.7.0",
     "@connectrpc/protoc-gen-connect-es": "^1.7.0",
-    "@open-wc/testing-helpers": "^2.3.1",
     "@playwright/test": "^1.40.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -48,8 +47,6 @@
     "@vitest/ui": "^1.2.0",
     "dotenv": "^17.2.3",
     "eslint": "^8.56.0",
-    "eslint-plugin-lit": "^1.11.0",
-    "eslint-plugin-wc": "^2.0.4",
     "happy-dom": "^12.10.3",
     "prettier": "^3.2.4",
     "typescript": "^5.3.3",
@@ -68,7 +65,6 @@
     "@opentelemetry/sdk-logs": "^0.206.0",
     "@opentelemetry/sdk-trace-base": "1.28.0",
     "@opentelemetry/sdk-trace-web": "1.28.0",
-    "lit": "^3.1.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "uuid": "^13.0.0"

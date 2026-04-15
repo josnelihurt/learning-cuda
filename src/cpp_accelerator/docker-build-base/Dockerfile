@@ -20,6 +20,10 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     python3 \
+    ffmpeg \
+    libavcodec-dev \
+    libavutil-dev \
+    libswscale-dev \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 

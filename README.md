@@ -50,7 +50,7 @@ The system supports multiple input sourcesâ€”webcam, static images, video filesâ
 graph TB
     subgraph "Client Layer"
         Browser[Browser/Webcam]
-        UI[Lit Web Components]
+        UI[React Dashboard]
     end
     
     subgraph "API Layer"
@@ -312,7 +312,7 @@ Skip when needed: `git commit --no-verify` or `git push --no-verify`
 - **Production**: Jetson Nano deployment with Traefik ingress
 - **Deployment**: Ansible automation for infrastructure management
 
-**Frontend**: Lit Web Components for core UI + React dashboard, TypeScript with Vite bundler.
+**Frontend**: React dashboard with TypeScript, Vite bundler.
 
 **Observability**: Jaeger distributed tracing, Grafana dashboards, Loki log aggregation, Flipt feature flags.
 
@@ -437,8 +437,7 @@ src/go_api/
     interfaces/        # HTTP/WebRTC signaling handlers
     telemetry/         # Observability
 
-src/front-end/        # Lit Web Components + React (Vite)
-  src/lit/             # Lit web components
+src/front-end/        # React (Vite)
   src/react/           # React dashboard
   src/shared/          # Shared utilities
 

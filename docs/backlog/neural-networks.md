@@ -7,7 +7,7 @@
 >
 > **Current Status**: All pending items have been converted to GitHub Issues organized in phases (#520-523). The items follow a learning path from fundamental operations to production frameworks.
 >
-> **See**: [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management.
+> **See**: [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) for active project management.
 
 Learning path from basic CUDA kernels to production neural network frameworks.
 

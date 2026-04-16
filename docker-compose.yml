@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
       target: runtime
       args:
-        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt-code/learning-cuda}
         BASE_TAG: ${BASE_TAG:-latest}
         TARGETARCH: ${TARGETARCH:-amd64}
         PROTO_VERSION: ${PROTO_VERSION:-2.4.0}
@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: src/front-end/Dockerfile
       args:
-        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt/learning-cuda}
+        BASE_REGISTRY: ${BASE_REGISTRY:-ghcr.io/josnelihurt-code/learning-cuda}
         BASE_TAG: ${BASE_TAG:-latest}
         TARGETARCH: ${TARGETARCH:-amd64}
     image: ${CUDA_WEB_FRONTEND_IMAGE:-cuda-learning-web-frontend:latest}
@@ -79,7 +79,7 @@ services:
     
 
   grpc-server:
-    image: ${GRPC_SERVER_IMAGE:-ghcr.io/josnelihurt/learning-cuda/grpc-server:latest-arm64}
+    image: ${GRPC_SERVER_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/grpc-server:latest-arm64}
     container_name: cuda-grpc-server
     restart: unless-stopped
     runtime: nvidia

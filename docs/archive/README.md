@@ -13,7 +13,7 @@ These files document the project's evolution from markdown-based backlog managem
 
 ## Migration Status
 
-All pending backlog items have been migrated to [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) as part of the project's transition to structured issue tracking. The migration process:
+All pending backlog items have been migrated to [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) as part of the project's transition to structured issue tracking. The migration process:
 
 1. Analyzed ~330+ individual backlog items
 2. Applied automated backlog grooming to group related tasks
@@ -35,7 +35,7 @@ Each file includes:
 
 ## Current Project Management
 
-**Active backlog**: See [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues)
+**Active backlog**: See [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues)
 
 All new tasks, features, and planning should be managed through GitHub Issues with proper labels, milestones, and project boards.
 

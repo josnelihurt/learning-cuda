@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 REGISTRY="${REGISTRY:-local}"
-BASE_IMAGE_PREFIX="${BASE_IMAGE_PREFIX:-josnelihurt/learning-cuda}"
+BASE_IMAGE_PREFIX="${BASE_IMAGE_PREFIX:-josnelihurt-code/learning-cuda}"
 ARCH_DEFAULT="$(uname -m)"
 case "${ARCH_DEFAULT}" in
   x86_64) ARCH_DEFAULT="amd64" ;;
@@ -13,6 +13,7 @@ case "${ARCH_DEFAULT}" in
 esac
 ARCH="${ARCH_DEFAULT}"
 REQUESTED_STAGES=()
+SOURCE_REPO_URL="https://github.com/josnelihurt-code/learning-cuda"
 
 usage() {
   cat <<EOF
@@ -23,7 +24,7 @@ Build local Docker images sequentially using docker build.
 Options:
   --arch <arch>      Target architecture (amd64 or arm64). Defaults to host arch.
   --registry <name>  Registry prefix for tags. Defaults to value of \$REGISTRY or "local".
-  --base-prefix <p>  Image namespace following the registry. Defaults to "josnelihurt/learning-cuda".
+  --base-prefix <p>  Image namespace following the registry. Defaults to "josnelihurt-code/learning-cuda".
   --stage <name>     Build only the specified stage (can be passed multiple times).
   --list-stages      Print available stages and exit.
   -h, --help         Show this message.
@@ -197,6 +198,9 @@ build_and_tag() {
   docker build \
     "${docker_build_args[@]}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
+    --label "org.opencontainers.image.source=${SOURCE_REPO_URL}" \
+    --label "org.opencontainers.image.url=${SOURCE_REPO_URL}" \
+    --label "org.opencontainers.image.title=learning-cuda" \
     "${build_args[@]}" \
     -f "${dockerfile}" \
     -t "${tag}" \

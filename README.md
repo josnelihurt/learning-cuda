@@ -251,7 +251,7 @@ Production-like Docker deployment running locally using pre-built images from Gi
 - Docker Compose stack
 
 **Image Source:**
-- Uses pre-built image: `ghcr.io/josnelihurt/learning-cuda:amd64-latest`
+- Uses pre-built image: `ghcr.io/josnelihurt-code/learning-cuda:amd64-latest`
 - Image compiled in GitHub Actions on push to `main`
 - No local compilation required
 
@@ -467,7 +467,7 @@ The system supports multiple input sources and a growing library of image proces
 
 ## Roadmap
 
-Evolving this into a full CUDA learning platform. See [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management and backlog. Historical backlog planning documents are archived in [docs/archive/](docs/archive/).
+Evolving this into a full CUDA learning platform. See [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) for active project management and backlog. Historical backlog planning documents are archived in [docs/archive/](docs/archive/).
 
 ## Learning Journey
 

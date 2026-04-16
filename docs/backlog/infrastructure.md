@@ -7,7 +7,7 @@
 >
 > **Current Status**: All pending items have been converted to GitHub Issues. Completed items remain marked with their original issue numbers (#4-169).
 >
-> **See**: [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management.
+> **See**: [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) for active project management.
 
 Microservices, observability, testing, and cloud deployment.
 

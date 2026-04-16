@@ -26,8 +26,8 @@ DEFAULT_CPP_VERSION="$(read_version src/cpp_accelerator/VERSION)"
 DEFAULT_GOLANG_VERSION="$(read_version src/go_api/VERSION)"
 DEFAULT_INTEGRATION_VERSION="$(read_version test/integration/VERSION)"
 
-LOCAL_REGISTRY="local/josnelihurt/learning-cuda"
-REMOTE_REGISTRY="ghcr.io/josnelihurt/learning-cuda"
+LOCAL_REGISTRY="local/josnelihurt-code/learning-cuda"
+REMOTE_REGISTRY="ghcr.io/josnelihurt-code/learning-cuda"
 
 REMOTE_GOLANG_IMAGE="${REMOTE_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"
 LOCAL_GOLANG_IMAGE="${LOCAL_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"

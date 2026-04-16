@@ -7,7 +7,7 @@
 >
 > **Current Status**: All pending items have been converted to GitHub Issues (#512-519). The items are organized by filter family and complexity to guide the learning journey.
 >
-> **See**: [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management.
+> **See**: [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) for active project management.
 
 Each kernel needs CPU + CUDA implementation, tests, and UI integration. Start with simpler ones (Box Blur, Sepia) before complex (Canny, CLAHE).
 

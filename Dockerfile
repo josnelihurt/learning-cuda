@@ -1,7 +1,7 @@
 #################################################################################
 #                          DOCKERFILE ARGUMENTS                                 #
 #################################################################################
-ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
+ARG BASE_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
 ARG PROTO_VERSION=2.4.0

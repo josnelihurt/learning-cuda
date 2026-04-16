@@ -184,6 +184,9 @@ build_and_tag() {
   if [[ "${REGISTRY}" != "local" ]]; then
     docker_build_args+=("--pull")
   fi
+  if [[ -n "${DOCKER_BUILD_SECURITY_OPT:-}" ]]; then
+    docker_build_args+=("--security-opt" "${DOCKER_BUILD_SECURITY_OPT}")
+  fi
   
   local filtered_build_args=()
   for arg in "${build_args[@]}"; do
@@ -324,6 +327,9 @@ run_cpp_built() {
   local docker_build_args=()
   if [[ "${REGISTRY}" != "local" ]]; then
     docker_build_args+=("--pull")
+  fi
+  if [[ -n "${DOCKER_BUILD_SECURITY_OPT:-}" ]]; then
+    docker_build_args+=("--security-opt" "${DOCKER_BUILD_SECURITY_OPT}")
   fi
   docker_build_args+=("--no-cache")
   

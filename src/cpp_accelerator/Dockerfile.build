@@ -19,9 +19,9 @@ COPY third_party/ ./third_party/
 COPY buf.yaml buf.lock buf.gen.yaml ./
 
 ENV USE_BAZEL_VERSION=8.4.2
-RUN bazel fetch //...
+RUN bazel --batch fetch //...
 
-RUN bazel build \
+RUN bazel --batch build \
     --show_timestamps \
     --announce_rc \
     @spdlog//:spdlog \
@@ -64,7 +64,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
-        bazel build \
+        bazel --batch build \
           --show_timestamps \
           --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
           --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
@@ -75,7 +75,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
-        bazel build \
+        bazel --batch build \
           --show_timestamps \
           --announce_rc \
           --verbose_failures \
@@ -116,7 +116,7 @@ COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
 ENV USE_BAZEL_VERSION=8.4.2
-RUN bazel fetch //src/cpp_accelerator/ports/grpc:image_processor_grpc_server || true
+RUN bazel --batch fetch //src/cpp_accelerator/ports/grpc:image_processor_grpc_server || true
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     NPROC=$(nproc) && \
@@ -132,7 +132,7 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
-        bazel build \
+        bazel --batch build \
           --show_timestamps \
           --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
           --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
@@ -143,7 +143,7 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
-        bazel build \
+        bazel --batch build \
           --show_timestamps \
           --announce_rc \
           --verbose_failures \

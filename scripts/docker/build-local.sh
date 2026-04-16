@@ -481,3 +481,9 @@ echo ""
 echo "All requested stages completed."
 echo ""
 
+if [[ "${REGISTRY}" != "local" ]]; then
+  echo "To push all tagged images for ${IMAGE_BASE}, run:"
+  echo "  REGISTRY=${REGISTRY} BASE_IMAGE_PREFIX=${BASE_IMAGE_PREFIX} ./scripts/docker/push-tagged-images.sh"
+  echo ""
+fi
+

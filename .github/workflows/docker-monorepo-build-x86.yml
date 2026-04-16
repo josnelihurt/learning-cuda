@@ -12,6 +12,8 @@ on:
 env:
   REGISTRY: ghcr.io
   BASE_IMAGE_PREFIX: josnelihurt-code/learning-cuda
+  # Classic `docker build` (no BuildKit). Matches self-hosted intent; avoids JDK/Bazel issues under BuildKit RUN seccomp.
+  DOCKER_BUILDKIT: "0"
 
 concurrency:
   group: docker-monorepo-x86-${{ github.ref }}

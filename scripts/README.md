@@ -52,9 +52,10 @@ flowchart LR
 - Automates production deployment on Jetson Nano hardware using Ansible playbooks (`deploy.sh` orchestrates `init`, `sync`, and `start`). Aligns with the ARM64 CI workflow outputs.
 
 ### `deployment/prox4`
-- Ansible playbooks for Prox4 infrastructure management and provisioning
-- Files: `site.yml` (main playbook), `inventory.yml`, `ansible.cfg`
-- Purpose: Infrastructure setup and configuration for Prox4 deployment targets
+- Ansible playbooks for Prox4 (Proxmox) hosts and GitHub Actions runner LXC/VM targets.
+- Files: `deployment/prox4/ansible/site.yml` (main playbook), `deployment/prox4/ansible/inventory.yml`, `deployment/prox4/ansible/ansible.cfg`
+- **Runner provisioning**: `site.yml` installs **Docker CE** from Docker’s official apt repository (`docker-ce`, `docker-buildx-plugin`, etc.), not the distro `docker.io` package. Monorepo workflows set **`DOCKER_BUILDKIT=0`** so `scripts/docker/build-local.sh` uses the **classic** builder; Buildx remains available for other uses.
+- **Related**: Proxmox template download and Bazel remote cache host roles are also defined in `site.yml`; coordinate with `deployment/github-runner` Terraform when creating runner CTs.
 
 ### `deployment/cloud-vm`
 - Automates production deployment of the Go server to a cloud VM (x86_64) using Ansible playbooks. The Go server runs separately from the Jetson Nano deployment, which only hosts the gRPC server (C++ with CUDA) and infrastructure services.

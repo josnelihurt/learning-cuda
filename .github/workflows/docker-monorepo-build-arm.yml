@@ -12,6 +12,8 @@ on:
 env:
   REGISTRY: ghcr.io
   BASE_IMAGE_PREFIX: josnelihurt-code/learning-cuda
+  # Classic `docker build` (no BuildKit); same rationale as x86 monorepo workflow.
+  DOCKER_BUILDKIT: "0"
 
 concurrency:
   group: docker-monorepo-arm64-${{ github.ref }}

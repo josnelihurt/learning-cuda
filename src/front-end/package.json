@@ -1,12 +1,13 @@
 {
   "name": "cuda-image-processor-web",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "Frontend for CUDA Image Processor with React",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run version:sync && vite build",
     "build:prod": "npm run build",
+    "version:sync": "node ./sync-version.mjs",
     "preview": "vite preview",
     "clean": "rm -rf static/js/dist",
     "test": "vitest",

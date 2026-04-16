@@ -222,7 +222,7 @@ Microservices, observability, testing, and cloud deployment.
 - [x] #119 Automated code synchronization from development to production
 - [x] #120 Production deployment warning banner (refactored to information banner)
 - [x] #121 Unified logging configuration for dev and prod environments
-- [x] #122 Production URLs: app-cuda-demo.josnelihurt.me, grafana-cuda-demo.josnelihurt.me, etc.
+- [x] #122 Production URLs: cuda-demo.lab.josnelihurt.me, grafana-cuda-demo.josnelihurt.me, etc.
 - [x] #123 Camera preview fixes with video grid filter application (Oct 26, 2025)
 
 ### Provider Research

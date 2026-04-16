@@ -41,7 +41,7 @@ services:
       - ./data:/app/data:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app-web.rule=Host(`app-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.app-web.rule=Host(`cuda-demo.lab.josnelihurt.me`)"
       - "traefik.http.routers.app-web.entrypoints=websecure"
       - "traefik.http.routers.app-web.tls=true"
       - "traefik.http.routers.app-web.priority=120"
@@ -103,7 +103,7 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grpc-server.rule=Host(`grpc.app-cuda-demo.josnelihurt.me`)"
+      - "traefik.http.routers.grpc-server.rule=Host(`grpc.cuda-demo.lab.josnelihurt.me`)"
       - "traefik.http.routers.grpc-server.entrypoints=websecure"
       - "traefik.http.routers.grpc-server.tls=true"
       - "traefik.http.routers.grpc-server.priority=150"

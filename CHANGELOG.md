@@ -228,7 +228,7 @@ Completed features extracted from git commit history, organized by date.
 - [x] Fixed E2E tests for production compatibility
 
 **Production URLs:**
-- Main Application: https://app-cuda-demo.josnelihurt.me
+- Main Application: https://cuda-demo.lab.josnelihurt.me
 - Grafana Monitoring: https://grafana-cuda-demo.josnelihurt.me
 - Feature Flags: https://flipt-cuda-demo.josnelihurt.me
 - Distributed Tracing: https://jaeger-cuda-demo.josnelihurt.me

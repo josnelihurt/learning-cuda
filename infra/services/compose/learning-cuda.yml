@@ -1,4 +1,4 @@
-services:
+services: 
   learning-cuda-go-api:
     image: ${APP_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/app:latest-amd64}
     container_name: cuda-go-server
@@ -6,15 +6,9 @@ services:
 
     volumes:
       - ./data:/data:ro
-      - ./config/config.production.yaml:/app/config/config.yaml:ro
+      - ./config/cuda-learning/config.production.yaml:/app/config/config.yaml:ro
+      - ./config/cuda-learning/flags.goff.yaml:/app/config/flags.goff.yaml:ro
       - /tmp:/tmp
-
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
     networks:
       iot-internal:
@@ -22,13 +16,10 @@ services:
           - learning-cuda-go-api
       public-wan:
 
-  learning-cuda-frontend:
+  learning-cuda-frontend: 
     image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/web-frontend:latest-amd64}
     container_name: cuda-web-frontend
     restart: unless-stopped
-    depends_on:
-      learning-cuda-go-api:
-        condition: service_healthy
     volumes:
       - ./data:/app/data:ro
     labels:

@@ -184,6 +184,7 @@ build_and_tag() {
   if [[ "${REGISTRY}" != "local" ]]; then
     docker_build_args+=("--pull")
   fi
+  # Set on runners that need it (e.g. JVM socket issues); omit on LXC Docker — daemon rejects --security-opt.
   if [[ -n "${DOCKER_BUILD_SECURITY_OPT:-}" ]]; then
     docker_build_args+=("--security-opt" "${DOCKER_BUILD_SECURITY_OPT}")
   fi

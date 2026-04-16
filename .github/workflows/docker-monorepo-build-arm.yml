@@ -27,8 +27,6 @@ jobs:
     name: Build all images (PRs only)
     if: github.event_name == 'pull_request'
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
-    env:
-      DOCKER_BUILD_SECURITY_OPT: seccomp=unconfined
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,8 +44,6 @@ jobs:
     name: Build and push all images
     if: github.event_name == 'push'
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
-    env:
-      DOCKER_BUILD_SECURITY_OPT: seccomp=unconfined
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

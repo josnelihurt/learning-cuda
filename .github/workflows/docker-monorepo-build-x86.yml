@@ -25,7 +25,8 @@ jobs:
   build:
     name: Build all images (PRs only)
     if: github.event_name == 'pull_request'
-    runs-on: ["self-hosted", "Linux", "X64"]
+    # Require prox4 pool: Docker in LXC on prox3 needs separate infra/token until aligned.
+    runs-on: ["self-hosted", "Linux", "X64", "prox4"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,7 +43,7 @@ jobs:
   build_and_push:
     name: Build and push all images
     if: github.event_name == 'push'
-    runs-on: ["self-hosted", "Linux", "X64"]
+    runs-on: ["self-hosted", "Linux", "X64", "prox4"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

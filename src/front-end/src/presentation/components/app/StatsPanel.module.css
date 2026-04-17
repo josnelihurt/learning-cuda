@@ -1,4 +1,4 @@
-.react-stats-panel {
+.panel {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -15,16 +15,17 @@
   gap: 24px;
   font-size: 12px;
   box-sizing: border-box;
+  cursor: pointer;
 }
 
-.react-stats-left {
+.left {
   display: flex;
   align-items: center;
   gap: 24px;
   flex-shrink: 0;
 }
 
-.react-connections-section {
+.connectionsSection {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -35,7 +36,7 @@
   overflow-y: hidden;
 }
 
-.react-connection-card {
+.connectionCard {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -50,43 +51,56 @@
   flex-shrink: 0;
 }
 
-.react-connection-header {
+.connectionHeader {
   display: flex;
   align-items: center;
   gap: 4px;
   min-width: 46px;
 }
 
-.react-connection-label {
+.connectionLabel {
   font-size: 10px;
   font-weight: 600;
   color: #e0e0e0;
 }
 
-.react-connection-indicator {
+.indicatorConnected {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   display: inline-block;
-}
-
-.react-connection-indicator.connected {
   background: #66ff66;
   box-shadow: 0 0 6px #66ff66;
 }
 
-.react-connection-indicator.disconnected,
-.react-connection-indicator.error {
+.indicatorDisconnected {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
   background: #ff6666;
   box-shadow: 0 0 6px #ff6666;
 }
 
-.react-connection-indicator.connecting {
+.indicatorConnecting {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
   background: #ffaa00;
   box-shadow: 0 0 6px #ffaa00;
 }
 
-.react-connection-detail {
+.indicatorError {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #ff6666;
+  box-shadow: 0 0 6px #ff6666;
+}
+
+.connectionDetail {
   font-size: 9px;
   color: #e0e0e0;
   white-space: nowrap;
@@ -95,8 +109,64 @@
   flex: 1;
 }
 
-.react-connection-time {
+.connectionTime {
   font-size: 8px;
   color: #b0b0b0;
   flex-shrink: 0;
+}
+
+.cameraSuccess {
+  color: #66ff66;
+}
+
+.cameraError {
+  color: #ff6666;
+}
+
+.cameraWarning {
+  color: #ffaa00;
+}
+
+.cameraInactive {
+  color: #b0b0b0;
+}
+
+.peek {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  height: 28px;
+  padding: 0 14px 2px;
+  margin: 0;
+  background: #2a2a2a;
+  color: #fff;
+  border: 2px solid #404040;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.peek:hover {
+  background: #353535;
+}
+
+.peek:focus-visible {
+  outline: 2px solid #2196f3;
+  outline-offset: 2px;
+}
+
+.peekChevron {
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 7px solid #b0b0b0;
 }

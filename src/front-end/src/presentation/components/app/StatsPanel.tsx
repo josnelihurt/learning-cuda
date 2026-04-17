@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useReducer } from 'react';
 import { grpcConnectionService } from '@/infrastructure/connection/grpc-connection-service';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
-import './StatsPanel.css';
+import styles from './StatsPanel.module.css';
 
 type StatsPanelProps = {
   fps: string;
@@ -27,6 +27,40 @@ type ConnectionSnapshot = {
   lastRequestTime: Date | null;
 };
 
+type StatsPanelState = {
+  expanded: boolean;
+  connections: ConnectionSnapshot[];
+};
+
+type StatsPanelAction =
+  | { type: 'SET_CONNECTIONS'; payload: ConnectionSnapshot[] }
+  | { type: 'COLLAPSE' }
+  | { type: 'EXPAND' };
+
+const INITIAL_CONNECTIONS: ConnectionSnapshot[] = [
+  { label: 'Frames', state: 'disconnected', lastRequest: null, lastRequestTime: null },
+  { label: 'gRPC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
+  { label: 'WebRTC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
+];
+
+const INITIAL_STATS_PANEL_STATE: StatsPanelState = {
+  expanded: true,
+  connections: INITIAL_CONNECTIONS,
+};
+
+function statsPanelReducer(state: StatsPanelState, action: StatsPanelAction): StatsPanelState {
+  switch (action.type) {
+    case 'SET_CONNECTIONS':
+      return { ...state, connections: action.payload };
+    case 'COLLAPSE':
+      return { ...state, expanded: false };
+    case 'EXPAND':
+      return { ...state, expanded: true };
+    default:
+      return state;
+  }
+}
+
 function normalizeState(state: string): ConnectionState {
   if (state === 'connected' || state === 'disconnected' || state === 'connecting' || state === 'error') {
     return state;
@@ -51,6 +85,32 @@ function formatElapsedTime(time: Date | null): string {
   return `${hours}h`;
 }
 
+function indicatorClassForState(state: ConnectionState): string {
+  switch (state) {
+    case 'connected':
+      return styles.indicatorConnected;
+    case 'connecting':
+      return styles.indicatorConnecting;
+    case 'error':
+      return styles.indicatorError;
+    default:
+      return styles.indicatorDisconnected;
+  }
+}
+
+function cameraClassForType(cameraStatusType: StatsPanelProps['cameraStatusType']): string {
+  switch (cameraStatusType) {
+    case 'success':
+      return styles.cameraSuccess;
+    case 'error':
+      return styles.cameraError;
+    case 'warning':
+      return styles.cameraWarning;
+    default:
+      return styles.cameraInactive;
+  }
+}
+
 export function StatsPanel({
   fps,
   time,
@@ -59,11 +119,8 @@ export function StatsPanel({
   cameraStatusType,
   transportService = null,
 }: StatsPanelProps) {
-  const [connections, setConnections] = useState<ConnectionSnapshot[]>([
-    { label: 'Frames', state: 'disconnected', lastRequest: null, lastRequestTime: null },
-    { label: 'gRPC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
-    { label: 'WebRTC', state: 'disconnected', lastRequest: null, lastRequestTime: null },
-  ]);
+  const panelRegionId = useId();
+  const [state, dispatch] = useReducer(statsPanelReducer, INITIAL_STATS_PANEL_STATE);
 
   useEffect(() => {
     const updateConnections = () => {
@@ -75,26 +132,29 @@ export function StatsPanel({
       const grpcStatus = grpcConnectionService.getConnectionStatus();
       const webRtcStatus = webrtcService.getConnectionStatus();
 
-      setConnections([
-        {
-          label: 'Frames',
-          state: normalizeState(transportStatus.state),
-          lastRequest: transportStatus.lastRequest,
-          lastRequestTime: transportStatus.lastRequestTime,
-        },
-        {
-          label: 'gRPC',
-          state: normalizeState(grpcStatus.state),
-          lastRequest: grpcStatus.lastRequest,
-          lastRequestTime: grpcStatus.lastRequestTime,
-        },
-        {
-          label: 'WebRTC',
-          state: normalizeState(webRtcStatus.state),
-          lastRequest: webRtcStatus.lastRequest,
-          lastRequestTime: webRtcStatus.lastRequestTime,
-        },
-      ]);
+      dispatch({
+        type: 'SET_CONNECTIONS',
+        payload: [
+          {
+            label: 'Frames',
+            state: normalizeState(transportStatus.state),
+            lastRequest: transportStatus.lastRequest,
+            lastRequestTime: transportStatus.lastRequestTime,
+          },
+          {
+            label: 'gRPC',
+            state: normalizeState(grpcStatus.state),
+            lastRequest: grpcStatus.lastRequest,
+            lastRequestTime: grpcStatus.lastRequestTime,
+          },
+          {
+            label: 'WebRTC',
+            state: normalizeState(webRtcStatus.state),
+            lastRequest: webRtcStatus.lastRequest,
+            lastRequestTime: webRtcStatus.lastRequestTime,
+          },
+        ],
+      });
     };
 
     updateConnections();
@@ -104,40 +164,50 @@ export function StatsPanel({
     };
   }, [transportService]);
 
-  const cameraStatusClassName = useMemo(
-    () => `camera-status-${cameraStatusType}`,
-    [cameraStatusType]
-  );
+  if (state.expanded) {
+    return (
+      <div
+        id={panelRegionId}
+        data-testid="react-stats-panel"
+        className={styles.panel}
+        onClick={() => dispatch({ type: 'COLLAPSE' })}
+      >
+        <div className={styles.left}>
+          <strong>FPS: {fps}</strong>
+          <strong>Time: {time}</strong>
+          <strong>Frames: {frames}</strong>
+          <strong className={cameraClassForType(cameraStatusType)}>{cameraStatus}</strong>
+        </div>
+        <div className={styles.connectionsSection}>
+          {state.connections.map((connection) => (
+            <div
+              key={connection.label}
+              className={styles.connectionCard}
+              data-testid={`react-connection-${connection.label.toLowerCase()}`}
+            >
+              <div className={styles.connectionHeader}>
+                <span className={styles.connectionLabel}>{connection.label}</span>
+                <span className={indicatorClassForState(connection.state)} />
+              </div>
+              <div className={styles.connectionDetail}>Req: {connection.lastRequest ?? 'N/A'}</div>
+              <div className={styles.connectionTime}>{formatElapsedTime(connection.lastRequestTime)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      data-testid="react-stats-panel"
-      className="react-stats-panel"
+    <button
+      type="button"
+      className={styles.peek}
+      data-testid="react-stats-panel-peek"
+      aria-label="Show stats panel"
+      aria-expanded={false}
+      onClick={() => dispatch({ type: 'EXPAND' })}
     >
-      <div className="react-stats-left">
-        <strong>FPS: {fps}</strong>
-        <strong>Time: {time}</strong>
-        <strong>Frames: {frames}</strong>
-        <strong className={cameraStatusClassName}>{cameraStatus}</strong>
-      </div>
-      <div className="react-connections-section">
-        {connections.map((connection) => (
-          <div
-            key={connection.label}
-            className="react-connection-card"
-            data-testid={`react-connection-${connection.label.toLowerCase()}`}
-          >
-            <div className="react-connection-header">
-              <span className="react-connection-label">{connection.label}</span>
-              <span className={`react-connection-indicator ${connection.state}`} />
-            </div>
-            <div className="react-connection-detail">
-              Req: {connection.lastRequest ?? 'N/A'}
-            </div>
-            <div className="react-connection-time">{formatElapsedTime(connection.lastRequestTime)}</div>
-          </div>
-        ))}
-      </div>
-    </div>
+      <span className={styles.peekChevron} aria-hidden />
+    </button>
   );
 }

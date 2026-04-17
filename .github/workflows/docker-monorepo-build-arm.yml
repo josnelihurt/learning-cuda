@@ -31,18 +31,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build all images locally
+      - name: Build grpc-server image locally
         env:
           REGISTRY: local
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh
+          # Jetson deployment only consumes grpc-server. Skip go/app/web-frontend/runtime-base
+          # to cut ARM64 build time. Stages kept satisfy Dockerfile.build dependencies plus the
+          # cpp-built guard in build-local.sh::run_grpc_server_image.
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage bazel-base \
+            --stage proto \
+            --stage cpp \
+            --stage grpc-server
 
   build_and_push:
     name: Build and push all images
-    if: github.event_name == 'push'
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     steps:
       - name: Checkout repository
@@ -55,19 +63,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build all images
+      - name: Build grpc-server image
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage bazel-base \
+            --stage proto \
+            --stage cpp \
+            --stage grpc-server
 
-      - name: Push all images
+      - name: Push grpc-server image
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: arm64
+          LATEST_ALIASES: grpc-server
         run: |
           chmod +x scripts/docker/push-tagged-images.sh
           ./scripts/docker/push-tagged-images.sh
@@ -77,17 +92,18 @@ jobs:
     needs:
       - build_and_push
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Validate Jetson vars and secrets
         env:
-          JETSON_SSH_HOST: ${{ vars.JETSON_SSH_HOST }}
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
+          JETSON_SSH_KEY: ${{ secrets.JETSON_SSH_KEY }}
         run: |
           set -euo pipefail
           missing=()
-          for var in JETSON_SSH_HOST JETSON_APP_DIRECTORY JETSON_USER; do
+          for var in JETSON_HOST JETSON_APP_DIRECTORY JETSON_USER; do
             if [ -z "${!var:-}" ]; then
               missing+=("$var")
             fi
@@ -96,20 +112,49 @@ jobs:
             printf 'Missing required Jetson vars/secrets: %s\n' "${missing[*]}" >&2
             exit 1
           fi
-          echo "Jetson deploy target: ${JETSON_USER}@${JETSON_SSH_HOST}:${JETSON_APP_DIRECTORY}"
+          echo "Jetson deploy target: ${JETSON_USER}@${JETSON_HOST}:${JETSON_APP_DIRECTORY}"
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure SSH key
+        env:
+          JETSON_SSH_KEY: ${{ secrets.JETSON_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${JETSON_SSH_KEY}" > ~/.ssh/jetson_key
+          chmod 600 ~/.ssh/jetson_key
+
+      - name: Add Jetson host to known_hosts
+        env:
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          touch ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          tmp_keys="$(mktemp)"
+          ssh-keyscan -H "${JETSON_HOST}" > "${tmp_keys}" 2>/dev/null
+          while IFS= read -r line; do
+            [ -z "${line}" ] && continue
+            if ! grep -qxF "${line}" ~/.ssh/known_hosts; then
+              printf '%s\n' "${line}" >> ~/.ssh/known_hosts
+            fi
+          done < "${tmp_keys}"
+          rm -f "${tmp_keys}"
+
       - name: Sync compose file to Jetson
         env:
-          JETSON_SSH_HOST: ${{ vars.JETSON_SSH_HOST }}
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
         run: |
           set -euo pipefail
-          SSH_OPTS="-o StrictHostKeyChecking=yes"
-          REMOTE="${JETSON_USER}@${JETSON_SSH_HOST}"
+          SSH_OPTS="-i ~/.ssh/jetson_key -o StrictHostKeyChecking=yes"
+          REMOTE="${JETSON_USER}@${JETSON_HOST}"
 
           ssh ${SSH_OPTS} "${REMOTE}" "mkdir -p '${JETSON_APP_DIRECTORY}'"
 
@@ -121,13 +166,13 @@ jobs:
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          JETSON_SSH_HOST: ${{ vars.JETSON_SSH_HOST }}
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
         run: |
           set -euo pipefail
-          SSH_OPTS="-o StrictHostKeyChecking=yes"
-          REMOTE="${JETSON_USER}@${JETSON_SSH_HOST}"
+          SSH_OPTS="-i ~/.ssh/jetson_key -o StrictHostKeyChecking=yes"
+          REMOTE="${JETSON_USER}@${JETSON_HOST}"
 
           proto_version=$(tr -d '[:space:]' < proto/VERSION)
           cpp_version=$(tr -d '[:space:]' < src/cpp_accelerator/VERSION)
@@ -160,3 +205,8 @@ jobs:
             exit 1
           fi
           EOF
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/jetson_key

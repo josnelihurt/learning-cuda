@@ -30,14 +30,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build all images locally
+      - name: Build app and web-frontend images locally
         env:
           REGISTRY: local
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: amd64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh
+          # Cloud VM deployment only runs app (go-api) + web-frontend. Skip bazel-base/cpp/
+          # grpc-server since the runtime stage of root Dockerfile doesn't transitively depend
+          # on cpp-built-ref (BuildKit prunes unused FROM). Also skip integration-base.
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage go-builder \
+            --stage runtime-base \
+            --stage proto \
+            --stage golang \
+            --stage app \
+            --stage web-frontend
 
   build_and_push:
     name: Build and push all images
@@ -54,19 +64,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build all images
+      - name: Build app and web-frontend images
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: amd64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage go-builder \
+            --stage runtime-base \
+            --stage proto \
+            --stage golang \
+            --stage app \
+            --stage web-frontend
 
-      - name: Push all images
+      - name: Push app and web-frontend images
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
+          LATEST_ALIASES: app web-frontend
         run: |
           chmod +x scripts/docker/push-tagged-images.sh
           ./scripts/docker/push-tagged-images.sh

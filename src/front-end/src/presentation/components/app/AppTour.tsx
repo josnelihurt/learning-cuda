@@ -23,7 +23,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'filter-panel',
-    selector: '[data-testid="react-filters-section"], .sidebar .filters-section, filter-panel',
+    selector:
+      '[data-testid="react-filters-section"], [data-testid="sidebar-column-expand"], .sidebar .filters-section, filter-panel',
     title: 'Filter Panel',
     description:
       'Drag, toggle, and fine tune filters. GPU runs filters on server GPU, while CPU keeps everything on server CPU processing.',
@@ -55,17 +56,17 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'connection-status',
-    selector: '[data-testid="react-stats-panel"], stats-panel',
+    selector: '[data-testid="react-stats-panel"], [data-testid="react-stats-panel-peek"], stats-panel',
     title: 'Connection Status',
     description:
       'Monitor connection status for frame transport, gRPC, and WebRTC. Each card shows the connection state, last request, and time since last activity. Hover over the protocol name to see the full connection state.',
   },
   {
     id: 'stats-panel-toggle',
-    selector: '[data-testid="react-stats-panel"], stats-panel',
+    selector: '[data-testid="react-stats-panel"], [data-testid="react-stats-panel-peek"], stats-panel',
     title: 'Stats Panel Toggle',
     description:
-      'Use the toggle button (▼) in the bottom-right corner to hide or show the stats panel. When collapsed, the panel gives you more workspace area.',
+      'Click the stats bar to hide it, or the arrow tab at the bottom center to show it again. When collapsed, you get more workspace area.',
   },
 ];
 

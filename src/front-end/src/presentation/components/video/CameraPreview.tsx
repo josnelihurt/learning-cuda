@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import styles from './CameraPreview.module.css';
 
 type FrameCapturedPayload = {
   base64data: string;
@@ -34,7 +35,7 @@ export function CameraPreview({
   onStreamReady,
   onCameraStatus,
   onCameraError,
-}: CameraPreviewProps) {
+}: CameraPreviewProps): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -201,14 +202,9 @@ export function CameraPreview({
         autoPlay
         playsInline
         muted
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          background: 'black',
-        }}
+        className={styles.preview}
       />
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <canvas ref={canvasRef} className={styles.hiddenCanvas} />
     </>
   );
 }

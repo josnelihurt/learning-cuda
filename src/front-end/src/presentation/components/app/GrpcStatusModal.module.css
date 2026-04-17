@@ -1,0 +1,72 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90vw;
+  height: 85vh;
+  max-width: 1198px;
+  max-height: 800px;
+  background: rgba(20, 20, 28, 0.95);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+.header {
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.healthDotOk,
+.healthDotBad {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.healthDotOk {
+  background: #22c55e;
+}
+
+.healthDotBad {
+  background: #ef4444;
+}
+
+.body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.terminal {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 240px;
+}
+
+.actions {
+  margin-top: 16px;
+}

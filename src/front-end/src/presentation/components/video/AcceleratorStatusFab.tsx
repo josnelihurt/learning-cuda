@@ -1,5 +1,5 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
+import styles from './AcceleratorStatusFab.module.css';
 import { remoteManagementService } from '@/infrastructure/external/remote-management-service';
 import { AcceleratorHealthStatus } from '@/gen/remote_management_service_pb';
 import { logger } from '@/infrastructure/observability/otel-logger';
@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-export function AcceleratorStatusFab() {
+export function AcceleratorStatusFab(): ReactElement {
   const [isVisible, setIsVisible] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
 
@@ -53,13 +53,13 @@ export function AcceleratorStatusFab() {
   }, []);
 
   if (!isVisible) {
-    return null;
+    return null as unknown as ReactElement;
   }
 
   return (
     <button
       type="button"
-      className={`react-accelerator-fab ${isBlinking ? 'blinking' : ''}`}
+      className={isBlinking ? `${styles.fab} ${styles.blinking}` : styles.fab}
       data-testid="accelerator-status-fab"
       onClick={() => {
         const modalElement = window.__grpcStatusModal;
@@ -73,8 +73,8 @@ export function AcceleratorStatusFab() {
         }
       }}
     >
-      <span className="fab-icon">!</span>
-      <span className="fab-text">Accelerator Offline</span>
+      <span>!</span>
+      <span>Accelerator Offline</span>
     </button>
   );
 }

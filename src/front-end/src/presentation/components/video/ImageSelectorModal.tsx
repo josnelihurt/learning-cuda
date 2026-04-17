@@ -1,5 +1,6 @@
 import React from 'react';
 import type { StaticImage } from '@/gen/common_pb';
+import './video-grid.css';
 
 type ImageSelectorModalProps = {
   isOpen: boolean;

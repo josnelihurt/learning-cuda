@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type ReactElement } from 'react';
 import { useWebRTCStream } from '@/presentation/hooks/useWebRTCStream';
 import { VideoSourceSelector } from './VideoSourceSelector';
 import { VideoCanvas } from './VideoCanvas';
@@ -6,7 +6,7 @@ import type { StaticImage } from '@/gen/common_pb';
 import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import styles from './VideoStreamer.module.css';
 
-export function VideoStreamer() {
+export function VideoStreamer(): ReactElement {
   const {
     connectionState,
     isStreaming,

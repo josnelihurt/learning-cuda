@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { createPromiseClient } from '@connectrpc/connect';
 import { ConfigService } from '@/gen/config_service_connect';
 import type { ToolCategory } from '@/gen/config_service_pb';
@@ -18,7 +18,7 @@ type VersionField = {
   value: string;
 };
 
-export function VersionTooltip() {
+export function VersionTooltip(): ReactElement {
   const [isVersionOpen, setIsVersionOpen] = useState(false);
   const [versionFields, setVersionFields] = useState<VersionField[]>([]);
   const [environment, setEnvironment] = useState('Loading...');
@@ -133,10 +133,9 @@ export function VersionTooltip() {
   );
 }
 
-export function NavbarControls({ onOpenFeatureFlags }: NavbarControlsProps) {
+export function NavbarControls({ onOpenFeatureFlags }: NavbarControlsProps): ReactElement {
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const { container } = useAppServices();
-  const toast = useToast();
   const transport = useMemo(() => createGrpcConnectTransport(), []);
 
   useEffect(() => {

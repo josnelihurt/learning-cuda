@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type ReactElement } from 'react';
 import styles from './VideoCanvas.module.css';
 
 interface VideoCanvasProps {
@@ -13,7 +13,7 @@ export function VideoCanvas({
   height = 480,
   onFrame,
   className,
-}: VideoCanvasProps) {
+}: VideoCanvasProps): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const fpsRef = useRef(0);
@@ -36,7 +36,6 @@ export function VideoCanvas({
     }
 
     let animationFrameId: number;
-    let lastFrameTime = 0;
 
     const render = (timestamp: number) => {
       // Calculate FPS per D-07

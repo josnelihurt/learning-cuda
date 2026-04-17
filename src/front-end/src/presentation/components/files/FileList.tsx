@@ -1,3 +1,4 @@
+import { type ReactElement } from 'react';
 import type { StaticImage } from '@/gen/common_pb';
 import styles from './FileList.module.css';
 
@@ -15,7 +16,7 @@ export function FileList({
   onImageSelect,
   layout = 'grid',
   loading = false,
-}: FileListProps) {
+}: FileListProps): ReactElement {
   if (loading) {
     return (
       <div className={styles.container} data-testid="file-list-loading">

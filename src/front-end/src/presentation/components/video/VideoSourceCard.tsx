@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, type ReactElement } from 'react';
+import styles from './VideoSourceCard.module.css';
 
 type VideoSourceCardProps = {
   sourceId: string;
@@ -24,22 +25,22 @@ export function VideoSourceCard({
   onClose,
   onChangeImage,
   children,
-}: VideoSourceCardProps) {
-  const cardClassName = isSelected ? 'card selected' : 'card';
+}: VideoSourceCardProps): ReactElement {
+  const cardClassName = isSelected ? `${styles.card} ${styles.selected}` : styles.card;
   const shouldRenderProcessedImage = Boolean(imageSrc);
 
   return (
-    <div className="react-video-source">
+    <div className={styles.source}>
       <div
         className={cardClassName}
         onClick={() => onSelect(sourceId)}
         data-testid={`source-card-${sourceNumber}`}
         data-source-id={sourceId}
       >
-        <div className="source-number">{sourceNumber}</div>
+        <div className={styles.sourceNumber}>{sourceNumber}</div>
         {sourceType === 'static' ? (
           <button
-            className="change-image-btn"
+            className={styles.changeImageBtn}
             onClick={(event) => {
               event.stopPropagation();
               onChangeImage(sourceId, sourceNumber);
@@ -51,7 +52,7 @@ export function VideoSourceCard({
           </button>
         ) : null}
         <button
-          className="close-btn"
+          className={styles.closeBtn}
           onClick={(event) => {
             event.stopPropagation();
             onClose(sourceId);
@@ -61,7 +62,7 @@ export function VideoSourceCard({
         >
           {'\u00d7'}
         </button>
-        <div className="content">
+        <div className={styles.content}>
           {shouldRenderProcessedImage ? (
             <img src={imageSrc} alt={sourceName} crossOrigin="anonymous" />
           ) : null}

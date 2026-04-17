@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { FileList } from '@/presentation/components/files/FileList';
 import type { StaticImage } from '@/gen/common_pb';
 import styles from './VideoSourceSelector.module.css';
@@ -17,7 +17,7 @@ export function VideoSourceSelector({
   selectedVideoId,
   onSourceChange,
   className,
-}: VideoSourceSelectorProps) {
+}: VideoSourceSelectorProps): ReactElement {
   const [sourceType, setSourceType] = useState<SourceType>('camera');
 
   const handleCameraSelect = () => {

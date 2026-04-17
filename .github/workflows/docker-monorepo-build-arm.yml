@@ -84,6 +84,7 @@ jobs:
           JETSON_HOST: ${{ secrets.JETSON_HOST }}
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
+          JETSON_SSH_KEY: ${{ secrets.JETSON_SSH_KEY }}
         run: |
           set -euo pipefail
           missing=()
@@ -100,6 +101,16 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Configure SSH key
+        env:
+          JETSON_SSH_KEY: ${{ secrets.JETSON_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${JETSON_SSH_KEY}" > ~/.ssh/jetson_key
+          chmod 600 ~/.ssh/jetson_key
 
       - name: Add Jetson host to known_hosts
         env:
@@ -127,7 +138,7 @@ jobs:
           JETSON_USER: ${{ secrets.JETSON_USER }}
         run: |
           set -euo pipefail
-          SSH_OPTS="-o StrictHostKeyChecking=yes"
+          SSH_OPTS="-i ~/.ssh/jetson_key -o StrictHostKeyChecking=yes"
           REMOTE="${JETSON_USER}@${JETSON_HOST}"
 
           ssh ${SSH_OPTS} "${REMOTE}" "mkdir -p '${JETSON_APP_DIRECTORY}'"
@@ -145,7 +156,7 @@ jobs:
           JETSON_USER: ${{ secrets.JETSON_USER }}
         run: |
           set -euo pipefail
-          SSH_OPTS="-o StrictHostKeyChecking=yes"
+          SSH_OPTS="-i ~/.ssh/jetson_key -o StrictHostKeyChecking=yes"
           REMOTE="${JETSON_USER}@${JETSON_HOST}"
 
           proto_version=$(tr -d '[:space:]' < proto/VERSION)
@@ -179,3 +190,8 @@ jobs:
             exit 1
           fi
           EOF
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/jetson_key

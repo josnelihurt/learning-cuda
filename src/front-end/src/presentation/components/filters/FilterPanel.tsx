@@ -1,4 +1,4 @@
-import { useReducer, useRef, useEffect, useCallback } from 'react';
+import { useReducer, useRef, useEffect, useCallback, type ReactElement } from 'react';
 import type {
   GenericFilterDefinition,
   GenericFilterParameter,
@@ -133,7 +133,7 @@ interface NumberParameterProps extends ParameterProps {
   onError: (title: string, message: string) => void;
 }
 
-function SelectParameter({ filter, param, onChange }: ParameterProps) {
+function SelectParameter({ filter, param, onChange }: ParameterProps): ReactElement {
   const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';
   return (
     <div className={styles.paramControl}>
@@ -158,7 +158,7 @@ function SelectParameter({ filter, param, onChange }: ParameterProps) {
   );
 }
 
-function RangeParameter({ filter, param, onChange }: ParameterProps) {
+function RangeParameter({ filter, param, onChange }: ParameterProps): ReactElement {
   const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';
   const { min, max, step } = parseParamMetadata(param.metadata || {}, { min: 3, max: 15, step: 2 });
   const rangeValue = currentValue ? parseFloat(currentValue) : (param.defaultValue ? parseFloat(param.defaultValue) : min);
@@ -182,7 +182,7 @@ function RangeParameter({ filter, param, onChange }: ParameterProps) {
   );
 }
 
-function NumberParameter({ filter, param, onChange, onError }: NumberParameterProps) {
+function NumberParameter({ filter, param, onChange, onError }: NumberParameterProps): ReactElement {
   const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';
   const { min, max, step } = parseParamMetadata(param.metadata || {}, { min: -Infinity, max: Infinity, step: 1 });
   const numValue = currentValue || param.defaultValue || (min !== -Infinity ? String(min) : '0');
@@ -236,7 +236,7 @@ function NumberParameter({ filter, param, onChange, onError }: NumberParameterPr
   );
 }
 
-function CheckboxParameter({ filter, param, onChange }: ParameterProps) {
+function CheckboxParameter({ filter, param, onChange }: ParameterProps): ReactElement {
   const currentValue = filter.parameterValues[param.id] || '';
   const checked = currentValue === 'true' || (param.defaultValue === 'true' && !currentValue);
   return (
@@ -260,7 +260,7 @@ function renderParameterControl(
   param: GenericFilterParameter,
   onChange: (filterId: string, paramId: string, value: string) => void,
   onError: (title: string, message: string) => void
-) {
+): ReactElement {
   switch (param.type) {
     case 1: return <SelectParameter key={param.id} filter={filter} param={param} onChange={onChange} />;
     case 2: return <RangeParameter key={param.id} filter={filter} param={param} onChange={onChange} />;
@@ -277,7 +277,7 @@ export function FilterPanel({
   onFiltersChange,
   initialActiveFilters,
   processorFilterEpoch,
-}: FilterPanelProps) {
+}: FilterPanelProps): ReactElement {
   const { filters: availableFilters, refetch } = useFilters();
   const filters = propFilters ?? availableFilters;
 

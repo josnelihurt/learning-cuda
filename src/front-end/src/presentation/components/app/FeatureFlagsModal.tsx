@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { createPromiseClient } from '@connectrpc/connect';
 import { ConfigService } from '@/gen/config_service_connect';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
 import { useToast } from '@/presentation/hooks/useToast';
 import { OpenFeature } from '@openfeature/web-sdk';
 import { GoFeatureFlagWebProvider } from '@openfeature/go-feature-flag-web-provider';
-import './FeatureFlagsModal.css';
+import styles from './FeatureFlagsModal.module.css';
 
 type FeatureFlagsModalProps = {
   isOpen: boolean;
@@ -21,7 +21,7 @@ type ManagedFlag = {
   description: string;
 };
 
-export function FeatureFlagsModal({ isOpen, onClose }: FeatureFlagsModalProps) {
+export function FeatureFlagsModal({ isOpen, onClose }: FeatureFlagsModalProps): ReactElement {
   const [loading, setLoading] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [flags, setFlags] = useState<ManagedFlag[]>([]);
@@ -101,47 +101,47 @@ export function FeatureFlagsModal({ isOpen, onClose }: FeatureFlagsModalProps) {
   };
 
   if (!isOpen) {
-    return null;
+    return null as unknown as ReactElement;
   }
 
   return (
-    <div className="feature-flags-modal-overlay">
-      <div className="feature-flags-modal-backdrop" onClick={onClose} />
-      <div className="feature-flags-modal-panel">
-        <div className="feature-flags-modal-header">
-          <h2 className="feature-flags-modal-title">Feature Flags</h2>
-          <div className="feature-flags-modal-header-actions">
-            <button type="button" className="feature-flags-btn" disabled={loading} onClick={() => void loadFlags()}>
+    <div className={styles.overlay}>
+      <div className={styles.backdrop} onClick={onClose} />
+      <div className={styles.panel}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>Feature Flags</h2>
+          <div className={styles.headerActions}>
+            <button type="button" disabled={loading} onClick={() => void loadFlags()}>
               Refresh
             </button>
-            <button type="button" className="feature-flags-btn" onClick={onClose}>
+            <button type="button" onClick={onClose}>
               ×
             </button>
           </div>
         </div>
-        <div className="feature-flags-modal-content">
-          <div className="feature-flags-modal-provider-status">
+        <div className={styles.content}>
+          <div className={styles.providerStatus}>
             Front-end provider: {openFeatureReady ? 'ready' : 'fallback to backend'}
           </div>
           {loading ? (
             <div>Loading flags...</div>
           ) : (
-            <table className="feature-flags-modal-table">
+            <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className="feature-flags-modal-cell feature-flags-modal-header-cell">Key</th>
-                  <th className="feature-flags-modal-cell feature-flags-modal-header-cell">Type</th>
-                  <th className="feature-flags-modal-cell feature-flags-modal-header-cell">Enabled</th>
-                  <th className="feature-flags-modal-cell feature-flags-modal-header-cell">Default</th>
-                  <th className="feature-flags-modal-cell feature-flags-modal-header-cell">Actions</th>
+                  <th className={`${styles.cell} ${styles.headerCell}`}>Key</th>
+                  <th className={`${styles.cell} ${styles.headerCell}`}>Type</th>
+                  <th className={`${styles.cell} ${styles.headerCell}`}>Enabled</th>
+                  <th className={`${styles.cell} ${styles.headerCell}`}>Default</th>
+                  <th className={`${styles.cell} ${styles.headerCell}`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {flags.map((flag) => (
                   <tr key={flag.key}>
-                    <td className="feature-flags-modal-cell">{flag.key}</td>
-                    <td className="feature-flags-modal-cell">{flag.type}</td>
-                    <td className="feature-flags-modal-cell">
+                    <td className={styles.cell}>{flag.key}</td>
+                    <td className={styles.cell}>{flag.type}</td>
+                    <td className={styles.cell}>
                       <input
                         type="checkbox"
                         checked={flag.enabled}
@@ -154,7 +154,7 @@ export function FeatureFlagsModal({ isOpen, onClose }: FeatureFlagsModalProps) {
                         }}
                       />
                     </td>
-                    <td className="feature-flags-modal-cell">
+                    <td className={styles.cell}>
                       <input
                         value={flag.defaultValue}
                         onChange={(event) => {
@@ -166,10 +166,9 @@ export function FeatureFlagsModal({ isOpen, onClose }: FeatureFlagsModalProps) {
                         }}
                       />
                     </td>
-                    <td className="feature-flags-modal-cell">
+                    <td className={styles.cell}>
                       <button
                         type="button"
-                        className="feature-flags-btn"
                         disabled={savingKey === flag.key}
                         onClick={() => void updateFlag(flag)}
                       >

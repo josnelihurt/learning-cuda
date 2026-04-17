@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import styles from './AppTour.module.css';
 
@@ -70,7 +70,7 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-export function AppTour() {
+export function AppTour(): ReactElement {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [focusStyle, setFocusStyle] = useState<Record<string, string>>({});
@@ -292,7 +292,7 @@ export function AppTour() {
   }, [active, stepIndex, updateLayout]);
 
   if (!active || !step) {
-    return null;
+    return null as unknown as ReactElement;
   }
 
   const arrowPlacementClass =

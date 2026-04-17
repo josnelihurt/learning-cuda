@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, type ReactElement } from 'react';
 import { FilterPanel } from '@/presentation/components/filters/FilterPanel';
 import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import { SidebarControls } from './SidebarControls';
@@ -21,7 +21,7 @@ function sidebarColumnReducer(state: SidebarColumnState, action: SidebarColumnAc
   }
 }
 
-export function SidebarColumn() {
+export function SidebarColumn(): ReactElement {
   const { setActiveFilters, processorFilterEpoch, activeFilters } = useDashboardState();
   const [state, dispatch] = useReducer(sidebarColumnReducer, INITIAL_SIDEBAR_STATE);
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
+import './video-grid.css';
 import { useState } from 'react';
 import { ImageUpload } from '@/presentation/components/image/ImageUpload';
 import { VideoUpload } from './VideoUpload';

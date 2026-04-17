@@ -1,0 +1,77 @@
+.container {
+  border: 2px dashed var(--border-color, #ddd);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.container:hover {
+  border-color: var(--primary-color, #007bff);
+}
+
+.container.dragging {
+  border-color: var(--primary-color, #007bff);
+  background: var(--primary-light, #e7f3ff);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.button {
+  padding: 0.75rem 1.5rem;
+  background: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--primary-dark, #0056b3);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.info {
+  margin-top: 1rem;
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 4px;
+  background: var(--progress-bg, #e0e0e0);
+  border-radius: 2px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--primary-color, #007bff);
+  transition: width 0.3s;
+}
+
+.message {
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.error {
+  background: var(--error-bg, #fee);
+  color: var(--error-color, #c00);
+}
+
+.success {
+  background: var(--success-bg, #efe);
+  color: var(--success-color, #090);
+}

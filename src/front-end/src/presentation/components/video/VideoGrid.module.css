@@ -1,0 +1,21 @@
+.shell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: var(--spacing-md);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.grid {
+  display: grid;
+  gap: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.grid1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.grid2 { grid-template-columns: 1fr; grid-template-rows: repeat(2, 1fr); }
+.grid4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+.grid6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+.grid9 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }

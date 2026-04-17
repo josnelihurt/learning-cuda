@@ -1,18 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { videoService } from '@/infrastructure/data/video-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import type { StaticVideo } from '@/gen/common_pb';
+import styles from './VideoUpload.module.css';
 
 type VideoUploadProps = {
   onVideoUploaded: (video: StaticVideo) => void;
 };
 
-export function VideoUpload({ onVideoUploaded }: VideoUploadProps) {
+export function VideoUpload({ onVideoUploaded }: VideoUploadProps): ReactElement {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const progressFillRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (progressFillRef.current) {
+      progressFillRef.current.style.width = `${uploadProgress}%`;
+    }
+  }, [uploadProgress]);
 
   const uploadVideo = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.mp4')) {
@@ -51,7 +59,7 @@ export function VideoUpload({ onVideoUploaded }: VideoUploadProps) {
 
   return (
     <div
-      className={`react-video-upload-container ${dragging ? 'dragging' : ''}`}
+      className={dragging ? `${styles.container} ${styles.dragging}` : styles.container}
       onDrop={(event) => {
         event.preventDefault();
         setDragging(false);
@@ -71,7 +79,7 @@ export function VideoUpload({ onVideoUploaded }: VideoUploadProps) {
         type="file"
         id="react-video-file-input"
         accept=".mp4"
-        style={{ display: 'none' }}
+        className={styles.hiddenInput}
         disabled={uploading}
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -83,7 +91,7 @@ export function VideoUpload({ onVideoUploaded }: VideoUploadProps) {
       />
       <button
         type="button"
-        className="react-video-upload-button"
+        className={styles.button}
         disabled={uploading}
         onClick={() => {
           const input = document.getElementById('react-video-file-input') as HTMLInputElement | null;
@@ -93,24 +101,24 @@ export function VideoUpload({ onVideoUploaded }: VideoUploadProps) {
       >
         {uploading ? 'Uploading...' : 'Choose MP4 Video'}
       </button>
-      <div className="react-video-upload-info">
+      <div className={styles.info}>
         or drag and drop an MP4 file here
         <br />
         <small>Maximum size: 100MB</small>
       </div>
 
       {uploading ? (
-        <div className="react-video-progress-bar">
-          <div className="react-video-progress-fill" style={{ width: `${uploadProgress}%` }} />
+        <div className={styles.progressBar}>
+          <div ref={progressFillRef} className={styles.progressFill} />
         </div>
       ) : null}
       {error ? (
-        <div className="react-video-message error" data-testid="upload-error">
+        <div className={`${styles.message} ${styles.error}`} data-testid="upload-error">
           {error}
         </div>
       ) : null}
       {success ? (
-        <div className="react-video-message success" data-testid="upload-success">
+        <div className={`${styles.message} ${styles.success}`} data-testid="upload-success">
           {success}
         </div>
       ) : null}

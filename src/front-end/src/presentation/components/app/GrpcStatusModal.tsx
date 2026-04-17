@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { remoteManagementService } from '@/infrastructure/external/remote-management-service';
 import { AcceleratorHealthStatus } from '@/gen/remote_management_service_pb';
 import { logger } from '@/infrastructure/observability/otel-logger';
+import styles from './GrpcStatusModal.module.css';
 
 declare global {
   interface Window {
@@ -14,7 +15,7 @@ declare global {
   }
 }
 
-export function GrpcStatusModal() {
+export function GrpcStatusModal(): ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
@@ -75,61 +76,36 @@ export function GrpcStatusModal() {
   }, []);
 
   if (!isOpen) {
-    return null;
+    return null as unknown as ReactElement;
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
+    <div className={styles.overlay}>
       <div
-        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
+        className={styles.backdrop}
         onClick={() => {
           setIsOpen(false);
           setIsMinimized(true);
         }}
       />
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '90vw',
-          height: '85vh',
-          maxWidth: '1198px',
-          maxHeight: '800px',
-          background: 'rgba(20, 20, 28, 0.95)',
-          borderRadius: '8px',
-          display: 'flex',
-          flexDirection: 'column',
-          color: '#fff',
-        }}
-      >
-        <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'space-between' }}>
-          <h2 style={{ margin: 0, fontSize: '16px' }}>
-            <span
-              style={{
-                display: 'inline-block',
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                marginRight: '8px',
-                background: isHealthy ? '#22c55e' : '#ef4444',
-              }}
-            />
+      <div className={styles.panel}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>
+            <span className={isHealthy ? styles.healthDotOk : styles.healthDotBad} />
             CUDA Accelerator Micro Service Status
           </h2>
           <button type="button" className="feature-flags-btn" onClick={() => { setIsOpen(false); setIsMinimized(true); }}>
             ×
           </button>
         </div>
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+        <div className={styles.body}>
           <p>
             This project is hosted on a cloud VM without GPU. The NVIDIA GPU is located at home and can be powered on remotely from this panel.
           </p>
-          <div style={{ background: 'rgba(0, 0, 0, 0.5)', borderRadius: '8px', padding: '12px', minHeight: '240px' }}>
+          <div className={styles.terminal}>
             {terminalOutput.length === 0 ? 'Terminal output will appear here when starting the Jetson Nano...' : terminalOutput.map((line) => <div key={line}>{line}</div>)}
           </div>
-          <div style={{ marginTop: '16px' }}>
+          <div className={styles.actions}>
             <button
               type="button"
               className="feature-flags-btn"

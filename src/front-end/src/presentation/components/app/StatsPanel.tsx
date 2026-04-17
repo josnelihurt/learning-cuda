@@ -1,4 +1,4 @@
-import { useEffect, useId, useReducer } from 'react';
+import { useEffect, useId, useReducer, type ReactElement } from 'react';
 import { grpcConnectionService } from '@/infrastructure/connection/grpc-connection-service';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import styles from './StatsPanel.module.css';
@@ -118,7 +118,7 @@ export function StatsPanel({
   cameraStatus,
   cameraStatusType,
   transportService = null,
-}: StatsPanelProps) {
+}: StatsPanelProps): ReactElement {
   const panelRegionId = useId();
   const [state, dispatch] = useReducer(statsPanelReducer, INITIAL_STATS_PANEL_STATE);
 

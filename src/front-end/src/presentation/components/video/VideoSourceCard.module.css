@@ -1,0 +1,106 @@
+.source {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  border: 3px solid transparent;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.card:hover {
+  border-color: var(--border-color);
+}
+
+.card.selected {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.sourceNumber {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 100;
+}
+
+.changeImageBtn,
+.closeBtn {
+  position: absolute;
+  top: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 100;
+}
+
+.changeImageBtn {
+  right: 40px;
+  font-size: 16px;
+}
+
+.closeBtn {
+  right: 8px;
+  font-size: 18px;
+}
+
+.card:hover .changeImageBtn,
+.card:hover .closeBtn {
+  opacity: 1;
+}
+
+.changeImageBtn:hover {
+  background: rgba(33, 150, 243, 0.9);
+}
+
+.closeBtn:hover {
+  background: rgba(244, 67, 54, 0.9);
+}
+
+.content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.content img,
+.content video,
+.content > * {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

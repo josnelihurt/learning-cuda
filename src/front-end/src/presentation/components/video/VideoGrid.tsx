@@ -1,7 +1,8 @@
+import { type ReactElement } from 'react';
 import { CameraPreview } from './CameraPreview';
 import { VideoSourceCard } from './VideoSourceCard';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
-import './video-grid.css';
+import styles from './VideoGrid.module.css';
 
 export type GridSource = {
   id: string;
@@ -32,12 +33,12 @@ type VideoGridProps = {
   onCameraError: (title: string, message: string) => void;
 };
 
-function getGridTemplate(count: number): { columns: string; rows: string } {
-  if (count <= 1) return { columns: '1fr', rows: '1fr' };
-  if (count === 2) return { columns: '1fr', rows: 'repeat(2, 1fr)' };
-  if (count <= 4) return { columns: 'repeat(2, 1fr)', rows: 'repeat(2, 1fr)' };
-  if (count <= 6) return { columns: 'repeat(3, 1fr)', rows: 'repeat(2, 1fr)' };
-  return { columns: 'repeat(3, 1fr)', rows: 'repeat(3, 1fr)' };
+function getGridClass(count: number): string {
+  if (count <= 1) return styles.grid1;
+  if (count === 2) return styles.grid2;
+  if (count <= 4) return styles.grid4;
+  if (count <= 6) return styles.grid6;
+  return styles.grid9;
 }
 
 export function VideoGrid({
@@ -50,21 +51,12 @@ export function VideoGrid({
   onCameraStreamReady,
   onCameraStatus,
   onCameraError,
-}: VideoGridProps) {
-  const template = getGridTemplate(sources.length);
-
+}: VideoGridProps): ReactElement {
   return (
-    <div className="react-video-grid-shell">
+    <div className={styles.shell}>
       <div
         data-testid="video-grid"
-        style={{
-          display: 'grid',
-          gap: 0,
-          width: '100%',
-          height: '100%',
-          gridTemplateColumns: template.columns,
-          gridTemplateRows: template.rows,
-        }}
+        className={`${styles.grid} ${getGridClass(sources.length)}`}
       >
         {sources.map((source) => (
           <VideoSourceCard

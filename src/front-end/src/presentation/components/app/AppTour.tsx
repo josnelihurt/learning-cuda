@@ -23,7 +23,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'filter-panel',
-    selector: '[data-testid="react-filters-section"], .sidebar .filters-section, filter-panel',
+    selector:
+      '[data-testid="react-filters-section"], [data-testid="sidebar-column-expand"], .sidebar .filters-section, filter-panel',
     title: 'Filter Panel',
     description:
       'Drag, toggle, and fine tune filters. GPU runs filters on server GPU, while CPU keeps everything on server CPU processing.',

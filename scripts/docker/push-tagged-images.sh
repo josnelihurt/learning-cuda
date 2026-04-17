@@ -50,7 +50,7 @@ while IFS= read -r img; do
   [[ -z "${img}" ]] && continue
   echo "Pushing ${img}..."
   docker push "${img}"
-  ((pushed++))
+  pushed=$((pushed + 1))
 done <<< "${images_to_push}"
 
 # The bulk loop above can still miss publishing latest-${ARCH} to GHCR (e.g. only the versioned

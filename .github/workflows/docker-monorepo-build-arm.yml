@@ -42,7 +42,7 @@ jobs:
 
   build_and_push:
     name: Build and push all images
-    if: github.event_name == 'push'
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     steps:
       - name: Checkout repository
@@ -74,8 +74,8 @@ jobs:
 
   deploy_prod:
     name: Deploy production (Jetson Nano)
-    # needs:
-    #   - build_and_push
+    needs:
+      - build_and_push
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
     steps:

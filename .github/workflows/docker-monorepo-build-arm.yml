@@ -8,6 +8,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      force_all:
+        description: Force full rebuild regardless of changed paths
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -22,16 +27,71 @@ permissions:
   packages: write
   id-token: write
 
+# Smart CI: build/push steps only run when paths relevant to grpc-server change.
+# Force a full rebuild with either:
+#   - PR label: ci:full-build
+#   - workflow_dispatch (manual runs always force a full rebuild)
 jobs:
+  detect-changes:
+    name: Detect changed paths
+    runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
+    outputs:
+      grpc_server: ${{ steps.decide.outputs.grpc_server }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            grpc_server:
+              - 'proto/**'
+              - 'src/cpp_accelerator/**'
+              - 'bazel/**'
+              - 'third_party/**'
+              - 'MODULE.bazel'
+              - 'WORKSPACE.bazel'
+              - '.bazelrc'
+              - '.bazelversion'
+              - 'buf.yaml'
+              - 'buf.lock'
+              - 'buf.gen.yaml'
+              - 'buf.gen.backend.yaml'
+              - 'scripts/docker/build-local.sh'
+              - 'scripts/docker/push-tagged-images.sh'
+              - '.github/workflows/docker-monorepo-build-arm.yml'
+
+      - name: Decide build scope
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE_ALL: ${{ inputs.force_all }}
+          LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
+          FILTER_GRPC: ${{ steps.filter.outputs.grpc_server }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
+             || [ "${FORCE_ALL}" = "true" ] \
+             || [ "${LABEL_FORCE}" = "true" ]; then
+            echo "grpc_server=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "grpc_server=${FILTER_GRPC:-false}" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build all images (PRs only)
     if: github.event_name == 'pull_request'
+    needs: detect-changes
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Build grpc-server image locally
+        if: needs.detect-changes.outputs.grpc_server == 'true'
         env:
           REGISTRY: local
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
@@ -48,15 +108,21 @@ jobs:
             --stage cpp \
             --stage grpc-server
 
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.grpc_server != 'true'
+        run: echo "No paths relevant to grpc-server changed; skipping ARM build."
+
   build_and_push:
     name: Build and push all images
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    needs: detect-changes
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
+        if: needs.detect-changes.outputs.grpc_server == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -64,6 +130,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build grpc-server image
+        if: needs.detect-changes.outputs.grpc_server == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
@@ -78,6 +145,7 @@ jobs:
             --stage grpc-server
 
       - name: Push grpc-server image
+        if: needs.detect-changes.outputs.grpc_server == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
@@ -86,6 +154,10 @@ jobs:
         run: |
           chmod +x scripts/docker/push-tagged-images.sh
           ./scripts/docker/push-tagged-images.sh
+
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.grpc_server != 'true'
+        run: echo "No paths relevant to grpc-server changed; skipping ARM build and push."
 
   deploy_prod:
     name: Deploy production (Jetson Nano)

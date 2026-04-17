@@ -8,6 +8,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      force_all:
+        description: Force full rebuild regardless of changed paths
+        type: boolean
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -21,50 +26,146 @@ permissions:
   contents: read
   packages: write
 
+# Smart CI: build/push steps only run when paths relevant to each image change.
+# app (go-api) and web-frontend are independently gated so a frontend-only PR
+# doesn't rebuild the Go binary (and vice versa).
+# Force a full rebuild with either:
+#   - PR label: ci:full-build
+#   - workflow_dispatch (manual runs always force a full rebuild)
 jobs:
-  build:
-    name: Build all images (PRs only)
+  detect-changes:
+    name: Detect changed paths
+    runs-on: ["self-hosted", "Linux", "X64"]
+    outputs:
+      app: ${{ steps.decide.outputs.app }}
+      web_frontend: ${{ steps.decide.outputs.web_frontend }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app:
+              - 'proto/**'
+              - 'src/go_api/**'
+              - 'Dockerfile'
+              - 'runtime/**'
+              - 'data/**'
+              - 'buf.yaml'
+              - 'buf.lock'
+              - 'buf.gen.yaml'
+              - 'buf.gen.backend.yaml'
+              - 'scripts/docker/build-local.sh'
+              - 'scripts/docker/push-tagged-images.sh'
+              - '.github/workflows/docker-monorepo-build-x86.yml'
+            web_frontend:
+              - 'proto/**'
+              - 'src/front-end/**'
+              - 'buf.yaml'
+              - 'buf.lock'
+              - 'buf.gen.yaml'
+              - 'scripts/docker/build-local.sh'
+              - 'scripts/docker/push-tagged-images.sh'
+              - '.github/workflows/docker-monorepo-build-x86.yml'
+
+      - name: Decide build scope
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE_ALL: ${{ inputs.force_all }}
+          LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
+          FILTER_APP: ${{ steps.filter.outputs.app }}
+          FILTER_WEB_FRONTEND: ${{ steps.filter.outputs.web_frontend }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
+             || [ "${FORCE_ALL}" = "true" ] \
+             || [ "${LABEL_FORCE}" = "true" ]; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+            echo "web_frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=${FILTER_APP:-false}" >> "$GITHUB_OUTPUT"
+            echo "web_frontend=${FILTER_WEB_FRONTEND:-false}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build_app:
+    name: Build app image (PRs only)
     if: github.event_name == 'pull_request'
+    needs: detect-changes
     runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build app and web-frontend images locally
+      - name: Build app image locally
+        if: needs.detect-changes.outputs.app == 'true'
         env:
           REGISTRY: local
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: amd64
         run: |
           chmod +x scripts/docker/build-local.sh
-          # Cloud VM deployment only runs app (go-api) + web-frontend. Skip bazel-base/cpp/
-          # grpc-server since the runtime stage of root Dockerfile doesn't transitively depend
-          # on cpp-built-ref (BuildKit prunes unused FROM). Also skip integration-base.
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage go-builder \
             --stage runtime-base \
             --stage proto \
             --stage golang \
-            --stage app \
+            --stage app
+
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.app != 'true'
+        run: echo "No paths relevant to app image changed; skipping app build."
+
+  build_web_frontend:
+    name: Build web-frontend image (PRs only)
+    if: github.event_name == 'pull_request'
+    needs: detect-changes
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build web-frontend image locally
+        if: needs.detect-changes.outputs.web_frontend == 'true'
+        env:
+          REGISTRY: local
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
+        run: |
+          chmod +x scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage proto \
             --stage web-frontend
 
-  build_and_push:
-    name: Build and push all images
-    if: github.event_name == 'push'
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.web_frontend != 'true'
+        run: echo "No paths relevant to web-frontend changed; skipping web-frontend build."
+
+  push_app:
+    name: Build and push app image
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    needs: detect-changes
     runs-on: ["self-hosted", "Linux", "X64"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
+        if: needs.detect-changes.outputs.app == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build app and web-frontend images
+      - name: Build app image
+        if: needs.detect-changes.outputs.app == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
@@ -77,23 +178,73 @@ jobs:
             --stage runtime-base \
             --stage proto \
             --stage golang \
-            --stage app \
-            --stage web-frontend
+            --stage app
 
-      - name: Push app and web-frontend images
+      - name: Push app image
+        if: needs.detect-changes.outputs.app == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: amd64
-          LATEST_ALIASES: app web-frontend
+          LATEST_ALIASES: app
         run: |
           chmod +x scripts/docker/push-tagged-images.sh
           ./scripts/docker/push-tagged-images.sh
 
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.app != 'true'
+        run: echo "No paths relevant to app image changed; skipping app build and push."
+
+  push_web_frontend:
+    name: Build and push web-frontend image
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    needs: detect-changes
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: needs.detect-changes.outputs.web_frontend == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build web-frontend image
+        if: needs.detect-changes.outputs.web_frontend == 'true'
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
+        run: |
+          chmod +x scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage proto \
+            --stage web-frontend
+
+      - name: Push web-frontend image
+        if: needs.detect-changes.outputs.web_frontend == 'true'
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
+          LATEST_ALIASES: web-frontend
+        run: |
+          chmod +x scripts/docker/push-tagged-images.sh
+          ./scripts/docker/push-tagged-images.sh
+
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.web_frontend != 'true'
+        run: echo "No paths relevant to web-frontend changed; skipping web-frontend build and push."
+
   deploy_prod:
     name: Deploy production to Cloud VM
     needs:
-      - build_and_push
+      - push_app
+      - push_web_frontend
     runs-on: ["self-hosted"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     env:

@@ -7,26 +7,42 @@ IMAGE_PREFIX="${REGISTRY}/${BASE_IMAGE_PREFIX}"
 # Must match build-local.sh (amd64 on x86 CI, arm64 on ARM CI). Used for explicit latest-* pushes.
 ARCH="${ARCH:-amd64}"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "docker command not found" >&2
-  exit 1
-fi
+require_command() {
+  local cmd="$1"
+  local hint="${2:-}"
+  if ! command -v "${cmd}" >/dev/null 2>&1; then
+    echo "Required command '${cmd}' not found in PATH." >&2
+    if [[ -n "${hint}" ]]; then
+      echo "Install hint: ${hint}" >&2
+    fi
+    exit 1
+  fi
+}
+
+require_command docker
+require_command rg "Debian/Ubuntu: sudo apt-get install -y ripgrep"
+require_command sort
+require_command head
 
 if ! docker info >/dev/null 2>&1; then
   echo "Docker daemon is not available" >&2
   exit 1
 fi
 
-images_to_push="$(
-  docker images --format "{{.Repository}}:{{.Tag}}" \
-    | rg "^${IMAGE_PREFIX}/" \
-    | rg -v ":(<none>|none)$" \
-    || true
-)"
+# Listed before any pipeline so a docker failure isn't masked by the pipe.
+all_local_images="$(docker images --format '{{.Repository}}:{{.Tag}}')"
+
+images_to_push="$(printf '%s\n' "${all_local_images}" \
+  | rg "^${IMAGE_PREFIX}/" \
+  | rg -v ":(<none>|none)$" \
+  || true)"
 
 if [[ -z "${images_to_push}" ]]; then
-  echo "No local images found for prefix ${IMAGE_PREFIX}/"
-  exit 0
+  echo "No local images found for prefix ${IMAGE_PREFIX}/" >&2
+  echo "Nothing to push. Did the build stage actually produce images for this prefix?" >&2
+  echo "--- Local image inventory (head) ---" >&2
+  printf '%s\n' "${all_local_images}" | head -n 30 >&2
+  exit 1
 fi
 
 pushed=0
@@ -41,6 +57,9 @@ done <<< "${images_to_push}"
 # tag was tagged locally, or tooling listed one ref per image). Always publish canonical aliases.
 echo ""
 echo "Publishing latest-${ARCH} aliases for app, grpc-server, web-frontend..."
+
+failed_aliases=()
+
 publish_latest_alias() {
   local name="$1"
   local latest_ref="${IMAGE_PREFIX}/${name}:latest-${ARCH}"
@@ -53,7 +72,7 @@ publish_latest_alias() {
 
   if [[ "${name}" == "web-frontend" ]]; then
     local versioned
-    versioned="$(docker images --format "{{.Repository}}:{{.Tag}}" \
+    versioned="$(printf '%s\n' "${all_local_images}" \
       | rg "^${IMAGE_PREFIX}/web-frontend:fe-" \
       | sort -Vr \
       | head -1 \
@@ -66,11 +85,25 @@ publish_latest_alias() {
     fi
   fi
 
-  echo "Warning: could not publish ${latest_ref} (no local image or fe-* tag to repair from)" >&2
+  echo "ERROR: could not publish ${latest_ref} (no local image or fe-* tag to repair from)" >&2
+  failed_aliases+=("${latest_ref}")
+  return 1
 }
 
+# Disable -e for the alias loop so we collect every failure before reporting.
+set +e
 publish_latest_alias "app"
 publish_latest_alias "grpc-server"
 publish_latest_alias "web-frontend"
+set -e
+
+if [[ "${#failed_aliases[@]}" -gt 0 ]]; then
+  echo "" >&2
+  echo "Failed to publish ${#failed_aliases[@]} latest-${ARCH} alias(es):" >&2
+  printf '  - %s\n' "${failed_aliases[@]}" >&2
+  echo "Local images inspected (head):" >&2
+  printf '%s\n' "${all_local_images}" | head -n 30 >&2
+  exit 1
+fi
 
 echo "Done. Pushed ${pushed} image(s) in the bulk pass; latest-${ARCH} aliases handled explicitly."

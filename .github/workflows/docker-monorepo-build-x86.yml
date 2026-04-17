@@ -159,6 +159,7 @@ jobs:
           rsync -az -e "ssh ${SSH_OPTS}" \
             config/config.production.yaml \
             config/flags.goff.yaml \
+            src/front-end/nginx.conf \
             "${REMOTE}:${COMPOSE_DIRECTORY}/config/${CUDA_CONFIG_SUBDIR}/"
 
           rsync -az --delete -e "ssh ${SSH_OPTS}" \

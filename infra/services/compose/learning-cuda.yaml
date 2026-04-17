@@ -5,9 +5,9 @@ services:
     restart: unless-stopped
 
     volumes:
-      - ./data:/data:ro
+      - ./data/learning-cuda:/data:rw
       - ./config/cuda-learning/config.production.yaml:/app/config/config.yaml:ro
-      - ./config/cuda-learning/flags.goff.yaml:/app/config/flags.goff.yaml:ro
+      - ./config/cuda-learning/flags.goff.yaml:/app/config/flags.goff.yaml:rw
       - /tmp:/tmp
 
     networks:
@@ -21,7 +21,7 @@ services:
     container_name: cuda-web-frontend
     restart: unless-stopped
     volumes:
-      - ./data:/app/data:ro
+      - ./data/learning-cuda:/app/data:rw
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=public-wan"

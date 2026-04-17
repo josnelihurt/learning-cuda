@@ -79,24 +79,25 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     env:
       INFRA_DIRECTORY: /home/jrb/infra
+      COMPOSE_DIRECTORY: /home/jrb/infra/services/compose
+      COMPOSE_WORKDIR: /home/jrb/infra/services/vultur1
+      CUDA_CONFIG_SUBDIR: cuda-learning
+      CUDA_DATA_SUBDIR: learning-cuda
       APP_IMAGE: ghcr.io/josnelihurt-code/learning-cuda/app:latest-amd64
+      CUDA_WEB_FRONTEND_IMAGE: ghcr.io/josnelihurt-code/learning-cuda/web-frontend:latest-amd64
+      CLOUD_VM_SSH_PORT: "22"
     steps:
       - name: Validate Cloud VM secrets and vars
         env:
           CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
           CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
           CLOUD_VM_SSH_KEY: ${{ secrets.CLOUD_VM_SSH_KEY }}
-          CLOUD_VM_SSH_PORT: 22
-          APP_DIRECTORY: ${{ env.APP_DIRECTORY }}
-          INFRA_DIRECTORY: ${{ env.INFRA_DIRECTORY }}
         run: |
           set -euo pipefail
           : "${CLOUD_VM_HOST:?Missing CLOUD_VM_HOST secret}"
           : "${CLOUD_VM_USER:?Missing CLOUD_VM_USER secret}"
           : "${CLOUD_VM_SSH_KEY:?Missing CLOUD_VM_SSH_KEY secret}"
-          : "${APP_DIRECTORY:?Missing APP_DIRECTORY value}"
-          CLOUD_VM_SSH_PORT="${CLOUD_VM_SSH_PORT:-22}"
-          echo "Cloud VM deploy target: ${CLOUD_VM_USER}@${CLOUD_VM_HOST}:${APP_DIRECTORY} (port ${CLOUD_VM_SSH_PORT})"
+          echo "Cloud VM deploy target: ${CLOUD_VM_USER}@${CLOUD_VM_HOST}:${COMPOSE_WORKDIR} (port ${CLOUD_VM_SSH_PORT})"
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -114,7 +115,6 @@ jobs:
       - name: Add Cloud VM to known hosts
         env:
           CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
-          CLOUD_VM_SSH_PORT: ${{ env.CLOUD_VM_SSH_PORT }}
         run: |
           set -euo pipefail
           ssh-keyscan -p "${CLOUD_VM_SSH_PORT}" -H "${CLOUD_VM_HOST}" >> ~/.ssh/known_hosts
@@ -123,35 +123,54 @@ jobs:
         env:
           CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
           CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
-          CLOUD_VM_SSH_PORT: ${{ env.CLOUD_VM_SSH_PORT }}
         run: |
           set -euo pipefail
           SSH_OPTS="-i ~/.ssh/cloud_vm_key -p ${CLOUD_VM_SSH_PORT} -o StrictHostKeyChecking=yes"
           REMOTE="${CLOUD_VM_USER}@${CLOUD_VM_HOST}"
-          ssh ${SSH_OPTS} "${REMOTE}" "mkdir -p '${{ env.INFRA_DIRECTORY }}/compose/config/learning-cuda' '${{ env.INFRA_DIRECTORY }}/compose/data/learning-cuda'"
 
-          rsync -az --delete -e "ssh ${SSH_OPTS}" infra/services/compose/learning-cuda.yaml "${REMOTE}:${{ env.INFRA_DIRECTORY }}/compose/learning-cuda.yaml"
-          rsync -az --delete -e "ssh ${SSH_OPTS}" config/ "${REMOTE}:${{ env.INFRA_DIRECTORY }}/compose/config/learning-cuda/"
-          rsync -az --delete -e "ssh ${SSH_OPTS}" data/ "${REMOTE}:${{ env.INFRA_DIRECTORY }}/compose/data/learning-cuda/"
+          ssh ${SSH_OPTS} "${REMOTE}" \
+            "mkdir -p \
+               '${COMPOSE_DIRECTORY}/config/${CUDA_CONFIG_SUBDIR}' \
+               '${COMPOSE_DIRECTORY}/data/${CUDA_DATA_SUBDIR}'"
+
+          rsync -az -e "ssh ${SSH_OPTS}" \
+            infra/services/compose/learning-cuda.yaml \
+            "${REMOTE}:${COMPOSE_DIRECTORY}/learning-cuda.yaml"
+
+          rsync -az -e "ssh ${SSH_OPTS}" \
+            config/config.production.yaml \
+            config/flags.goff.yaml \
+            "${REMOTE}:${COMPOSE_DIRECTORY}/config/${CUDA_CONFIG_SUBDIR}/"
+
+          rsync -az --delete -e "ssh ${SSH_OPTS}" \
+            data/ \
+            "${REMOTE}:${COMPOSE_DIRECTORY}/data/${CUDA_DATA_SUBDIR}/"
 
       - name: Pull and restart services on Cloud VM
         env:
           CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
           CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
-          CLOUD_VM_SSH_PORT: ${{ env.CLOUD_VM_SSH_PORT }}
         run: |
           set -euo pipefail
           SSH_OPTS="-i ~/.ssh/cloud_vm_key -p ${CLOUD_VM_SSH_PORT} -o StrictHostKeyChecking=yes"
           REMOTE="${CLOUD_VM_USER}@${CLOUD_VM_HOST}"
-          ssh ${SSH_OPTS} "${REMOTE}" "APP_IMAGE='${{ env.APP_IMAGE }}' bash -s" <<'EOF'
+          ssh ${SSH_OPTS} "${REMOTE}" \
+            "COMPOSE_WORKDIR='${COMPOSE_WORKDIR}' \
+             APP_IMAGE='${APP_IMAGE}' \
+             CUDA_WEB_FRONTEND_IMAGE='${CUDA_WEB_FRONTEND_IMAGE}' \
+             bash -s" <<'EOF'
           set -euo pipefail
-          cd "${{ env.INFRA_DIRECTORY }}/services/vultur1"
-          export APP_IMAGE
-          docker composer up -d --remove-orphans --force-recreate learning-cuda
+          cd "${COMPOSE_WORKDIR}"
+          export APP_IMAGE CUDA_WEB_FRONTEND_IMAGE
+
+          docker compose up --pull always --force-recreate -d \
+            learning-cuda-go-api learning-cuda-frontend
 
           timeout=60
           while [ "${timeout}" -gt 0 ]; do
-            if docker compose -f docker-compose.go-cloud.yml ps --filter "status=running" --format "{{.Name}}" | grep -q "cuda-go-server"; then
+            go_ok=$(docker ps --filter "name=^cuda-go-server$" --filter "status=running" --format "{{.Names}}")
+            fe_ok=$(docker ps --filter "name=^cuda-web-frontend$" --filter "status=running" --format "{{.Names}}")
+            if [ "${go_ok}" = "cuda-go-server" ] && [ "${fe_ok}" = "cuda-web-frontend" ]; then
               echo "Services are running"
               break
             fi
@@ -160,7 +179,7 @@ jobs:
           done
           if [ "${timeout}" -eq 0 ]; then
             echo "Service readiness timeout reached" >&2
-            docker compose -f docker-compose.go-cloud.yml ps
+            docker ps --filter "name=cuda-"
             exit 1
           fi
           EOF

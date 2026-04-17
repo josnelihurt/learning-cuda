@@ -8,6 +8,7 @@ import (
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
+	"github.com/rs/zerolog/log"
 )
 
 type DeviceMonitor struct {
@@ -23,13 +24,13 @@ type DeviceMonitor struct {
 	startedMu     sync.RWMutex
 }
 
-func NewDeviceMonitor(cfg config.MQTTConfig) (*DeviceMonitor, error) {
+func NewDeviceMonitor(ctx context.Context, cfg config.MQTTConfig) (*DeviceMonitor, error) {
 	client, err := NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MQTT client: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	return &DeviceMonitor{
 		client:      client,
@@ -179,10 +180,12 @@ func (dm *DeviceMonitor) notify(status *domain.DeviceStatus) {
 }
 
 func (dm *DeviceMonitor) PowerOn() error {
+	log.Info().Msg("Powering on Jetson Nano on MQTT")
 	return dm.client.PublishPowerCommand(true)
 }
 
 func (dm *DeviceMonitor) PowerOff() error {
+	log.Info().Msg("Powering off Jetson Nano on MQTT")
 	return dm.client.PublishPowerCommand(false)
 }
 

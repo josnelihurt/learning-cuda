@@ -1,0 +1,35 @@
+services: 
+  learning-cuda-go-api:
+    image: ${APP_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/app:latest-amd64}
+    container_name: cuda-go-server
+    restart: unless-stopped
+
+    volumes:
+      - ./data/learning-cuda:/data:rw
+      - ./config/cuda-learning/config.production.yaml:/app/config/config.yaml:ro
+      - ./config/cuda-learning/flags.goff.yaml:/app/config/flags.goff.yaml:rw
+      - /tmp:/tmp
+
+    networks:
+      iot-internal:
+        aliases:
+          - learning-cuda-go-api
+      public-wan:
+
+  learning-cuda-frontend: 
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/web-frontend:latest-amd64}
+    container_name: cuda-web-frontend
+    restart: unless-stopped
+    volumes:
+      - ./data/learning-cuda:/app/data:rw
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public-wan"
+      - "traefik.http.routers.learning-cuda-frontend.rule=Host(`cuda-demo.lab.josnelihurt.me`)"
+      - "traefik.http.routers.learning-cuda-frontend.entrypoints=https"
+      - "traefik.http.routers.learning-cuda-frontend.tls=true"
+      - "traefik.http.services.learning-cuda-frontend.loadbalancer.server.port=80"
+    networks:
+      - iot-internal
+      - public-wan
+

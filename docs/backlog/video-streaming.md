@@ -7,7 +7,7 @@
 >
 > **Current Status**: All pending items have been converted to GitHub Issues (#507-511). Items marked as "Completed" remain for historical reference. POC items have been converted to research and implementation tickets.
 >
-> **See**: [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management.
+> **See**: [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) for active project management.
 
 Research and POC tasks for improving video transport from current WebSocket + base64 PNG to more efficient methods.
 

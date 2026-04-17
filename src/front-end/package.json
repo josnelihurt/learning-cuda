@@ -1,12 +1,13 @@
 {
   "name": "cuda-image-processor-web",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "Frontend for CUDA Image Processor with React",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run version:sync && vite build",
     "build:prod": "npm run build",
+    "version:sync": "node ./sync-version.mjs",
     "preview": "vite preview",
     "clean": "rm -rf static/js/dist",
     "test": "vitest",
@@ -22,10 +23,10 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:dev:debug": "TEST_ENV=development playwright test --debug",
     "test:e2e:prod:debug": "TEST_ENV=production playwright test --debug",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\""
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
   },
   "devDependencies": {
     "@bufbuild/protobuf": "^1.10.1",
@@ -47,6 +48,8 @@
     "@vitest/ui": "^1.2.0",
     "dotenv": "^17.2.3",
     "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "happy-dom": "^12.10.3",
     "prettier": "^3.2.4",
     "typescript": "^5.3.3",

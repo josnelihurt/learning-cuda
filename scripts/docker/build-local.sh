@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 REGISTRY="${REGISTRY:-local}"
-BASE_IMAGE_PREFIX="${BASE_IMAGE_PREFIX:-josnelihurt/learning-cuda}"
+BASE_IMAGE_PREFIX="${BASE_IMAGE_PREFIX:-josnelihurt-code/learning-cuda}"
 ARCH_DEFAULT="$(uname -m)"
 case "${ARCH_DEFAULT}" in
   x86_64) ARCH_DEFAULT="amd64" ;;
@@ -13,6 +13,7 @@ case "${ARCH_DEFAULT}" in
 esac
 ARCH="${ARCH_DEFAULT}"
 REQUESTED_STAGES=()
+SOURCE_REPO_URL="https://github.com/josnelihurt-code/learning-cuda"
 
 usage() {
   cat <<EOF
@@ -23,7 +24,7 @@ Build local Docker images sequentially using docker build.
 Options:
   --arch <arch>      Target architecture (amd64 or arm64). Defaults to host arch.
   --registry <name>  Registry prefix for tags. Defaults to value of \$REGISTRY or "local".
-  --base-prefix <p>  Image namespace following the registry. Defaults to "josnelihurt/learning-cuda".
+  --base-prefix <p>  Image namespace following the registry. Defaults to "josnelihurt-code/learning-cuda".
   --stage <name>     Build only the specified stage (can be passed multiple times).
   --list-stages      Print available stages and exit.
   -h, --help         Show this message.
@@ -52,7 +53,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app grpc-server)
+ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app grpc-server web-frontend)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -123,15 +124,27 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 if [[ -z "${BAZEL_REMOTE_CACHE:-}" ]]; then
-  CACHE_HOST="192.168.10.80"
-  CACHE_STATUS_URL="http://${CACHE_HOST}:9090/status"
-  if curl -sf --connect-timeout 2 --max-time 4 "${CACHE_STATUS_URL}" >/dev/null 2>&1; then
-    export BAZEL_REMOTE_CACHE="grpc://${CACHE_HOST}:9092"
-    export BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="true"
-    echo "Detected bazel-remote cache at ${CACHE_HOST}"
-  else
-    echo "Bazel-remote cache not reachable; proceeding without remote cache."
+  # Self-hosted pools may sit on different LANs (e.g. prox4 vs prox3); try each bazel-remote
+  # HTTP status endpoint until one responds. Override with BAZEL_REMOTE_CACHE_CANDIDATE_HOSTS
+  # (space-separated) or set BAZEL_REMOTE_CACHE directly.
+  read -r -a _bazel_cache_hosts <<< "${BAZEL_REMOTE_CACHE_CANDIDATE_HOSTS:-192.168.10.80 192.168.30.60}"
+  _bazel_cache_found=""
+  for _h in "${_bazel_cache_hosts[@]}"; do
+    if [[ -z "${_h}" ]]; then
+      continue
+    fi
+    if curl -sf --connect-timeout 2 --max-time 4 "http://${_h}:9090/status" >/dev/null 2>&1; then
+      export BAZEL_REMOTE_CACHE="grpc://${_h}:9092"
+      export BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="true"
+      echo "Detected bazel-remote cache at ${_h}"
+      _bazel_cache_found=1
+      break
+    fi
+  done
+  if [[ -z "${_bazel_cache_found}" ]]; then
+    echo "Bazel-remote cache not reachable at ${_bazel_cache_hosts[*]}; proceeding without remote cache."
   fi
+  unset _h _bazel_cache_hosts _bazel_cache_found
 fi
 
 HOST_ARCH="${ARCH_DEFAULT}"
@@ -185,6 +198,9 @@ build_and_tag() {
   docker build \
     "${docker_build_args[@]}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
+    --label "org.opencontainers.image.source=${SOURCE_REPO_URL}" \
+    --label "org.opencontainers.image.url=${SOURCE_REPO_URL}" \
+    --label "org.opencontainers.image.title=learning-cuda" \
     "${build_args[@]}" \
     -f "${dockerfile}" \
     -t "${tag}" \
@@ -422,6 +438,34 @@ run_grpc_server_image() {
     "--build-arg" "TARGETARCH=${TARGETARCH}"
 }
 
+run_web_frontend_image() {
+  local proto_version
+  proto_version="$(read_version "proto/VERSION")"
+
+  local fe_version
+  fe_version="$(read_version "src/front-end/VERSION")"
+
+  local app_tag="fe-${fe_version}-proto${proto_version}"
+  local version_tag="${IMAGE_BASE}/web-frontend:${app_tag}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/web-frontend:latest-${ARCH}"
+
+  print_stage_header "Building web-frontend image (${app_tag})"
+
+  local proto_tools_image="${IMAGE_BASE}/base:proto-tools-latest-${ARCH}"
+  if ! docker image inspect "${proto_tools_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${proto_tools_image} not found. Build proto-tools first." >&2
+    exit 1
+  fi
+
+  build_and_tag \
+    "${version_tag}" \
+    "${latest_tag}" \
+    "src/front-end/Dockerfile" \
+    "false" \
+    "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
+    "--build-arg" "BASE_TAG=latest"
+}
+
 for stage in "${REQUESTED_STAGES[@]}"; do
   case "${stage}" in
     proto-tools)
@@ -454,6 +498,9 @@ for stage in "${REQUESTED_STAGES[@]}"; do
     grpc-server)
       run_grpc_server_image
       ;;
+    web-frontend)
+      run_web_frontend_image
+      ;;
     *)
       echo "Stage '${stage}' is not implemented" >&2
       exit 1
@@ -464,4 +511,10 @@ done
 echo ""
 echo "All requested stages completed."
 echo ""
+
+if [[ "${REGISTRY}" != "local" ]]; then
+  echo "To push all tagged images for ${IMAGE_BASE}, run:"
+  echo "  REGISTRY=${REGISTRY} BASE_IMAGE_PREFIX=${BASE_IMAGE_PREFIX} ./scripts/docker/push-tagged-images.sh"
+  echo ""
+fi
 

@@ -1,6 +1,6 @@
 # CUDA Learning Platform
 
-** Live Demo:** https://app-cuda-demo.josnelihurt.me
+** Live Demo:** https://cuda-demo.lab.josnelihurt.me
 
 Learning CUDA and GPU programming by building something real. Started with a simple question: "How fast can I get image filters running on GPU vs CPU?" and ended up with this project.
 
@@ -251,7 +251,7 @@ Production-like Docker deployment running locally using pre-built images from Gi
 - Docker Compose stack
 
 **Image Source:**
-- Uses pre-built image: `ghcr.io/josnelihurt/learning-cuda:amd64-latest`
+- Uses pre-built image: `ghcr.io/josnelihurt-code/learning-cuda:amd64-latest`
 - Image compiled in GitHub Actions on push to `main`
 - No local compilation required
 
@@ -263,10 +263,10 @@ Production-like Docker deployment running locally using pre-built images from Gi
 
 Real deployment on Jetson Nano hardware with Traefik as the ingress layer.
 
-**Production URL:** https://app-cuda-demo.josnelihurt.me
+**Production URL:** https://cuda-demo.lab.josnelihurt.me
 
 **Services:**
-- Main Application: https://app-cuda-demo.josnelihurt.me
+- Main Application: https://cuda-demo.lab.josnelihurt.me
 - Grafana Monitoring: https://grafana-cuda-demo.josnelihurt.me
 - Distributed Tracing (Jaeger): https://jaeger-cuda-demo.josnelihurt.me
 - Test Reports: https://reports-cuda-demo.josnelihurt.me
@@ -467,7 +467,7 @@ The system supports multiple input sources and a growing library of image proces
 
 ## Roadmap
 
-Evolving this into a full CUDA learning platform. See [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management and backlog. Historical backlog planning documents are archived in [docs/archive/](docs/archive/).
+Evolving this into a full CUDA learning platform. See [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) for active project management and backlog. Historical backlog planning documents are archived in [docs/archive/](docs/archive/).
 
 ## Learning Journey
 

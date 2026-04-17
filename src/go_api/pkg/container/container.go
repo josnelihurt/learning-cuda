@@ -131,7 +131,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	var deviceMonitor domainInterfaces.MQTTDeviceMonitor
 	if cfg.MQTT.Broker != "" {
-		monitor, err := mqtt.NewDeviceMonitor(cfg.MQTT)
+		monitor, err := mqtt.NewDeviceMonitor(ctx, cfg.MQTT)
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to initialize MQTT device monitor")
 		} else {

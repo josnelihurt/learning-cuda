@@ -140,7 +140,7 @@ start_vite() {
     cd "$PROJECT_ROOT/src/front-end"
     [ ! -d "node_modules" ] && npm install
 
-    echo "Dev: UI https://localhost:3000/lit and https://localhost:3000/react | API https://localhost:8443 (VITE_API_ORIGIN) | Prod UI: Nginx, not Go"
+    echo "Dev: UI  https://localhost:3000 | API https://localhost:8443 (VITE_API_ORIGIN) | Prod UI: Nginx, not Go"
     echo "Starting Vite at https://localhost:3000 (API proxy -> ${VITE_API_ORIGIN:-https://localhost:8443})"
     npm run dev >"$DEV_LOG_VITE" 2>&1 &
     VITE_PID=$!
@@ -160,7 +160,7 @@ cleanup_on_signal() {
 print_summary() {
     echo "================================================"
     echo "Dev stack:"
-    echo "  UI (Vite):   https://localhost:3000/lit and https://localhost:3000/react"
+    echo "  UI (Vite):   https://localhost:3000"
     echo "  API (HTTPS): https://localhost:8443"
     echo "  gRPC (C++):  localhost:60061"
     echo "================================================"

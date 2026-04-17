@@ -9,7 +9,6 @@ external
 !src/front-end/src/infrastructure/external
 
 # Editor and caches
-.vscode/
 .idea/
 .cursor/
 .cache/
@@ -75,7 +74,7 @@ test/coverage/
 node_modules/
 coverage.out
 
-# Local-only: scripts/deployment removed from git history (secrets / infra)
+# Local-only: scripts/deployment removed from git history (keep untracked)
 scripts/deployment/
 
 # Deployment sensitive files

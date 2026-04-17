@@ -1,4 +1,4 @@
-ARG BASE_REGISTRY=ghcr.io/josnelihurt/learning-cuda
+ARG BASE_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
 

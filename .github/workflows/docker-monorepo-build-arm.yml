@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BASE_IMAGE_PREFIX: josnelihurt/learning-cuda
+  BASE_IMAGE_PREFIX: josnelihurt-code/learning-cuda
 
 concurrency:
   group: docker-monorepo-arm64-${{ github.ref }}
@@ -69,11 +69,8 @@ jobs:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
         run: |
-          IMAGE_PREFIX="${REGISTRY}/${BASE_IMAGE_PREFIX}"
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${IMAGE_PREFIX}/" | grep -v ":<none>$" | grep -v ":none$" | while read -r img; do
-            echo "Pushing ${img}..."
-            docker push "${img}"
-          done
+          chmod +x scripts/docker/push-tagged-images.sh
+          ./scripts/docker/push-tagged-images.sh
 
   deploy_prod:
     name: Deploy production (Jetson Nano)

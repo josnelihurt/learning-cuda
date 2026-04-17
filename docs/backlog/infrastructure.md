@@ -7,7 +7,7 @@
 >
 > **Current Status**: All pending items have been converted to GitHub Issues. Completed items remain marked with their original issue numbers (#4-169).
 >
-> **See**: [GitHub Issues](https://github.com/josnelihurt/learning-cuda/issues) for active project management.
+> **See**: [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) for active project management.
 
 Microservices, observability, testing, and cloud deployment.
 
@@ -222,7 +222,7 @@ Microservices, observability, testing, and cloud deployment.
 - [x] #119 Automated code synchronization from development to production
 - [x] #120 Production deployment warning banner (refactored to information banner)
 - [x] #121 Unified logging configuration for dev and prod environments
-- [x] #122 Production URLs: app-cuda-demo.josnelihurt.me, grafana-cuda-demo.josnelihurt.me, etc.
+- [x] #122 Production URLs: cuda-demo.lab.josnelihurt.me, grafana-cuda-demo.josnelihurt.me, etc.
 - [x] #123 Camera preview fixes with video grid filter application (Oct 26, 2025)
 
 ### Provider Research

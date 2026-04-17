@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${APP_IMAGE:-ghcr.io/josnelihurt/learning-cuda:amd64-latest}
+    image: ${APP_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda:amd64-latest}
     container_name: cuda-image-processor-staging
     restart: unless-stopped
     runtime: nvidia
@@ -42,7 +42,7 @@ services:
       start_period: 40s
 
   web-frontend:
-    image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt/learning-cuda/web-frontend:latest-amd64}
+    image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/web-frontend:latest-amd64}
     container_name: cuda-web-frontend-staging
     restart: unless-stopped
     depends_on:
@@ -94,7 +94,7 @@ services:
     
 
   grpc-server:
-    image: ${GRPC_SERVER_IMAGE:-ghcr.io/josnelihurt/learning-cuda/grpc-server:latest-amd64}
+    image: ${GRPC_SERVER_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/grpc-server:latest-amd64}
     container_name: cuda-grpc-server-staging
     restart: unless-stopped
     runtime: nvidia

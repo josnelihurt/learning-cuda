@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BASE_IMAGE_PREFIX: josnelihurt/learning-cuda
+  BASE_IMAGE_PREFIX: josnelihurt-code/learning-cuda
 
 concurrency:
   group: docker-monorepo-x86-${{ github.ref }}
@@ -68,79 +68,123 @@ jobs:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
         run: |
-          IMAGE_PREFIX="${REGISTRY}/${BASE_IMAGE_PREFIX}"
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${IMAGE_PREFIX}/" | grep -v ":<none>$" | grep -v ":none$" | while read -r img; do
-            echo "Pushing ${img}..."
-            docker push "${img}"
-          done
+          chmod +x scripts/docker/push-tagged-images.sh
+          ./scripts/docker/push-tagged-images.sh
 
   deploy_prod:
-    name: Deploy production (Cloud VM)
+    name: Deploy production to Cloud VM
     needs:
       - build_and_push
-    runs-on: ["self-hosted", "Linux", "X64", "prod", "cloud-vm"]
+    runs-on: ["self-hosted", "Linux", "X64"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     env:
-      APP_DIRECTORY: /home/jrb/infra/projects/cuda-learning
-      APP_IMAGE: ghcr.io/josnelihurt/learning-cuda/app:latest-amd64
+      INFRA_DIRECTORY: /home/jrb/infra
+      COMPOSE_DIRECTORY: /home/jrb/infra/services/compose
+      COMPOSE_WORKDIR: /home/jrb/infra/services/vultur1
+      CUDA_CONFIG_SUBDIR: cuda-learning
+      CUDA_DATA_SUBDIR: learning-cuda
+      APP_IMAGE: ghcr.io/josnelihurt-code/learning-cuda/app:latest-amd64
+      CUDA_WEB_FRONTEND_IMAGE: ghcr.io/josnelihurt-code/learning-cuda/web-frontend:latest-amd64
+      CLOUD_VM_SSH_PORT: "22"
     steps:
+      - name: Validate Cloud VM secrets and vars
+        env:
+          CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
+          CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
+          CLOUD_VM_SSH_KEY: ${{ secrets.CLOUD_VM_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          : "${CLOUD_VM_HOST:?Missing CLOUD_VM_HOST secret}"
+          : "${CLOUD_VM_USER:?Missing CLOUD_VM_USER secret}"
+          : "${CLOUD_VM_SSH_KEY:?Missing CLOUD_VM_SSH_KEY secret}"
+          echo "Cloud VM deploy target: ${CLOUD_VM_USER}@${CLOUD_VM_HOST}:${COMPOSE_WORKDIR} (port ${CLOUD_VM_SSH_PORT})"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Sync deployment files
+      - name: Configure SSH key
+        env:
+          CLOUD_VM_SSH_KEY: ${{ secrets.CLOUD_VM_SSH_KEY }}
         run: |
-          mkdir -p "${{ env.APP_DIRECTORY }}/config" "${{ env.APP_DIRECTORY }}/data"
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${CLOUD_VM_SSH_KEY}" > ~/.ssh/cloud_vm_key
+          chmod 600 ~/.ssh/cloud_vm_key
 
-          # Sync docker-compose file
-          cp docker-compose.go-cloud.yml "${{ env.APP_DIRECTORY }}/docker-compose.go-cloud.yml"
-
-          # Sync config directory
-          rsync -a --delete config/ "${{ env.APP_DIRECTORY }}/config/"
-
-          # Sync data directory (static images, videos, etc.)
-          rsync -a --delete data/ "${{ env.APP_DIRECTORY }}/data/"
-
-      - name: Pull latest container images
+      - name: Add Cloud VM to known hosts
+        env:
+          CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
         run: |
-          cd "${{ env.APP_DIRECTORY }}"
-          export APP_IMAGE="${{ env.APP_IMAGE }}"
-          docker compose -f docker-compose.go-cloud.yml pull
+          set -euo pipefail
+          ssh-keyscan -p "${CLOUD_VM_SSH_PORT}" -H "${CLOUD_VM_HOST}" >> ~/.ssh/known_hosts
 
-      - name: Restart services
+      - name: Sync deployment files to Cloud VM
+        env:
+          CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
+          CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
         run: |
-          cd "${{ env.APP_DIRECTORY }}"
-          export APP_IMAGE="${{ env.APP_IMAGE }}"
-          docker compose -f docker-compose.go-cloud.yml down --remove-orphans || true
-          docker compose -f docker-compose.go-cloud.yml up -d
+          set -euo pipefail
+          SSH_OPTS="-i ~/.ssh/cloud_vm_key -p ${CLOUD_VM_SSH_PORT} -o StrictHostKeyChecking=yes"
+          REMOTE="${CLOUD_VM_USER}@${CLOUD_VM_HOST}"
 
-      - name: Wait for services to be ready
+          ssh ${SSH_OPTS} "${REMOTE}" \
+            "mkdir -p \
+               '${COMPOSE_DIRECTORY}/config/${CUDA_CONFIG_SUBDIR}' \
+               '${COMPOSE_DIRECTORY}/data/${CUDA_DATA_SUBDIR}'"
+
+          rsync -az -e "ssh ${SSH_OPTS}" \
+            infra/services/compose/learning-cuda.yaml \
+            "${REMOTE}:${COMPOSE_DIRECTORY}/learning-cuda.yaml"
+
+          rsync -az -e "ssh ${SSH_OPTS}" \
+            config/config.production.yaml \
+            config/flags.goff.yaml \
+            "${REMOTE}:${COMPOSE_DIRECTORY}/config/${CUDA_CONFIG_SUBDIR}/"
+
+          rsync -az --delete -e "ssh ${SSH_OPTS}" \
+            data/ \
+            "${REMOTE}:${COMPOSE_DIRECTORY}/data/${CUDA_DATA_SUBDIR}/"
+
+      - name: Pull and restart services on Cloud VM
+        env:
+          CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
+          CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
         run: |
-          cd "${{ env.APP_DIRECTORY }}"
+          set -euo pipefail
+          SSH_OPTS="-i ~/.ssh/cloud_vm_key -p ${CLOUD_VM_SSH_PORT} -o StrictHostKeyChecking=yes"
+          REMOTE="${CLOUD_VM_USER}@${CLOUD_VM_HOST}"
+          ssh ${SSH_OPTS} "${REMOTE}" \
+            "COMPOSE_WORKDIR='${COMPOSE_WORKDIR}' \
+             APP_IMAGE='${APP_IMAGE}' \
+             CUDA_WEB_FRONTEND_IMAGE='${CUDA_WEB_FRONTEND_IMAGE}' \
+             bash -s" <<'EOF'
+          set -euo pipefail
+          cd "${COMPOSE_WORKDIR}"
+          export APP_IMAGE CUDA_WEB_FRONTEND_IMAGE
+
+          docker compose up --pull always --force-recreate -d \
+            learning-cuda-go-api learning-cuda-frontend
+
           timeout=60
-          while [ $timeout -gt 0 ]; do
-            if docker compose -f docker-compose.go-cloud.yml ps --filter "status=running" --format "{{.Name}}" | grep -q "cuda-go-server"; then
+          while [ "${timeout}" -gt 0 ]; do
+            go_ok=$(docker ps --filter "name=^cuda-go-server$" --filter "status=running" --format "{{.Names}}")
+            fe_ok=$(docker ps --filter "name=^cuda-web-frontend$" --filter "status=running" --format "{{.Names}}")
+            if [ "${go_ok}" = "cuda-go-server" ] && [ "${fe_ok}" = "cuda-web-frontend" ]; then
               echo "Services are running"
               break
             fi
             sleep 1
             timeout=$((timeout - 1))
           done
-
-      - name: Check service health
-        run: |
-          sleep 10
-          if docker exec cuda-go-server curl -s http://localhost:8080/health > /dev/null 2>&1; then
-            echo "Health check passed"
-          else
-            echo "Health check failed"
-            docker compose -f "${{ env.APP_DIRECTORY }}/docker-compose.go-cloud.yml" ps
-            docker compose -f "${{ env.APP_DIRECTORY }}/docker-compose.go-cloud.yml" logs --tail=50
+          if [ "${timeout}" -eq 0 ]; then
+            echo "Service readiness timeout reached" >&2
+            docker ps --filter "name=cuda-"
             exit 1
           fi
+          EOF
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/cloud_vm_key

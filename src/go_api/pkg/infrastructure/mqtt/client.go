@@ -7,6 +7,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
+	"github.com/rs/zerolog/log"
 )
 
 type Client struct {
@@ -60,6 +61,7 @@ func NewClient(cfg config.MQTTConfig) (*Client, error) {
 		return nil, fmt.Errorf("MQTT client not connected after Connect()")
 	}
 
+	log.Info().Str("broker", cfg.Broker).Int("port", cfg.Port).Str("client_id", cfg.ClientID).Msg("MQTT client connected")
 	time.Sleep(500 * time.Millisecond)
 
 	return &Client{
@@ -81,6 +83,8 @@ func (c *Client) PublishPowerCommand(on bool) error {
 	if token.Error() != nil {
 		return fmt.Errorf("failed to publish power command: %w", token.Error())
 	}
+
+	log.Info().Str("topic", topic).Str("payload", payload).Msg("Power command published")
 
 	return nil
 }
@@ -105,6 +109,8 @@ func (c *Client) SubscribeToSensor(callback func(power float64, timestamp string
 	if token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to sensor topic: %w", token.Error())
 	}
+
+	log.Info().Str("topic", topic).Msg("Subscribed to sensor topic")
 
 	return nil
 }
@@ -136,6 +142,8 @@ func (c *Client) SubscribeToSensorWithRaw(callback func(data SensorData) error) 
 		return fmt.Errorf("failed to subscribe to sensor topic: %w", token.Error())
 	}
 
+	log.Info().Str("topic", topic).Msg("Subscribed to sensor topic with raw")
+
 	return nil
 }
 
@@ -159,6 +167,8 @@ func (c *Client) SubscribeToInfo1(callback func(data Info1Data) error) error {
 	if token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to INFO1 topic: %w", token.Error())
 	}
+
+	log.Info().Str("topic", topic).Msg("Subscribed to INFO1 topic")
 
 	return nil
 }
@@ -184,6 +194,8 @@ func (c *Client) SubscribeToInfo2(callback func(data Info2Data) error) error {
 		return fmt.Errorf("failed to subscribe to INFO2 topic: %w", token.Error())
 	}
 
+	log.Info().Str("topic", topic).Msg("Subscribed to INFO2 topic")
+
 	return nil
 }
 
@@ -204,6 +216,8 @@ func (c *Client) SubscribeToLWT(callback func(status string) error) error {
 		return fmt.Errorf("failed to subscribe to LWT topic: %w", token.Error())
 	}
 
+	log.Info().Str("topic", topic).Msg("Subscribed to LWT topic")
+
 	return nil
 }
 
@@ -215,6 +229,8 @@ func (c *Client) RequestInfo1() error {
 	if token.Error() != nil {
 		return fmt.Errorf("failed to request INFO1: %w", token.Error())
 	}
+
+	log.Info().Str("topic", topic).Msg("Requested INFO1")
 
 	return nil
 }
@@ -228,6 +244,8 @@ func (c *Client) RequestInfo2() error {
 		return fmt.Errorf("failed to request INFO2: %w", token.Error())
 	}
 
+	log.Info().Str("topic", topic).Msg("Requested INFO2")
+
 	return nil
 }
 
@@ -239,6 +257,8 @@ func (c *Client) RequestSensorStatus() error {
 	if token.Error() != nil {
 		return fmt.Errorf("failed to request sensor status: %w", token.Error())
 	}
+
+	log.Info().Str("topic", topic).Msg("Requested sensor status")
 
 	return nil
 }
@@ -252,9 +272,13 @@ func (c *Client) RestartDevice() error {
 		return fmt.Errorf("failed to restart device: %w", token.Error())
 	}
 
+	log.Info().Str("topic", topic).Msg("Restarted device")
+
 	return nil
 }
 
 func (c *Client) Disconnect() {
+	log.Info().Msg("Disconnecting MQTT client")
 	c.client.Disconnect(250)
+	log.Info().Msg("MQTT client disconnected")
 }

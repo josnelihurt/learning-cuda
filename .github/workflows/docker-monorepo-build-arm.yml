@@ -31,14 +31,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build all images locally
+      - name: Build grpc-server image locally
         env:
           REGISTRY: local
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh
+          # Jetson deployment only consumes grpc-server. Skip go/app/web-frontend/runtime-base
+          # to cut ARM64 build time. Stages kept satisfy Dockerfile.build dependencies plus the
+          # cpp-built guard in build-local.sh::run_grpc_server_image.
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage bazel-base \
+            --stage proto \
+            --stage cpp \
+            --stage grpc-server
 
   build_and_push:
     name: Build and push all images
@@ -55,20 +63,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build all images
+      - name: Build grpc-server image
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh \
+            --stage proto-tools \
+            --stage bazel-base \
+            --stage proto \
+            --stage cpp \
+            --stage grpc-server
 
-      - name: Push all images
+      - name: Push grpc-server image
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
+          LATEST_ALIASES: grpc-server
         run: |
           chmod +x scripts/docker/push-tagged-images.sh
           ./scripts/docker/push-tagged-images.sh

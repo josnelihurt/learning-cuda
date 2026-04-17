@@ -6,6 +6,9 @@ BASE_IMAGE_PREFIX="${BASE_IMAGE_PREFIX:-josnelihurt-code/learning-cuda}"
 IMAGE_PREFIX="${REGISTRY}/${BASE_IMAGE_PREFIX}"
 # Must match build-local.sh (amd64 on x86 CI, arm64 on ARM CI). Used for explicit latest-* pushes.
 ARCH="${ARCH:-amd64}"
+# Final images for which the script must guarantee a latest-${ARCH} alias on GHCR.
+# Override per arch (e.g. LATEST_ALIASES="grpc-server" on ARM, "app web-frontend" on x86).
+LATEST_ALIASES="${LATEST_ALIASES:-app grpc-server web-frontend}"
 
 require_command() {
   local cmd="$1"
@@ -91,11 +94,16 @@ publish_latest_alias() {
 }
 
 # Disable -e for the alias loop so we collect every failure before reporting.
+read -r -a _alias_list <<< "${LATEST_ALIASES}"
+if [[ "${#_alias_list[@]}" -eq 0 ]]; then
+  echo "LATEST_ALIASES is empty; skipping explicit alias publishing." >&2
+fi
 set +e
-publish_latest_alias "app"
-publish_latest_alias "grpc-server"
-publish_latest_alias "web-frontend"
+for _alias_name in "${_alias_list[@]}"; do
+  publish_latest_alias "${_alias_name}"
+done
 set -e
+unset _alias_list _alias_name
 
 if [[ "${#failed_aliases[@]}" -gt 0 ]]; then
   echo "" >&2

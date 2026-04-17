@@ -1,5 +1,7 @@
 import { createContext, useMemo, useState, type ReactNode } from 'react';
 
+import styles from './toast-context.module.css';
+
 export type ToastApi = {
   success(title: string, message?: string, duration?: number | null): string;
   error(title: string, message?: string, duration?: number | null): string;
@@ -17,13 +19,6 @@ type ToastItem = {
   title: string;
   message: string;
 };
-
-function getColor(kind: ToastKind): string {
-  if (kind === 'success') return '#4caf50';
-  if (kind === 'error') return '#f44336';
-  if (kind === 'warning') return '#ff9800';
-  return '#2196f3';
-}
 
 function createToastApi(pushToast: (toast: Omit<ToastItem, 'id'>, duration?: number | null) => string): ToastApi {
   return {
@@ -44,6 +39,9 @@ function createToastApi(pushToast: (toast: Omit<ToastItem, 'id'>, duration?: num
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const dismissToast = (id: string) => {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  };
   const pushToast = (toast: Omit<ToastItem, 'id'>, duration: number | null = 7000): string => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     setToasts((current) => [...current, { ...toast, id }].slice(-5));
@@ -59,32 +57,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div
-        style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 10000,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-        }}
-      >
+      <div className={styles.stack}>
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            style={{
-              minWidth: '300px',
-              maxWidth: '400px',
-              padding: '14px 16px',
-              borderRadius: '8px',
-              borderLeft: `4px solid ${getColor(toast.kind)}`,
-              background: '#fff',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            }}
+            className={styles.card}
+            data-kind={toast.kind}
+            onClick={() => dismissToast(toast.id)}
           >
-            <div style={{ fontWeight: 600 }}>{toast.title}</div>
-            {toast.message ? <div style={{ color: '#666' }}>{toast.message}</div> : null}
+            <div className={styles.title}>{toast.title}</div>
+            {toast.message ? <div className={styles.message}>{toast.message}</div> : null}
           </div>
         ))}
       </div>

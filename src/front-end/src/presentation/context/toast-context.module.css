@@ -1,0 +1,44 @@
+.stack {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  min-width: 300px;
+  max-width: 400px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border-left: 4px solid transparent;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.card[data-kind='success'] {
+  border-left-color: #4caf50;
+}
+
+.card[data-kind='error'] {
+  border-left-color: #f44336;
+}
+
+.card[data-kind='warning'] {
+  border-left-color: #ff9800;
+}
+
+.card[data-kind='info'] {
+  border-left-color: #2196f3;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.message {
+  color: #666;
+}

@@ -74,20 +74,20 @@ jobs:
 
   deploy_prod:
     name: Deploy production (Jetson Nano)
-    needs:
-      - build_and_push
+    # needs:
+    #   - build_and_push
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Validate Jetson vars and secrets
         env:
-          JETSON_SSH_HOST: ${{ vars.JETSON_SSH_HOST }}
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
         run: |
           set -euo pipefail
           missing=()
-          for var in JETSON_SSH_HOST JETSON_APP_DIRECTORY JETSON_USER; do
+          for var in JETSON_HOST JETSON_APP_DIRECTORY JETSON_USER; do
             if [ -z "${!var:-}" ]; then
               missing+=("$var")
             fi
@@ -96,20 +96,39 @@ jobs:
             printf 'Missing required Jetson vars/secrets: %s\n' "${missing[*]}" >&2
             exit 1
           fi
-          echo "Jetson deploy target: ${JETSON_USER}@${JETSON_SSH_HOST}:${JETSON_APP_DIRECTORY}"
+          echo "Jetson deploy target: ${JETSON_USER}@${JETSON_HOST}:${JETSON_APP_DIRECTORY}"
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Add Jetson host to known_hosts
+        env:
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          touch ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          tmp_keys="$(mktemp)"
+          ssh-keyscan -H "${JETSON_HOST}" > "${tmp_keys}" 2>/dev/null
+          while IFS= read -r line; do
+            [ -z "${line}" ] && continue
+            if ! grep -qxF "${line}" ~/.ssh/known_hosts; then
+              printf '%s\n' "${line}" >> ~/.ssh/known_hosts
+            fi
+          done < "${tmp_keys}"
+          rm -f "${tmp_keys}"
+
       - name: Sync compose file to Jetson
         env:
-          JETSON_SSH_HOST: ${{ vars.JETSON_SSH_HOST }}
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
         run: |
           set -euo pipefail
           SSH_OPTS="-o StrictHostKeyChecking=yes"
-          REMOTE="${JETSON_USER}@${JETSON_SSH_HOST}"
+          REMOTE="${JETSON_USER}@${JETSON_HOST}"
 
           ssh ${SSH_OPTS} "${REMOTE}" "mkdir -p '${JETSON_APP_DIRECTORY}'"
 
@@ -121,13 +140,13 @@ jobs:
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          JETSON_SSH_HOST: ${{ vars.JETSON_SSH_HOST }}
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
         run: |
           set -euo pipefail
           SSH_OPTS="-o StrictHostKeyChecking=yes"
-          REMOTE="${JETSON_USER}@${JETSON_SSH_HOST}"
+          REMOTE="${JETSON_USER}@${JETSON_HOST}"
 
           proto_version=$(tr -d '[:space:]' < proto/VERSION)
           cpp_version=$(tr -d '[:space:]' < src/cpp_accelerator/VERSION)

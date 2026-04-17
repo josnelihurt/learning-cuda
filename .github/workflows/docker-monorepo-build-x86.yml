@@ -67,6 +67,7 @@ jobs:
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
         run: |
           chmod +x scripts/docker/push-tagged-images.sh
           ./scripts/docker/push-tagged-images.sh

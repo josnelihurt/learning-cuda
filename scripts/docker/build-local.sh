@@ -174,10 +174,11 @@ build_and_tag() {
   shift 4
   local build_args=("$@")
 
-  print_stage_header "docker build -f ${dockerfile}"
-  echo "Tag (versioned): ${tag}"
-  echo "Tag (latest):    ${latest_tag}"
-  echo ""
+  echo "------------------------------------------"
+  echo "docker build -f ${dockerfile}"
+  echo "  Tag (versioned): ${tag}"
+  echo "  Tag (latest):    ${latest_tag}"
+  echo "------------------------------------------"
 
   local docker_build_args=()
   
@@ -211,9 +212,9 @@ build_and_tag() {
 
   if [[ "${should_push}" == "true" && "${REGISTRY}" != "local" ]]; then
     echo "Pushing ${tag}..."
-    docker push "${tag}" || true
+    docker push "${tag}"
     echo "Pushing ${latest_tag}..."
-    docker push "${latest_tag}" || true
+    docker push "${latest_tag}"
   fi
 }
 
@@ -340,9 +341,9 @@ run_cpp_built() {
 
   if [[ "${REGISTRY}" != "local" ]]; then
     echo "Pushing ${version_tag}..."
-    docker push "${version_tag}" || true
+    docker push "${version_tag}"
     echo "Pushing ${latest_tag}..."
-    docker push "${latest_tag}" || true
+    docker push "${latest_tag}"
   fi
 }
 

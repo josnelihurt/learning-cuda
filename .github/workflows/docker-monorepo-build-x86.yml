@@ -75,7 +75,7 @@ jobs:
     name: Deploy production to Cloud VM
     needs:
       - build_and_push
-    runs-on: ["self-hosted", "Linux", "X64"]
+    runs-on: ["self-hosted"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     env:
       INFRA_DIRECTORY: /home/jrb/infra

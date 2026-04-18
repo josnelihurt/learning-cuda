@@ -1,6 +1,8 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { telemetryService } from './telemetry-service';
 import type { ILogger } from '@/domain/interfaces/ILogger';
+import { parseCallerFromStack } from './caller-site';
+import { resolveBundleSiteToSourceLabel } from './resolve-caller-source';
 
 declare const __APP_VERSION__: string;
 
@@ -8,30 +10,23 @@ const SERVICE_NAME = 'web-app';
 
 type LogAttributes = Record<string, string | number | boolean>;
 
-function resolveCallerSite(): string | undefined {
-  const stack = new Error().stack;
-  if (!stack) return undefined;
+type OtlpStringAttribute = { key: string; value: { stringValue: string } };
 
-  for (const raw of stack.split('\n')) {
-    const line = raw.trim();
-    if (/[/\\]otel-logger\.(t|j)sx?\b/.test(line)) continue;
-
-    const matches = [...line.matchAll(/([^/\\]+\.(?:tsx?|jsx?|mjs|cjs)):(\d+):\d+/g)];
-    if (matches.length === 0) continue;
-
-    const m = matches[matches.length - 1];
-    return `${m[1]}@${m[2]}`;
-  }
-
-  return undefined;
-}
+type QueuedLogRecord = {
+  timeUnixNano: number;
+  severityNumber: SeverityNumber;
+  severityText: string;
+  body: { stringValue: string };
+  attributes: OtlpStringAttribute[];
+  _callerResolve?: { mapUrl: string; line: number; column: number };
+};
 
 class OtelLogger implements ILogger {
   private consoleEnabled: boolean = true;
   private minLogLevel: SeverityNumber = SeverityNumber.INFO;
   private initialized = false;
   private observabilityEnabled: boolean = false;
-  private logQueue: any[] = [];
+  private logQueue: QueuedLogRecord[] = [];
   private flushTimer: number | null = null;
   private environment: string = 'development';
 
@@ -99,6 +94,24 @@ class OtelLogger implements ILogger {
     const logsToSend = [...this.logQueue];
     this.logQueue = [];
 
+    await Promise.all(
+      logsToSend.map(async (rec) => {
+        const hint = rec._callerResolve;
+        delete rec._callerResolve;
+        if (!hint) {
+          return;
+        }
+        const resolved = await resolveBundleSiteToSourceLabel(hint.mapUrl, hint.line, hint.column);
+        if (!resolved) {
+          return;
+        }
+        const callerAttr = rec.attributes.find((a) => a.key === 'caller');
+        if (callerAttr) {
+          callerAttr.value.stringValue = resolved;
+        }
+      })
+    );
+
     const serviceVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
 
     try {
@@ -145,10 +158,15 @@ class OtelLogger implements ILogger {
     message: string,
     attributes?: LogAttributes
   ): void {
-    const caller = resolveCallerSite();
+    const stack = new Error().stack;
+    const parsed =
+      stack && typeof window !== 'undefined'
+        ? parseCallerFromStack(stack, window.location.origin)
+        : undefined;
+    const consoleCaller = parsed?.label;
 
     if (this.consoleEnabled) {
-      this.logToConsole(severityNumber, message, attributes, caller);
+      this.logToConsole(severityNumber, message, attributes, consoleCaller);
     }
 
     if (!this.initialized || !this.shouldLog(severityNumber)) {
@@ -157,10 +175,18 @@ class OtelLogger implements ILogger {
 
     const traceHeaders = telemetryService.getTraceHeaders() || {};
 
-    const logAttributes: Record<string, any> = {
-      ...attributes,
-      ...(caller ? { caller } : {}),
-    };
+    const logAttributes: Record<string, unknown> = { ...attributes };
+    let callerResolve: QueuedLogRecord['_callerResolve'];
+
+    if (parsed) {
+      if (parsed.kind === 'bundle') {
+        logAttributes['caller.bundle'] = parsed.label;
+        logAttributes['caller'] = parsed.label;
+        callerResolve = { mapUrl: parsed.mapUrl, line: parsed.line, column: parsed.column };
+      } else {
+        logAttributes['caller'] = parsed.label;
+      }
+    }
 
     if (traceHeaders['traceparent']) {
       logAttributes['trace.traceparent'] = traceHeaders['traceparent'];
@@ -169,7 +195,7 @@ class OtelLogger implements ILogger {
       logAttributes['trace.tracestate'] = traceHeaders['tracestate'];
     }
 
-    this.logQueue.push({
+    const record: QueuedLogRecord = {
       timeUnixNano: Date.now() * 1000000,
       severityNumber,
       severityText,
@@ -178,7 +204,11 @@ class OtelLogger implements ILogger {
         key,
         value: { stringValue: String(value) },
       })),
-    });
+    };
+    if (callerResolve) {
+      record._callerResolve = callerResolve;
+    }
+    this.logQueue.push(record);
 
     if (this.logQueue.length >= 100) {
       this.flushLogs();

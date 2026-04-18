@@ -428,6 +428,11 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
       });
 
       track->onFrame([session_id, session](rtc::binary frame, rtc::FrameInfo info) {
+        {
+          std::lock_guard<std::mutex> heartbeat_lock(session->mutex);
+          session->last_heartbeat = std::chrono::steady_clock::now();
+        }
+
         std::lock_guard<std::mutex> media_lock(session->media_mutex);
 
         static std::atomic<int> s_frame_count{0};
@@ -537,6 +542,14 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
                                        request.height() == 0 && request.channels() == 0;
 
         if (is_control_update) {
+          // A control update with no filters is treated as a keepalive: the
+          // last_heartbeat timestamp was already refreshed above, so we skip
+          // UpdateFilterState to avoid clobbering the active filter state.
+          if (request.generic_filters_size() == 0 && request.filters_size() == 0) {
+            spdlog::debug("[WebRTC:{}] Heartbeat control message received", session_id);
+            return;
+          }
+
           if (session->live_video_processor == nullptr) {
             spdlog::error("[WebRTC:{}] Cannot apply live filter update: video processor missing",
                           session_id);

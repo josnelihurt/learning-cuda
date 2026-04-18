@@ -1,5 +1,6 @@
 exports_files([
     "grpc_strip_python.patch",
+    "hedron_compile_commands_skip_header_units.patch",
     "protobuf_strip_proguard.patch",
 ])
 

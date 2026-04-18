@@ -1,0 +1,16 @@
+--- a/refresh.template.py	2026-04-17 17:32:16.286567423 -0700
++++ b/refresh.template.py	2026-04-17 17:32:16.303715328 -0700
+@@ -617,7 +617,12 @@
+ 
+     # First, we do the obvious thing: Filter args to those that look like source files.
+     source_file_candidates = [arg for arg in compile_action.arguments if not arg.startswith('-') and arg.endswith(_get_files.source_extensions)]
+-    assert source_file_candidates, f"No source files found in compile args: {compile_action.arguments}.\nPlease file an issue with this information!"
++    if not source_file_candidates:
++        if '-xc++-header' in compile_action.arguments or '-xc-header' in compile_action.arguments:
++            log_warning(""">>> Skipping header-unit compile action (-xc++-header/-xc-header); not used for clangd compile_commands (hedronvision/bazel-compile-commands-extractor#265).
++    Continuing gracefully...""")
++            return set(), set()
++        assert source_file_candidates, f"No source files found in compile args: {compile_action.arguments}.\nPlease file an issue with this information!"
+     source_file = source_file_candidates[0]
+ 
+     # If we've got multiple candidates for source files, apply heuristics based on how Bazel tends to format commands.

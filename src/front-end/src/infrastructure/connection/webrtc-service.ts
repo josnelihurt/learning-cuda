@@ -22,6 +22,7 @@ type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'error';
 
 const DEFAULT_POLL_TIMEOUT_MS = 25_000;
 const RETRY_DELAY_MS = 1_000;
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 10_000;
 
 export class WebRTCService implements IWebRTCService {
   private initialized = false;
@@ -33,6 +34,11 @@ export class WebRTCService implements IWebRTCService {
   private remoteStreams: Map<string, MediaStream> = new Map();
   private pollControllers: Map<string, AbortController> = new Map();
   private pollCursors: Map<string, number> = new Map();
+  // Pending local ICE candidates queued while StartSession is in flight.
+  // Prevents racing the server-side session registration (would otherwise 404).
+  private pendingIceCandidates: Map<string, RTCIceCandidate[]> = new Map();
+  private sessionNegotiated: Map<string, boolean> = new Map();
+  private heartbeatTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
   private connectionState: ConnectionState = 'disconnected';
   private lastRequest: string | null = null;
   private lastRequestTime: Date | null = null;
@@ -341,22 +347,42 @@ export class WebRTCService implements IWebRTCService {
   }
 
   startHeartbeat(sessionId: string, intervalMs: number): void {
-    void intervalMs;
-
     const dataChannel = this.dataChannels.get(sessionId);
     if (!dataChannel) {
       logger.debug(`[WebRTC:${sessionId}] Cannot start heartbeat: data channel not found`);
       return;
     }
 
+    if (this.heartbeatTimers.has(sessionId)) {
+      return;
+    }
+
+    const effectiveInterval = intervalMs > 0 ? intervalMs : DEFAULT_HEARTBEAT_INTERVAL_MS;
+
     if (dataChannel.readyState === 'open') {
       this.connectionState = 'connected';
       this.lastRequest = 'Data channel ready';
       this.lastRequestTime = new Date();
     }
+
+    const timer = setInterval(() => {
+      this.sendHeartbeat(sessionId);
+    }, effectiveInterval);
+
+    this.heartbeatTimers.set(sessionId, timer);
+    logger.debug(`[WebRTC:${sessionId}] Heartbeat started`, {
+      'webrtc.heartbeat_interval_ms': effectiveInterval,
+    });
   }
 
   stopHeartbeat(sessionId: string): void {
+    const timer = this.heartbeatTimers.get(sessionId);
+    if (timer) {
+      clearInterval(timer);
+      this.heartbeatTimers.delete(sessionId);
+      logger.debug(`[WebRTC:${sessionId}] Heartbeat stopped`);
+    }
+
     if (!this.sessions.has(sessionId)) {
       return;
     }
@@ -364,6 +390,27 @@ export class WebRTCService implements IWebRTCService {
     const dataChannel = this.dataChannels.get(sessionId);
     if (!dataChannel || dataChannel.readyState !== 'open') {
       this.connectionState = 'disconnected';
+    }
+  }
+
+  private sendHeartbeat(sessionId: string): void {
+    const dataChannel = this.dataChannels.get(sessionId);
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+      return;
+    }
+
+    // Empty ProcessImageRequest acts as a keepalive: the C++ side refreshes
+    // last_heartbeat on any inbound DC message and treats filter-less control
+    // updates as heartbeats (no-op on live filter state).
+    const payload = new ProcessImageRequest({ sessionId, apiVersion: '1.0' }).toBinary();
+
+    try {
+      dataChannel.send(payload);
+    } catch (error) {
+      logger.debug(`[WebRTC:${sessionId}] Heartbeat send failed`, {
+        'error.message': error instanceof Error ? error.message : String(error),
+        'data_channel.ready_state': dataChannel.readyState,
+      });
     }
   }
 
@@ -382,7 +429,7 @@ export class WebRTCService implements IWebRTCService {
     }
 
     const payload = request.toBinary();
-    dataChannel.send(payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength));
+    dataChannel.send(payload);
   }
 
   getConnectionStatus(): { state: ConnectionState; lastRequest: string | null; lastRequestTime: Date | null } {
@@ -410,29 +457,26 @@ export class WebRTCService implements IWebRTCService {
   private async negotiateSession(sessionId: string, peerConnection: RTCPeerConnection): Promise<void> {
     logger.info(`[WebRTC:${sessionId}] Negotiating signaling session over Connect`);
 
-    peerConnection.onicecandidate = async (event: RTCPeerConnectionIceEvent) => {
+    this.pendingIceCandidates.set(sessionId, []);
+    this.sessionNegotiated.set(sessionId, false);
+
+    peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
       if (!event.candidate) {
         return;
       }
 
-      try {
-        this.lastRequest = 'SendIceCandidate';
-        this.lastRequestTime = new Date();
-        await this.signalingClient.sendIceCandidate(new SendIceCandidateRequest({
-          sessionId,
-          candidate: {
-            candidate: event.candidate.candidate,
-            sdpMid: event.candidate.sdpMid || '',
-            sdpMlineIndex: event.candidate.sdpMLineIndex || 0,
-          },
-        }));
-        logger.debug(`[WebRTC:${sessionId}] Sent ICE candidate`);
-      } catch (error) {
-        this.handleSessionError(
-          sessionId,
-          error instanceof Error ? error : new Error(String(error))
-        );
+      if (!this.sessionNegotiated.get(sessionId)) {
+        const buffer = this.pendingIceCandidates.get(sessionId);
+        if (buffer) {
+          buffer.push(event.candidate);
+          logger.debug(`[WebRTC:${sessionId}] Buffered ICE candidate (session not yet negotiated)`, {
+            'webrtc.pending_candidates': buffer.length,
+          });
+        }
+        return;
       }
+
+      void this.sendIceCandidateSafe(sessionId, event.candidate);
     };
 
     const offer = await peerConnection.createOffer();
@@ -446,6 +490,49 @@ export class WebRTCService implements IWebRTCService {
     });
 
     await this.applyStartSessionResponse(sessionId, response);
+
+    this.sessionNegotiated.set(sessionId, true);
+    await this.flushPendingIceCandidates(sessionId);
+  }
+
+  private async sendIceCandidateSafe(
+    sessionId: string,
+    candidate: RTCIceCandidate
+  ): Promise<void> {
+    try {
+      this.lastRequest = 'SendIceCandidate';
+      this.lastRequestTime = new Date();
+      await this.signalingClient.sendIceCandidate(new SendIceCandidateRequest({
+        sessionId,
+        candidate: {
+          candidate: candidate.candidate,
+          sdpMid: candidate.sdpMid || '',
+          sdpMlineIndex: candidate.sdpMLineIndex || 0,
+        },
+      }));
+      logger.debug(`[WebRTC:${sessionId}] Sent ICE candidate`);
+    } catch (error) {
+      this.handleSessionError(
+        sessionId,
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+  }
+
+  private async flushPendingIceCandidates(sessionId: string): Promise<void> {
+    const buffer = this.pendingIceCandidates.get(sessionId);
+    if (!buffer || buffer.length === 0) {
+      return;
+    }
+
+    const drained = buffer.splice(0, buffer.length);
+    logger.debug(`[WebRTC:${sessionId}] Flushing buffered ICE candidates`, {
+      'webrtc.flushed_candidates': drained.length,
+    });
+
+    for (const candidate of drained) {
+      await this.sendIceCandidateSafe(sessionId, candidate);
+    }
   }
 
   private async applyStartSessionResponse(
@@ -628,6 +715,7 @@ export class WebRTCService implements IWebRTCService {
       this.connectionState = 'connected';
       this.lastRequest = 'Data channel open';
       this.lastRequestTime = new Date();
+      this.startHeartbeat(sessionId, DEFAULT_HEARTBEAT_INTERVAL_MS);
     };
 
     dataChannel.onmessage = (event: MessageEvent) => {
@@ -738,6 +826,15 @@ export class WebRTCService implements IWebRTCService {
   }
 
   private cleanupSession(sessionId: string): void {
+    const heartbeatTimer = this.heartbeatTimers.get(sessionId);
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      this.heartbeatTimers.delete(sessionId);
+    }
+
+    this.pendingIceCandidates.delete(sessionId);
+    this.sessionNegotiated.delete(sessionId);
+
     const pollController = this.pollControllers.get(sessionId);
     if (pollController) {
       pollController.abort();

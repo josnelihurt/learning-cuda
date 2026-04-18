@@ -26,7 +26,7 @@ logging:
   output: "file"
   file_path: "/tmp/goserver.log"
   include_caller: true
-  remote_enabled: true
+  remote_enabled: false
   remote_endpoint: "https://otel-cuda-demo.josnelihurt.me/v1/logs"
   remote_environment: "production"
 

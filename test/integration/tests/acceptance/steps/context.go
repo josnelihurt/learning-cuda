@@ -14,5 +14,3 @@ func (tc *TestContext) Reset() {
 		tc.BDDContext = NewBDDContext(tc.serviceURL)
 	}
 }
-
-func (tc *TestContext) CloseWebSocket() {}

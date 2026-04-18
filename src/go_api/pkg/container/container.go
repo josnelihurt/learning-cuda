@@ -49,7 +49,6 @@ type Container struct {
 func New(ctx context.Context, configFile string) (*Container, error) {
 	cfg := config.New(configFile)
 
-	//nolint:contextcheck // logger.New creates its own context for OTLP initialization
 	log := logger.New(&logger.Config{
 		Level:             cfg.Logging.Level,
 		Format:            cfg.Logging.Format,
@@ -57,7 +56,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		FilePath:          cfg.Logging.FilePath,
 		IncludeCaller:     cfg.Logging.IncludeCaller,
 		RemoteEnabled:     cfg.Logging.RemoteEnabled,
-		RemoteEndpoint:    cfg.Observability.OtelCollectorHTTPEndpoint,
+		RemoteEndpoint:    cfg.Logging.RemoteEndpoint,
 		RemoteEnvironment: cfg.Logging.RemoteEnvironment,
 		ServiceName:       cfg.Observability.ServiceName,
 	})
@@ -107,7 +106,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	getSystemInfoUseCase := systemapp.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
 
-	videoRepo := video.NewFileVideoRepository(context.Background(), "data/videos", "data/video_previews") //nolint:contextcheck
+	videoRepo := video.NewFileVideoRepository(ctx, "data/videos", "data/video_previews")
 	listInputsUseCase := videoapp.NewListInputsUseCase(videoRepo)
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)

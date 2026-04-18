@@ -20,28 +20,21 @@ test.describe('Stream Configuration API', () => {
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data).toHaveProperty('endpoints');
     expect(data.endpoints).toHaveLength(1);
-    
+
     const endpoint = data.endpoints[0];
     expect(endpoint).toMatchObject({
-      type: 'websocket',
-      endpoint: '/ws',
-      transport_format: 'json',
+      type: 'webrtc',
+      endpoint: '/cuda_learning.WebRTCSignalingService/StartSession',
     });
-    // log_level should be a valid log level (INFO, DEBUG, WARN, ERROR, etc.)
     expect(endpoint.log_level).toBeTruthy();
     expect(['DEBUG', 'INFO', 'WARN', 'ERROR']).toContain(endpoint.log_level);
-    // console_logging may be omitted in JSON if false, but should be true if present
-    if (endpoint.console_logging !== undefined) {
-      expect(endpoint.console_logging).toBe(true);
-    }
   });
 
   test('should return stream configuration with default values', async ({ request }) => {
-    // Test the GetStreamConfig endpoint with default configuration
     const response = await request.post(createApiUrl('/cuda_learning.ConfigService/GetStreamConfig'), {
       data: {},
       headers: {
@@ -50,28 +43,21 @@ test.describe('Stream Configuration API', () => {
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data).toHaveProperty('endpoints');
     expect(data.endpoints).toHaveLength(1);
-    
+
     const endpoint = data.endpoints[0];
     expect(endpoint).toMatchObject({
-      type: 'websocket',
-      endpoint: '/ws',
-      transport_format: 'json', // Should be default json
+      type: 'webrtc',
+      endpoint: '/cuda_learning.WebRTCSignalingService/StartSession',
     });
-    // log_level should be a valid log level (INFO, DEBUG, WARN, ERROR, etc.)
     expect(endpoint.log_level).toBeTruthy();
     expect(['DEBUG', 'INFO', 'WARN', 'ERROR']).toContain(endpoint.log_level);
-    // console_logging may be omitted in JSON if false, but should be true if present
-    if (endpoint.console_logging !== undefined) {
-      expect(endpoint.console_logging).toBe(true);
-    }
   });
 
   test('should handle feature flag evaluation errors gracefully', async ({ request }) => {
-    // Test the GetStreamConfig endpoint - should fallback to default even without flags
     const response = await request.post(createApiUrl('/cuda_learning.ConfigService/GetStreamConfig'), {
       data: {},
       headers: {
@@ -80,28 +66,21 @@ test.describe('Stream Configuration API', () => {
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data).toHaveProperty('endpoints');
     expect(data.endpoints).toHaveLength(1);
-    
+
     const endpoint = data.endpoints[0];
     expect(endpoint).toMatchObject({
-      type: 'websocket',
-      endpoint: '/ws',
-      transport_format: 'json', // Should fallback to default
+      type: 'webrtc',
+      endpoint: '/cuda_learning.WebRTCSignalingService/StartSession',
     });
-    // log_level should be a valid log level (INFO, DEBUG, WARN, ERROR, etc.)
     expect(endpoint.log_level).toBeTruthy();
     expect(['DEBUG', 'INFO', 'WARN', 'ERROR']).toContain(endpoint.log_level);
-    // console_logging may be omitted in JSON if false, but should be true if present
-    if (endpoint.console_logging !== undefined) {
-      expect(endpoint.console_logging).toBe(true);
-    }
   });
 
   test('should return proper log level configuration', async ({ request }) => {
-    // Test the GetStreamConfig endpoint with default log level configuration
     const response = await request.post(createApiUrl('/cuda_learning.ConfigService/GetStreamConfig'), {
       data: {},
       headers: {
@@ -110,27 +89,21 @@ test.describe('Stream Configuration API', () => {
     });
 
     expect(response.status()).toBe(200);
-    
+
     const data = await response.json();
     expect(data).toHaveProperty('endpoints');
     expect(data.endpoints).toHaveLength(1);
-    
+
     const endpoint = data.endpoints[0];
     expect(endpoint).toMatchObject({
-      type: 'websocket',
-      endpoint: '/ws',
-      transport_format: 'json',
+      type: 'webrtc',
+      endpoint: '/cuda_learning.WebRTCSignalingService/StartSession',
     });
-    // log_level should be a valid log level (INFO, DEBUG, WARN, ERROR, etc.)
     expect(endpoint.log_level).toBeTruthy();
     expect(['DEBUG', 'INFO', 'WARN', 'ERROR']).toContain(endpoint.log_level);
-    // console_logging may be omitted in JSON if false, but should be true if present
-    if (endpoint.console_logging !== undefined) {
-      expect(endpoint.console_logging).toBe(true);
-    }
   });
 
   test.afterEach(async ({ request }) => {
-    // No cleanup needed for simplified tests
+    // No cleanup needed
   });
 });

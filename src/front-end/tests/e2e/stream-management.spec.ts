@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { TestHelpers } from './helpers/test-helpers';
 
-test.describe('WebSocket Management', () => {
+test.describe('Stream Management', () => {
   let helpers: TestHelpers;
 
   test.beforeEach(async ({ page }) => {
@@ -11,7 +11,7 @@ test.describe('WebSocket Management', () => {
   });
 
 
-  test('Test 8.3: WebSocket Stability', async ({ page }) => {
+  test('Test 8.3: Stream Stability', async ({ page }) => {
     for (let i = 0; i < 3; i++) {
       await helpers.addSource('lena');
     }

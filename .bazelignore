@@ -1,2 +1,6 @@
 third_party/lyra
 
+# Buf / local caches and junk trees with their own MODULE.bazel (e.g. rules_go).
+.cache
+.ignore
+

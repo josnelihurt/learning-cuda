@@ -705,6 +705,11 @@ Build all:
 bazel build //src/cpp_accelerator/...
 ```
 
+Refresh compile headers:
+```bash
+bazel run @hedron_compile_commands//:refresh_all
+```
+
 ## Version Compatibility
 
 The library uses semantic versioning:

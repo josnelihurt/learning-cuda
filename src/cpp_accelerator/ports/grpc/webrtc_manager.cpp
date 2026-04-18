@@ -1,7 +1,7 @@
 #include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
 
-#include <chrono>
 #include <cctype>
+#include <chrono>
 #include <cstring>
 #include <exception>
 #include <future>
@@ -58,8 +58,9 @@ void CopyProcessMetadata(const cuda_learning::ProcessImageRequest& request,
 
 std::string NormalizeCodecName(const std::string& value) {
   std::string normalized = value;
-  std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                 [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
+  std::transform(
+      normalized.begin(), normalized.end(), normalized.begin(),
+      [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
   return normalized;
 }
 
@@ -126,7 +127,7 @@ std::string StripRtpHeaderExtensions(const std::string& sdp) {
 
 WebRTCManager::WebRTCManager(std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine)
     : engine_(std::move(engine)), initialized_(false), cleanup_running_(false) {
-  rtc::InitLogger(rtc::LogLevel::Verbose);
+  rtc::InitLogger(rtc::LogLevel::Info);
 }
 
 WebRTCManager::~WebRTCManager() {
@@ -381,8 +382,7 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 
       const auto description = track->description();
       spdlog::info("[WebRTC:{}] Remote track received (mid={}, type={}, direction={})", session_id,
-                   track->mid(), description.type(),
-                   static_cast<int>(description.direction()));
+                   track->mid(), description.type(), static_cast<int>(description.direction()));
 
       if (description.type() != "video") {
         return;
@@ -414,7 +414,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
       session->inbound_depacketizer = std::make_shared<rtc::H264RtpDepacketizer>();
       // incomingChain() processes in reverse order (next first, then current),
       // so depacketizer must be the root with rtcp_session as next:
-      // execution order → rtcp_session::incoming first (validate RTP), then depacketizer::incoming (assemble frame)
+      // execution order → rtcp_session::incoming first (validate RTP), then depacketizer::incoming
+      // (assemble frame)
       session->inbound_depacketizer->addToChain(session->inbound_rtcp_session);
       track->setMediaHandler(session->inbound_depacketizer);
 
@@ -432,12 +433,11 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
         static std::atomic<int> s_frame_count{0};
         const int frame_num = ++s_frame_count;
         if (frame_num <= 5 || frame_num % 30 == 0) {
-          spdlog::info("[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}",
-                       session_id, frame_num, frame.size(),
-                       session->live_video_processor != nullptr,
-                       session->outbound_video_track != nullptr,
-                       session->outbound_video_track ? session->outbound_video_track->isOpen()
-                                                     : false);
+          spdlog::info(
+              "[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}",
+              session_id, frame_num, frame.size(), session->live_video_processor != nullptr,
+              session->outbound_video_track != nullptr,
+              session->outbound_video_track ? session->outbound_video_track->isOpen() : false);
         }
 
         if (session->live_video_processor == nullptr || session->outbound_video_track == nullptr) {
@@ -450,9 +450,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 
         std::vector<EncodedAccessUnit> encoded_units;
         std::string error_message;
-        const bool ok =
-            session->live_video_processor->ProcessAccessUnit(frame, info, session->live_filter_state,
-                                                             &encoded_units, &error_message);
+        const bool ok = session->live_video_processor->ProcessAccessUnit(
+            frame, info, session->live_filter_state, &encoded_units, &error_message);
         if (!ok) {
           spdlog::error("[WebRTC:{}] Live camera frame processing failed: {}", session_id,
                         error_message);
@@ -478,9 +477,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 
     // Register callback to receive remote data channel from client
     // This must be done BEFORE setRemoteDescription to ensure we capture the channel
-    session->peer_connection->onDataChannel(
-        [weak_self = weak_from_this(), session_id, session](
-            std::shared_ptr<rtc::DataChannel> data_channel) {
+    session->peer_connection->onDataChannel([weak_self = weak_from_this(), session_id, session](
+                                                std::shared_ptr<rtc::DataChannel> data_channel) {
       spdlog::info("[WebRTC:{}] Remote data channel received: {}", session_id,
                    data_channel->label());
       session->data_channel = data_channel;
@@ -492,7 +490,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
       data_channel->onOpen([weak_self, weak_dc, session_id, label, session]() {
         auto self = weak_self.lock();
         auto dc = weak_dc.lock();
-        if (!self || !dc) return;
+        if (!self || !dc)
+          return;
         {
           std::lock_guard<std::mutex> lock(session->mutex);
           session->last_heartbeat = std::chrono::steady_clock::now();
@@ -504,11 +503,11 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
                      dc->isOpen());
       });
 
-      data_channel->onMessage(
-          [weak_self, weak_dc, session_id, session](rtc::message_variant data) {
+      data_channel->onMessage([weak_self, weak_dc, session_id, session](rtc::message_variant data) {
         auto self = weak_self.lock();
         auto dc = weak_dc.lock();
-        if (!self || !dc) return;
+        if (!self || !dc)
+          return;
 
         {
           std::lock_guard<std::mutex> lock(session->mutex);
@@ -534,9 +533,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
           return;
         }
 
-        const bool is_control_update =
-            request.image_data().empty() && request.width() == 0 && request.height() == 0 &&
-            request.channels() == 0;
+        const bool is_control_update = request.image_data().empty() && request.width() == 0 &&
+                                       request.height() == 0 && request.channels() == 0;
 
         if (is_control_update) {
           if (session->live_video_processor == nullptr) {
@@ -547,8 +545,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 
           std::lock_guard<std::mutex> media_lock(session->media_mutex);
           std::string error_message;
-          if (!session->live_video_processor->UpdateFilterState(request, &session->live_filter_state,
-                                                                &error_message)) {
+          if (!session->live_video_processor->UpdateFilterState(
+                  request, &session->live_filter_state, &error_message)) {
             spdlog::error("[WebRTC:{}] Failed to update live filter state: {}", session_id,
                           error_message);
             return;
@@ -588,7 +586,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 
       data_channel->onClosed([weak_self, session_id, label]() {
         auto self = weak_self.lock();
-        if (!self) return;
+        if (!self)
+          return;
         if (ShouldRegisterSessionChannel(session_id, label)) {
           self->UnregisterSessionChannel(session_id);
         }
@@ -663,8 +662,7 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 
         session->outbound_video_track = session->peer_connection->addTrack(media);
         session->outbound_rtp_config = std::make_shared<rtc::RtpPacketizationConfig>(
-            ssrc, "processed-video",
-            static_cast<uint8_t>(outbound_video_config->payload_type),
+            ssrc, "processed-video", static_cast<uint8_t>(outbound_video_config->payload_type),
             rtc::H264RtpPacketizer::ClockRate);
         session->outbound_packetizer = std::make_shared<rtc::H264RtpPacketizer>(
             rtc::NalUnit::Separator::StartSequence, session->outbound_rtp_config);
@@ -684,23 +682,22 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
         });
       } catch (const std::exception& exception) {
         if (error_message != nullptr) {
-          *error_message = std::string("Failed to create outbound processed video track: ") +
-                           exception.what();
+          *error_message =
+              std::string("Failed to create outbound processed video track: ") + exception.what();
         }
         spdlog::error("[WebRTC:{}] Failed to create outbound processed video track: {}", session_id,
                       exception.what());
         return false;
       }
     } else {
-      spdlog::warn("[WebRTC:{}] Offer does not include a recvonly H264 video transceiver; "
-                   "processed remote track will not be negotiated",
-                   session_id);
+      spdlog::warn(
+          "[WebRTC:{}] Offer does not include a recvonly H264 video transceiver; "
+          "processed remote track will not be negotiated",
+          session_id);
     }
 
-    spdlog::info("[WebRTC:{}] After addTrack: inbound_track={} outbound_track={}", 
-                 session_id, 
-                 session->inbound_video_track != nullptr,
-                 session->outbound_video_track != nullptr);
+    spdlog::info("[WebRTC:{}] After addTrack: inbound_track={} outbound_track={}", session_id,
+                 session->inbound_video_track != nullptr, session->outbound_video_track != nullptr);
 
     // Wait a moment for the state to transition and for onDataChannel to be called
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1010,8 +1007,8 @@ void WebRTCManager::CleanupInactiveSessions(int timeout_seconds) {
   }
 }
 
-void WebRTCManager::RegisterSessionChannel(
-    const std::string& session_id, const std::shared_ptr<rtc::DataChannel>& data_channel) {
+void WebRTCManager::RegisterSessionChannel(const std::string& session_id,
+                                           const std::shared_ptr<rtc::DataChannel>& data_channel) {
   std::lock_guard<std::mutex> lock(session_channels_mutex_);
   session_channels_[session_id] = data_channel;
   spdlog::info("[WebRTC:{}] Registered routable browser data channel", session_id);

@@ -543,6 +543,8 @@ http_archive(
 git_override(
     module_name = "hedron_compile_commands",
     commit = "4f28899228fb3ad0126897876f147ca15026151e",
+    patch_strip = 1,
+    patches = ["//bazel/patches:hedron_compile_commands_skip_header_units.patch"],
     remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
 )
 

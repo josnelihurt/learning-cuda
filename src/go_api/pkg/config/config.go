@@ -86,7 +86,7 @@ func setDefaults(v *viper.Viper) {
 		"server.tls.cert_file":             ".secrets/localhost+2.pem",
 		"server.tls.key_file":              ".secrets/localhost+2-key.pem",
 
-		"observability.enabled":                      true,
+		"observability.enabled":                      false,
 		"observability.service_name":                 "cuda-image-processor",
 		"observability.service_version":              "1.0.0",
 		"observability.otel_collector_grpc_endpoint": "localhost:4317",

@@ -13,6 +13,7 @@ go_feature_flag:
   namespace: "default"
 
 observability:
+  enabled: false
   service_name: "cuda-image-processor"
   service_version: "1.0.0"
   otel_collector_grpc_endpoint: "alpha.local.josnelihurt.me:4317"

@@ -185,6 +185,7 @@ export class WebRTCService implements IWebRTCService {
 
     const dataChannel = this.createDataChannel(peerConnection, sessionId);
     if (!dataChannel) {
+      logger.debug(`[WebRTC:${sessionId}] Failed to create data channel`);
       peerConnection.close();
       return;
     }
@@ -290,6 +291,7 @@ export class WebRTCService implements IWebRTCService {
     if (shouldUseDataChannel) {
       const dataChannel = this.createDataChannel(peerConnection, 'ping-pong-channel');
       if (!dataChannel) {
+        logger.debug(`[WebRTC:${sessionId}] Failed to create data channel`);
         peerConnection.close();
         throw new Error('Failed to create data channel');
       }
@@ -746,6 +748,7 @@ export class WebRTCService implements IWebRTCService {
     const peerConnection = this.peerConnections.get(sessionId);
     if (peerConnection) {
       try {
+        logger.debug(`[WebRTC:${sessionId}] Closing peer connection`);
         peerConnection.close();
       } catch (error) {
         logger.debug(`[WebRTC:${sessionId}] Error closing peer connection`, {
@@ -758,6 +761,7 @@ export class WebRTCService implements IWebRTCService {
     const dataChannel = this.dataChannels.get(sessionId);
     if (dataChannel) {
       try {
+        logger.debug(`[WebRTC:${sessionId}] Closing data channel`);
         dataChannel.close();
       } catch (error) {
         logger.debug(`[WebRTC:${sessionId}] Error closing data channel`, {

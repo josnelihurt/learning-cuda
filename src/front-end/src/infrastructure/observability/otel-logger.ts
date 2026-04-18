@@ -8,6 +8,24 @@ const SERVICE_NAME = 'web-app';
 
 type LogAttributes = Record<string, string | number | boolean>;
 
+function resolveCallerSite(): string | undefined {
+  const stack = new Error().stack;
+  if (!stack) return undefined;
+
+  for (const raw of stack.split('\n')) {
+    const line = raw.trim();
+    if (/[/\\]otel-logger\.(t|j)sx?\b/.test(line)) continue;
+
+    const matches = [...line.matchAll(/([^/\\]+\.(?:tsx?|jsx?|mjs|cjs)):(\d+):\d+/g)];
+    if (matches.length === 0) continue;
+
+    const m = matches[matches.length - 1];
+    return `${m[1]}@${m[2]}`;
+  }
+
+  return undefined;
+}
+
 class OtelLogger implements ILogger {
   private consoleEnabled: boolean = true;
   private minLogLevel: SeverityNumber = SeverityNumber.INFO;
@@ -127,8 +145,10 @@ class OtelLogger implements ILogger {
     message: string,
     attributes?: LogAttributes
   ): void {
+    const caller = resolveCallerSite();
+
     if (this.consoleEnabled) {
-      this.logToConsole(severityNumber, message, attributes);
+      this.logToConsole(severityNumber, message, attributes, caller);
     }
 
     if (!this.initialized || !this.shouldLog(severityNumber)) {
@@ -139,6 +159,7 @@ class OtelLogger implements ILogger {
 
     const logAttributes: Record<string, any> = {
       ...attributes,
+      ...(caller ? { caller } : {}),
     };
 
     if (traceHeaders['traceparent']) {
@@ -167,9 +188,11 @@ class OtelLogger implements ILogger {
   private logToConsole(
     severityNumber: SeverityNumber,
     message: string,
-    attributes?: LogAttributes
+    attributes?: LogAttributes,
+    caller?: string
   ): void {
-    const args = attributes ? [message, attributes] : [message];
+    const labeled = caller ? `[${caller}] ${message}` : message;
+    const args = attributes ? [labeled, attributes] : [labeled];
 
     switch (severityNumber) {
       case SeverityNumber.DEBUG:

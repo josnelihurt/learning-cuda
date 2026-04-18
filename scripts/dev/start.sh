@@ -51,7 +51,7 @@ print_help() {
     echo "  - UI:  https://localhost:3000/react and https://localhost:3000/lit (Vite pretty paths)"
     echo "  - API: https://localhost:8443 — REST, WebSocket, Connect (Vite proxies to Go via VITE_API_ORIGIN)"
     echo ""
-    echo "Production: Traefik routes to Nginx (web-frontend) for static HTML; the Go app serves /api, /ws, etc."
+    echo "Production: Traefik routes to Nginx (web-frontend) for static HTML; the Go app serves /api, WebRTC signaling, etc."
     echo "Nginx serves /react and /lit; Go does not serve frontend HTML in production."
     echo ""
     echo "VITE_API_ORIGIN defaults to https://localhost:8443 when unset."

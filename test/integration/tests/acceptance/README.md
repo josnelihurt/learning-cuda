@@ -155,7 +155,7 @@ The tests follow the **Given/When/Then** BDD pattern with step definitions organ
 - `steps/given_steps.go` - Given step definitions
 - `steps/when_steps.go` - When step definitions
 - `steps/then_steps.go` - Then step definitions
-- `steps/image_steps.go` - Image processing and WebSocket steps
+- `steps/image_steps.go` - Image processing steps
 - `steps/input_source_steps.go` - Input source and available image steps
 - `steps/video_steps.go` - Video playback and frame tracking steps
 - `features/` - Gherkin feature files (9 features)

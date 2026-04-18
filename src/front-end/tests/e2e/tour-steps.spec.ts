@@ -153,7 +153,6 @@ test.describe('Tour Steps', () => {
 
     expect(step7Info?.label).toContain('Step 7 of 8');
     expect(step7Info?.title).toContain('Connection Status');
-    expect(step7Info?.desc).toContain('WebSocket');
     expect(step7Info?.desc).toContain('gRPC');
     expect(step7Info?.desc).toContain('WebRTC');
   });

@@ -100,11 +100,6 @@ export default defineConfig(({ mode }) => {
     secure: false,
   };
 
-  const backendWS = {
-    ...backendHTTP,
-    ws: true,
-  };
-
   return {
     root: './',
     base: '/',
@@ -151,7 +146,6 @@ export default defineConfig(({ mode }) => {
         '/api': backendHTTP,
         '/cuda_learning': backendHTTP,
         '/com.jrb': backendHTTP,
-        '/ws': backendWS,
         '/grpc': {
           target: 'http://localhost:60061',
           changeOrigin: true,
@@ -185,7 +179,6 @@ export default defineConfig(({ mode }) => {
         '/api': backendHTTP,
         '/cuda_learning': backendHTTP,
         '/com.jrb': backendHTTP,
-        '/ws': backendWS,
         '/grpc': {
           target: 'http://localhost:60061',
           changeOrigin: true,

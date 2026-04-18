@@ -8,7 +8,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - OTEL_LOGS_ENABLED=true
+      - OTEL_LOGS_ENABLED=false
       - OTEL_LOGS_ENDPOINT=https://otel-cuda-demo.josnelihurt.me/v1/logs
       - OTEL_ENVIRONMENT=production
 

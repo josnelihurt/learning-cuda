@@ -48,22 +48,22 @@ func main() {
 		log.Warn().Msg("Accelerator control server not started (check cert configuration)")
 	}
 
-	acceleratorClient := processor.NewGRPCClient(processor.GRPCClientConfig{
+	acceleratorGateway := processor.NewAcceleratorGateway(processor.AcceleratorGatewayConfig{
 		Registry: di.AcceleratorRegistry,
 	})
 
-	grpcProcessor := processor.NewGRPCProcessor(acceleratorClient)
+	grpcProcessor := processor.NewGRPCProcessor(acceleratorGateway)
 	processImageUseCase := imageapp.NewProcessImageUseCase(grpcProcessor)
 
 	processorCapsUseCase := systemapp.NewProcessorCapabilitiesUseCase(
 		nil,
-		processor.NewGRPCRepository(acceleratorClient),
+		processor.NewGRPCRepository(acceleratorGateway),
 	)
 
 	server, err := app.New(ctx, app.Deps{
 		Config:                di.Config,
 		UseCase:               processImageUseCase,
-		AcceleratorClient:     acceleratorClient,
+		AcceleratorGateway:    acceleratorGateway,
 		ProcessorCapsUC:       processorCapsUseCase,
 		GetSystemInfoUC:       di.GetSystemInfoUseCase,
 		FeatureFlagRepo:       di.FeatureFlagRepo,

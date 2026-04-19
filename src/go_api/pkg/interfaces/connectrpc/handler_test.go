@@ -28,9 +28,9 @@ func (m *mockCapabilitiesProvider) Execute(_ context.Context, _ bool) (*pb.Libra
 	return m.capabilities, m.origin, nil
 }
 
-type mockGRPCClient struct{}
+type mockAcceleratorGateway struct{}
 
-func (m *mockGRPCClient) GetVersionInfo(_ context.Context, _ *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error) {
+func (m *mockAcceleratorGateway) GetVersionInfo(_ context.Context, _ *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error) {
 	return nil, errors.New("not implemented in mock")
 }
 
@@ -139,7 +139,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			sut := NewImageProcessorHandlerWithGRPC((*imageapp.ProcessImageUseCase)(nil), tt.provider, nil, nil, &mockGRPCClient{})
+			sut := NewImageProcessorHandlerWithGRPC((*imageapp.ProcessImageUseCase)(nil), tt.provider, nil, nil, &mockAcceleratorGateway{})
 			req := connect.NewRequest(&pb.ListFiltersRequest{})
 
 			// Act

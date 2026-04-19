@@ -10,23 +10,23 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type GRPCClient struct {
+type AcceleratorGateway struct {
 	registry *Registry
 }
 
-type GRPCClientConfig struct {
+type AcceleratorGatewayConfig struct {
 	Registry *Registry
 }
 
-func NewGRPCClient(cfg GRPCClientConfig) *GRPCClient {
-	return &GRPCClient{registry: cfg.Registry}
+func NewAcceleratorGateway(cfg AcceleratorGatewayConfig) *AcceleratorGateway {
+	return &AcceleratorGateway{registry: cfg.Registry}
 }
 
 // Close is a no-op; kept for interface compatibility.
-func (c *GRPCClient) Close() error { return nil }
+func (c *AcceleratorGateway) Close() error { return nil }
 
 // callAccelerator sends a request envelope and awaits the matching response.
-func (c *GRPCClient) callAccelerator(
+func (c *AcceleratorGateway) callAccelerator(
 	ctx context.Context,
 	buildPayload func(commandID string) *gen.AcceleratorMessage,
 	extractResponse func(resp *gen.AcceleratorMessage) (any, error),
@@ -57,7 +57,7 @@ func (c *GRPCClient) callAccelerator(
 	return extractResponse(resp)
 }
 
-func (c *GRPCClient) ListFilters(ctx context.Context) (*gen.ListFiltersResponse, error) {
+func (c *AcceleratorGateway) ListFilters(ctx context.Context) (*gen.ListFiltersResponse, error) {
 	result, err := c.callAccelerator(ctx,
 		func(commandID string) *gen.AcceleratorMessage {
 			return &gen.AcceleratorMessage{
@@ -80,7 +80,7 @@ func (c *GRPCClient) ListFilters(ctx context.Context) (*gen.ListFiltersResponse,
 	return result.(*gen.ListFiltersResponse), nil
 }
 
-func (c *GRPCClient) ProcessImage(ctx context.Context, req *gen.ProcessImageRequest) (*gen.ProcessImageResponse, error) {
+func (c *AcceleratorGateway) ProcessImage(ctx context.Context, req *gen.ProcessImageRequest) (*gen.ProcessImageResponse, error) {
 	result, err := c.callAccelerator(ctx,
 		func(commandID string) *gen.AcceleratorMessage {
 			return &gen.AcceleratorMessage{
@@ -103,7 +103,7 @@ func (c *GRPCClient) ProcessImage(ctx context.Context, req *gen.ProcessImageRequ
 	return result.(*gen.ProcessImageResponse), nil
 }
 
-func (c *GRPCClient) GetVersionInfo(ctx context.Context, req *gen.GetVersionInfoRequest) (*gen.GetVersionInfoResponse, error) {
+func (c *AcceleratorGateway) GetVersionInfo(ctx context.Context, req *gen.GetVersionInfoRequest) (*gen.GetVersionInfoResponse, error) {
 	result, err := c.callAccelerator(ctx,
 		func(commandID string) *gen.AcceleratorMessage {
 			return &gen.AcceleratorMessage{
@@ -128,7 +128,7 @@ func (c *GRPCClient) GetVersionInfo(ctx context.Context, req *gen.GetVersionInfo
 
 // SignalingStream returns a bidi-stream adapter that routes signaling messages
 // through the registered accelerator's control stream instead of a direct gRPC dial.
-func (c *GRPCClient) SignalingStream(ctx context.Context) (gen.WebRTCSignalingService_SignalingStreamClient, error) {
+func (c *AcceleratorGateway) SignalingStream(ctx context.Context) (gen.WebRTCSignalingService_SignalingStreamClient, error) {
 	if c.registry == nil {
 		return nil, status.Error(codes.Unavailable, "no accelerator registry configured")
 	}

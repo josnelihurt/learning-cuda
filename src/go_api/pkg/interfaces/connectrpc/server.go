@@ -75,12 +75,12 @@ func RegisterWebRTCSignalingService(
 
 func RegisterRemoteManagementService(
 	mux *http.ServeMux,
-	grpcClient *processor.GRPCClient,
+	gateway *processor.AcceleratorGateway,
 	configManager *config.Manager,
 	deviceMonitor domainInterfaces.MQTTDeviceMonitor,
 	interceptors ...connect.Interceptor,
 ) {
-	handler := NewRemoteManagementHandler(grpcClient, configManager, deviceMonitor)
+	handler := NewRemoteManagementHandler(gateway, configManager, deviceMonitor)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

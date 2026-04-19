@@ -81,6 +81,23 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "accelerator_control_client_lib",
+    srcs = ["accelerator_control_client.cpp"],
+    hdrs = ["accelerator_control_client.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":processor_engine_contract",
+        ":webrtc_manager_lib",
+        "//proto:accelerator_control_cc_proto",
+        "//proto:accelerator_control_grpc",
+        "//proto:image_processor_service_cc_proto",
+        "//proto:common_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@spdlog",
+    ],
+)
+
 cc_binary(
     name = "image_processor_grpc_server",
     srcs = ["server_main.cpp"],
@@ -97,6 +114,23 @@ cc_binary(
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings:strings",
+    ],
+)
+
+cc_binary(
+    name = "accelerator_control_client",
+    srcs = ["main_client.cpp"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":accelerator_control_client_lib",
+        ":processor_engine_adapter_lib",
+        ":webrtc_manager_lib",
+        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
+        "//proto:image_processor_service_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@spdlog",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
     ],
 )
 

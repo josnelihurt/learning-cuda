@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 )
 
 type ProcessorBackendOrigin string
@@ -16,13 +15,13 @@ const (
 )
 
 type ProcessorCapabilitiesUseCase struct {
-	cppRepo  interfaces.ProcessorCapabilitiesRepository
-	grpcRepo interfaces.ProcessorCapabilitiesRepository
+	cppRepo  processorCapabilitiesRepository
+	grpcRepo processorCapabilitiesRepository
 }
 
 func NewProcessorCapabilitiesUseCase(
-	cppRepo interfaces.ProcessorCapabilitiesRepository,
-	grpcRepo interfaces.ProcessorCapabilitiesRepository,
+	cppRepo processorCapabilitiesRepository,
+	grpcRepo processorCapabilitiesRepository,
 ) *ProcessorCapabilitiesUseCase {
 	return &ProcessorCapabilitiesUseCase{
 		cppRepo:  cppRepo,

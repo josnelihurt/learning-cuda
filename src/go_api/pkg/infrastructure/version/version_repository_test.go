@@ -12,12 +12,9 @@ import (
 func TestNewVersionRepository(t *testing.T) {
 	repo := NewVersionRepository()
 	require.NotNil(t, repo)
-
-	impl, ok := repo.(*RepositoryImpl)
-	require.True(t, ok)
-	assert.NotEmpty(t, impl.goVersionPath)
-	assert.NotEmpty(t, impl.cppVersionPath)
-	assert.NotEmpty(t, impl.protoVersionPath)
+	assert.NotEmpty(t, repo.goVersionPath)
+	assert.NotEmpty(t, repo.cppVersionPath)
+	assert.NotEmpty(t, repo.protoVersionPath)
 }
 
 func TestRepositoryImpl_GetGoVersion(t *testing.T) {

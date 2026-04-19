@@ -4,22 +4,21 @@ import (
 	"context"
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type GetSystemInfoUseCase struct {
-	configRepo    interfaces.ConfigRepository
-	buildInfoRepo interfaces.BuildInfoRepository
-	versionRepo   interfaces.VersionRepository
+	configRepo    configRepository
+	buildInfoRepo buildInfoRepository
+	versionRepo   versionRepository
 }
 
 func NewGetSystemInfoUseCase(
-	configRepo interfaces.ConfigRepository,
-	buildInfoRepo interfaces.BuildInfoRepository,
-	versionRepo interfaces.VersionRepository,
+	configRepo configRepository,
+	buildInfoRepo buildInfoRepository,
+	versionRepo versionRepository,
 ) *GetSystemInfoUseCase {
 	return &GetSystemInfoUseCase{
 		configRepo:    configRepo,

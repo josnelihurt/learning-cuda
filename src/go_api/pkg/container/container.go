@@ -11,7 +11,6 @@ import (
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
-	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/build"
 	configrepo "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/featureflags"
@@ -44,7 +43,7 @@ type Container struct {
 
 	AcceleratorRegistry *processor.Registry
 	AcceleratorControl  *processor.ControlServer
-	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
+	DeviceMonitor       *mqtt.DeviceMonitor
 }
 
 func New(ctx context.Context, configFile string) (*Container, error) {
@@ -124,7 +123,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		},
 	)
 
-	var deviceMonitor domainInterfaces.MQTTDeviceMonitor
+	var deviceMonitor *mqtt.DeviceMonitor
 	if cfg.MQTT.Broker != "" {
 		monitor, err := mqtt.NewDeviceMonitor(ctx, cfg.MQTT)
 		if err != nil {

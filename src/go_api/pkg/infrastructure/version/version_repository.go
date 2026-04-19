@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 )
 
 const (
@@ -41,7 +39,7 @@ func findProjectRoot() string {
 	return wd
 }
 
-func NewVersionRepository() interfaces.VersionRepository {
+func NewVersionRepository() *RepositoryImpl {
 	projectRoot := findProjectRoot()
 	return &RepositoryImpl{
 		goVersionPath:    filepath.Join(projectRoot, "src", "go_api", "VERSION"),

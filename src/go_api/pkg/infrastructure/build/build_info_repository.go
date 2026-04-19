@@ -1,21 +1,14 @@
 package build
 
-import (
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
-)
-
 const (
-	// UnknownValue is the default value returned when build info is not available
 	UnknownValue = "unknown"
 )
 
-// InfoRepositoryImpl implements interfaces.BuildInfoRepository
 type InfoRepositoryImpl struct {
 	buildInfo *Info
 }
 
-// NewBuildInfoRepository creates a new build info repository
-func NewBuildInfoRepository(buildInfo *Info) interfaces.BuildInfoRepository {
+func NewBuildInfoRepository(buildInfo *Info) *InfoRepositoryImpl {
 	return &InfoRepositoryImpl{
 		buildInfo: buildInfo,
 	}

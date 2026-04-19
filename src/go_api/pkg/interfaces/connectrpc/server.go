@@ -8,8 +8,6 @@ import (
 	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
-	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 )
 
 func RegisterRoutesWithHandler(mux *http.ServeMux, handler *ImageProcessorHandler, interceptors ...connect.Interceptor) {
@@ -75,12 +73,12 @@ func RegisterWebRTCSignalingService(
 
 func RegisterRemoteManagementService(
 	mux *http.ServeMux,
-	gateway *processor.AcceleratorGateway,
+	gateway acceleratorGateway,
 	configManager *config.Manager,
-	deviceMonitor domainInterfaces.MQTTDeviceMonitor,
+	dm deviceMonitor,
 	interceptors ...connect.Interceptor,
 ) {
-	handler := NewRemoteManagementHandler(gateway, configManager, deviceMonitor)
+	handler := NewRemoteManagementHandler(gateway, configManager, dm)
 
 	var opts []connect.HandlerOption
 	if len(interceptors) > 0 {

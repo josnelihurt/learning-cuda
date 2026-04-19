@@ -25,7 +25,7 @@ type App struct {
 	config                *config.Manager
 	appContext            context.Context
 	useCase               *imageapp.ProcessImageUseCase
-	grpcProcessorClient   *processor.GRPCClient
+	acceleratorClient     *processor.GRPCClient
 	processorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
 	getSystemInfoUC       *systemapp.GetSystemInfoUseCase
 	featureFlagRepo       domain.FeatureFlagRepository
@@ -44,7 +44,7 @@ type App struct {
 type Deps struct {
 	Config                *config.Manager
 	UseCase               *imageapp.ProcessImageUseCase
-	GRPCProcessorClient   *processor.GRPCClient
+	AcceleratorClient     *processor.GRPCClient
 	ProcessorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
 	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase
 	FeatureFlagRepo       domain.FeatureFlagRepository
@@ -66,8 +66,8 @@ func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {
 	if deps.UseCase == nil {
 		return nil, errors.New("process image use case is required")
 	}
-	if deps.GRPCProcessorClient == nil {
-		return nil, errors.New("gRPC processor client is required")
+	if deps.AcceleratorClient == nil {
+		return nil, errors.New("accelerator client is required")
 	}
 	if deps.ProcessorCapsUC == nil {
 		return nil, errors.New("processor capabilities use case is required")
@@ -107,7 +107,7 @@ func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {
 		config:                deps.Config,
 		appContext:            appContext,
 		useCase:               deps.UseCase,
-		grpcProcessorClient:   deps.GRPCProcessorClient,
+		acceleratorClient:     deps.AcceleratorClient,
 		processorCapsUC:       deps.ProcessorCapsUC,
 		getSystemInfoUC:       deps.GetSystemInfoUC,
 		featureFlagRepo:       deps.FeatureFlagRepo,
@@ -174,7 +174,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.processorCapsUC,
 		a.evaluateFFUC,
 		a.streamVideoUC,
-		a.grpcProcessorClient,
+		a.acceleratorClient,
 	)
 
 	connectrpc.RegisterConfigService(
@@ -201,7 +201,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 
 	connectrpc.RegisterWebRTCSignalingService(
 		mux,
-		a.grpcProcessorClient,
+		a.acceleratorClient,
 		a.interceptors...,
 	)
 
@@ -209,7 +209,7 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 
 	connectrpc.RegisterRemoteManagementService(
 		mux,
-		a.grpcProcessorClient,
+		a.acceleratorClient,
 		a.config,
 		a.deviceMonitor,
 		a.interceptors...,

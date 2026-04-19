@@ -29,21 +29,17 @@ type GoPeer struct {
 	closeOnce      sync.Once
 }
 
-func NewGoPeer(signalingClient SignalingClient, browserSession string) *GoPeer {
+func NewGoPeer(browserSession string) *GoPeer {
 	sessionID := GoVideoDataChannelLabelPrefix + browserSession
 
 	return &GoPeer{
-		signalingClient: signalingClient,
-		browserSession:  browserSession,
-		sessionID:       sessionID,
-		label:           sessionID,
+		browserSession: browserSession,
+		sessionID:      sessionID,
+		label:          sessionID,
 	}
 }
 
 func (p *GoPeer) Connect(ctx context.Context) error {
-	if p.signalingClient == nil {
-		return errors.New("signaling client is required")
-	}
 	if p.browserSession == "" {
 		return errors.New("browser session is required")
 	}

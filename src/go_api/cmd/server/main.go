@@ -39,10 +39,6 @@ func main() {
 		log.Warn().Err(err).Msg("Failed to initialize telemetry")
 	}
 
-	if di.GRPCProcessorClient == nil {
-		logger.Global().Fatal().Msg("GRPCProcessorClient is required")
-	}
-
 	if di.AcceleratorControl != nil {
 		if err := di.AcceleratorControl.Start(); err != nil {
 			log.Fatal().Err(err).Msg("Failed to start accelerator control server")
@@ -52,18 +48,22 @@ func main() {
 		log.Warn().Msg("Accelerator control server not started (check cert configuration)")
 	}
 
-	grpcProcessor := processor.NewGRPCProcessor(di.GRPCProcessorClient)
+	acceleratorClient := processor.NewGRPCClient(processor.GRPCClientConfig{
+		Registry: di.AcceleratorRegistry,
+	})
+
+	grpcProcessor := processor.NewGRPCProcessor(acceleratorClient)
 	processImageUseCase := imageapp.NewProcessImageUseCase(grpcProcessor)
 
 	processorCapsUseCase := systemapp.NewProcessorCapabilitiesUseCase(
 		nil,
-		processor.NewGRPCRepository(di.GRPCProcessorClient),
+		processor.NewGRPCRepository(acceleratorClient),
 	)
 
 	server, err := app.New(ctx, app.Deps{
 		Config:                di.Config,
 		UseCase:               processImageUseCase,
-		GRPCProcessorClient:   di.GRPCProcessorClient,
+		AcceleratorClient:     acceleratorClient,
 		ProcessorCapsUC:       processorCapsUseCase,
 		GetSystemInfoUC:       di.GetSystemInfoUseCase,
 		FeatureFlagRepo:       di.FeatureFlagRepo,

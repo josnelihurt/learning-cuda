@@ -42,10 +42,9 @@ type Container struct {
 	UploadVideoUseCase         *videoapp.UploadVideoUseCase
 	StreamVideoUseCase         *videoapp.StreamVideoUseCase
 
-	GRPCProcessorClient  *processor.GRPCClient
-	AcceleratorRegistry  *processor.Registry
-	AcceleratorControl   *processor.ControlServer
-	DeviceMonitor        domainInterfaces.MQTTDeviceMonitor
+	AcceleratorRegistry *processor.Registry
+	AcceleratorControl  *processor.ControlServer
+	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
 }
 
 func New(ctx context.Context, configFile string) (*Container, error) {
@@ -89,11 +88,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	registry := processor.NewRegistry(log)
 
-	grpcClient := processor.NewGRPCClient(processor.GRPCClientConfig{
-		Registry: registry,
-	})
-	log.Info().Msg("gRPC processor client initialized (reverse-topology registry)")
-
 	controlServer, err := processor.NewControlServer(cfg.Processor, registry)
 	if err != nil {
 		log.Warn().Err(err).Msg("control server not initialized (certs missing?); accelerator connections will fail")
@@ -126,7 +120,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 			return video.NewFFmpegVideoPlayer(videoPath)
 		},
 		func(browserSessionID string) (videoapp.StreamVideoPeer, error) {
-			return webrtcinfra.NewGoPeer(grpcClient, browserSessionID), nil
+			return webrtcinfra.NewGoPeer(browserSessionID), nil
 		},
 	)
 
@@ -154,7 +148,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		ListVideosUseCase:          listVideosUseCase,
 		UploadVideoUseCase:         uploadVideoUseCase,
 		StreamVideoUseCase:         streamVideoUseCase,
-		GRPCProcessorClient:        grpcClient,
 		AcceleratorRegistry:        registry,
 		AcceleratorControl:         controlServer,
 		DeviceMonitor:              deviceMonitor,

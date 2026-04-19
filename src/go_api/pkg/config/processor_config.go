@@ -1,11 +1,10 @@
 package config
 
 type ProcessorConfig struct {
-	LibraryBasePath   string       `mapstructure:"library_base_path"`
-	GRPCServerAddress string       `mapstructure:"grpc_server_address"` // legacy forward-dial; removed in step-09
-	DefaultLibrary    string       `mapstructure:"default_library"`
-	ListenAddress     string       `mapstructure:"listen_address"`  // control-stream server address
-	TLS               ProcessorTLS `mapstructure:"tls"`
+	LibraryBasePath string       `mapstructure:"library_base_path"`
+	DefaultLibrary  string       `mapstructure:"default_library"`
+	ListenAddress   string       `mapstructure:"listen_address"`  // control-stream server address
+	TLS             ProcessorTLS `mapstructure:"tls"`
 }
 
 type ProcessorTLS struct {

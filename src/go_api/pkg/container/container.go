@@ -87,25 +87,12 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	buildInfoRepo := build.NewBuildInfoRepository(buildInfo)
 	versionRepo := version.NewVersionRepository()
 
-	if cfg.Processor.GRPCServerAddress == "" {
-		return nil, fmt.Errorf("processor.grpc_server_address is required but not configured")
-	}
-
 	registry := processor.NewRegistry(log)
 
-	grpcClient, err := processor.NewGRPCClient(ctx, processor.GRPCClientConfig{
-		Address:      cfg.Processor.GRPCServerAddress,
-		DialTimeout:  5 * time.Second,
-		MaxRecvBytes: 64 * 1024 * 1024,
-		MaxSendBytes: 64 * 1024 * 1024,
-		Registry:     registry,
+	grpcClient := processor.NewGRPCClient(processor.GRPCClientConfig{
+		Registry: registry,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize gRPC processor client (required): %w", err)
-	}
-	log.Info().
-		Str("grpc_address", cfg.Processor.GRPCServerAddress).
-		Msg("gRPC client initialized successfully")
+	log.Info().Msg("gRPC processor client initialized (reverse-topology registry)")
 
 	controlServer, err := processor.NewControlServer(cfg.Processor, registry)
 	if err != nil {
@@ -175,19 +162,10 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 }
 
 func (c *Container) Close(ctx context.Context) error {
-	log := logger.Global()
-
 	if c.AcceleratorControl != nil {
 		stopCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		c.AcceleratorControl.Stop(stopCtx)
 	}
-
-	if c.GRPCProcessorClient != nil {
-		if err := c.GRPCProcessorClient.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing gRPC processor client")
-		}
-	}
-
 	return nil
 }

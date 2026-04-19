@@ -30,7 +30,6 @@ logging:
 
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
-  grpc_server_address: "localhost:60061"
   listen_address: ":60062"
   tls:
     cert_file: ".secrets/accelerator-server.pem"

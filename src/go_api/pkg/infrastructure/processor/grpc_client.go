@@ -3,74 +3,27 @@ package processor
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	gen "github.com/jrb/cuda-learning/proto/gen"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
 type GRPCClient struct {
-	conn         *grpc.ClientConn
-	client       gen.ImageProcessorServiceClient
-	webrtcClient gen.WebRTCSignalingServiceClient
-	registry     *Registry
+	registry *Registry
 }
 
 type GRPCClientConfig struct {
-	Address      string
-	DialTimeout  time.Duration
-	MaxRecvBytes int
-	MaxSendBytes int
-	Registry     *Registry
+	Registry *Registry
 }
 
-func NewGRPCClient(ctx context.Context, cfg GRPCClientConfig) (*GRPCClient, error) {
-	if cfg.Address == "" {
-		return nil, fmt.Errorf("grpc address is empty")
-	}
-
-	if cfg.DialTimeout <= 0 {
-		cfg.DialTimeout = 5 * time.Second
-	}
-
-	if cfg.MaxRecvBytes <= 0 {
-		cfg.MaxRecvBytes = 64 * 1024 * 1024
-	}
-
-	if cfg.MaxSendBytes <= 0 {
-		cfg.MaxSendBytes = 64 * 1024 * 1024
-	}
-
-	conn, err := grpc.NewClient(
-		cfg.Address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(cfg.MaxRecvBytes),
-			grpc.MaxCallSendMsgSize(cfg.MaxSendBytes),
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to dial grpc server: %w", err)
-	}
-
-	return &GRPCClient{
-		conn:         conn,
-		client:       gen.NewImageProcessorServiceClient(conn),
-		webrtcClient: gen.NewWebRTCSignalingServiceClient(conn),
-		registry:     cfg.Registry,
-	}, nil
+func NewGRPCClient(cfg GRPCClientConfig) *GRPCClient {
+	return &GRPCClient{registry: cfg.Registry}
 }
 
-func (c *GRPCClient) Close() error {
-	if c.conn != nil {
-		return c.conn.Close()
-	}
-	return nil
-}
+// Close is a no-op; kept for interface compatibility.
+func (c *GRPCClient) Close() error { return nil }
 
 // callAccelerator sends a request envelope and awaits the matching response.
 func (c *GRPCClient) callAccelerator(

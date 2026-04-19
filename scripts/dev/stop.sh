@@ -27,12 +27,11 @@ kill_from_pid_file() {
     rm -f "$pid_file"
 }
 
-kill_from_pid_file "$DEV_PID_GRPC" " gRPC server"
+kill_from_pid_file "$DEV_PID_GRPC" " accelerator client"
 kill_from_pid_file "$DEV_PID_GO" " Go server"
 kill_from_pid_file "$DEV_PID_VITE" " Vite"
 
-pkill -f "image_processor_grpc_server" 2>/dev/null && echo "gRPC server stopped (fallback)" || true
-fuser -k 60061/tcp 2>/dev/null || true
+pkill -f "accelerator_control_client" 2>/dev/null && echo "accelerator client stopped (fallback)" || true
 
 pkill -f "vite" 2>/dev/null && echo "Vite stopped (fallback)" || echo "Vite not running"
 

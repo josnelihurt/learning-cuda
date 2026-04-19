@@ -31,6 +31,11 @@ logging:
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
   grpc_server_address: "localhost:60061"
+  listen_address: ":60062"
+  tls:
+    cert_file: ".secrets/accelerator-server.pem"
+    key_file: ".secrets/accelerator-server-key.pem"
+    client_ca_file: ".secrets/accelerator-ca.pem"
 
 mqtt:
   broker: "vultur.josnelihurt.me"

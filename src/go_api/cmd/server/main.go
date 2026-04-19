@@ -43,6 +43,15 @@ func main() {
 		logger.Global().Fatal().Msg("GRPCProcessorClient is required")
 	}
 
+	if di.AcceleratorControl != nil {
+		if err := di.AcceleratorControl.Start(); err != nil {
+			log.Fatal().Err(err).Msg("Failed to start accelerator control server")
+		}
+		log.Info().Msg("Accelerator control server started")
+	} else {
+		log.Warn().Msg("Accelerator control server not started (check cert configuration)")
+	}
+
 	grpcProcessor := processor.NewGRPCProcessor(di.GRPCProcessorClient)
 	processImageUseCase := imageapp.NewProcessImageUseCase(grpcProcessor)
 

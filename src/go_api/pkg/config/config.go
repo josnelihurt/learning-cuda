@@ -106,6 +106,10 @@ func setDefaults(v *viper.Viper) {
 
 		"processor.library_base_path":   ".ignore/lib/cuda_learning",
 		"processor.grpc_server_address": "localhost:60061",
+		"processor.listen_address":      ":60062",
+		"processor.tls.cert_file":       ".secrets/accelerator-server.pem",
+		"processor.tls.key_file":        ".secrets/accelerator-server-key.pem",
+		"processor.tls.client_ca_file":  ".secrets/accelerator-ca.pem",
 
 		"static_images.directory": "/data/static_images",
 

@@ -5,15 +5,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	gen "github.com/jrb/cuda-learning/proto/gen"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 type GRPCClient struct {
 	conn         *grpc.ClientConn
 	client       gen.ImageProcessorServiceClient
 	webrtcClient gen.WebRTCSignalingServiceClient
+	registry     *Registry
 }
 
 type GRPCClientConfig struct {
@@ -21,6 +25,7 @@ type GRPCClientConfig struct {
 	DialTimeout  time.Duration
 	MaxRecvBytes int
 	MaxSendBytes int
+	Registry     *Registry
 }
 
 func NewGRPCClient(ctx context.Context, cfg GRPCClientConfig) (*GRPCClient, error) {
@@ -56,6 +61,7 @@ func NewGRPCClient(ctx context.Context, cfg GRPCClientConfig) (*GRPCClient, erro
 		conn:         conn,
 		client:       gen.NewImageProcessorServiceClient(conn),
 		webrtcClient: gen.NewWebRTCSignalingServiceClient(conn),
+		registry:     cfg.Registry,
 	}, nil
 }
 
@@ -66,54 +72,116 @@ func (c *GRPCClient) Close() error {
 	return nil
 }
 
-func (c *GRPCClient) ListFilters(ctx context.Context) (*gen.ListFiltersResponse, error) {
-	if c.client == nil {
-		return nil, fmt.Errorf("grpc client not initialized")
+// callAccelerator sends a request envelope and awaits the matching response.
+func (c *GRPCClient) callAccelerator(
+	ctx context.Context,
+	buildPayload func(commandID string) *gen.AcceleratorMessage,
+	extractResponse func(resp *gen.AcceleratorMessage) (any, error),
+) (any, error) {
+	if c.registry == nil {
+		return nil, status.Error(codes.Unavailable, "no accelerator registry configured")
+	}
+	sess, ok := c.registry.First()
+	if !ok {
+		return nil, status.Error(codes.Unavailable, "no accelerator registered")
 	}
 
-	resp, err := c.client.ListFilters(ctx, &gen.ListFiltersRequest{})
+	commandID := uuid.NewString()
+	msg := buildPayload(commandID)
+	msg.CommandId = commandID
+
+	if err := sess.Send(msg); err != nil {
+		return nil, fmt.Errorf("send to accelerator: %w", err)
+	}
+
+	resp, err := sess.Await(ctx, commandID)
 	if err != nil {
-		return nil, fmt.Errorf("grpc ListFilters call failed: %w", err)
+		return nil, fmt.Errorf("await response: %w", err)
 	}
+	if errPayload, ok := resp.GetPayload().(*gen.AcceleratorMessage_Error); ok {
+		return nil, fmt.Errorf("accelerator error %s: %s", errPayload.Error.Code, errPayload.Error.Message)
+	}
+	return extractResponse(resp)
+}
 
-	return resp, nil
+func (c *GRPCClient) ListFilters(ctx context.Context) (*gen.ListFiltersResponse, error) {
+	result, err := c.callAccelerator(ctx,
+		func(commandID string) *gen.AcceleratorMessage {
+			return &gen.AcceleratorMessage{
+				Payload: &gen.AcceleratorMessage_ListFiltersRequest{
+					ListFiltersRequest: &gen.ListFiltersRequest{},
+				},
+			}
+		},
+		func(resp *gen.AcceleratorMessage) (any, error) {
+			r, ok := resp.GetPayload().(*gen.AcceleratorMessage_ListFiltersResponse)
+			if !ok {
+				return nil, fmt.Errorf("unexpected response type for ListFilters")
+			}
+			return r.ListFiltersResponse, nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return result.(*gen.ListFiltersResponse), nil
 }
 
 func (c *GRPCClient) ProcessImage(ctx context.Context, req *gen.ProcessImageRequest) (*gen.ProcessImageResponse, error) {
-	if c.client == nil {
-		return nil, fmt.Errorf("grpc client not initialized")
-	}
-
-	resp, err := c.client.ProcessImage(ctx, req)
+	result, err := c.callAccelerator(ctx,
+		func(commandID string) *gen.AcceleratorMessage {
+			return &gen.AcceleratorMessage{
+				Payload: &gen.AcceleratorMessage_ProcessImageRequest{
+					ProcessImageRequest: req,
+				},
+			}
+		},
+		func(resp *gen.AcceleratorMessage) (any, error) {
+			r, ok := resp.GetPayload().(*gen.AcceleratorMessage_ProcessImageResponse)
+			if !ok {
+				return nil, fmt.Errorf("unexpected response type for ProcessImage")
+			}
+			return r.ProcessImageResponse, nil
+		},
+	)
 	if err != nil {
-		return nil, fmt.Errorf("grpc ProcessImage call failed: %w", err)
+		return nil, err
 	}
-
-	return resp, nil
+	return result.(*gen.ProcessImageResponse), nil
 }
 
 func (c *GRPCClient) GetVersionInfo(ctx context.Context, req *gen.GetVersionInfoRequest) (*gen.GetVersionInfoResponse, error) {
-	if c.client == nil {
-		return nil, fmt.Errorf("grpc client not initialized")
-	}
-
-	resp, err := c.client.GetVersionInfo(ctx, req)
+	result, err := c.callAccelerator(ctx,
+		func(commandID string) *gen.AcceleratorMessage {
+			return &gen.AcceleratorMessage{
+				Payload: &gen.AcceleratorMessage_GetVersionRequest{
+					GetVersionRequest: req,
+				},
+			}
+		},
+		func(resp *gen.AcceleratorMessage) (any, error) {
+			r, ok := resp.GetPayload().(*gen.AcceleratorMessage_GetVersionResponse)
+			if !ok {
+				return nil, fmt.Errorf("unexpected response type for GetVersionInfo")
+			}
+			return r.GetVersionResponse, nil
+		},
+	)
 	if err != nil {
-		return nil, fmt.Errorf("grpc GetVersionInfo call failed: %w", err)
+		return nil, err
 	}
-
-	return resp, nil
+	return result.(*gen.GetVersionInfoResponse), nil
 }
 
+// SignalingStream returns a bidi-stream adapter that routes signaling messages
+// through the registered accelerator's control stream instead of a direct gRPC dial.
 func (c *GRPCClient) SignalingStream(ctx context.Context) (gen.WebRTCSignalingService_SignalingStreamClient, error) {
-	if c.webrtcClient == nil {
-		return nil, fmt.Errorf("webrtc signaling client not initialized")
+	if c.registry == nil {
+		return nil, status.Error(codes.Unavailable, "no accelerator registry configured")
 	}
-
-	stream, err := c.webrtcClient.SignalingStream(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("grpc SignalingStream call failed: %w", err)
+	sess, ok := c.registry.First()
+	if !ok {
+		return nil, status.Error(codes.Unavailable, "no accelerator registered")
 	}
-
-	return stream, nil
+	return newSignalingStreamAdapter(ctx, sess), nil
 }

@@ -42,8 +42,10 @@ type Container struct {
 	UploadVideoUseCase         *videoapp.UploadVideoUseCase
 	StreamVideoUseCase         *videoapp.StreamVideoUseCase
 
-	GRPCProcessorClient *processor.GRPCClient
-	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
+	GRPCProcessorClient  *processor.GRPCClient
+	AcceleratorRegistry  *processor.Registry
+	AcceleratorControl   *processor.ControlServer
+	DeviceMonitor        domainInterfaces.MQTTDeviceMonitor
 }
 
 func New(ctx context.Context, configFile string) (*Container, error) {
@@ -89,11 +91,14 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		return nil, fmt.Errorf("processor.grpc_server_address is required but not configured")
 	}
 
+	registry := processor.NewRegistry(log)
+
 	grpcClient, err := processor.NewGRPCClient(ctx, processor.GRPCClientConfig{
 		Address:      cfg.Processor.GRPCServerAddress,
 		DialTimeout:  5 * time.Second,
 		MaxRecvBytes: 64 * 1024 * 1024,
 		MaxSendBytes: 64 * 1024 * 1024,
+		Registry:     registry,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize gRPC processor client (required): %w", err)
@@ -101,6 +106,16 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	log.Info().
 		Str("grpc_address", cfg.Processor.GRPCServerAddress).
 		Msg("gRPC client initialized successfully")
+
+	controlServer, err := processor.NewControlServer(cfg.Processor, registry)
+	if err != nil {
+		log.Warn().Err(err).Msg("control server not initialized (certs missing?); accelerator connections will fail")
+		controlServer = nil
+	} else {
+		log.Info().
+			Str("listen_address", cfg.Processor.ListenAddress).
+			Msg("accelerator control server created")
+	}
 
 	evaluateFFUseCase := ffapp.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 
@@ -153,12 +168,20 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		UploadVideoUseCase:         uploadVideoUseCase,
 		StreamVideoUseCase:         streamVideoUseCase,
 		GRPCProcessorClient:        grpcClient,
+		AcceleratorRegistry:        registry,
+		AcceleratorControl:         controlServer,
 		DeviceMonitor:              deviceMonitor,
 	}, nil
 }
 
 func (c *Container) Close(ctx context.Context) error {
 	log := logger.Global()
+
+	if c.AcceleratorControl != nil {
+		stopCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		c.AcceleratorControl.Stop(stopCtx)
+	}
 
 	if c.GRPCProcessorClient != nil {
 		if err := c.GRPCProcessorClient.Close(); err != nil {

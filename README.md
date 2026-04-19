@@ -40,7 +40,7 @@ The system supports multiple input sources—webcam, static images, video files�
 
 **Why I built it this way**: Reading tutorials and doing lab exercises gets boring fast. I learn better by building something I'd actually want to use. So instead of following "CUDA 101" step-by-step, I built a real system with the same practices I use at work—clean architecture, proper testing, observability, the whole deal.
 
-**How it works**: Go web server communicates with C++ accelerator libraries via gRPC client for remote processing through a separate gRPC server. This architecture enables distributed processing, allowing the Go server to run in the cloud while GPU processing happens on dedicated hardware (like Jetson Nano). The gRPC server hosts the shared library containing CUDA kernels, CPU fallback implementations, and filter definitions. Everything's wired up with proper dependency injection, so testing is actually doable.
+**How it works**: Go web server acts as a gRPC server that C++ accelerator clients dial into via mTLS for reverse-topology communication. This architecture enables distributed processing without inbound NAT requirements, allowing the Go server to run in the cloud while GPU processing happens on dedicated hardware (like Jetson Nano). The C++ client hosts the shared library containing CUDA kernels, CPU fallback implementations, and filter definitions. A single multiplexed bidirectional stream carries all commands (image processing, filter listing, version info, WebRTC signaling) over the AcceleratorControlService protocol. Everything's wired up with proper dependency injection, so testing is actually doable.
 
 ## Architecture
 
@@ -58,17 +58,20 @@ graph TB
         ConnectRPC[Connect-RPC]
     end
     
-    subgraph "Go Web Server"
+    subgraph "Go Web Server (Cloud)"
         API[API Handlers]
         Services[Business Services]
         UseCases[Use Cases]
+        ControlServer[AcceleratorControlService<br/>mTLS gRPC Server]
+        Registry[Registry<br/>Session Manager]
     end
     
-    subgraph "Processing Layer"
-        GRPCClient[gRPC Client]
-        GRPCServer[gRPC Server]
+    subgraph "C++ Accelerator Client (Home/Jetson)"
+        AccelClient[AcceleratorControlClient<br/>Outbound mTLS Connection]
         SharedLib[Shared Library<br/>C++/CUDA]
-        CPU[CPU Fallback]
+        ProcessorEngine[Processor Engine]
+        CudaKernels[CUDA Kernels]
+        CpuFallback[CPU Fallback]
     end
     
     subgraph "Observability"
@@ -84,11 +87,15 @@ graph TB
     ConnectRPC --> API
     API --> Services
     Services --> UseCases
-    UseCases --> GRPCClient
-    GRPCClient --> GRPCServer
-    GRPCServer --> SharedLib
-    SharedLib --> CPU
-    GRPCServer --> Services
+    UseCases --> ControlServer
+    ControlServer --> Registry
+    
+    AccelClient -->|mTLS bidi stream| ControlServer
+    AccelClient --> ProcessorEngine
+    ProcessorEngine --> SharedLib
+    SharedLib --> CudaKernels
+    SharedLib --> CpuFallback
+    
     Services --> Jaeger
     Services --> Loki
     Jaeger --> Grafana
@@ -120,22 +127,22 @@ graph TB
     
     subgraph "Infrastructure Layer"
         GRPCProcessor[gRPC Processor]
+        AcceleratorGateway[AcceleratorGateway<br/>Routing Facade]
+        ControlServer[ControlServer<br/>mTLS gRPC Server]
+        Registry[Registry<br/>Session Manager]
         BuildInfo[Build Info Repository]
         GoFeatureFlagRepository[GO Feature Flag Repository]
         Logger[Logger]
     end
 
-    subgraph "C++/CUDA Shared Library"
-        SharedLibrary[Shared Library<br/>libcuda_processor.so]
+    subgraph "C++/CUDA Accelerator Client"
+        AccelClient[AcceleratorControlClient<br/>Outbound mTLS Client]
         ProcessorEngine[Processor Engine]
+        SharedLibrary[Shared Library<br/>libcuda_processor.so]
         GrayscaleKernel[Grayscale Kernels]
         BlurKernel[Blur Kernels]
         FilterDefs[Filter Definitions]
-    end
-
-    subgraph "gRPC Services"
-        GRPCServerService[gRPC Server<br/>Hosts Shared Library]
-        GRPCClientService[gRPC Client]
+        WebRTCManager[WebRTC Manager]
     end
 
     subgraph "External Services"
@@ -157,9 +164,13 @@ graph TB
     SystemInfo --> BuildInfo
     FeatureFlags --> GoFeatureFlagRepository
 
-    GRPCProcessor --> GRPCClientService
-    GRPCClientService --> GRPCServerService
-    GRPCServerService --> ProcessorEngine
+    GRPCProcessor --> AcceleratorGateway
+    AcceleratorGateway --> Registry
+    Registry --> ControlServer
+    
+    AccelClient -->|mTLS bidi| ControlServer
+    AccelClient --> ProcessorEngine
+    AccelClient --> WebRTCManager
     ProcessorEngine --> SharedLibrary
     SharedLibrary --> GrayscaleKernel
     SharedLibrary --> BlurKernel
@@ -170,34 +181,45 @@ graph TB
     Logger --> Grafana
 ```
 
-### Processing Architecture: gRPC
+### Processing Architecture: Reverse gRPC Topology
 
-The system uses gRPC for all communication with the C++/CUDA accelerator library:
+The system uses a reverse gRPC topology where C++ accelerator clients dial into the Go cloud server via mTLS:
 
-**gRPC Processor (Remote Service)**
-- Communicates with a separate gRPC server that hosts the C++ library
-- Enables remote GPU processing and microservices architecture
-- Better for distributed deployments where Go server runs in cloud and GPU processing on dedicated hardware
-- Supports version information queries and bidirectional streaming for video processing
-- Implemented in: `src/go_api/pkg/infrastructure/processor/grpc_processor.go`
-- Client: `src/go_api/pkg/infrastructure/processor/grpc_client.go`
-- Uses `grpc.NewClient` (modern gRPC API) with context propagation
+**Accelerator Control Service (Go Server)**
+- Go acts as the gRPC server hosting `AcceleratorControlService`
+- Accepts inbound mTLS connections from registered accelerators
+- Multiplexes all commands over a single bidirectional stream per accelerator
+- Message types: Register, ProcessImage, ListFilters, GetVersionInfo, SignalingMessage, Keepalive, ErrorReport
+- Implemented in: `src/go_api/pkg/infrastructure/processor/control_server.go`
+- Registry: `src/go_api/pkg/infrastructure/processor/registry.go`
+- Session management: `src/go_api/pkg/infrastructure/processor/session.go`
+
+**Accelerator Gateway (Go Routing Layer)**
+- Application-layer facade for routing commands to accelerators
+- Correlates requests/responses via UUID v7 command IDs
+- Handles WebRTC signaling fanout to accelerator sessions
+- Implemented in: `src/go_api/pkg/infrastructure/processor/accelerator_gateway.go`
 
 **Connection Flow:**
-- **gRPC Path**: Go Server → gRPC Client → gRPC Server → Shared Library
+- **Reverse gRPC Path**: C++ Client → mTLS → Go Server → Registry → AcceleratorSession
 
-**Shared Library:**
-The gRPC server hosts the shared library (`libcuda_processor.so`), which contains:
-- CUDA kernels for GPU processing
-- CPU fallback implementations
-- Filter definitions and metadata
-- Processor Engine for orchestrating filter pipelines
+**C++ Accelerator Client:**
+- Outbound client that dials the Go control server
+- Sends Register message with device_id, capabilities, version
+- Processes commands received over the bidi stream locally
+- Hosts the shared library (`libcuda_processor.so`) containing:
+  - CUDA kernels for GPU processing
+  - CPU fallback implementations
+  - Filter definitions and metadata
+  - Processor Engine for orchestrating filter pipelines
+- Implemented in: `src/cpp_accelerator/ports/grpc/accelerator_control_client.cpp`
 
 **Deployment Benefits:**
-- Go server can run without NVIDIA containers (cloud deployment)
+- No inbound NAT/port-forwarding required at accelerator site
+- Go server runs without NVIDIA containers (cloud deployment)
 - GPU processing isolated to dedicated hardware (Jetson Nano, GPU servers)
 - Enables scaling processing independently from web server
-- WebRTC signaling implementation for real-time frame transport
+- WebRTC signaling tunneled through the same bidi stream
 
 ## Setup
 

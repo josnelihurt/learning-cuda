@@ -44,6 +44,18 @@ proto_library(
     ],
 )
 
+proto_library(
+    name = "accelerator_control_proto",
+    srcs = ["accelerator_control.proto"],
+    strip_import_prefix = "/proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":common_proto",
+        ":image_processor_service_proto",
+        ":webrtc_signal_proto",
+    ],
+)
+
 # C++ bindings
 cc_proto_library(
     name = "common_cc_proto",
@@ -89,6 +101,22 @@ cc_grpc_library(
     ],
 )
 
+cc_proto_library(
+    name = "accelerator_control_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":accelerator_control_proto"],
+)
+
+cc_grpc_library(
+    name = "accelerator_control_grpc",
+    srcs = [":accelerator_control_proto"],
+    grpc_only = True,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":accelerator_control_cc_proto",
+    ],
+)
+
 # Buf lint tests
 buf_lint_test(
     name = "common_proto_lint",
@@ -108,6 +136,11 @@ buf_lint_test(
 buf_lint_test(
     name = "webrtc_signal_proto_lint",
     targets = [":webrtc_signal_proto"],
+)
+
+buf_lint_test(
+    name = "accelerator_control_proto_lint",
+    targets = [":accelerator_control_proto"],
 )
 
 # Generate Connect-RPC using existing generated files

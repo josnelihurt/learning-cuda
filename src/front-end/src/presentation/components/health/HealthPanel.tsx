@@ -3,7 +3,7 @@ import { memo } from 'react';
 import styles from './HealthPanel.module.css';
 import type { GrpcAsyncError } from '@/presentation/hooks/useAsyncGRPC';
 
-export interface HealthPanelProps {
+interface HealthPanelProps {
   isHealthy: boolean;
   loading: boolean;
   error: GrpcAsyncError | null;

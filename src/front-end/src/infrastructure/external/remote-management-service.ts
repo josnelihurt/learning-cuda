@@ -13,7 +13,7 @@ import {
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 
-export interface StartJetsonNanoEvent {
+interface StartJetsonNanoEvent {
   status: string;
   step: string;
   message: string;

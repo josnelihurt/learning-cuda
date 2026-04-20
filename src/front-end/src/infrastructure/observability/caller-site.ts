@@ -1,6 +1,6 @@
 const OTEL_LOGGER_SKIP = /[/\\]otel-logger\.(t|j)sx?\b/;
 
-export type ParsedCaller =
+type ParsedCaller =
   | { kind: 'source'; label: string }
   | {
       kind: 'bundle';

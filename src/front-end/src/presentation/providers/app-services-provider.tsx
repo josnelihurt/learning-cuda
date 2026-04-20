@@ -9,7 +9,7 @@ import {
 import { container } from '@/application/di';
 import { ensureReactDashboardBootstrap } from '@/presentation/bootstrap-react-dashboard';
 
-export type AppServicesContextValue = {
+type AppServicesContextValue = {
   container: typeof container;
   ready: boolean;
 };

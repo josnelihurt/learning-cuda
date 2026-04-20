@@ -3,7 +3,7 @@ import { AcceleratorHealthStatus } from '@/gen/remote_management_service_pb';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 
-export interface HealthCheckResult {
+interface HealthCheckResult {
   isHealthy: boolean;
   message: string;
   serverVersion?: string;

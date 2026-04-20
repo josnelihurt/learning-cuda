@@ -10,7 +10,7 @@ import {
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import { useAppServices } from '@/presentation/providers/app-services-provider';
 
-export type AcceleratorChoice = 'gpu' | 'cpu';
+type AcceleratorChoice = 'gpu' | 'cpu';
 
 export type DashboardState = {
   selectedSourceNumber: number;

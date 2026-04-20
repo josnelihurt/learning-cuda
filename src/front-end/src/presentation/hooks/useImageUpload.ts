@@ -5,7 +5,7 @@ import type { StaticImage } from '@/gen/common_pb';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-export interface UseImageUploadReturn {
+interface UseImageUploadReturn {
   uploading: boolean;
   progress: number;
   error: string | null;

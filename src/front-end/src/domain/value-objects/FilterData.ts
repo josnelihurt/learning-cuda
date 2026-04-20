@@ -1,6 +1,6 @@
 import { FilterType } from '@/gen/common_pb';
 
-export type FilterTypeId = string;
+type FilterTypeId = string;
 
 export class FilterData {
   private readonly type: FilterTypeId;

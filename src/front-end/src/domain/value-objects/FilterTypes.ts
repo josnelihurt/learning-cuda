@@ -64,7 +64,7 @@ export function createFilterFromGenericDefinition(def: GenericFilterDefinition):
   return buildFilter(def.id, def.name, parameters);
 }
 
-export function formatParameterLabel(param: FilterParameterConfig, value: string): string {
+function formatParameterLabel(param: FilterParameterConfig, value: string): string {
   const option = param.options.find((opt) => opt.value === value);
   if (option) {
     return option.label || option.value;

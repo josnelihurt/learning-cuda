@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import styles from './HealthIndicator.module.css';
 
-export interface HealthIndicatorProps {
+interface HealthIndicatorProps {
   isHealthy: boolean;
   loading?: boolean;
   onClick?: () => void;

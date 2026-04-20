@@ -35,7 +35,7 @@ permissions:
 jobs:
   detect-changes:
     name: Detect changed paths
-    runs-on: ["self-hosted", "Linux", "X64"]
+    runs-on: ["self-hosted"]
     outputs:
       app: ${{ steps.decide.outputs.app }}
       web_frontend: ${{ steps.decide.outputs.web_frontend }}
@@ -175,8 +175,10 @@ jobs:
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage go-builder \
+            --stage bazel-base \
             --stage runtime-base \
             --stage proto \
+            --stage cpp \
             --stage golang \
             --stage app
 

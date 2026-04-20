@@ -28,14 +28,15 @@ type Container struct {
 	FeatureFlagRepo featureFlagRepository
 	VideoRepository videoRepository
 
-	ProcessImageUseCase        useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
-	EvaluateFeatureFlagUseCase evaluateFeatureFlagUseCase
-	GetSystemInfoUseCase       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
-	ListInputsUseCase          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
-	ListAvailableImagesUseCase useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
-	UploadImageUseCase         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
-	ListVideosUseCase          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
-	UploadVideoUseCase         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
+	ProcessImageUseCase               useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
+	EvaluateFeatureFlagBooleanUseCase useCase[ffapp.EvaluateFeatureFlagBooleanUseCaseInput, ffapp.EvaluateFeatureFlagBooleanUseCaseOutput]
+	EvaluateFeatureFlagStringUseCase  useCase[ffapp.EvaluateFeatureFlagStringUseCaseInput, ffapp.EvaluateFeatureFlagStringUseCaseOutput]
+	GetSystemInfoUseCase              useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
+	ListInputsUseCase                 useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
+	ListAvailableImagesUseCase        useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
+	UploadImageUseCase                useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
+	ListVideosUseCase                 useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
+	UploadVideoUseCase                useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
 	// TODO: replace with streamVideoUseCase this is not possible right now because the StreamVideoUseCase depends on proto objects
 	StreamVideoUseCase *videoapp.StreamVideoUseCase
 
@@ -88,7 +89,8 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		Str("listen_address", cfg.Processor.ListenAddress).
 		Msg("accelerator control server created")
 
-	evaluateFFUseCase := ffapp.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
+	evaluateFFBooleanUseCase := ffapp.NewEvaluateFeatureFlagBooleanUseCase(featureFlagRepo)
+	evaluateFFStringUseCase := ffapp.NewEvaluateFeatureFlagStringUseCase(featureFlagRepo)
 
 	getSystemInfoUseCase := systemapp.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
 
@@ -124,20 +126,21 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	}
 
 	return &Container{
-		Config:                     cfg,
-		FeatureFlagRepo:            featureFlagRepo,
-		VideoRepository:            videoRepo,
-		EvaluateFeatureFlagUseCase: evaluateFFUseCase,
-		GetSystemInfoUseCase:       getSystemInfoUseCase,
-		ListInputsUseCase:          listInputsUseCase,
-		ListAvailableImagesUseCase: listAvailableImagesUseCase,
-		UploadImageUseCase:         uploadImageUseCase,
-		ListVideosUseCase:          listVideosUseCase,
-		UploadVideoUseCase:         uploadVideoUseCase,
-		StreamVideoUseCase:         streamVideoUseCase,
-		AcceleratorRegistry:        registry,
-		AcceleratorControl:         controlServer,
-		DeviceMonitor:              deviceMonitor,
+		Config:                            cfg,
+		FeatureFlagRepo:                   featureFlagRepo,
+		VideoRepository:                   videoRepo,
+		EvaluateFeatureFlagBooleanUseCase: evaluateFFBooleanUseCase,
+		EvaluateFeatureFlagStringUseCase:  evaluateFFStringUseCase,
+		GetSystemInfoUseCase:              getSystemInfoUseCase,
+		ListInputsUseCase:                 listInputsUseCase,
+		ListAvailableImagesUseCase:        listAvailableImagesUseCase,
+		UploadImageUseCase:                uploadImageUseCase,
+		ListVideosUseCase:                 listVideosUseCase,
+		UploadVideoUseCase:                uploadVideoUseCase,
+		StreamVideoUseCase:                streamVideoUseCase,
+		AcceleratorRegistry:               registry,
+		AcceleratorControl:                controlServer,
+		DeviceMonitor:                     deviceMonitor,
 	}, nil
 }
 

@@ -66,7 +66,6 @@ func main() {
 		GetSystemInfoUC:       di.GetSystemInfoUseCase,
 		FeatureFlagRepo:       di.FeatureFlagRepo,
 		ListInputsUC:          di.ListInputsUseCase,
-		EvaluateFFUC:          di.EvaluateFeatureFlagUseCase,
 		StreamVideoUC:         di.StreamVideoUseCase,
 		ListAvailableImagesUC: di.ListAvailableImagesUseCase,
 		UploadImageUC:         di.UploadImageUseCase,

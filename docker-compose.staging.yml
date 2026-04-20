@@ -98,7 +98,7 @@ services:
   test-reports:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: test/integration/Dockerfile.tests
       target: test-reports
     image: cuda-learning-test-reports
     container_name: test-reports-staging

@@ -7,8 +7,8 @@ IMAGE_PREFIX="${REGISTRY}/${BASE_IMAGE_PREFIX}"
 # Must match build-local.sh (amd64 on x86 CI, arm64 on ARM CI). Used for explicit latest-* pushes.
 ARCH="${ARCH:-amd64}"
 # Final images for which the script must guarantee a latest-${ARCH} alias on GHCR.
-# Override per arch (e.g. LATEST_ALIASES="grpc-server" on ARM, "app web-frontend" on x86).
-LATEST_ALIASES="${LATEST_ALIASES:-app grpc-server web-frontend}"
+# Override per arch (e.g. LATEST_ALIASES="cpp-accelerator" on ARM, "app web-frontend" on x86).
+LATEST_ALIASES="${LATEST_ALIASES:-app cpp-accelerator web-frontend}"
 
 require_command() {
   local cmd="$1"
@@ -59,7 +59,7 @@ done <<< "${images_to_push}"
 # The bulk loop above can still miss publishing latest-${ARCH} to GHCR (e.g. only the versioned
 # tag was tagged locally, or tooling listed one ref per image). Always publish canonical aliases.
 echo ""
-echo "Publishing latest-${ARCH} aliases for app, grpc-server, web-frontend..."
+echo "Publishing latest-${ARCH} aliases for app, cpp-accelerator, web-frontend..."
 
 failed_aliases=()
 

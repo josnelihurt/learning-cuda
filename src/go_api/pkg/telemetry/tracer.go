@@ -100,6 +100,3 @@ func (tp *TracerProvider) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func (tp *TracerProvider) IsEnabled() bool {
-	return tp.enabled
-}

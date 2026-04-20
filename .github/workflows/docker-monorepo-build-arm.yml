@@ -172,10 +172,14 @@ jobs:
           JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
           JETSON_USER: ${{ secrets.JETSON_USER }}
           JETSON_SSH_KEY: ${{ secrets.JETSON_SSH_KEY }}
+          ACCELERATOR_CLIENT_CERT: ${{ secrets.ACCELERATOR_CLIENT_CERT }}
+          ACCELERATOR_CLIENT_KEY: ${{ secrets.ACCELERATOR_CLIENT_KEY }}
+          ACCELERATOR_CA_CERT: ${{ secrets.ACCELERATOR_CA_CERT }}
         run: |
           set -euo pipefail
           missing=()
-          for var in JETSON_HOST JETSON_APP_DIRECTORY JETSON_USER; do
+          for var in JETSON_HOST JETSON_APP_DIRECTORY JETSON_USER \
+                     ACCELERATOR_CLIENT_CERT ACCELERATOR_CLIENT_KEY ACCELERATOR_CA_CERT; do
             if [ -z "${!var:-}" ]; then
               missing+=("$var")
             fi
@@ -234,6 +238,44 @@ jobs:
             src/cpp_accelerator/docker-compose.yml \
             "${REMOTE}:${JETSON_APP_DIRECTORY}/docker-compose.yml"
 
+      - name: Sync accelerator mTLS secrets to Jetson
+        env:
+          JETSON_HOST: ${{ secrets.JETSON_HOST }}
+          JETSON_APP_DIRECTORY: ${{ vars.JETSON_APP_DIRECTORY }}
+          JETSON_USER: ${{ secrets.JETSON_USER }}
+          ACCELERATOR_CLIENT_CERT: ${{ secrets.ACCELERATOR_CLIENT_CERT }}
+          ACCELERATOR_CLIENT_KEY: ${{ secrets.ACCELERATOR_CLIENT_KEY }}
+          ACCELERATOR_CA_CERT: ${{ secrets.ACCELERATOR_CA_CERT }}
+        run: |
+          set -euo pipefail
+          for var in ACCELERATOR_CLIENT_CERT ACCELERATOR_CLIENT_KEY ACCELERATOR_CA_CERT; do
+            if [ -z "${!var:-}" ]; then
+              echo "Missing required secret: ${var}" >&2
+              exit 1
+            fi
+          done
+
+          SSH_OPTS="-i ~/.ssh/jetson_key -o StrictHostKeyChecking=yes"
+          REMOTE="${JETSON_USER}@${JETSON_HOST}"
+
+          stage_dir="$(mktemp -d)"
+          trap 'rm -rf "${stage_dir}"' EXIT
+          umask 077
+
+          printf '%s' "${ACCELERATOR_CLIENT_CERT}" > "${stage_dir}/client.pem"
+          printf '%s' "${ACCELERATOR_CLIENT_KEY}"  > "${stage_dir}/client-key.pem"
+          printf '%s' "${ACCELERATOR_CA_CERT}"     > "${stage_dir}/ca.pem"
+          chmod 600 "${stage_dir}"/*.pem
+
+          ssh ${SSH_OPTS} "${REMOTE}" \
+            "mkdir -p '${JETSON_APP_DIRECTORY}/secrets' && chmod 700 '${JETSON_APP_DIRECTORY}/secrets'"
+
+          rsync -az --chmod=F600 -e "ssh ${SSH_OPTS}" \
+            "${stage_dir}/client.pem" \
+            "${stage_dir}/client-key.pem" \
+            "${stage_dir}/ca.pem" \
+            "${REMOTE}:${JETSON_APP_DIRECTORY}/secrets/"
+
       - name: Pull and restart grpc-server on Jetson
         env:
           REGISTRY: ${{ env.REGISTRY }}
@@ -258,6 +300,7 @@ jobs:
           set -euo pipefail
           cd "${JETSON_APP_DIRECTORY}"
           export GRPC_SERVER_IMAGE
+          export ACCELERATOR_SECRETS_DIR="${JETSON_APP_DIRECTORY}/secrets"
           docker compose pull
           docker compose up -d --remove-orphans
 

@@ -32,6 +32,11 @@ logging:
 
 processor:
   library_base_path: "/app/lib"
+  listen_address: ":60062"
+  tls:
+    cert_file: "/app/secrets/server.pem"
+    key_file: "/app/secrets/server-key.pem"
+    client_ca_file: "/app/secrets/ca.pem"
 
 mqtt:
   broker: "mosquitto"

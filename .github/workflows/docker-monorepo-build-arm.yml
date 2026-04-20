@@ -27,7 +27,7 @@ permissions:
   packages: write
   id-token: write
 
-# Smart CI: build/push steps only run when paths relevant to grpc-server change.
+# Smart CI: build/push steps only run when paths relevant to cpp-accelerator change.
 # Force a full rebuild with either:
 #   - PR label: ci:full-build
 #   - workflow_dispatch (manual runs always force a full rebuild)
@@ -36,7 +36,7 @@ jobs:
     name: Detect changed paths
     runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
     outputs:
-      grpc_server: ${{ steps.decide.outputs.grpc_server }}
+      cpp_accelerator: ${{ steps.decide.outputs.cpp_accelerator }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            grpc_server:
+            cpp_accelerator:
               - 'proto/**'
               - 'src/cpp_accelerator/**'
               - 'bazel/**'
@@ -70,15 +70,15 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           FORCE_ALL: ${{ inputs.force_all }}
           LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
-          FILTER_GRPC: ${{ steps.filter.outputs.grpc_server }}
+          FILTER_CPP_ACCELERATOR: ${{ steps.filter.outputs.cpp_accelerator }}
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
              || [ "${FORCE_ALL}" = "true" ] \
              || [ "${LABEL_FORCE}" = "true" ]; then
-            echo "grpc_server=true" >> "$GITHUB_OUTPUT"
+            echo "cpp_accelerator=true" >> "$GITHUB_OUTPUT"
           else
-            echo "grpc_server=${FILTER_GRPC:-false}" >> "$GITHUB_OUTPUT"
+            echo "cpp_accelerator=${FILTER_CPP_ACCELERATOR:-false}" >> "$GITHUB_OUTPUT"
           fi
 
   build:
@@ -90,27 +90,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build grpc-server image locally
-        if: needs.detect-changes.outputs.grpc_server == 'true'
+      - name: Build cpp-accelerator image locally
+        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: local
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          # Jetson deployment only consumes grpc-server. Skip go/app/web-frontend/runtime-base
+          # Jetson deployment only consumes cpp-accelerator. Skip go/app/web-frontend/runtime-base
           # to cut ARM64 build time. Stages kept satisfy Dockerfile.build dependencies plus the
-          # cpp-built guard in build-local.sh::run_grpc_server_image.
+          # cpp-built guard in build-local.sh::run_cpp_accelerator_image.
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage bazel-base \
             --stage proto \
             --stage cpp \
-            --stage grpc-server
+            --stage cpp-accelerator
 
       - name: No relevant changes
-        if: needs.detect-changes.outputs.grpc_server != 'true'
-        run: echo "No paths relevant to grpc-server changed; skipping ARM build."
+        if: needs.detect-changes.outputs.cpp_accelerator != 'true'
+        run: echo "No paths relevant to cpp-accelerator changed; skipping ARM build."
 
   build_and_push:
     name: Build and push all images
@@ -122,15 +122,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
-        if: needs.detect-changes.outputs.grpc_server == 'true'
+        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build grpc-server image
-        if: needs.detect-changes.outputs.grpc_server == 'true'
+      - name: Build cpp-accelerator image
+        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
@@ -142,22 +142,22 @@ jobs:
             --stage bazel-base \
             --stage proto \
             --stage cpp \
-            --stage grpc-server
+            --stage cpp-accelerator
 
-      - name: Push grpc-server image
-        if: needs.detect-changes.outputs.grpc_server == 'true'
+      - name: Push cpp-accelerator image
+        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
-          LATEST_ALIASES: grpc-server
+          LATEST_ALIASES: cpp-accelerator
         run: |
           chmod +x scripts/docker/push-tagged-images.sh
           ./scripts/docker/push-tagged-images.sh
 
       - name: No relevant changes
-        if: needs.detect-changes.outputs.grpc_server != 'true'
-        run: echo "No paths relevant to grpc-server changed; skipping ARM build and push."
+        if: needs.detect-changes.outputs.cpp_accelerator != 'true'
+        run: echo "No paths relevant to cpp-accelerator changed; skipping ARM build and push."
 
   deploy_prod:
     name: Deploy production (Jetson Nano)
@@ -276,7 +276,7 @@ jobs:
             "${stage_dir}/ca.pem" \
             "${REMOTE}:${JETSON_APP_DIRECTORY}/secrets/"
 
-      - name: Pull and restart grpc-server on Jetson
+      - name: Pull and restart cpp-accelerator on Jetson
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
@@ -290,32 +290,32 @@ jobs:
 
           proto_version=$(tr -d '[:space:]' < proto/VERSION)
           cpp_version=$(tr -d '[:space:]' < src/cpp_accelerator/VERSION)
-          grpc_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/grpc-server:grpc-${cpp_version}-proto${proto_version}-arm64"
+          cpp_accelerator_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/cpp-accelerator:cpp-accelerator-${cpp_version}-proto${proto_version}-arm64"
 
-          echo "Deploying grpc-server image: ${grpc_image}"
+          echo "Deploying cpp-accelerator image: ${cpp_accelerator_image}"
 
           ssh ${SSH_OPTS} "${REMOTE}" \
             "JETSON_APP_DIRECTORY='${JETSON_APP_DIRECTORY}' \
-             GRPC_SERVER_IMAGE='${grpc_image}' bash -s" <<'EOF'
+             CPP_ACCELERATOR_IMAGE='${cpp_accelerator_image}' bash -s" <<'EOF'
           set -euo pipefail
           cd "${JETSON_APP_DIRECTORY}"
-          export GRPC_SERVER_IMAGE
+          export CPP_ACCELERATOR_IMAGE
           export ACCELERATOR_SECRETS_DIR="${JETSON_APP_DIRECTORY}/secrets"
           docker compose pull
           docker compose up -d --remove-orphans
 
           timeout=60
           while [ "${timeout}" -gt 0 ]; do
-            running=$(docker ps --filter 'name=^cuda-grpc-server$' --filter 'status=running' --format '{{.Names}}')
-            if [ "${running}" = "cuda-grpc-server" ]; then
-              echo "grpc-server is running"
+            running=$(docker ps --filter 'name=^cuda-cpp-accelerator$' --filter 'status=running' --format '{{.Names}}')
+            if [ "${running}" = "cuda-cpp-accelerator" ]; then
+              echo "cpp-accelerator is running"
               break
             fi
             sleep 1
             timeout=$((timeout - 1))
           done
           if [ "${timeout}" -eq 0 ]; then
-            echo "grpc-server readiness timeout" >&2
+            echo "cpp-accelerator readiness timeout" >&2
             docker ps --filter 'name=cuda-'
             exit 1
           fi

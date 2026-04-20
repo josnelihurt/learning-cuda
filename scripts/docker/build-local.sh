@@ -53,7 +53,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app grpc-server web-frontend)
+ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app cpp-accelerator web-frontend)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -391,17 +391,17 @@ run_app_image() {
     "--build-arg" "GOLANG_VERSION=${golang_version}"
 }
 
-run_grpc_server_image() {
+run_cpp_accelerator_image() {
   local proto_version
   local cpp_version
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
 
-  local app_tag="grpc-${cpp_version}-proto${proto_version}"
-  local version_tag="${IMAGE_BASE}/grpc-server:${app_tag}-${ARCH}"
-  local latest_tag="${IMAGE_BASE}/grpc-server:latest-${ARCH}"
+  local app_tag="cpp-accelerator-${cpp_version}-proto${proto_version}"
+  local version_tag="${IMAGE_BASE}/cpp-accelerator:${app_tag}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/cpp-accelerator:latest-${ARCH}"
 
-  print_stage_header "Building gRPC server image (${app_tag})"
+  print_stage_header "Building cpp-accelerator image (${app_tag})"
 
   local cpp_built_image="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
   local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-${proto_version}-${ARCH}"
@@ -417,7 +417,7 @@ run_grpc_server_image() {
   fi
 
   local build_args=(
-    "--target" "grpc-server"
+    "--target" "cpp-accelerator"
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
@@ -496,8 +496,8 @@ for stage in "${REQUESTED_STAGES[@]}"; do
     app)
       run_app_image
       ;;
-    grpc-server)
-      run_grpc_server_image
+    cpp-accelerator)
+      run_cpp_accelerator_image
       ;;
     web-frontend)
       run_web_frontend_image

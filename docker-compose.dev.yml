@@ -52,15 +52,6 @@ services:
     networks:
       - dev-network
 
-  grpc-server-dev:
-    # The C++ gRPC server has been removed (step-08). Accelerators now dial outbound
-    # to the Go app on port 60062. Run the accelerator_control_client binary on the
-    # Jetson/home machine — see src/cpp_accelerator/docker-compose.yml and
-    # docs/runbooks/accelerator-mtls.md.
-    image: scratch
-    profiles:
-      - disabled
-
   integration-tests:
     build:
       context: .

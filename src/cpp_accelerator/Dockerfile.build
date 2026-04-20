@@ -176,7 +176,7 @@ RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
       exit 1; \
     fi
 
-FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS grpc-server
+FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS cpp-accelerator
 
 ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_VISIBLE_DEVICES=all \

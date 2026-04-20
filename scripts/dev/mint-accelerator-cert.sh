@@ -54,7 +54,7 @@ openssl req -new -key "$KEY" -subj "/CN=$NAME/O=cuda-learning dev" -out "$CSR"
 echo "Generating extensions file for type=$TYPE..."
 if [[ "$TYPE" == "server" ]]; then
   cat > "$EXT_FILE" <<EOF
-subjectAltName = DNS:localhost, IP:127.0.0.1, DNS:$NAME
+subjectAltName = DNS:localhost, IP:127.0.0.1, DNS:$NAME, DNS:*.josnelihurt.me
 extendedKeyUsage = serverAuth
 keyUsage = digitalSignature, keyEncipherment
 EOF

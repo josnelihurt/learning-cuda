@@ -6,8 +6,8 @@
     "node_modules",
     ".git"
   ],
-  "size": 0,
-  "filesCount": 0,
+  "size": 0.0001621246337890625,
+  "filesCount": 1,
   "protobuf": {
     "protoFiles": [
       {
@@ -16,6 +16,14 @@
       },
       {
         "path": "../../../proto/image_processor_service.proto",
+        "type": "file"
+      },
+      {
+        "path": "../../../proto/accelerator_control.proto",
+        "type": "file"
+      },
+      {
+        "path": "../../../proto/common.proto",
         "type": "file"
       }
     ],

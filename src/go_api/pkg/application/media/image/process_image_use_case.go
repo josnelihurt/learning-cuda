@@ -10,13 +10,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// ProcessImageUseCase handles the business logic for image processing
 type ProcessImageUseCase struct {
-	processor domain.ImageProcessor
+	processor imageProcessor
 }
 
-// NewProcessImageUseCase creates a new use case instance
-func NewProcessImageUseCase(processor domain.ImageProcessor) *ProcessImageUseCase {
+func NewProcessImageUseCase(processor imageProcessor) *ProcessImageUseCase {
 	return &ProcessImageUseCase{
 		processor: processor,
 	}

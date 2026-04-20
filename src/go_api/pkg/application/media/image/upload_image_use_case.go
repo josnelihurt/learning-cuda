@@ -21,10 +21,10 @@ var (
 )
 
 type UploadImageUseCase struct {
-	repository domain.StaticImageRepository
+	repository staticImageRepository
 }
 
-func NewUploadImageUseCase(repository domain.StaticImageRepository) *UploadImageUseCase {
+func NewUploadImageUseCase(repository staticImageRepository) *UploadImageUseCase {
 	return &UploadImageUseCase{
 		repository: repository,
 	}

@@ -175,10 +175,8 @@ jobs:
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage go-builder \
-            --stage bazel-base \
             --stage runtime-base \
             --stage proto \
-            --stage cpp \
             --stage golang \
             --stage app
 

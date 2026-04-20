@@ -148,7 +148,7 @@ bool YOLODetector::Apply(jrb::domain::interfaces::FilterContext& context) {
 }
 
 jrb::domain::interfaces::FilterType YOLODetector::GetType() const {
-    return jrb::domain::interfaces::FilterType::GRAYSCALE;
+    return jrb::domain::interfaces::FilterType::MODEL_INFERENCE;
 }
 
 bool YOLODetector::IsInPlace() const {

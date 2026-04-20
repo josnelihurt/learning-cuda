@@ -31,6 +31,11 @@ export enum FilterType {
    * @generated from enum value: FILTER_TYPE_BLUR = 3;
    */
   BLUR = 3,
+
+  /**
+   * @generated from enum value: FILTER_TYPE_MODEL_INFERENCE = 4;
+   */
+  MODEL_INFERENCE = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(FilterType)
 proto3.util.setEnumType(FilterType, "cuda_learning.FilterType", [
@@ -38,6 +43,7 @@ proto3.util.setEnumType(FilterType, "cuda_learning.FilterType", [
   { no: 1, name: "FILTER_TYPE_NONE" },
   { no: 2, name: "FILTER_TYPE_GRAYSCALE" },
   { no: 3, name: "FILTER_TYPE_BLUR" },
+  { no: 4, name: "FILTER_TYPE_MODEL_INFERENCE" },
 ]);
 
 /**
@@ -285,6 +291,51 @@ export class GaussianBlurParameters extends Message<GaussianBlurParameters> {
 
   static equals(a: GaussianBlurParameters | PlainMessage<GaussianBlurParameters> | undefined, b: GaussianBlurParameters | PlainMessage<GaussianBlurParameters> | undefined): boolean {
     return proto3.util.equals(GaussianBlurParameters, a, b);
+  }
+}
+
+/**
+ * Model inference parameters for AI/ML object detection
+ *
+ * @generated from message cuda_learning.ModelInferenceParameters
+ */
+export class ModelInferenceParameters extends Message<ModelInferenceParameters> {
+  /**
+   * @generated from field: string model_id = 1 [json_name = "model_id"];
+   */
+  modelId = "";
+
+  /**
+   * @generated from field: float confidence_threshold = 3 [json_name = "confidence_threshold"];
+   */
+  confidenceThreshold = 0;
+
+  constructor(data?: PartialMessage<ModelInferenceParameters>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ModelInferenceParameters";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "model_id", jsonName: "model_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "confidence_threshold", jsonName: "confidence_threshold", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ModelInferenceParameters {
+    return new ModelInferenceParameters().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ModelInferenceParameters {
+    return new ModelInferenceParameters().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ModelInferenceParameters {
+    return new ModelInferenceParameters().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ModelInferenceParameters | PlainMessage<ModelInferenceParameters> | undefined, b: ModelInferenceParameters | PlainMessage<ModelInferenceParameters> | undefined): boolean {
+    return proto3.util.equals(ModelInferenceParameters, a, b);
   }
 }
 

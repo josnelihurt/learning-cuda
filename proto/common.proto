@@ -16,6 +16,7 @@ enum FilterType {
   FILTER_TYPE_NONE = 1;
   FILTER_TYPE_GRAYSCALE = 2;
   FILTER_TYPE_BLUR = 3;
+  FILTER_TYPE_MODEL_INFERENCE = 4;
 }
 
 // Enum for blur types
@@ -38,6 +39,12 @@ message GaussianBlurParameters {
   float sigma = 3 [json_name = "sigma"];
   BorderMode border_mode = 5 [json_name = "border_mode"];
   bool separable = 7 [json_name = "separable"];
+}
+
+// Model inference parameters for AI/ML object detection
+message ModelInferenceParameters {
+  string model_id = 1 [json_name = "model_id"];
+  float confidence_threshold = 3 [json_name = "confidence_threshold"];
 }
 
 // Enum for accelerator types

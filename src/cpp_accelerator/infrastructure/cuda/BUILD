@@ -118,3 +118,25 @@ cc_library(
         "@spdlog",
     ],
 )
+
+# Model Registry for AI/ML models
+cc_library(
+    name = "model_registry",
+    srcs = ["model_registry.cpp"],
+    hdrs = ["model_registry.h"],
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
+# Model Manager for preloading and caching detectors
+cc_library(
+    name = "model_manager",
+    srcs = ["model_manager.cpp"],
+    hdrs = ["model_manager.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":model_registry",
+        ":yolo_detector",
+        "@spdlog",
+    ],
+)

@@ -11,6 +11,7 @@ const (
 	paramTypeCheckbox = "checkbox"
 	paramTypeText     = "text"
 	filterIDBlur      = "blur"
+	filterIDModelInference = "model_inference"
 )
 
 // FilterCodec provides bidirectional conversion between FilterDefinition and GenericFilterDefinition
@@ -181,6 +182,12 @@ func (c *FilterCodec) BuildParameterMetadata(filterID string, param *pb.FilterPa
 		metadata["display"] = "select"
 	case filterID == filterIDBlur && param.Id == "separable":
 		metadata["display"] = "checkbox"
+	case filterID == filterIDModelInference && param.Id == "model_id":
+		metadata["display"] = "select"
+	case filterID == filterIDModelInference && param.Id == "confidence_threshold":
+		metadata["min"] = "0"
+		metadata["max"] = "1"
+		metadata["step"] = "0.05"
 	}
 
 	if len(metadata) == 0 {
@@ -202,6 +209,8 @@ func (c *FilterCodec) FormatParameterLabel(value string) string {
 		return "Lightness"
 	case "luminosity":
 		return "Luminosity"
+	case "yolov10n":
+		return "YOLO v10 Nano (Fastest)"
 	default:
 		return value
 	}

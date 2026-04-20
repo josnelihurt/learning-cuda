@@ -70,6 +70,7 @@ message ProcessImageRequest {
   GaussianBlurParameters blur_params = 25 [json_name = "blur_params"];
   repeated GenericFilterSelection generic_filters = 27 [json_name = "generic_filters"];
   string session_id = 29 [json_name = "session_id"];
+  ModelInferenceParameters model_params = 31 [json_name = "model_params"];
   
   // OpenTelemetry trace context propagation (deprecated - use trace_context instead)
   string trace_id = 15 [json_name = "trace_id"];

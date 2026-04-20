@@ -19,6 +19,9 @@
 #include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/blur_processor.h"
 #include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
+#include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
+#include "src/cpp_accelerator/infrastructure/cuda/yolo_detector.h"
 
 namespace jrb::ports::shared_lib {
 
@@ -82,6 +85,14 @@ bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
     response->set_code(0);
     response->set_message("CUDA context and telemetry initialized successfully");
     spdlog::info("Initialization successful (Telemetry)");
+
+    auto& model_manager = jrb::infrastructure::cuda::ModelManager::GetInstance();
+    jrb::infrastructure::cuda::ModelRegistry registry;
+    registry.RegisterModel({"yolov10n", "YOLO v10 Nano", "data/models/yolov10n.onnx",
+                            "Fastest YOLO v10 model"});
+    model_manager.Initialize(registry);
+    spdlog::info("Model manager initialized with {} models",
+                 model_manager.GetAvailableModels().size());
   } catch (const std::exception& e) {
     spdlog::error("Initialization failed: {}", e.what());
     response->set_code(2);
@@ -168,6 +179,24 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   separable_param->set_name("Separable");
   separable_param->set_type("checkbox");
   separable_param->set_default_value("true");
+
+  auto* model_filter = caps->add_filters();
+  model_filter->set_id("model_inference");
+  model_filter->set_name("Model Inference");
+  model_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CUDA);
+
+  auto* model_param = model_filter->add_parameters();
+  model_param->set_id("model_id");
+  model_param->set_name("Model");
+  model_param->set_type("select");
+  model_param->add_options("yolov10n");
+  model_param->set_default_value("yolov10n");
+
+  auto* threshold_param = model_filter->add_parameters();
+  threshold_param->set_id("confidence_threshold");
+  threshold_param->set_name("Confidence Threshold");
+  threshold_param->set_type("number");
+  threshold_param->set_default_value("0.5");
 
   return true;
 }
@@ -261,6 +290,26 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
           pipeline.AddFilter(std::make_unique<jrb::infrastructure::cpu::GaussianBlurFilter>(
               kernel_size, sigma, border_mode, separable));
           scoped_span.AddEvent("Added CPU blur filter to pipeline");
+        }
+      } else if (filter == cuda_learning::FILTER_TYPE_MODEL_INFERENCE) {
+        std::string model_id = "yolov10n";
+        float confidence = 0.5f;
+
+        if (request.has_model_params()) {
+          if (!request.model_params().model_id().empty()) {
+            model_id = request.model_params().model_id();
+          }
+          confidence = request.model_params().confidence_threshold() > 0
+                           ? request.model_params().confidence_threshold()
+                           : 0.5f;
+        }
+
+        auto detector = jrb::infrastructure::cuda::ModelManager::GetInstance().GetDetector(model_id, confidence);
+        if (detector) {
+          pipeline.AddFilter(std::move(detector));
+          scoped_span.AddEvent("Added YOLO model inference filter");
+        } else {
+          spdlog::error("Failed to get detector for model: {}", model_id);
         }
       } else {
         spdlog::warn("Unsupported filter type: {}", filter);

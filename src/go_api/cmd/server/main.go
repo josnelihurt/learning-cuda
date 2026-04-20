@@ -59,20 +59,21 @@ func main() {
 	)
 
 	server, err := app.New(ctx, app.Deps{
-		Config:                di.Config,
-		ProcessImageUC:        processImageUseCase,
-		AcceleratorGateway:    acceleratorGateway,
-		ProcessorCapsUC:       processorCapsUseCase,
-		GetSystemInfoUC:       di.GetSystemInfoUseCase,
-		FeatureFlagRepo:       di.FeatureFlagRepo,
-		ListInputsUC:          di.ListInputsUseCase,
-		StreamVideoUC:         di.StreamVideoUseCase,
-		ListAvailableImagesUC: di.ListAvailableImagesUseCase,
-		UploadImageUC:         di.UploadImageUseCase,
-		ListVideosUC:          di.ListVideosUseCase,
-		UploadVideoUC:         di.UploadVideoUseCase,
-		VideoRepository:       di.VideoRepository,
-		DeviceMonitor:         di.DeviceMonitor,
+		Config:                 di.Config,
+		ProcessImageUC:         processImageUseCase,
+		AcceleratorGateway:     acceleratorGateway,
+		ProcessorCapsUC:        processorCapsUseCase,
+		GetSystemInfoUC:        di.GetSystemInfoUseCase,
+		FeatureFlagRepo:        di.FeatureFlagRepo,
+		ListInputsUC:           di.ListInputsUseCase,
+		StartVideoPlaybackUC:   di.StartVideoPlaybackUseCase,
+		StopVideoPlaybackUC:    di.StopVideoPlaybackUseCase,
+		ListAvailableImagesUC:  di.ListAvailableImagesUseCase,
+		UploadImageUC:          di.UploadImageUseCase,
+		ListVideosUC:           di.ListVideosUseCase,
+		UploadVideoUC:          di.UploadVideoUseCase,
+		VideoRepository:        di.VideoRepository,
+		DeviceMonitor:          di.DeviceMonitor,
 	})
 	if err != nil {
 		logger.Global().Fatal().Err(err).Msg("Failed to initialize app")

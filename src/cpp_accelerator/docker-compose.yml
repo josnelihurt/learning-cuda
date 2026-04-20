@@ -14,7 +14,7 @@ services:
 
     command:
       - accelerator_control_client
-      - --control_addr=${ACCELERATOR_CLOUD_ENDPOINT:-cloud.example.com:60062}
+      - --control_addr=vultur.josnelihurt.me:60062
       - --device_id=${ACCELERATOR_DEVICE_ID:-jetson-prod-01}
       - --display_name=${ACCELERATOR_DISPLAY_NAME:-Jetson Orin}
       - --client_cert=/secrets/client.pem

@@ -71,6 +71,9 @@ func NewClient(cfg config.MQTTConfig) (*Client, error) {
 }
 
 func (c *Client) PublishPowerCommand(on bool) error {
+	if !on {
+		return nil //DISABLED
+	}
 	topic := fmt.Sprintf("cmnd/%s/POWER", c.config.Topic)
 	payload := "OFF"
 	if on {
@@ -264,6 +267,7 @@ func (c *Client) RequestSensorStatus() error {
 }
 
 func (c *Client) RestartDevice() error {
+	return nil //DISABLED
 	topic := fmt.Sprintf("cmnd/%s/RESTART", c.config.Topic)
 	token := c.client.Publish(topic, 0, false, "1")
 	token.Wait()

@@ -37,8 +37,8 @@ type Container struct {
 	UploadImageUseCase                useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
 	ListVideosUseCase                 useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
 	UploadVideoUseCase                useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
-	// TODO: replace with streamVideoUseCase this is not possible right now because the StreamVideoUseCase depends on proto objects
-	StreamVideoUseCase *videoapp.StreamVideoUseCase
+	StartVideoPlaybackUseCase         useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput]
+	StopVideoPlaybackUseCase          useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput]
 
 	AcceleratorRegistry *processor.Registry
 	AcceleratorControl  *processor.ControlServer
@@ -103,8 +103,11 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	listVideosUseCase := videoapp.NewListVideosUseCase(videoRepo)
 	uploadVideoUseCase := videoapp.NewUploadVideoUseCase(videoRepo, "data/videos", "data/video_previews")
-	streamVideoUseCase := videoapp.NewStreamVideoUseCase(
+
+	sessionManager := videoapp.NewVideoSessionManager()
+	startVideoPlaybackUseCase := videoapp.NewStartVideoPlaybackUseCase(
 		ctx,
+		sessionManager,
 		videoRepo,
 		func(videoPath string) (videoapp.StreamVideoPlayer, error) {
 			return video.NewFFmpegVideoPlayer(videoPath)
@@ -113,6 +116,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 			return webrtcinfra.NewGoPeer(browserSessionID), nil
 		},
 	)
+	stopVideoPlaybackUseCase := videoapp.NewStopVideoPlaybackUseCase(sessionManager)
 
 	var deviceMonitor *mqtt.DeviceMonitor
 	if cfg.MQTT.Broker != "" {
@@ -137,7 +141,8 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		UploadImageUseCase:                uploadImageUseCase,
 		ListVideosUseCase:                 listVideosUseCase,
 		UploadVideoUseCase:                uploadVideoUseCase,
-		StreamVideoUseCase:                streamVideoUseCase,
+		StartVideoPlaybackUseCase:         startVideoPlaybackUseCase,
+		StopVideoPlaybackUseCase:          stopVideoPlaybackUseCase,
 		AcceleratorRegistry:               registry,
 		AcceleratorControl:                controlServer,
 		DeviceMonitor:                     deviceMonitor,

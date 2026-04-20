@@ -5,9 +5,12 @@ meta {
 }
 
 grpc {
-  url: localhost:60061
+  url: vultur.josnelihurt.me:60062
+  method: /cuda_learning.AcceleratorControlService/Connect
   body: grpc
-  auth: inherit
+  protoPath: ../../../proto/accelerator_control.proto
+  auth: wsse
+  methodType: bidi-streaming
 }
 
 body:grpc {

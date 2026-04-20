@@ -34,7 +34,6 @@ type Deps struct {
 	// Configuration
 	Config *config.Manager
 
-	StreamVideoUC   streamVideoUseCase
 	ProcessorCapsUC processorCapabilitiesProvider
 
 	ProcessImageUC        useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
@@ -44,6 +43,8 @@ type Deps struct {
 	UploadImageUC         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
 	ListVideosUC          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
 	UploadVideoUC         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
+	StartVideoPlaybackUC  useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput]
+	StopVideoPlaybackUC   useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput]
 
 	// Infrastructure
 	AcceleratorGateway *processor.AcceleratorGateway
@@ -76,8 +77,11 @@ func New(ctx context.Context, deps Deps) (*App, error) {
 	if deps.ListInputsUC == nil {
 		return nil, errors.New("list inputs use case is required")
 	}
-	if deps.StreamVideoUC == nil {
-		return nil, errors.New("stream video use case is required")
+	if deps.StartVideoPlaybackUC == nil {
+		return nil, errors.New("start video playback use case is required")
+	}
+	if deps.StopVideoPlaybackUC == nil {
+		return nil, errors.New("stop video playback use case is required")
 	}
 	if deps.ListAvailableImagesUC == nil {
 		return nil, errors.New("list available images use case is required")
@@ -146,7 +150,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	rpcHandler := connectrpc.NewImageProcessorHandlerWithGRPC(
 		a.ProcessImageUC,
 		a.ProcessorCapsUC,
-		a.StreamVideoUC,
+		a.StartVideoPlaybackUC,
+		a.StopVideoPlaybackUC,
 		a.AcceleratorGateway,
 	)
 

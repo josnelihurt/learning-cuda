@@ -98,15 +98,15 @@ if [[ ${#REQUESTED_STAGES[@]} -eq 0 ]]; then
   REQUESTED_STAGES=("${ALL_STAGES[@]}")
 else
   # Preserve declared order while intersecting with requested values.
-  declare -A requested_map=()
-  for stage in "${REQUESTED_STAGES[@]}"; do
-    requested_map["$stage"]=1
-  done
+  # Portable to Bash 3.2 (macOS default) - avoids associative arrays.
   filtered=()
   for stage in "${ALL_STAGES[@]}"; do
-    if [[ -n "${requested_map[$stage]:-}" ]]; then
-      filtered+=("$stage")
-    fi
+    for requested in "${REQUESTED_STAGES[@]}"; do
+      if [[ "${stage}" == "${requested}" ]]; then
+        filtered+=("${stage}")
+        break
+      fi
+    done
   done
   if [[ ${#filtered[@]} -eq 0 ]]; then
     echo "No valid stages requested. Available stages:" >&2

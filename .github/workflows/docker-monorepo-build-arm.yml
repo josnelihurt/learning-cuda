@@ -34,7 +34,7 @@ permissions:
 jobs:
   detect-changes:
     name: Detect changed paths
-    runs-on: ["self-hosted", "ARM64", "macOS"]
+    runs-on: ["self-hosted"]
     outputs:
       cpp_accelerator: ${{ steps.decide.outputs.cpp_accelerator }}
     steps:

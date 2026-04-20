@@ -10,7 +10,7 @@ import {
 } from '@/gen/image_processor_service_pb';
 import { logger } from '@/infrastructure/observability/otel-logger';
 
-export interface UseImageProcessingReturn {
+interface UseImageProcessingReturn {
   processing: boolean;
   progress: number;
   processedImageUrl: string | null;

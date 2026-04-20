@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/adapters"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,7 +16,7 @@ import (
 
 type ImageProcessorHandler struct {
 	// Use Cases
-	processImageUC processImageUseCase
+	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
 	streamVideoUC  streamVideoUseCase
 	capabilities   processorCapabilitiesUseCase
 	evaluateFFUse  evaluateFeatureFlagUseCase
@@ -27,7 +28,7 @@ type ImageProcessorHandler struct {
 }
 
 func NewImageProcessorHandlerWithGRPC(
-	processImageUC processImageUseCase,
+	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput],
 	capabilitiesUC processorCapabilitiesUseCase,
 	evaluateFFUC evaluateFeatureFlagUseCase,
 	streamVideoUC streamVideoUseCase,
@@ -56,12 +57,12 @@ func (h *ImageProcessorHandler) ProcessImage(
 	opts := h.adapter.ExtractProcessingOptions(msg)
 	domainImg := h.adapter.ToDomainImage(msg)
 
-	processedImg, err := h.processImageUC.Execute(ctx, domainImg, opts)
+	result, err := h.processImageUC.Execute(ctx, imageapp.ProcessImageUseCaseInput{Image: domainImg, Opts: opts})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	resp := h.adapter.ToProtobufResponse(processedImg)
+	resp := h.adapter.ToProtobufResponse(result.Image)
 
 	return connect.NewResponse(resp), nil
 }

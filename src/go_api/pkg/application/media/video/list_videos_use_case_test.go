@@ -77,14 +77,14 @@ func TestListVideosUseCase_Execute(t *testing.T) {
 			tt.setup(repo)
 			sut := NewListVideosUseCase(repo)
 
-			result, err := sut.Execute(context.Background())
+			output, err := sut.Execute(context.Background(), ListVideosUseCaseInput{})
 
 			if tt.expectError {
 				assert.Error(t, err)
-				assert.Nil(t, result)
+				assert.Nil(t, output.Videos)
 			} else {
 				assert.NoError(t, err)
-				assert.Len(t, result, tt.expectedCount)
+				assert.Len(t, output.Videos, tt.expectedCount)
 			}
 			repo.AssertExpectations(t)
 		})

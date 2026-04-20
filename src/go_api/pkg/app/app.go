@@ -6,6 +6,9 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/mqtt"
@@ -34,14 +37,14 @@ type Deps struct {
 	StreamVideoUC   streamVideoUseCase
 	ProcessorCapsUC processorCapabilitiesProvider
 
-	ProcessImageUC        processImageUseCase
-	GetSystemInfoUC       getSystemInfoUseCase
-	ListInputsUC          listInputsUseCase
+	ProcessImageUC        useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
+	GetSystemInfoUC       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
+	ListInputsUC          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
 	EvaluateFFUC          evaluateFeatureFlagUseCase
-	ListAvailableImagesUC listAvailableImagesUseCase
-	UploadImageUC         uploadImageUseCase
-	ListVideosUC          listVideosUseCase
-	UploadVideoUC         uploadVideoUseCase
+	ListAvailableImagesUC useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
+	UploadImageUC         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
+	ListVideosUC          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
+	UploadVideoUC         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
 
 	// Infrastructure
 	AcceleratorGateway *processor.AcceleratorGateway

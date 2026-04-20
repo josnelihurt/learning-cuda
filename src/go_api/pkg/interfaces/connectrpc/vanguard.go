@@ -6,6 +6,9 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/vanguard"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
@@ -14,15 +17,15 @@ import (
 type VanguardConfig struct {
 	ImageProcessorHandler *ImageProcessorHandler
 	FeatureFlagRepo       featureFlagRepository
-	ListInputsUC          listInputsUseCase
+	ListInputsUC          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
 	EvaluateFFUC          evaluateFeatureFlagUseCase
-	GetSystemInfoUC       getSystemInfoUseCase
+	GetSystemInfoUC       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
 	ConfigManager         *config.Manager
 	ProcessorCapsUC       processorCapabilitiesUseCase
-	ListAvailableImagesUC listAvailableImagesUseCase
-	UploadImageUC         uploadImageUseCase
-	ListVideosUC          listVideosUseCase
-	UploadVideoUC         uploadVideoUseCase
+	ListAvailableImagesUC useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
+	UploadImageUC         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
+	ListVideosUC          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
+	UploadVideoUC         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
 	Interceptors          []connect.Interceptor
 }
 

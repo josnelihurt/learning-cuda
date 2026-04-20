@@ -20,6 +20,15 @@ var (
 	errEmptyFileData = errors.New("empty file data")
 )
 
+type UploadImageUseCaseInput struct {
+	Filename string
+	FileData []byte
+}
+
+type UploadImageUseCaseOutput struct {
+	Image *domain.StaticImage
+}
+
 type UploadImageUseCase struct {
 	repository staticImageRepository
 }
@@ -30,7 +39,7 @@ func NewUploadImageUseCase(repository staticImageRepository) *UploadImageUseCase
 	}
 }
 
-func (uc *UploadImageUseCase) Execute(ctx context.Context, filename string, fileData []byte) (*domain.StaticImage, error) {
+func (uc *UploadImageUseCase) Execute(ctx context.Context, input UploadImageUseCaseInput) (UploadImageUseCaseOutput, error) {
 	tracer := otel.Tracer("upload-image")
 	ctx, span := tracer.Start(ctx, "UploadImageUseCase.Execute",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -38,36 +47,36 @@ func (uc *UploadImageUseCase) Execute(ctx context.Context, filename string, file
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("filename", filename),
-		attribute.Int("file_size", len(fileData)),
+		attribute.String("filename", input.Filename),
+		attribute.Int("file_size", len(input.FileData)),
 	)
 
-	if filename == "" {
+	if input.Filename == "" {
 		span.RecordError(errEmptyFilename)
-		return nil, errEmptyFilename
+		return UploadImageUseCaseOutput{}, errEmptyFilename
 	}
 
-	if len(fileData) == 0 {
+	if len(input.FileData) == 0 {
 		span.RecordError(errEmptyFileData)
-		return nil, errEmptyFileData
+		return UploadImageUseCaseOutput{}, errEmptyFileData
 	}
 
-	if len(fileData) > maxFileSize {
+	if len(input.FileData) > maxFileSize {
 		span.RecordError(errFileTooLarge)
 		span.SetAttributes(attribute.String("validation.error", "file_too_large"))
-		return nil, errFileTooLarge
+		return UploadImageUseCaseOutput{}, errFileTooLarge
 	}
 
-	if !isPNGFormat(fileData) {
+	if !isPNGFormat(input.FileData) {
 		span.RecordError(errInvalidFormat)
 		span.SetAttributes(attribute.String("validation.error", "invalid_format"))
-		return nil, errInvalidFormat
+		return UploadImageUseCaseOutput{}, errInvalidFormat
 	}
 
-	image, err := uc.repository.Save(ctx, filename, fileData)
+	image, err := uc.repository.Save(ctx, input.Filename, input.FileData)
 	if err != nil {
 		span.RecordError(err)
-		return nil, fmt.Errorf("failed to save image: %w", err)
+		return UploadImageUseCaseOutput{}, fmt.Errorf("failed to save image: %w", err)
 	}
 
 	span.SetAttributes(
@@ -75,7 +84,7 @@ func (uc *UploadImageUseCase) Execute(ctx context.Context, filename string, file
 		attribute.String("image.path", image.Path),
 	)
 
-	return image, nil
+	return UploadImageUseCaseOutput{Image: image}, nil
 }
 
 func isPNGFormat(data []byte) bool {

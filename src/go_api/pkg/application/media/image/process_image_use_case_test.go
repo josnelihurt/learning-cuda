@@ -182,10 +182,10 @@ func TestProcessImageUseCase_Execute(t *testing.T) {
 			ctx := context.Background()
 
 			// Act
-			result, err := sut.Execute(ctx, tt.inputImage, tt.opts)
+			output, err := sut.Execute(ctx, ProcessImageUseCaseInput{Image: tt.inputImage, Opts: tt.opts})
 
 			// Assert
-			tt.assertResult(t, result, err)
+			tt.assertResult(t, output.Image, err)
 			mockProc.AssertExpectations(t)
 		})
 	}
@@ -212,10 +212,10 @@ func TestProcessImageUseCase_Execute_ContextCancellation(t *testing.T) {
 	sut := NewProcessImageUseCase(mockProc)
 
 	// Act
-	result, err := sut.Execute(ctx, img, opts)
+	output, err := sut.Execute(ctx, ProcessImageUseCaseInput{Image: img, Opts: opts})
 
 	// Assert
 	assert.Error(t, err, "expected error from canceled context")
-	assert.Nil(t, result, "expected nil result on context cancellation")
+	assert.Nil(t, output.Image, "expected nil result on context cancellation")
 	mockProc.AssertExpectations(t)
 }

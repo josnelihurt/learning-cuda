@@ -62,11 +62,11 @@ func TestUploadVideoUseCase_Execute(t *testing.T) {
 			tt.setup(repo, videosDir, previewsDir)
 			sut := NewUploadVideoUseCase(repo, videosDir, previewsDir)
 
-			result, err := sut.Execute(context.Background(), tt.fileData, tt.filename)
+			output, err := sut.Execute(context.Background(), UploadVideoUseCaseInput{FileData: tt.fileData, Filename: tt.filename})
 
 			if tt.expectError != nil {
 				assert.Error(t, err)
-				assert.Nil(t, result)
+				assert.Nil(t, output.Video)
 				if errors.Is(tt.expectError, ErrInvalidFormat) {
 					assert.ErrorIs(t, err, ErrInvalidFormat)
 				} else if errors.Is(tt.expectError, ErrFileTooLarge) {
@@ -74,7 +74,7 @@ func TestUploadVideoUseCase_Execute(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, result)
+				assert.NotNil(t, output.Video)
 			}
 		})
 	}

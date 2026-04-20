@@ -9,6 +9,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type ListVideosUseCaseInput struct{}
+
+type ListVideosUseCaseOutput struct {
+	Videos []domain.Video
+}
+
 type ListVideosUseCase struct {
 	repository videoRepository
 }
@@ -19,7 +25,7 @@ func NewListVideosUseCase(repository videoRepository) *ListVideosUseCase {
 	}
 }
 
-func (uc *ListVideosUseCase) Execute(ctx context.Context) ([]domain.Video, error) {
+func (uc *ListVideosUseCase) Execute(ctx context.Context, _ ListVideosUseCaseInput) (ListVideosUseCaseOutput, error) {
 	tracer := otel.Tracer("list-videos")
 	_, span := tracer.Start(ctx, "ListVideos",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -29,7 +35,7 @@ func (uc *ListVideosUseCase) Execute(ctx context.Context) ([]domain.Video, error
 	videos, err := uc.repository.List(ctx)
 	if err != nil {
 		span.SetAttributes(attribute.Bool("error", true))
-		return nil, err
+		return ListVideosUseCaseOutput{}, err
 	}
 
 	videoCount := 0
@@ -46,5 +52,5 @@ func (uc *ListVideosUseCase) Execute(ctx context.Context) ([]domain.Video, error
 		attribute.Int("videos.default_count", defaultCount),
 	)
 
-	return videos, nil
+	return ListVideosUseCaseOutput{Videos: videos}, nil
 }

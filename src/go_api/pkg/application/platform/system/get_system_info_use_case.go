@@ -9,6 +9,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type GetSystemInfoUseCaseInput struct{}
+
+type GetSystemInfoUseCaseOutput struct {
+	SystemInfo *domain.SystemInfo
+}
+
 type GetSystemInfoUseCase struct {
 	configRepo    configRepository
 	buildInfoRepo buildInfoRepository
@@ -27,17 +33,15 @@ func NewGetSystemInfoUseCase(
 	}
 }
 
-func (uc *GetSystemInfoUseCase) Execute(ctx context.Context) (*domain.SystemInfo, error) {
+func (uc *GetSystemInfoUseCase) Execute(ctx context.Context, _ GetSystemInfoUseCaseInput) (GetSystemInfoUseCaseOutput, error) {
 	tracer := otel.Tracer("get-system-info")
 	_, span := tracer.Start(ctx, "GetSystemInfo",
 		trace.WithSpanKind(trace.SpanKindInternal),
 	)
 	defer span.End()
 
-	// Get environment
 	environment := uc.configRepo.GetEnvironment()
 
-	// Build system info with versions from VERSION files and shared build info
 	systemInfo := &domain.SystemInfo{
 		Version: domain.SystemVersion{
 			GoVersion:    uc.versionRepo.GetGoVersion(),
@@ -50,7 +54,6 @@ func (uc *GetSystemInfoUseCase) Execute(ctx context.Context) (*domain.SystemInfo
 		Environment: environment,
 	}
 
-	// Set span attributes
 	span.SetAttributes(
 		attribute.String("version.go", systemInfo.Version.GoVersion),
 		attribute.String("version.cpp", systemInfo.Version.CppVersion),
@@ -61,5 +64,5 @@ func (uc *GetSystemInfoUseCase) Execute(ctx context.Context) (*domain.SystemInfo
 		attribute.String("environment", systemInfo.Environment),
 	)
 
-	return systemInfo, nil
+	return GetSystemInfoUseCaseOutput{SystemInfo: systemInfo}, nil
 }

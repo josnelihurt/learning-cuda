@@ -167,10 +167,10 @@ func TestUploadImageUseCase_Execute(t *testing.T) {
 			ctx := context.Background()
 
 			// Act
-			image, err := sut.Execute(ctx, tt.filename, tt.fileData)
+			output, err := sut.Execute(ctx, UploadImageUseCaseInput{FileData: tt.fileData, Filename: tt.filename})
 
 			// Assert
-			tt.assertResult(t, image, err)
+			tt.assertResult(t, output.Image, err)
 			if tt.mockImage != nil || tt.mockError != nil {
 				mockRepo.AssertExpectations(t)
 			}

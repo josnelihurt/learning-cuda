@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
+	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel/attribute"
@@ -13,17 +14,17 @@ import (
 )
 
 type FileHandler struct {
-	listAvailableImagesUseCase listAvailableImagesUseCase
-	uploadImageUseCase         uploadImageUseCase
-	listAvailableVideosUseCase listVideosUseCase
-	uploadVideoUseCase         uploadVideoUseCase
+	listAvailableImagesUseCase useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
+	uploadImageUseCase         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
+	listAvailableVideosUseCase useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
+	uploadVideoUseCase         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
 }
 
 func NewFileHandler(
-	listAvailableImagesUC listAvailableImagesUseCase,
-	uploadImageUC uploadImageUseCase,
-	listAvailableVideosUC listVideosUseCase,
-	uploadVideoUC uploadVideoUseCase,
+	listAvailableImagesUC useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput],
+	uploadImageUC useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput],
+	listAvailableVideosUC useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput],
+	uploadVideoUC useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput],
 ) *FileHandler {
 	return &FileHandler{
 		listAvailableImagesUseCase: listAvailableImagesUC,
@@ -39,15 +40,15 @@ func (h *FileHandler) ListAvailableImages(
 ) (*connect.Response[pb.ListAvailableImagesResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	images, err := h.listAvailableImagesUseCase.Execute(ctx)
+	result, err := h.listAvailableImagesUseCase.Execute(ctx, imageapp.ListAvailableImagesUseCaseInput{})
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list available images")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	pbImages := make([]*pb.StaticImage, 0, len(images))
-	for _, img := range images {
+	pbImages := make([]*pb.StaticImage, 0, len(result.Images))
+	for _, img := range result.Images {
 		pbImages = append(pbImages, &pb.StaticImage{
 			Id:          img.ID,
 			DisplayName: img.DisplayName,
@@ -76,7 +77,10 @@ func (h *FileHandler) UploadImage(
 		attribute.Int("file_size", len(req.Msg.FileData)),
 	)
 
-	image, err := h.uploadImageUseCase.Execute(ctx, req.Msg.Filename, req.Msg.FileData)
+	result, err := h.uploadImageUseCase.Execute(ctx, imageapp.UploadImageUseCaseInput{
+		Filename: req.Msg.Filename,
+		FileData: req.Msg.FileData,
+	})
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to upload image")
@@ -92,18 +96,18 @@ func (h *FileHandler) UploadImage(
 	}
 
 	span.SetAttributes(
-		attribute.String("image.id", image.ID),
-		attribute.String("image.path", image.Path),
+		attribute.String("image.id", result.Image.ID),
+		attribute.String("image.path", result.Image.Path),
 	)
 
-	logger.FromContext(ctx).Info().Str("image_id", image.ID).Msg("Image uploaded successfully")
+	logger.FromContext(ctx).Info().Str("image_id", result.Image.ID).Msg("Image uploaded successfully")
 
 	return connect.NewResponse(&pb.UploadImageResponse{
 		Image: &pb.StaticImage{
-			Id:          image.ID,
-			DisplayName: image.DisplayName,
-			Path:        image.Path,
-			IsDefault:   image.IsDefault,
+			Id:          result.Image.ID,
+			DisplayName: result.Image.DisplayName,
+			Path:        result.Image.Path,
+			IsDefault:   result.Image.IsDefault,
 		},
 		Message: "Image uploaded successfully",
 	}), nil
@@ -115,15 +119,15 @@ func (h *FileHandler) ListAvailableVideos(
 ) (*connect.Response[pb.ListAvailableVideosResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	videos, err := h.listAvailableVideosUseCase.Execute(ctx)
+	result, err := h.listAvailableVideosUseCase.Execute(ctx, videoapp.ListVideosUseCaseInput{})
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list available videos")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	pbVideos := make([]*pb.StaticVideo, 0, len(videos))
-	for _, vid := range videos {
+	pbVideos := make([]*pb.StaticVideo, 0, len(result.Videos))
+	for _, vid := range result.Videos {
 		pbVideos = append(pbVideos, &pb.StaticVideo{
 			Id:               vid.ID,
 			DisplayName:      vid.DisplayName,
@@ -153,7 +157,10 @@ func (h *FileHandler) UploadVideo(
 		attribute.Int("file_size", len(req.Msg.FileData)),
 	)
 
-	video, err := h.uploadVideoUseCase.Execute(ctx, req.Msg.FileData, req.Msg.Filename)
+	result, err := h.uploadVideoUseCase.Execute(ctx, videoapp.UploadVideoUseCaseInput{
+		FileData: req.Msg.FileData,
+		Filename: req.Msg.Filename,
+	})
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to upload video")
@@ -169,19 +176,19 @@ func (h *FileHandler) UploadVideo(
 	}
 
 	span.SetAttributes(
-		attribute.String("video.id", video.ID),
-		attribute.String("video.path", video.Path),
+		attribute.String("video.id", result.Video.ID),
+		attribute.String("video.path", result.Video.Path),
 	)
 
-	logger.FromContext(ctx).Info().Str("video_id", video.ID).Msg("Video uploaded successfully")
+	logger.FromContext(ctx).Info().Str("video_id", result.Video.ID).Msg("Video uploaded successfully")
 
 	return connect.NewResponse(&pb.UploadVideoResponse{
 		Video: &pb.StaticVideo{
-			Id:               video.ID,
-			DisplayName:      video.DisplayName,
-			Path:             video.Path,
-			PreviewImagePath: video.PreviewImagePath,
-			IsDefault:        video.IsDefault,
+			Id:               result.Video.ID,
+			DisplayName:      result.Video.DisplayName,
+			Path:             result.Video.Path,
+			PreviewImagePath: result.Video.PreviewImagePath,
+			IsDefault:        result.Video.IsDefault,
 		},
 		Message: "Video uploaded successfully",
 	}), nil

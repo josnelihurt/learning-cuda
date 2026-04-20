@@ -18,6 +18,12 @@ type InputSource struct {
 	PreviewImagePath string
 }
 
+type ListInputsUseCaseInput struct{}
+
+type ListInputsUseCaseOutput struct {
+	Inputs []InputSource
+}
+
 type ListInputsUseCase struct {
 	videoRepository videoRepository
 }
@@ -28,7 +34,7 @@ func NewListInputsUseCase(videoRepository videoRepository) *ListInputsUseCase {
 	}
 }
 
-func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error) {
+func (uc *ListInputsUseCase) Execute(ctx context.Context, _ ListInputsUseCaseInput) (ListInputsUseCaseOutput, error) {
 	tracer := otel.Tracer("list-inputs")
 	_, span := tracer.Start(ctx, "ListInputs",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -87,5 +93,5 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error)
 		attribute.Int("input_sources.video_count", videoCount),
 	)
 
-	return sources, nil
+	return ListInputsUseCaseOutput{Inputs: sources}, nil
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -21,9 +23,9 @@ type ConfigHandler struct {
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
 	// Use Cases
-	ListInputsUC    listInputsUseCase
+	ListInputsUC    useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
 	EvaluateFFUC    evaluateFeatureFlagUseCase
-	GetSystemInfoUC getSystemInfoUseCase
+	GetSystemInfoUC useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
 	ProcessorCapsUC processorCapabilitiesUseCase
 	// Repositories
 	FeatureFlagRepo featureFlagRepository
@@ -152,15 +154,15 @@ func (h *ConfigHandler) ListInputs(
 ) (*connect.Response[pb.ListInputsResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	sources, err := h.ListInputsUC.Execute(ctx)
+	output, err := h.ListInputsUC.Execute(ctx, videoapp.ListInputsUseCaseInput{})
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list input sources")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	pbSources := make([]*pb.InputSource, len(sources))
-	for i, src := range sources {
+	pbSources := make([]*pb.InputSource, len(output.Inputs))
+	for i, src := range output.Inputs {
 		pbSources[i] = &pb.InputSource{
 			Id:               src.ID,
 			DisplayName:      src.DisplayName,
@@ -264,12 +266,14 @@ func (h *ConfigHandler) GetSystemInfo(
 ) (*connect.Response[pb.GetSystemInfoResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	systemInfo, err := h.GetSystemInfoUC.Execute(ctx)
+	output, err := h.GetSystemInfoUC.Execute(ctx, systemapp.GetSystemInfoUseCaseInput{})
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to get system info")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+
+	systemInfo := output.SystemInfo
 
 	// Map domain to proto
 	response := &pb.GetSystemInfoResponse{

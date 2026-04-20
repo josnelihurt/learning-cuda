@@ -143,17 +143,3 @@ func FromContext(ctx context.Context) *zerolog.Logger {
 	return &logger
 }
 
-func WithTraceContext(ctx context.Context, logger *zerolog.Logger) *zerolog.Logger {
-	spanContext := trace.SpanContextFromContext(ctx)
-
-	if !spanContext.IsValid() {
-		return logger
-	}
-
-	contextLogger := logger.With().
-		Str("trace_id", spanContext.TraceID().String()).
-		Str("span_id", spanContext.SpanID().String()).
-		Logger()
-
-	return &contextLogger
-}

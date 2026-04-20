@@ -384,6 +384,7 @@ run_app_image() {
     "${latest_tag}" \
     "Dockerfile" \
     "false" \
+    "--target" "runtime" \
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
     "--build-arg" "BASE_TAG=latest" \
     "--build-arg" "PROTO_VERSION=${proto_version}" \

@@ -3,5 +3,6 @@ exports_files([
     "cares.BUILD",
     "googleapis.BUILD",
     "protoc-gen-validate.patch",
+    "onnxruntime.BUILD",
 ])
 

@@ -103,3 +103,18 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# YOLO Object Detector
+cc_library(
+    name = "yolo_detector",
+    srcs = ["yolo_detector.cpp"],
+    hdrs = ["yolo_detector.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/cpp_accelerator/core:telemetry",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "@onnxruntime_gpu//:onnxruntime",
+        "@spdlog",
+    ],
+)

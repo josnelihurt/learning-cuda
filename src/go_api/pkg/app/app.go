@@ -24,6 +24,7 @@ type App struct {
 	// Context
 	appContext context.Context
 
+	// Embed dependencies
 	Deps
 
 	// Interceptors

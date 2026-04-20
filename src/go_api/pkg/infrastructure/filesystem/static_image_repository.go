@@ -12,17 +12,17 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type StaticImageRepository struct {
+type staticImageRepository struct {
 	directory string
 }
 
-func NewStaticImageRepository(directory string) *StaticImageRepository {
-	return &StaticImageRepository{
+func NewStaticImageRepository(directory string) *staticImageRepository {
+	return &staticImageRepository{
 		directory: directory,
 	}
 }
 
-func (r *StaticImageRepository) FindAll(ctx context.Context) ([]domain.StaticImage, error) {
+func (r *staticImageRepository) FindAll(ctx context.Context) ([]domain.StaticImage, error) {
 	tracer := otel.Tracer("static-image-repository")
 	_, span := tracer.Start(ctx, "StaticImageRepository.FindAll",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -76,7 +76,7 @@ func (r *StaticImageRepository) FindAll(ctx context.Context) ([]domain.StaticIma
 	return images, nil
 }
 
-func (r *StaticImageRepository) Save(ctx context.Context, filename string, data []byte) (*domain.StaticImage, error) {
+func (r *staticImageRepository) Save(ctx context.Context, filename string, data []byte) (*domain.StaticImage, error) {
 	tracer := otel.Tracer("static-image-repository")
 	_, span := tracer.Start(ctx, "StaticImageRepository.Save",
 		trace.WithSpanKind(trace.SpanKindInternal),

@@ -19,8 +19,3 @@ type streamVideoUseCase interface {
 type processorCapabilitiesProvider interface {
 	Execute(ctx context.Context, useGRPC bool) (*pb.LibraryCapabilities, systemapp.ProcessorBackendOrigin, error)
 }
-
-type evaluateFeatureFlagUseCase interface {
-	EvaluateBoolean(ctx context.Context, flagKey string, entityID string, fallbackValue bool) (bool, error)
-	EvaluateString(ctx context.Context, flagKey string, entityID string, fallbackValue string) (string, error)
-}

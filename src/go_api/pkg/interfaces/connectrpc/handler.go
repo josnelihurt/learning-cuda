@@ -19,7 +19,6 @@ type ImageProcessorHandler struct {
 	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
 	streamVideoUC  streamVideoUseCase
 	capabilities   processorCapabilitiesUseCase
-	evaluateFFUse  evaluateFeatureFlagUseCase
 	adapter        *adapters.ProtobufAdapter
 	filterCodec    *adapters.FilterCodec
 	grpcClient     interface {
@@ -30,7 +29,6 @@ type ImageProcessorHandler struct {
 func NewImageProcessorHandlerWithGRPC(
 	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput],
 	capabilitiesUC processorCapabilitiesUseCase,
-	evaluateFFUC evaluateFeatureFlagUseCase,
 	streamVideoUC streamVideoUseCase,
 	grpcClient interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
@@ -40,11 +38,10 @@ func NewImageProcessorHandlerWithGRPC(
 		processImageUC: processImageUC,
 		streamVideoUC:  streamVideoUC,
 		// TODO: Add adapters to the container
-		adapter:       adapters.NewProtobufAdapter(),
-		filterCodec:   adapters.NewFilterCodec(),
-		capabilities:  capabilitiesUC,
-		evaluateFFUse: evaluateFFUC,
-		grpcClient:    grpcClient,
+		adapter:      adapters.NewProtobufAdapter(),
+		filterCodec:  adapters.NewFilterCodec(),
+		capabilities: capabilitiesUC,
+		grpcClient:   grpcClient,
 	}
 }
 

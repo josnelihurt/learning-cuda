@@ -55,7 +55,7 @@ services:
   integration-tests:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: test/integration/Dockerfile.tests
       target: integration-tests
       args:
         USER_ID: ${USER_ID:-1000}
@@ -75,7 +75,7 @@ services:
   e2e-tests:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: test/integration/Dockerfile.tests
       target: e2e-tests
       args:
         USER_ID: ${USER_ID:-1000}

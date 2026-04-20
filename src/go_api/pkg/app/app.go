@@ -40,7 +40,6 @@ type Deps struct {
 	ProcessImageUC        useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
 	GetSystemInfoUC       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
 	ListInputsUC          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
-	EvaluateFFUC          evaluateFeatureFlagUseCase
 	ListAvailableImagesUC useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
 	UploadImageUC         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
 	ListVideosUC          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
@@ -76,9 +75,6 @@ func New(ctx context.Context, deps Deps) (*App, error) {
 	}
 	if deps.ListInputsUC == nil {
 		return nil, errors.New("list inputs use case is required")
-	}
-	if deps.EvaluateFFUC == nil {
-		return nil, errors.New("evaluate feature flag use case is required")
 	}
 	if deps.StreamVideoUC == nil {
 		return nil, errors.New("stream video use case is required")
@@ -150,7 +146,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	rpcHandler := connectrpc.NewImageProcessorHandlerWithGRPC(
 		a.ProcessImageUC,
 		a.ProcessorCapsUC,
-		a.EvaluateFFUC,
 		a.StreamVideoUC,
 		a.AcceleratorGateway,
 	)
@@ -160,7 +155,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		connectrpc.ConfigHandlerDeps{
 			FeatureFlagRepo: a.FeatureFlagRepo,
 			ListInputsUC:    a.ListInputsUC,
-			EvaluateFFUC:    a.EvaluateFFUC,
 			GetSystemInfoUC: a.GetSystemInfoUC,
 			ConfigManager:   a.Config,
 			ProcessorCapsUC: a.ProcessorCapsUC,
@@ -197,7 +191,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		ImageProcessorHandler: rpcHandler,
 		FeatureFlagRepo:       a.FeatureFlagRepo,
 		ListInputsUC:          a.ListInputsUC,
-		EvaluateFFUC:          a.EvaluateFFUC,
 		GetSystemInfoUC:       a.GetSystemInfoUC,
 		ConfigManager:         a.Config,
 		ProcessorCapsUC:       a.ProcessorCapsUC,

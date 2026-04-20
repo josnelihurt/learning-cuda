@@ -4,137 +4,16 @@
 ARG BASE_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
-ARG PROTO_VERSION=2.4.0
-ARG CPP_VERSION=2.4.0
 ARG GOLANG_VERSION=1.4.0
-ARG NODE_VERSION=20
-ARG PLAYWRIGHT_VERSION=v1.56.1
-ARG UBUNTU_VARIANT=jammy
 
 #################################################################################
 #                    INTERMEDIATE IMAGES REFERENCES                              #
 #################################################################################
-# These stages reference the intermediate images from GHCR
-# The actual compilation happens in separate workflows
+# Only the Go-compiled artifact is needed by the runtime image. CPP/integration
+# artifacts are consumed exclusively by test/integration/Dockerfile.tests.
 #################################################################################
 
-FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
-FROM ${BASE_REGISTRY}/intermediate:cpp-built-${CPP_VERSION}-${TARGETARCH} AS cpp-built-ref
 FROM ${BASE_REGISTRY}/intermediate:golang-built-${GOLANG_VERSION}-${TARGETARCH} AS golang-built-ref
-
-#################################################################################
-#                        INTEGRATION TESTS STAGE                                #
-#################################################################################
-# Run BDD acceptance tests using Godog
-# Requires: Go server binary + C++ libraries to run the full stack
-# Tests make HTTP/WebSocket requests to the running server
-# This stage is optional and only runs when explicitly targeted
-#################################################################################
-
-FROM ${BASE_REGISTRY}/base:integration-tests-base-${BASE_TAG}-${TARGETARCH} AS integration-tests-base
-
-FROM integration-tests-base AS integration-tests
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-
-# Copy compiled server binary and C++ libraries from intermediate images
-COPY --from=golang-built-ref /artifacts/bin/server /workspace/bin/server
-COPY --from=cpp-built-ref /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
-
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-RUN mkdir -p /workspace/test/integration/tests/acceptance/.ignore/test-results && \
-    mkdir -p /home/testuser/.cache && \
-    groupadd -g ${GROUP_ID} testuser || true && \
-    useradd -u ${USER_ID} -g testuser -m -s /bin/bash testuser 2>/dev/null || true && \
-    chown -R ${USER_ID}:${GROUP_ID} /workspace/test/integration/tests/acceptance/.ignore /home/testuser /workspace/bin /workspace/.ignore
-
-USER ${USER_ID}:${GROUP_ID}
-ENV HOME=/home/testuser
-ENV LD_LIBRARY_PATH=/workspace/.ignore/lib/cuda_learning
-
-WORKDIR /workspace/test/integration/tests/acceptance
-
-CMD ["sh", "-c", "go test . -run TestFeatures -v"]
-
-#################################################################################
-#                         E2E FRONTEND TESTS STAGE                              #
-#################################################################################
-# Run Playwright E2E tests for frontend UI validation
-# Requires: Running webserver accessible via network
-# Tests execute in Chromium, Firefox, and WebKit browsers
-# This stage ONLY installs dependencies - source code mounted via volumes
-# This stage is optional and only runs when explicitly targeted
-#################################################################################
-
-FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}-${UBUNTU_VARIANT} AS e2e-tests
-
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-
-WORKDIR /workspace
-
-# Install Node.js dependencies only
-COPY src/front-end/package*.json ./src/front-end/
-RUN cd src/front-end && npm ci
-
-# Install Playwright browsers
-RUN cd src/front-end && npx playwright install chromium firefox webkit
-
-# Create user with same UID/GID as host
-RUN groupadd -g ${GROUP_ID} testuser || true && \
-    useradd -u ${USER_ID} -g testuser -m -s /bin/bash testuser 2>/dev/null || true && \
-    mkdir -p /workspace/.ignore/front-end && \
-    mkdir -p /home/testuser/.cache && \
-    chown -R ${USER_ID}:${GROUP_ID} /workspace /home/testuser
-
-USER ${USER_ID}:${GROUP_ID}
-ENV HOME=/home/testuser
-ENV NODE_ENV=test
-ENV PLAYWRIGHT_BASE_URL=https://localhost:3000
-
-WORKDIR /workspace/src/front-end
-
-ENTRYPOINT ["sh", "-c", "npx playwright test ${PLAYWRIGHT_OPTS}"]
-
-#################################################################################
-#                       TEST REPORTS GENERATOR STAGE                            #
-#################################################################################
-# Generate HTML test reports from integration test results
-# Uses cucumber JSON output to create visual HTML report
-# Output: /app/reports/ directory with index.html and assets
-#################################################################################
-
-FROM node:${NODE_VERSION}-alpine AS test-reports
-
-WORKDIR /app
-
-RUN mkdir -p /app/input /app/reports
-
-COPY --from=integration-tests /workspace/test/integration/tests/acceptance/.ignore/test-results/ /app/input/
-
-RUN npm install multiple-cucumber-html-reporter && \
-    node -e "const report = require('multiple-cucumber-html-reporter'); \
-    const fs = require('fs'); \
-    const files = fs.readdirSync('/app/input').filter(f => f.endsWith('.json')); \
-    if (files.length > 0) { \
-      report.generate({ \
-        jsonDir: '/app/input', \
-        reportPath: '/app/reports', \
-        displayDuration: true, \
-        displayReportTime: true, \
-        pageTitle: 'Integration Tests - BDD Reports', \
-        reportName: 'CUDA Learning - Acceptance Tests', \
-        metadata: { \
-          browser: { name: 'API Tests', version: '1.0' }, \
-          platform: { name: 'Docker', version: 'Production' } \
-        } \
-      }); \
-    } else { \
-      fs.writeFileSync('/app/reports/index.html', '<html><head><meta charset=\"utf-8\"><title>No Test Results</title></head><body style=\"font-family: sans-serif; padding: 50px; text-align: center;\"><h1>No test results available</h1><p>Run integration tests to generate reports.</p></body></html>'); \
-    }"
 
 #################################################################################
 #                            RUNTIME STAGE (FINAL)                              #
@@ -148,19 +27,15 @@ FROM runtime-base AS runtime
 
 WORKDIR /app
 
-# Copy compiled artifacts from intermediate images
 COPY --from=golang-built-ref /artifacts/bin/server /app/server
 
-# Copy runtime data and configuration (exclude test-data to reduce image size)
 COPY data/static_images/ /app/data/static_images/
 COPY data/videos/ /app/data/videos/
 COPY data/lena.png data/lena_grayscale.png data/with_expected.png /app/data/
 COPY config/config.yaml /app/config/config.yaml
 
-# Create production configuration
 COPY config/config.production.yaml /app/config/config.production.yaml
 
-# Copy VERSION files for version detection
 COPY src/go_api/VERSION /app/src/go_api/VERSION
 COPY proto/VERSION /app/proto/VERSION
 

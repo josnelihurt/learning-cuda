@@ -77,75 +77,81 @@ func makeStringEvaluation(result string, success bool) *domain.FeatureFlagEvalua
 	}
 }
 
-func TestNewEvaluateFeatureFlagUseCase(t *testing.T) {
+func TestNewEvaluateFeatureFlagBooleanUseCase(t *testing.T) {
 	// Arrange
 	repo := new(mockFeatureFlagRepository)
 
 	// Act
-	sut := NewEvaluateFeatureFlagUseCase(repo)
+	sut := NewEvaluateFeatureFlagBooleanUseCase(repo)
 
 	// Assert
 	require.NotNil(t, sut)
 	assert.Equal(t, repo, sut.repository)
 }
 
-func TestEvaluateFeatureFlagUseCase_EvaluateBoolean(t *testing.T) {
+func TestEvaluateFeatureFlagBooleanUseCase_Execute(t *testing.T) {
 	var (
 		errRepositoryFailed = errors.New("repository failed")
 	)
 
 	tests := []struct {
-		name          string
-		flagKey       string
-		entityID      string
-		fallbackValue bool
-		mockResult    *domain.FeatureFlagEvaluation
-		mockError     error
-		assertResult  func(t *testing.T, result bool, err error)
+		name         string
+		input        EvaluateFeatureFlagBooleanUseCaseInput
+		mockResult   *domain.FeatureFlagEvaluation
+		mockError    error
+		assertResult func(t *testing.T, result bool, err error)
 	}{
 		{
-			name:          "Success_BooleanTrue",
-			flagKey:       "feature_enabled",
-			entityID:      "user_123",
-			fallbackValue: false,
-			mockResult:    makeBooleanEvaluation(true, true),
-			mockError:     nil,
+			name: "Success_BooleanTrue",
+			input: EvaluateFeatureFlagBooleanUseCaseInput{
+				FlagKey:       "feature_enabled",
+				EntityID:      "user_123",
+				FallbackValue: false,
+			},
+			mockResult: makeBooleanEvaluation(true, true),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result bool, err error) {
 				assert.NoError(t, err)
 				assert.True(t, result)
 			},
 		},
 		{
-			name:          "Success_BooleanFalse",
-			flagKey:       "feature_disabled",
-			entityID:      "user_456",
-			fallbackValue: true,
-			mockResult:    makeBooleanEvaluation(false, true),
-			mockError:     nil,
+			name: "Success_BooleanFalse",
+			input: EvaluateFeatureFlagBooleanUseCaseInput{
+				FlagKey:       "feature_disabled",
+				EntityID:      "user_456",
+				FallbackValue: true,
+			},
+			mockResult: makeBooleanEvaluation(false, true),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result bool, err error) {
 				assert.NoError(t, err)
 				assert.False(t, result)
 			},
 		},
 		{
-			name:          "Error_BooleanWithFallback",
-			flagKey:       "broken_flag",
-			entityID:      "user_789",
-			fallbackValue: true,
-			mockResult:    nil,
-			mockError:     errRepositoryFailed,
+			name: "Error_BooleanWithFallback",
+			input: EvaluateFeatureFlagBooleanUseCaseInput{
+				FlagKey:       "broken_flag",
+				EntityID:      "user_789",
+				FallbackValue: true,
+			},
+			mockResult: nil,
+			mockError:  errRepositoryFailed,
 			assertResult: func(t *testing.T, result bool, err error) {
 				assert.NoError(t, err)
 				assert.True(t, result)
 			},
 		},
 		{
-			name:          "Edge_BooleanEvaluationFailedUseFallback",
-			flagKey:       "failed_flag",
-			entityID:      "user_000",
-			fallbackValue: false,
-			mockResult:    makeBooleanEvaluation(true, false),
-			mockError:     nil,
+			name: "Edge_BooleanEvaluationFailedUseFallback",
+			input: EvaluateFeatureFlagBooleanUseCaseInput{
+				FlagKey:       "failed_flag",
+				EntityID:      "user_000",
+				FallbackValue: false,
+			},
+			mockResult: makeBooleanEvaluation(true, false),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result bool, err error) {
 				assert.NoError(t, err)
 				assert.False(t, result)
@@ -159,18 +165,18 @@ func TestEvaluateFeatureFlagUseCase_EvaluateBoolean(t *testing.T) {
 			mockRepo := new(mockFeatureFlagRepository)
 			mockRepo.On("EvaluateBoolean",
 				mock.Anything,
-				tt.flagKey,
-				tt.entityID,
+				tt.input.FlagKey,
+				tt.input.EntityID,
 			).Return(tt.mockResult, tt.mockError).Once()
 
-			sut := NewEvaluateFeatureFlagUseCase(mockRepo)
+			sut := NewEvaluateFeatureFlagBooleanUseCase(mockRepo)
 			ctx := context.Background()
 
 			// Act
-			result, err := sut.EvaluateBoolean(ctx, tt.flagKey, tt.entityID, tt.fallbackValue)
+			result, err := sut.Execute(ctx, tt.input)
 
 			// Assert
-			tt.assertResult(t, result, err)
+			tt.assertResult(t, result.Result, err)
 			mockRepo.AssertExpectations(t)
 		})
 	}
@@ -182,45 +188,49 @@ func TestEvaluateFeatureFlagUseCase_EvaluateString(t *testing.T) {
 	)
 
 	tests := []struct {
-		name          string
-		flagKey       string
-		entityID      string
-		fallbackValue string
-		mockResult    *domain.FeatureFlagEvaluation
-		mockError     error
-		assertResult  func(t *testing.T, result string, err error)
+		name         string
+		input        EvaluateFeatureFlagStringUseCaseInput
+		mockResult   *domain.FeatureFlagEvaluation
+		mockError    error
+		assertResult func(t *testing.T, result string, err error)
 	}{
 		{
-			name:          "Success_VariantResult",
-			flagKey:       "theme_variant",
-			entityID:      "user_123",
-			fallbackValue: "default",
-			mockResult:    makeStringEvaluation("dark", true),
-			mockError:     nil,
+			name: "Success_VariantResult",
+			input: EvaluateFeatureFlagStringUseCaseInput{
+				FlagKey:       "theme_variant",
+				EntityID:      "user_123",
+				FallbackValue: "default",
+			},
+			mockResult: makeStringEvaluation("dark", true),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result string, err error) {
 				assert.NoError(t, err)
 				assert.Equal(t, "dark", result)
 			},
 		},
 		{
-			name:          "Error_VariantWithFallback",
-			flagKey:       "broken_variant",
-			entityID:      "user_456",
-			fallbackValue: "fallback_value",
-			mockResult:    nil,
-			mockError:     errRepositoryFailed,
+			name: "Error_VariantWithFallback",
+			input: EvaluateFeatureFlagStringUseCaseInput{
+				FlagKey:       "broken_variant",
+				EntityID:      "user_456",
+				FallbackValue: "fallback_value",
+			},
+			mockResult: nil,
+			mockError:  errRepositoryFailed,
 			assertResult: func(t *testing.T, result string, err error) {
 				assert.NoError(t, err)
 				assert.Equal(t, "fallback_value", result)
 			},
 		},
 		{
-			name:          "Edge_VariantEvaluationFailedUseFallback",
-			flagKey:       "failed_variant",
-			entityID:      "user_789",
-			fallbackValue: "safe_default",
-			mockResult:    makeStringEvaluation("wrong", false),
-			mockError:     nil,
+			name: "Edge_VariantEvaluationFailedUseFallback",
+			input: EvaluateFeatureFlagStringUseCaseInput{
+				FlagKey:       "failed_variant",
+				EntityID:      "user_789",
+				FallbackValue: "safe_default",
+			},
+			mockResult: makeStringEvaluation("wrong", false),
+			mockError:  nil,
 			assertResult: func(t *testing.T, result string, err error) {
 				assert.NoError(t, err)
 				assert.Equal(t, "safe_default", result)
@@ -234,18 +244,18 @@ func TestEvaluateFeatureFlagUseCase_EvaluateString(t *testing.T) {
 			mockRepo := new(mockFeatureFlagRepository)
 			mockRepo.On("EvaluateString",
 				mock.Anything,
-				tt.flagKey,
-				tt.entityID,
+				tt.input.FlagKey,
+				tt.input.EntityID,
 			).Return(tt.mockResult, tt.mockError).Once()
 
-			sut := NewEvaluateFeatureFlagUseCase(mockRepo)
+			sut := NewEvaluateFeatureFlagStringUseCase(mockRepo)
 			ctx := context.Background()
 
 			// Act
-			result, err := sut.EvaluateString(ctx, tt.flagKey, tt.entityID, tt.fallbackValue)
+			result, err := sut.Execute(ctx, tt.input)
 
 			// Assert
-			tt.assertResult(t, result, err)
+			tt.assertResult(t, result.Result, err)
 			mockRepo.AssertExpectations(t)
 		})
 	}

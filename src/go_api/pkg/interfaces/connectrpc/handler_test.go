@@ -7,7 +7,6 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -139,7 +138,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			sut := NewImageProcessorHandlerWithGRPC((*imageapp.ProcessImageUseCase)(nil), tt.provider, nil, nil, &mockAcceleratorGateway{})
+			sut := NewImageProcessorHandlerWithGRPC(nil, tt.provider, nil, &mockAcceleratorGateway{})
 			req := connect.NewRequest(&pb.ListFiltersRequest{})
 
 			// Act

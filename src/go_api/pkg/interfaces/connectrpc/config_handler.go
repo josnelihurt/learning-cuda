@@ -7,11 +7,12 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
+	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
+	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
-	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
-	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -23,10 +24,11 @@ type ConfigHandler struct {
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
 	// Use Cases
-	ListInputsUC    useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
-	EvaluateFFUC    evaluateFeatureFlagUseCase
-	GetSystemInfoUC useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
-	ProcessorCapsUC processorCapabilitiesUseCase
+	ListInputsUC        useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
+	EvaluateFFBooleanUC useCase[ffapp.EvaluateFeatureFlagBooleanUseCaseInput, ffapp.EvaluateFeatureFlagBooleanUseCaseOutput]
+	EvaluateFFStringUC  useCase[ffapp.EvaluateFeatureFlagStringUseCaseInput, ffapp.EvaluateFeatureFlagStringUseCaseOutput]
+	GetSystemInfoUC     useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
+	ProcessorCapsUC     processorCapabilitiesUseCase
 	// Repositories
 	FeatureFlagRepo featureFlagRepository
 	// Managers
@@ -54,23 +56,39 @@ func (h *ConfigHandler) GetStreamConfig(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("webrtc signaling endpoint not configured"))
 	}
 
-	logLevel, err := h.EvaluateFFUC.EvaluateString(ctx, "frontend_log_level", "default", "INFO")
-	if err != nil || logLevel == "" {
-		logLevel = "INFO"
+	logLevelResolver := func() string {
+		logLevel, err := h.EvaluateFFStringUC.Execute(ctx, ffapp.EvaluateFeatureFlagStringUseCaseInput{
+			FlagKey:       "frontend_log_level",
+			EntityID:      "default",
+			FallbackValue: "INFO",
+		})
+		if err != nil || logLevel.Result == "" {
+			logLevel.Result = "INFO"
+		}
+		return logLevel.Result
 	}
 
-	consoleLogging, err := h.EvaluateFFUC.EvaluateBoolean(ctx, "frontend_console_logging", "default", true)
-	if err != nil {
-		consoleLogging = true
+	consoleLoggingResolver := func() bool {
+		consoleLogging, err := h.EvaluateFFBooleanUC.Execute(ctx, ffapp.EvaluateFeatureFlagBooleanUseCaseInput{
+			FlagKey:       "frontend_console_logging",
+			EntityID:      "default",
+			FallbackValue: true,
+		})
+		if err != nil {
+			consoleLogging.Result = true
+		}
+		return consoleLogging.Result
 	}
 
 	// Return WebRTC signaling endpoint via ConnectRPC
+	logLevel := logLevelResolver()
+	consoleLogging := consoleLoggingResolver()
 	endpoints := []*pb.StreamEndpoint{
 		{
 			Type:           "webrtc",
 			Endpoint:       h.ConfigManager.Server.WebRTCSignalingEndpoint,
-			LogLevel:       logLevel,
-			ConsoleLogging: consoleLogging,
+			LogLevel:       logLevelResolver(),
+			ConsoleLogging: consoleLoggingResolver(),
 		},
 	}
 

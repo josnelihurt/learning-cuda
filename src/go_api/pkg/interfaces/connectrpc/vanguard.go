@@ -18,7 +18,6 @@ type VanguardConfig struct {
 	ImageProcessorHandler *ImageProcessorHandler
 	FeatureFlagRepo       featureFlagRepository
 	ListInputsUC          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
-	EvaluateFFUC          evaluateFeatureFlagUseCase
 	GetSystemInfoUC       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
 	ConfigManager         *config.Manager
 	ProcessorCapsUC       processorCapabilitiesUseCase
@@ -45,7 +44,6 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 	configHandler := NewConfigHandler(ConfigHandlerDeps{
 		FeatureFlagRepo: cfg.FeatureFlagRepo,
 		ListInputsUC:    cfg.ListInputsUC,
-		EvaluateFFUC:    cfg.EvaluateFFUC,
 		GetSystemInfoUC: cfg.GetSystemInfoUC,
 		ConfigManager:   cfg.ConfigManager,
 		ProcessorCapsUC: cfg.ProcessorCapsUC,

@@ -10,7 +10,6 @@ import (
 type ProcessorBackendOrigin string
 
 const (
-	ProcessorBackendOriginCGO        ProcessorBackendOrigin = "cgo"
 	ProcessorBackendOriginGRPCServer ProcessorBackendOrigin = "grpc_server"
 )
 

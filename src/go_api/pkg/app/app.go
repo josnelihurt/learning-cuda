@@ -6,10 +6,6 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
-	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
-	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
-	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
-	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/mqtt"
@@ -35,17 +31,17 @@ type Deps struct {
 	// Configuration
 	Config *config.Manager
 
-	// Use Cases
-	ProcessImageUC        *imageapp.ProcessImageUseCase
-	ProcessorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
-	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase
-	ListInputsUC          *videoapp.ListInputsUseCase
-	EvaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
-	StreamVideoUC         *videoapp.StreamVideoUseCase
-	ListAvailableImagesUC *imageapp.ListAvailableImagesUseCase
-	UploadImageUC         *imageapp.UploadImageUseCase
-	ListVideosUC          *videoapp.ListVideosUseCase
-	UploadVideoUC         *videoapp.UploadVideoUseCase
+	StreamVideoUC   streamVideoUseCase
+	ProcessorCapsUC processorCapabilitiesProvider
+
+	ProcessImageUC        processImageUseCase
+	GetSystemInfoUC       getSystemInfoUseCase
+	ListInputsUC          listInputsUseCase
+	EvaluateFFUC          evaluateFeatureFlagUseCase
+	ListAvailableImagesUC listAvailableImagesUseCase
+	UploadImageUC         uploadImageUseCase
+	ListVideosUC          listVideosUseCase
+	UploadVideoUC         uploadVideoUseCase
 
 	// Infrastructure
 	AcceleratorGateway *processor.AcceleratorGateway
@@ -56,7 +52,7 @@ type Deps struct {
 	VideoRepository videoRepository
 }
 
-func New(ctx context.Context, deps Deps, opts ...Option) (*App, error) {
+func New(ctx context.Context, deps Deps) (*App, error) {
 	if deps.Config == nil {
 		return nil, errors.New("config is required")
 	}
@@ -103,10 +99,6 @@ func New(ctx context.Context, deps Deps, opts ...Option) (*App, error) {
 	app := &App{
 		appContext: ctx,
 		Deps:       deps,
-	}
-
-	for _, opt := range opts {
-		opt(app)
 	}
 
 	return app, nil

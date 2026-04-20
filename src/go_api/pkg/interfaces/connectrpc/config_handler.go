@@ -7,9 +7,6 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
-	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
-	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
@@ -18,32 +15,25 @@ import (
 )
 
 type ConfigHandler struct {
-	featureFlagRepo      featureFlagRepository
-	listInputsUseCase    *videoapp.ListInputsUseCase
-	evaluateFFUseCase    *ffapp.EvaluateFeatureFlagUseCase
-	getSystemInfoUseCase *systemapp.GetSystemInfoUseCase
-	configManager        *config.Manager
-	processorCapsUC      *systemapp.ProcessorCapabilitiesUseCase
+	ConfigHandlerDeps
 }
 
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
+	// Use Cases
+	ListInputsUC    listInputsUseCase
+	EvaluateFFUC    evaluateFeatureFlagUseCase
+	GetSystemInfoUC getSystemInfoUseCase
+	ProcessorCapsUC processorCapabilitiesUseCase
+	// Repositories
 	FeatureFlagRepo featureFlagRepository
-	ListInputsUC    *videoapp.ListInputsUseCase
-	EvaluateFFUC    *ffapp.EvaluateFeatureFlagUseCase
-	GetSystemInfoUC *systemapp.GetSystemInfoUseCase
-	ConfigManager   *config.Manager
-	ProcessorCapsUC *systemapp.ProcessorCapabilitiesUseCase
+	// Managers
+	ConfigManager *config.Manager
 }
 
 func NewConfigHandler(deps ConfigHandlerDeps) *ConfigHandler {
 	return &ConfigHandler{
-		featureFlagRepo:      deps.FeatureFlagRepo,
-		listInputsUseCase:    deps.ListInputsUC,
-		evaluateFFUseCase:    deps.EvaluateFFUC,
-		getSystemInfoUseCase: deps.GetSystemInfoUC,
-		configManager:        deps.ConfigManager,
-		processorCapsUC:      deps.ProcessorCapsUC,
+		ConfigHandlerDeps: deps,
 	}
 }
 
@@ -54,20 +44,20 @@ func (h *ConfigHandler) GetStreamConfig(
 	span := trace.SpanFromContext(ctx)
 	_ = req
 
-	if h.configManager == nil {
+	if h.ConfigManager == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("config manager not available"))
 	}
 
-	if h.configManager.Server.WebRTCSignalingEndpoint == "" {
+	if h.ConfigManager.Server.WebRTCSignalingEndpoint == "" {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("webrtc signaling endpoint not configured"))
 	}
 
-	logLevel, err := h.evaluateFFUseCase.EvaluateString(ctx, "frontend_log_level", "default", "INFO")
+	logLevel, err := h.EvaluateFFUC.EvaluateString(ctx, "frontend_log_level", "default", "INFO")
 	if err != nil || logLevel == "" {
 		logLevel = "INFO"
 	}
 
-	consoleLogging, err := h.evaluateFFUseCase.EvaluateBoolean(ctx, "frontend_console_logging", "default", true)
+	consoleLogging, err := h.EvaluateFFUC.EvaluateBoolean(ctx, "frontend_console_logging", "default", true)
 	if err != nil {
 		consoleLogging = true
 	}
@@ -76,7 +66,7 @@ func (h *ConfigHandler) GetStreamConfig(
 	endpoints := []*pb.StreamEndpoint{
 		{
 			Type:           "webrtc",
-			Endpoint:       h.configManager.Server.WebRTCSignalingEndpoint,
+			Endpoint:       h.ConfigManager.Server.WebRTCSignalingEndpoint,
 			LogLevel:       logLevel,
 			ConsoleLogging: consoleLogging,
 		},
@@ -85,7 +75,7 @@ func (h *ConfigHandler) GetStreamConfig(
 	logger.FromContext(ctx).Debug().Bool("console_logging", consoleLogging).Msg("StreamEndpoint console_logging value")
 
 	span.SetAttributes(
-		attribute.String("config.endpoint", h.configManager.Server.WebRTCSignalingEndpoint),
+		attribute.String("config.endpoint", h.ConfigManager.Server.WebRTCSignalingEndpoint),
 		attribute.String("config.log_level", logLevel),
 		attribute.Bool("config.console_logging", consoleLogging),
 		attribute.Int("config.endpoint_count", len(endpoints)),
@@ -101,10 +91,10 @@ func (h *ConfigHandler) ListFeatureFlags(
 	req *connect.Request[pb.ListFeatureFlagsRequest],
 ) (*connect.Response[pb.ListFeatureFlagsResponse], error) {
 	_ = req
-	if h.featureFlagRepo == nil {
+	if h.FeatureFlagRepo == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("feature flags repository not available"))
 	}
-	flags, err := h.featureFlagRepo.ListFlags(ctx)
+	flags, err := h.FeatureFlagRepo.ListFlags(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -129,7 +119,7 @@ func (h *ConfigHandler) UpsertFeatureFlag(
 	if req.Msg.GetFlag() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("flag is required"))
 	}
-	if h.featureFlagRepo == nil {
+	if h.FeatureFlagRepo == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("feature flags repository not available"))
 	}
 	in := req.Msg.GetFlag()
@@ -142,7 +132,7 @@ func (h *ConfigHandler) UpsertFeatureFlag(
 		}
 		defaultValue = parsed
 	}
-	err := h.featureFlagRepo.UpsertFlag(ctx, domain.FeatureFlag{
+	err := h.FeatureFlagRepo.UpsertFlag(ctx, domain.FeatureFlag{
 		Key:          in.GetKey(),
 		Name:         in.GetName(),
 		Type:         flagType,
@@ -162,7 +152,7 @@ func (h *ConfigHandler) ListInputs(
 ) (*connect.Response[pb.ListInputsResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	sources, err := h.listInputsUseCase.Execute(ctx)
+	sources, err := h.ListInputsUC.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to list input sources")
@@ -197,14 +187,14 @@ func (h *ConfigHandler) GetAvailableTools(
 ) (*connect.Response[pb.GetAvailableToolsResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	if h.configManager == nil {
+	if h.ConfigManager == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("config manager not available"))
 	}
 
 	categories := []*pb.ToolCategory{}
 
-	if len(h.configManager.Tools.Observability) > 0 {
-		tools := h.buildTools(h.configManager.Tools.Observability)
+	if len(h.ConfigManager.Tools.Observability) > 0 {
+		tools := h.buildTools(h.ConfigManager.Tools.Observability)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "observability",
 			Name:  "Observability",
@@ -212,8 +202,8 @@ func (h *ConfigHandler) GetAvailableTools(
 		})
 	}
 
-	if len(h.configManager.Tools.Features) > 0 {
-		tools := h.buildTools(h.configManager.Tools.Features)
+	if len(h.ConfigManager.Tools.Features) > 0 {
+		tools := h.buildTools(h.ConfigManager.Tools.Features)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "features",
 			Name:  "Features",
@@ -221,8 +211,8 @@ func (h *ConfigHandler) GetAvailableTools(
 		})
 	}
 
-	if len(h.configManager.Tools.Testing) > 0 {
-		tools := h.buildTools(h.configManager.Tools.Testing)
+	if len(h.ConfigManager.Tools.Testing) > 0 {
+		tools := h.buildTools(h.ConfigManager.Tools.Testing)
 		categories = append(categories, &pb.ToolCategory{
 			Id:    "testing",
 			Name:  "Testing",
@@ -231,13 +221,13 @@ func (h *ConfigHandler) GetAvailableTools(
 	}
 
 	span.SetAttributes(
-		attribute.String("config.environment", h.configManager.Environment),
+		attribute.String("config.environment", h.ConfigManager.Environment),
 		attribute.Int("tools.category_count", len(categories)),
 	)
 
 	logger.FromContext(ctx).Debug().
 		Int("category_count", len(categories)).
-		Str("environment", h.configManager.Environment).
+		Str("environment", h.ConfigManager.Environment).
 		Msg("GetAvailableTools: returning categories")
 
 	return connect.NewResponse(&pb.GetAvailableToolsResponse{
@@ -274,7 +264,7 @@ func (h *ConfigHandler) GetSystemInfo(
 ) (*connect.Response[pb.GetSystemInfoResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	systemInfo, err := h.getSystemInfoUseCase.Execute(ctx)
+	systemInfo, err := h.GetSystemInfoUC.Execute(ctx)
 	if err != nil {
 		span.RecordError(err)
 		logger.FromContext(ctx).Error().Err(err).Msg("Failed to get system info")
@@ -319,12 +309,12 @@ func (h *ConfigHandler) GetProcessorStatus(
 ) (*connect.Response[pb.GetProcessorStatusResponse], error) {
 	span := trace.SpanFromContext(ctx)
 
-	if h.processorCapsUC == nil {
+	if h.ProcessorCapsUC == nil {
 		span.RecordError(fmt.Errorf("processor capabilities use case not available"))
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("processor not available"))
 	}
 
-	caps, origin, err := h.processorCapsUC.Execute(ctx, true) // force gRPC
+	caps, origin, err := h.ProcessorCapsUC.Execute(ctx, true) // force gRPC
 	if err != nil {
 		span.RecordError(err)
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("failed to get processor capabilities: %w", err))

@@ -30,6 +30,13 @@ func main() {
 
 	log := logger.Global()
 
+	if di.AcceleratorControl == nil {
+		log.Fatal().Msg("Accelerator control server is not initialized")
+	}
+	if err := di.AcceleratorControl.Start(); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start accelerator control server")
+	}
+
 	tracerProvider, err := telemetry.New(
 		ctx,
 		di.Config.IsObservabilityEnabled(ctx),

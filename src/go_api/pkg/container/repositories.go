@@ -2,7 +2,6 @@ package container
 
 import (
 	"context"
-	"time"
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 )
@@ -13,12 +12,6 @@ type videoRepository interface {
 	Save(ctx context.Context, video *domain.Video) error
 }
 
-type videoPlayer interface {
-	Play(ctx context.Context, videoPath string, frameCallback domain.FrameCallback) error
-	Stop(ctx context.Context) error
-	GetFrameCount() int
-	GetDuration() time.Duration
-}
 type featureFlagRepository interface {
 	EvaluateBoolean(ctx context.Context, flagKey, entityID string) (*domain.FeatureFlagEvaluation, error)
 	EvaluateString(ctx context.Context, flagKey, entityID string) (*domain.FeatureFlagEvaluation, error)

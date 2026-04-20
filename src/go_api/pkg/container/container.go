@@ -28,15 +28,16 @@ type Container struct {
 	FeatureFlagRepo featureFlagRepository
 	VideoRepository videoRepository
 
-	ProcessImageUseCase        *imageapp.ProcessImageUseCase
-	EvaluateFeatureFlagUseCase *ffapp.EvaluateFeatureFlagUseCase
-	GetSystemInfoUseCase       *systemapp.GetSystemInfoUseCase
-	ListInputsUseCase          *videoapp.ListInputsUseCase
-	ListAvailableImagesUseCase *imageapp.ListAvailableImagesUseCase
-	UploadImageUseCase         *imageapp.UploadImageUseCase
-	ListVideosUseCase          *videoapp.ListVideosUseCase
-	UploadVideoUseCase         *videoapp.UploadVideoUseCase
-	StreamVideoUseCase         *videoapp.StreamVideoUseCase
+	ProcessImageUseCase        processImageUseCase
+	EvaluateFeatureFlagUseCase evaluateFeatureFlagUseCase
+	GetSystemInfoUseCase       getSystemInfoUseCase
+	ListInputsUseCase          listInputsUseCase
+	ListAvailableImagesUseCase listAvailableImagesUseCase
+	UploadImageUseCase         uploadImageUseCase
+	ListVideosUseCase          listVideosUseCase
+	UploadVideoUseCase         uploadVideoUseCase
+	// TODO: replace with streamVideoUseCase this is not possible right now because the StreamVideoUseCase depends on proto objects
+	StreamVideoUseCase *videoapp.StreamVideoUseCase
 
 	AcceleratorRegistry *processor.Registry
 	AcceleratorControl  *processor.ControlServer

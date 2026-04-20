@@ -6,7 +6,6 @@ import (
 
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
-	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,17 +13,17 @@ import (
 )
 
 type FileHandler struct {
-	listAvailableImagesUseCase *imageapp.ListAvailableImagesUseCase
-	uploadImageUseCase         *imageapp.UploadImageUseCase
-	listAvailableVideosUseCase *videoapp.ListVideosUseCase
-	uploadVideoUseCase         *videoapp.UploadVideoUseCase
+	listAvailableImagesUseCase listAvailableImagesUseCase
+	uploadImageUseCase         uploadImageUseCase
+	listAvailableVideosUseCase listVideosUseCase
+	uploadVideoUseCase         uploadVideoUseCase
 }
 
 func NewFileHandler(
-	listAvailableImagesUC *imageapp.ListAvailableImagesUseCase,
-	uploadImageUC *imageapp.UploadImageUseCase,
-	listAvailableVideosUC *videoapp.ListVideosUseCase,
-	uploadVideoUC *videoapp.UploadVideoUseCase,
+	listAvailableImagesUC listAvailableImagesUseCase,
+	uploadImageUC uploadImageUseCase,
+	listAvailableVideosUC listVideosUseCase,
+	uploadVideoUC uploadVideoUseCase,
 ) *FileHandler {
 	return &FileHandler{
 		listAvailableImagesUseCase: listAvailableImagesUC,

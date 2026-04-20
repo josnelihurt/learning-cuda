@@ -2,16 +2,13 @@ package config
 
 import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 )
 
-// RepositoryImpl implements interfaces.ConfigRepository
 type RepositoryImpl struct {
 	configManager *config.Manager
 }
 
-// NewConfigRepository creates a new config repository
-func NewConfigRepository(configManager *config.Manager) interfaces.ConfigRepository {
+func NewConfigRepository(configManager *config.Manager) *RepositoryImpl {
 	return &RepositoryImpl{
 		configManager: configManager,
 	}

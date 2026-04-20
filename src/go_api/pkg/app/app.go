@@ -12,8 +12,8 @@ import (
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
-	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/mqtt"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/connectrpc"
 	httphandlers "github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/http"
@@ -37,7 +37,7 @@ type App struct {
 	listVideosUC          *videoapp.ListVideosUseCase
 	uploadVideoUC         *videoapp.UploadVideoUseCase
 	videoRepository       domain.VideoRepository
-	deviceMonitor         domainInterfaces.MQTTDeviceMonitor
+	deviceMonitor         *mqtt.DeviceMonitor
 	interceptors          []connect.Interceptor
 }
 
@@ -56,7 +56,7 @@ type Deps struct {
 	ListVideosUC          *videoapp.ListVideosUseCase
 	UploadVideoUC         *videoapp.UploadVideoUseCase
 	VideoRepository       domain.VideoRepository
-	DeviceMonitor         domainInterfaces.MQTTDeviceMonitor
+	DeviceMonitor         *mqtt.DeviceMonitor
 }
 
 func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {

@@ -11,23 +11,33 @@ import (
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
-	domainInterfaces "github.com/jrb/cuda-learning/src/go_api/pkg/domain/interfaces"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-type RemoteManagementHandler struct {
-	gateway       *processor.AcceleratorGateway
-	config        *config.Manager
-	deviceMonitor domainInterfaces.MQTTDeviceMonitor
+type acceleratorGateway interface {
+	GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 }
 
-func NewRemoteManagementHandler(gateway *processor.AcceleratorGateway, configManager *config.Manager, deviceMonitor domainInterfaces.MQTTDeviceMonitor) *RemoteManagementHandler {
+type deviceMonitor interface {
+	Start(ctx context.Context) error
+	Stop() error
+	PowerOn() error
+	PowerOff() error
+	Subscribe(callback func(status *domain.DeviceStatus)) func()
+}
+
+type RemoteManagementHandler struct {
+	gateway       acceleratorGateway
+	config        *config.Manager
+	deviceMonitor deviceMonitor
+}
+
+func NewRemoteManagementHandler(gateway acceleratorGateway, configManager *config.Manager, dm deviceMonitor) *RemoteManagementHandler {
 	return &RemoteManagementHandler{
 		gateway:       gateway,
 		config:        configManager,
-		deviceMonitor: deviceMonitor,
+		deviceMonitor: dm,
 	}
 }
 

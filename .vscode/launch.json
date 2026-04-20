@@ -21,7 +21,7 @@
             "type": "go",
             "request": "attach",
             "mode": "local",
-            "processId": 151412,
+            "processId": 189569,
             "cwd": "${workspaceFolder}"
         }
     ]

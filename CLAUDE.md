@@ -11,7 +11,6 @@ CUDA Learning Platform - Real-time image/video processing via CUDA GPU kernels. 
 ### Building Components
 ```bash
 # C++ (Bazel)
-bazel build //src/cpp_accelerator/ports/grpc:image_processor_grpc_server
 bazel build //src/cpp_accelerator/...
 
 # Go (from src/go_api/)

@@ -50,10 +50,6 @@ jobs:
             cpp_accelerator:
               - 'proto/**'
               - 'src/cpp_accelerator/**'
-              # Exclude files that don't go into the image (deployment/docs only).
-              # Changes touching only these should not trigger a rebuild+push.
-              - '!src/cpp_accelerator/docker-compose.yml'
-              - '!src/cpp_accelerator/**/*.md'
               - 'bazel/**'
               - 'third_party/**'
               - 'MODULE.bazel'

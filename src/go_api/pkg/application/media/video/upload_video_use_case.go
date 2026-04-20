@@ -25,12 +25,12 @@ var (
 const maxVideoSize = 100 * 1024 * 1024
 
 type UploadVideoUseCase struct {
-	repository  domain.VideoRepository
+	repository  videoRepository
 	videosDir   string
 	previewsDir string
 }
 
-func NewUploadVideoUseCase(repository domain.VideoRepository, videosDir, previewsDir string) *UploadVideoUseCase {
+func NewUploadVideoUseCase(repository videoRepository, videosDir, previewsDir string) *UploadVideoUseCase {
 	return &UploadVideoUseCase{
 		repository:  repository,
 		videosDir:   videosDir,

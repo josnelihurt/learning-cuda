@@ -11,14 +11,13 @@ import (
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
 
 // VanguardConfig groups all dependencies needed to setup Vanguard transcoder
 type VanguardConfig struct {
 	ImageProcessorHandler *ImageProcessorHandler
-	FeatureFlagRepo       domain.FeatureFlagRepository
+	FeatureFlagRepo       featureFlagRepository
 	ListInputsUC          *videoapp.ListInputsUseCase
 	EvaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
 	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase

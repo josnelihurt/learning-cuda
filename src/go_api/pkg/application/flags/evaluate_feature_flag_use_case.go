@@ -3,7 +3,6 @@ package flags
 import (
 	"context"
 
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -11,10 +10,10 @@ import (
 )
 
 type EvaluateFeatureFlagUseCase struct {
-	repository domain.FeatureFlagRepository
+	repository featureFlagRepository
 }
 
-func NewEvaluateFeatureFlagUseCase(repo domain.FeatureFlagRepository) *EvaluateFeatureFlagUseCase {
+func NewEvaluateFeatureFlagUseCase(repo featureFlagRepository) *EvaluateFeatureFlagUseCase {
 	return &EvaluateFeatureFlagUseCase{repository: repo}
 }
 

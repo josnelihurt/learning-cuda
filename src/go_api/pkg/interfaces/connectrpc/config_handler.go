@@ -18,7 +18,7 @@ import (
 )
 
 type ConfigHandler struct {
-	featureFlagRepo      domain.FeatureFlagRepository
+	featureFlagRepo      featureFlagRepository
 	listInputsUseCase    *videoapp.ListInputsUseCase
 	evaluateFFUseCase    *ffapp.EvaluateFeatureFlagUseCase
 	getSystemInfoUseCase *systemapp.GetSystemInfoUseCase
@@ -28,7 +28,7 @@ type ConfigHandler struct {
 
 // ConfigHandlerDeps groups all dependencies needed to create a ConfigHandler.
 type ConfigHandlerDeps struct {
-	FeatureFlagRepo domain.FeatureFlagRepository
+	FeatureFlagRepo featureFlagRepository
 	ListInputsUC    *videoapp.ListInputsUseCase
 	EvaluateFFUC    *ffapp.EvaluateFeatureFlagUseCase
 	GetSystemInfoUC *systemapp.GetSystemInfoUseCase

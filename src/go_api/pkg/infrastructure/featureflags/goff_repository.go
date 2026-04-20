@@ -225,5 +225,3 @@ func extractDefault(cfg goffFlagConfig) (interface{}, domain.FeatureFlagType) {
 	}
 	return "", domain.StringFlagType
 }
-
-var _ domain.FeatureFlagRepository = (*GoffRepository)(nil)

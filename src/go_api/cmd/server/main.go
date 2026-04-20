@@ -39,15 +39,6 @@ func main() {
 		log.Warn().Err(err).Msg("Failed to initialize telemetry")
 	}
 
-	if di.AcceleratorControl != nil {
-		if err := di.AcceleratorControl.Start(); err != nil {
-			log.Fatal().Err(err).Msg("Failed to start accelerator control server")
-		}
-		log.Info().Msg("Accelerator control server started")
-	} else {
-		log.Warn().Msg("Accelerator control server not started (check cert configuration)")
-	}
-
 	acceleratorGateway := processor.NewAcceleratorGateway(processor.AcceleratorGatewayConfig{
 		Registry: di.AcceleratorRegistry,
 	})
@@ -62,7 +53,7 @@ func main() {
 
 	server, err := app.New(ctx, app.Deps{
 		Config:                di.Config,
-		UseCase:               processImageUseCase,
+		ProcessImageUC:        processImageUseCase,
 		AcceleratorGateway:    acceleratorGateway,
 		ProcessorCapsUC:       processorCapsUseCase,
 		GetSystemInfoUC:       di.GetSystemInfoUseCase,

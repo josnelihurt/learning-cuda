@@ -11,7 +11,6 @@ import (
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/mqtt"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
@@ -22,32 +21,23 @@ import (
 )
 
 type App struct {
-	config                *config.Manager
-	appContext            context.Context
-	useCase               *imageapp.ProcessImageUseCase
-	acceleratorGateway    *processor.AcceleratorGateway
-	processorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
-	getSystemInfoUC       *systemapp.GetSystemInfoUseCase
-	featureFlagRepo       domain.FeatureFlagRepository
-	listInputsUC          *videoapp.ListInputsUseCase
-	evaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
-	streamVideoUC         *videoapp.StreamVideoUseCase
-	listAvailableImagesUC *imageapp.ListAvailableImagesUseCase
-	uploadImageUC         *imageapp.UploadImageUseCase
-	listVideosUC          *videoapp.ListVideosUseCase
-	uploadVideoUC         *videoapp.UploadVideoUseCase
-	videoRepository       domain.VideoRepository
-	deviceMonitor         *mqtt.DeviceMonitor
-	interceptors          []connect.Interceptor
+	// Context
+	appContext context.Context
+
+	Deps
+
+	// Interceptors
+	interceptors []connect.Interceptor
 }
 
 type Deps struct {
-	Config                *config.Manager
-	UseCase               *imageapp.ProcessImageUseCase
-	AcceleratorGateway    *processor.AcceleratorGateway
+	// Configuration
+	Config *config.Manager
+
+	// Use Cases
+	ProcessImageUC        *imageapp.ProcessImageUseCase
 	ProcessorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
 	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase
-	FeatureFlagRepo       domain.FeatureFlagRepository
 	ListInputsUC          *videoapp.ListInputsUseCase
 	EvaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
 	StreamVideoUC         *videoapp.StreamVideoUseCase
@@ -55,15 +45,21 @@ type Deps struct {
 	UploadImageUC         *imageapp.UploadImageUseCase
 	ListVideosUC          *videoapp.ListVideosUseCase
 	UploadVideoUC         *videoapp.UploadVideoUseCase
-	VideoRepository       domain.VideoRepository
-	DeviceMonitor         *mqtt.DeviceMonitor
+
+	// Infrastructure
+	AcceleratorGateway *processor.AcceleratorGateway
+	DeviceMonitor      *mqtt.DeviceMonitor
+
+	// Repositories
+	FeatureFlagRepo featureFlagRepository
+	VideoRepository videoRepository
 }
 
-func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {
+func New(ctx context.Context, deps Deps, opts ...Option) (*App, error) {
 	if deps.Config == nil {
 		return nil, errors.New("config is required")
 	}
-	if deps.UseCase == nil {
+	if deps.ProcessImageUC == nil {
 		return nil, errors.New("process image use case is required")
 	}
 	if deps.AcceleratorGateway == nil {
@@ -104,22 +100,8 @@ func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {
 	}
 
 	app := &App{
-		config:                deps.Config,
-		appContext:            appContext,
-		useCase:               deps.UseCase,
-		acceleratorGateway:    deps.AcceleratorGateway,
-		processorCapsUC:       deps.ProcessorCapsUC,
-		getSystemInfoUC:       deps.GetSystemInfoUC,
-		featureFlagRepo:       deps.FeatureFlagRepo,
-		listInputsUC:          deps.ListInputsUC,
-		evaluateFFUC:          deps.EvaluateFFUC,
-		streamVideoUC:         deps.StreamVideoUC,
-		listAvailableImagesUC: deps.ListAvailableImagesUC,
-		uploadImageUC:         deps.UploadImageUC,
-		listVideosUC:          deps.ListVideosUC,
-		uploadVideoUC:         deps.UploadVideoUC,
-		videoRepository:       deps.VideoRepository,
-		deviceMonitor:         deps.DeviceMonitor,
+		appContext: ctx,
+		Deps:       deps,
 	}
 
 	for _, opt := range opts {
@@ -130,7 +112,7 @@ func New(appContext context.Context, deps Deps, opts ...Option) (*App, error) {
 }
 
 func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
-	if !a.config.IsObservabilityEnabled(a.appContext) {
+	if !a.Config.IsObservabilityEnabled(a.appContext) {
 		return handler
 	}
 
@@ -148,20 +130,20 @@ func (a *App) makeTelemetryMiddleware(handler http.Handler) http.Handler {
 
 func (a *App) setupObservability(mux *http.ServeMux) {
 	log := logger.Global()
-	if !a.config.IsObservabilityEnabled(a.appContext) {
+	if !a.Config.IsObservabilityEnabled(a.appContext) {
 		log.Info().Msg("OpenTelemetry HTTP instrumentation disabled")
 		return
 	}
 	a.interceptors = append(a.interceptors, telemetry.TraceContextInterceptor())
 	traceProxy := httphandlers.NewTraceProxyHandler(
-		a.config.Observability.OtelCollectorHTTPEndpoint,
+		a.Config.Observability.OtelCollectorHTTPEndpoint,
 		true,
 	)
 	mux.Handle("/api/traces", traceProxy)
 	log.Info().Msg("Trace proxy endpoint registered at /api/traces")
 
 	logsProxy := httphandlers.NewLogsProxyHandler(
-		a.config.Observability.OtelCollectorHTTPEndpoint,
+		a.Config.Observability.OtelCollectorHTTPEndpoint,
 		true,
 	)
 	mux.Handle("/api/logs", logsProxy)
@@ -170,38 +152,38 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	rpcHandler := connectrpc.NewImageProcessorHandlerWithGRPC(
-		a.useCase,
-		a.processorCapsUC,
-		a.evaluateFFUC,
-		a.streamVideoUC,
-		a.acceleratorGateway,
+		a.ProcessImageUC,
+		a.ProcessorCapsUC,
+		a.EvaluateFFUC,
+		a.StreamVideoUC,
+		a.AcceleratorGateway,
 	)
 
 	connectrpc.RegisterConfigService(
 		mux,
 		connectrpc.ConfigHandlerDeps{
-			FeatureFlagRepo: a.featureFlagRepo,
-			ListInputsUC:    a.listInputsUC,
-			EvaluateFFUC:    a.evaluateFFUC,
-			GetSystemInfoUC: a.getSystemInfoUC,
-			ConfigManager:   a.config,
-			ProcessorCapsUC: a.processorCapsUC,
+			FeatureFlagRepo: a.FeatureFlagRepo,
+			ListInputsUC:    a.ListInputsUC,
+			EvaluateFFUC:    a.EvaluateFFUC,
+			GetSystemInfoUC: a.GetSystemInfoUC,
+			ConfigManager:   a.Config,
+			ProcessorCapsUC: a.ProcessorCapsUC,
 		},
 		a.interceptors...,
 	)
 
 	connectrpc.RegisterFileService(
 		mux,
-		a.listAvailableImagesUC,
-		a.uploadImageUC,
-		a.listVideosUC,
-		a.uploadVideoUC,
+		a.ListAvailableImagesUC,
+		a.UploadImageUC,
+		a.ListVideosUC,
+		a.UploadVideoUC,
 		a.interceptors...,
 	)
 
 	connectrpc.RegisterWebRTCSignalingService(
 		mux,
-		a.acceleratorGateway,
+		a.AcceleratorGateway,
 		a.interceptors...,
 	)
 
@@ -209,24 +191,24 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 
 	connectrpc.RegisterRemoteManagementService(
 		mux,
-		a.acceleratorGateway,
-		a.config,
-		a.deviceMonitor,
+		a.AcceleratorGateway,
+		a.Config,
+		a.DeviceMonitor,
 		a.interceptors...,
 	)
 
 	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
 		ImageProcessorHandler: rpcHandler,
-		FeatureFlagRepo:       a.featureFlagRepo,
-		ListInputsUC:          a.listInputsUC,
-		EvaluateFFUC:          a.evaluateFFUC,
-		GetSystemInfoUC:       a.getSystemInfoUC,
-		ConfigManager:         a.config,
-		ProcessorCapsUC:       a.processorCapsUC,
-		ListAvailableImagesUC: a.listAvailableImagesUC,
-		UploadImageUC:         a.uploadImageUC,
-		ListVideosUC:          a.listVideosUC,
-		UploadVideoUC:         a.uploadVideoUC,
+		FeatureFlagRepo:       a.FeatureFlagRepo,
+		ListInputsUC:          a.ListInputsUC,
+		EvaluateFFUC:          a.EvaluateFFUC,
+		GetSystemInfoUC:       a.GetSystemInfoUC,
+		ConfigManager:         a.Config,
+		ProcessorCapsUC:       a.ProcessorCapsUC,
+		ListAvailableImagesUC: a.ListAvailableImagesUC,
+		UploadImageUC:         a.UploadImageUC,
+		ListVideosUC:          a.ListVideosUC,
+		UploadVideoUC:         a.UploadVideoUC,
 		Interceptors:          a.interceptors,
 	})
 
@@ -248,16 +230,16 @@ func (a *App) setupHealthEndpoint(mux *http.ServeMux) {
 func (a *App) Run() error {
 	log := logger.Global()
 	defer func() {
-		if err := a.deviceMonitor.Stop(); err != nil {
+		if err := a.DeviceMonitor.Stop(); err != nil {
 			log.Warn().Err(err).Msg("Failed to stop MQTT device monitor")
 		}
 	}()
 
-	if a.deviceMonitor == nil {
+	if a.DeviceMonitor == nil {
 		return errors.New("MQTT device monitor not initialized")
 	}
 
-	if err := a.deviceMonitor.Start(a.appContext); err != nil {
+	if err := a.DeviceMonitor.Start(a.appContext); err != nil {
 		log.Err(err).Msg("Failed to start MQTT device monitor")
 		return err
 	}
@@ -274,23 +256,23 @@ func (a *App) Run() error {
 
 	go func() {
 		log.Info().
-			Str("port", a.config.Server.HTTPPort).
+			Str("port", a.Config.Server.HTTPPort).
 			Msg("Starting HTTP server")
-		if err := http.ListenAndServe(a.config.Server.HTTPPort, handler); err != nil {
+		if err := http.ListenAndServe(a.Config.Server.HTTPPort, handler); err != nil {
 			errChan <- err
 		}
 	}()
 
-	if a.config.Server.TLS.Enabled {
+	if a.Config.Server.TLS.Enabled {
 		go func() {
 			log.Info().
-				Str("port", a.config.Server.HTTPSPort).
-				Str("cert", a.config.Server.TLS.CertFile).
+				Str("port", a.Config.Server.HTTPSPort).
+				Str("cert", a.Config.Server.TLS.CertFile).
 				Msg("Starting HTTPS server")
 			if err := http.ListenAndServeTLS(
-				a.config.Server.HTTPSPort,
-				a.config.Server.TLS.CertFile,
-				a.config.Server.TLS.KeyFile,
+				a.Config.Server.HTTPSPort,
+				a.Config.Server.TLS.CertFile,
+				a.Config.Server.TLS.KeyFile,
 				handler,
 			); err != nil {
 				errChan <- err

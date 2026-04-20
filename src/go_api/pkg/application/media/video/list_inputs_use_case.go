@@ -3,7 +3,6 @@ package video
 import (
 	"context"
 
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -20,10 +19,10 @@ type InputSource struct {
 }
 
 type ListInputsUseCase struct {
-	videoRepository domain.VideoRepository
+	videoRepository videoRepository
 }
 
-func NewListInputsUseCase(videoRepository domain.VideoRepository) *ListInputsUseCase {
+func NewListInputsUseCase(videoRepository videoRepository) *ListInputsUseCase {
 	return &ListInputsUseCase{
 		videoRepository: videoRepository,
 	}

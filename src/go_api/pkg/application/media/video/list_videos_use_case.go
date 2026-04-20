@@ -10,10 +10,10 @@ import (
 )
 
 type ListVideosUseCase struct {
-	repository domain.VideoRepository
+	repository videoRepository
 }
 
-func NewListVideosUseCase(repository domain.VideoRepository) *ListVideosUseCase {
+func NewListVideosUseCase(repository videoRepository) *ListVideosUseCase {
 	return &ListVideosUseCase{
 		repository: repository,
 	}

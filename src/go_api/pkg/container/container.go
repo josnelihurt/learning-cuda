@@ -10,7 +10,6 @@ import (
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/build"
 	configrepo "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/featureflags"
@@ -28,8 +27,8 @@ type Container struct {
 	Config     *config.Manager
 	HTTPClient *httpinfra.ClientProxy
 
-	FeatureFlagRepo domain.FeatureFlagRepository
-	VideoRepository domain.VideoRepository
+	FeatureFlagRepo featureFlagRepository
+	VideoRepository videoRepository
 
 	ProcessImageUseCase        *imageapp.ProcessImageUseCase
 	EvaluateFeatureFlagUseCase *ffapp.EvaluateFeatureFlagUseCase
@@ -68,7 +67,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		IdleConnTimeout: 90 * time.Second,
 	})
 
-	var featureFlagRepo domain.FeatureFlagRepository
+	var featureFlagRepo featureFlagRepository
 
 	if cfg.GoFeatureFlag.Enabled {
 		goffRepo := featureflags.NewGoffRepository(cfg.GoFeatureFlag.FilePath)
@@ -89,13 +88,12 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	controlServer, err := processor.NewControlServer(cfg.Processor, registry)
 	if err != nil {
-		log.Warn().Err(err).Msg("control server not initialized (certs missing?); accelerator connections will fail")
-		controlServer = nil
-	} else {
-		log.Info().
-			Str("listen_address", cfg.Processor.ListenAddress).
-			Msg("accelerator control server created")
+		err = fmt.Errorf("control server not initialized (certs missing?); accelerator connections will fail: %w", err)
+		return nil, err
 	}
+	log.Info().
+		Str("listen_address", cfg.Processor.ListenAddress).
+		Msg("accelerator control server created")
 
 	evaluateFFUseCase := ffapp.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 
@@ -105,8 +103,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	listInputsUseCase := videoapp.NewListInputsUseCase(videoRepo)
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
-	// Create use case for listing available images
-	// language: english-only
 	listAvailableImagesUseCase := imageapp.NewListAvailableImagesUseCase(staticImageRepo) //nolint:language
 	uploadImageUseCase := imageapp.NewUploadImageUseCase(staticImageRepo)
 

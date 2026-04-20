@@ -16,12 +16,13 @@ import (
 
 type ImageProcessorHandler struct {
 	// Use Cases
-	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
-	streamVideoUC  streamVideoUseCase
-	capabilities   processorCapabilitiesUseCase
-	adapter        *adapters.ProtobufAdapter
-	filterCodec    *adapters.FilterCodec
-	grpcClient     interface {
+	processImageUC      useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
+	startVideoPlaybackUC useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput]
+	stopVideoPlaybackUC  useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput]
+	capabilities        processorCapabilitiesUseCase
+	adapter             *adapters.ProtobufAdapter
+	filterCodec         *adapters.FilterCodec
+	grpcClient          interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	}
 }
@@ -29,14 +30,16 @@ type ImageProcessorHandler struct {
 func NewImageProcessorHandlerWithGRPC(
 	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput],
 	capabilitiesUC processorCapabilitiesUseCase,
-	streamVideoUC streamVideoUseCase,
+	startVideoPlaybackUC useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput],
+	stopVideoPlaybackUC useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput],
 	grpcClient interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	},
 ) *ImageProcessorHandler {
 	return &ImageProcessorHandler{
-		processImageUC: processImageUC,
-		streamVideoUC:  streamVideoUC,
+		processImageUC:      processImageUC,
+		startVideoPlaybackUC: startVideoPlaybackUC,
+		stopVideoPlaybackUC:  stopVideoPlaybackUC,
 		// TODO: Add adapters to the container
 		adapter:      adapters.NewProtobufAdapter(),
 		filterCodec:  adapters.NewFilterCodec(),
@@ -105,15 +108,34 @@ func (h *ImageProcessorHandler) StartVideoPlayback(
 	ctx context.Context,
 	req *connect.Request[pb.StartVideoPlaybackRequest],
 ) (*connect.Response[pb.StartVideoPlaybackResponse], error) {
-	if h.streamVideoUC == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stream video use case not configured"))
+	if h.startVideoPlaybackUC == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("start video playback use case not configured"))
 	}
 
-	resp, err := h.streamVideoUC.Start(ctx, req.Msg)
+	input := videoapp.StartVideoPlaybackUseCaseInput{
+		VideoID:       req.Msg.GetVideoId(),
+		SessionID:     req.Msg.GetSessionId(),
+		Filters:       h.adapter.ToFilters(req.Msg.GetFilters()),
+		Accelerator:   h.adapter.ToAccelerator(req.Msg.GetAccelerator()),
+		GrayscaleType: h.adapter.ToGrayscaleType(req.Msg.GetGrayscaleType()),
+		BlurParams:    h.adapter.ToBlurParameters(req.Msg.GetBlurParams()),
+		GenericFilters: req.Msg.GetGenericFilters(),
+		TraceContext:  req.Msg.GetTraceContext().GetTraceparent(),
+		APIVersion:    req.Msg.GetApiVersion(),
+	}
+
+	result, err := h.startVideoPlaybackUC.Execute(ctx, input)
 	if err != nil {
 		return nil, connect.NewError(mapStreamVideoError(err), err)
 	}
 
+	resp := &pb.StartVideoPlaybackResponse{
+		Code:         result.Code,
+		Message:      result.Message,
+		SessionId:    result.SessionID,
+		TraceContext: &pb.TraceContext{Traceparent: result.TraceContext},
+		ApiVersion:   result.APIVersion,
+	}
 	return connect.NewResponse(resp), nil
 }
 
@@ -121,15 +143,29 @@ func (h *ImageProcessorHandler) StopVideoPlayback(
 	ctx context.Context,
 	req *connect.Request[pb.StopVideoPlaybackRequest],
 ) (*connect.Response[pb.StopVideoPlaybackResponse], error) {
-	if h.streamVideoUC == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stream video use case not configured"))
+	if h.stopVideoPlaybackUC == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stop video playback use case not configured"))
 	}
 
-	resp, err := h.streamVideoUC.Stop(ctx, req.Msg)
+	input := videoapp.StopVideoPlaybackUseCaseInput{
+		SessionID:    req.Msg.GetSessionId(),
+		TraceContext: req.Msg.GetTraceContext().GetTraceparent(),
+		APIVersion:   req.Msg.GetApiVersion(),
+	}
+
+	result, err := h.stopVideoPlaybackUC.Execute(ctx, input)
 	if err != nil {
 		return nil, connect.NewError(mapStreamVideoError(err), err)
 	}
 
+	resp := &pb.StopVideoPlaybackResponse{
+		Code:         result.Code,
+		Message:      result.Message,
+		SessionId:    result.SessionID,
+		Stopped:      result.Stopped,
+		TraceContext: &pb.TraceContext{Traceparent: result.TraceContext},
+		ApiVersion:   result.APIVersion,
+	}
 	return connect.NewResponse(resp), nil
 }
 

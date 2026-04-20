@@ -14,7 +14,6 @@ import (
 	configrepo "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/featureflags"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/filesystem"
-	httpinfra "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/http"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/mqtt"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
@@ -24,8 +23,7 @@ import (
 )
 
 type Container struct {
-	Config     *config.Manager
-	HTTPClient *httpinfra.ClientProxy
+	Config *config.Manager
 
 	FeatureFlagRepo featureFlagRepository
 	VideoRepository videoRepository
@@ -60,12 +58,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		ServiceName:       cfg.Observability.ServiceName,
 	})
 	log.Info().Str("config_file", configFile).Any("config", cfg).Msg("Container initialized")
-
-	httpClient := httpinfra.NewInstrumentedClient(httpinfra.ClientConfig{
-		Timeout:         cfg.HTTPClientTimeout,
-		MaxIdleConns:    100,
-		IdleConnTimeout: 90 * time.Second,
-	})
 
 	var featureFlagRepo featureFlagRepository
 
@@ -132,7 +124,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	return &Container{
 		Config:                     cfg,
-		HTTPClient:                 httpClient,
 		FeatureFlagRepo:            featureFlagRepo,
 		VideoRepository:            videoRepo,
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,

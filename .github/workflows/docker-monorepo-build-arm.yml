@@ -300,26 +300,26 @@ jobs:
 
           ssh ${SSH_OPTS} "${REMOTE}" \
             "JETSON_APP_DIRECTORY='${JETSON_APP_DIRECTORY}' \
-             CPP_ACCELERATOR_IMAGE='${cpp_accelerator_image}' bash -s" <<'EOF'
+             ACCELERATOR_IMAGE='${cpp_accelerator_image}' bash -s" <<'EOF'
           set -euo pipefail
           cd "${JETSON_APP_DIRECTORY}"
-          export CPP_ACCELERATOR_IMAGE
+          export ACCELERATOR_IMAGE
           export ACCELERATOR_SECRETS_DIR="${JETSON_APP_DIRECTORY}/secrets"
           docker compose pull
           docker compose up -d --remove-orphans
 
           timeout=60
           while [ "${timeout}" -gt 0 ]; do
-            running=$(docker ps --filter 'name=^cuda-cpp-accelerator$' --filter 'status=running' --format '{{.Names}}')
-            if [ "${running}" = "cuda-cpp-accelerator" ]; then
-              echo "cpp-accelerator is running"
+            running=$(docker ps --filter 'name=^cuda-accelerator-client$' --filter 'status=running' --format '{{.Names}}')
+            if [ "${running}" = "cuda-accelerator-client" ]; then
+              echo "accelerator-client is running"
               break
             fi
             sleep 1
             timeout=$((timeout - 1))
           done
           if [ "${timeout}" -eq 0 ]; then
-            echo "cpp-accelerator readiness timeout" >&2
+            echo "accelerator-client readiness timeout" >&2
             docker ps --filter 'name=cuda-'
             exit 1
           fi

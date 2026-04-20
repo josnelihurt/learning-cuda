@@ -4,8 +4,11 @@ ARG TARGETARCH=amd64
 ARG PROTO_VERSION=2.0.0
 ARG CUDA_VERSION=12.5.1
 ARG UBUNTU_VERSION=24.04
+ARG YOLO_MODEL_VERSION=0.1.0
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
+
+FROM ${BASE_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model
 
 FROM bazel-base AS bazel-deps
 
@@ -45,6 +48,9 @@ WORKDIR /build
 COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
+
+RUN mkdir -p /build/data/models
+COPY --from=yolo-model /models/yolov10n.onnx /build/data/models/yolov10n.onnx
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     NPROC=$(nproc) && \

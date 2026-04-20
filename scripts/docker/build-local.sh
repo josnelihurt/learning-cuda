@@ -53,7 +53,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app cpp-accelerator web-frontend)
+ALL_STAGES=(proto-tools go-builder bazel-base yolo-tools yolo-model runtime-base integration-base proto cpp golang app cpp-accelerator web-frontend)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -246,6 +246,30 @@ run_bazel_base() {
 
   print_stage_header "Building bazel base (${version})"
   build_and_tag "${version_tag}" "${latest_tag}" "src/cpp_accelerator/docker-build-base/Dockerfile" "true"
+}
+
+run_yolo_tools() {
+  local version
+  version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
+  local version_tag="${IMAGE_BASE}/base:yolo-tools-${version}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/base:yolo-tools-latest-${ARCH}"
+
+  print_stage_header "Building yolo tools base (${version})"
+  build_and_tag "${version_tag}" "${latest_tag}" \
+    "src/cpp_accelerator/yolo-model-gen/Dockerfile" "true" \
+    "--target" "tools"
+}
+
+run_yolo_model() {
+  local version
+  version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
+  local version_tag="${IMAGE_BASE}/yolo-model-gen:${version}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/yolo-model-gen:latest-${ARCH}"
+
+  print_stage_header "Building yolo model artifact (${version})"
+  build_and_tag "${version_tag}" "${latest_tag}" \
+    "src/cpp_accelerator/yolo-model-gen/Dockerfile" "true" \
+    "--target" "artifact"
 }
 
 run_runtime_base() {
@@ -478,6 +502,12 @@ for stage in "${REQUESTED_STAGES[@]}"; do
       ;;
     bazel-base)
       run_bazel_base
+      ;;
+    yolo-tools)
+      run_yolo_tools
+      ;;
+    yolo-model)
+      run_yolo_model
       ;;
     runtime-base)
       run_runtime_base

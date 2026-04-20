@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     python3 \
+    python3-pip \
     ffmpeg \
     libavcodec-dev \
     libavutil-dev \

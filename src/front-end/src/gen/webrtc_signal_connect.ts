@@ -49,6 +49,9 @@ export const WebRTCSignalingService = {
       kind: MethodKind.Unary,
     },
     /**
+     * TODO: buf lint — SignalingMessage reused as both request and response type;
+     * rename to SignalingStreamRequest/SignalingStreamResponse when this RPC is next modified.
+     *
      * @generated from rpc cuda_learning.WebRTCSignalingService.SignalingStream
      */
     signalingStream: {

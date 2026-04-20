@@ -106,6 +106,8 @@ service WebRTCSignalingService {
     };
   }
 
+  // TODO: buf lint — SignalingMessage reused as both request and response type;
+  // rename to SignalingStreamRequest/SignalingStreamResponse when this RPC is next modified.
   rpc SignalingStream(stream SignalingMessage) returns (stream SignalingMessage);
 }
 

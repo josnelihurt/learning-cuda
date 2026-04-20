@@ -9,12 +9,20 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/webserver/cmd/server/main.go",
+            "program": "${workspaceFolder}/src/go_api/cmd/server/main.go",
             "cwd": "${workspaceFolder}",
             "args": [
                 "-config",
                 "${workspaceFolder}/config/config.dev.yaml"
             ]
         },
+        {
+            "name": "Attach to Go Process",
+            "type": "go",
+            "request": "attach",
+            "mode": "local",
+            "processId": 189569,
+            "cwd": "${workspaceFolder}"
+        }
     ]
 }

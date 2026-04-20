@@ -262,11 +262,17 @@ jobs:
           CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
           CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
           CLOUD_VM_SSH_KEY: ${{ secrets.CLOUD_VM_SSH_KEY }}
+          ACCELERATOR_SERVER_CERT: ${{ secrets.ACCELERATOR_SERVER_CERT }}
+          ACCELERATOR_SERVER_KEY: ${{ secrets.ACCELERATOR_SERVER_KEY }}
+          ACCELERATOR_CA_CERT: ${{ secrets.ACCELERATOR_CA_CERT }}
         run: |
           set -euo pipefail
           : "${CLOUD_VM_HOST:?Missing CLOUD_VM_HOST secret}"
           : "${CLOUD_VM_USER:?Missing CLOUD_VM_USER secret}"
           : "${CLOUD_VM_SSH_KEY:?Missing CLOUD_VM_SSH_KEY secret}"
+          : "${ACCELERATOR_SERVER_CERT:?Missing ACCELERATOR_SERVER_CERT secret}"
+          : "${ACCELERATOR_SERVER_KEY:?Missing ACCELERATOR_SERVER_KEY secret}"
+          : "${ACCELERATOR_CA_CERT:?Missing ACCELERATOR_CA_CERT secret}"
           echo "Cloud VM deploy target: ${CLOUD_VM_USER}@${CLOUD_VM_HOST}:${COMPOSE_WORKDIR} (port ${CLOUD_VM_SSH_PORT})"
 
       - name: Checkout repository
@@ -316,6 +322,37 @@ jobs:
           rsync -az --delete -e "ssh ${SSH_OPTS}" \
             data/ \
             "${REMOTE}:${COMPOSE_DIRECTORY}/data/${CUDA_DATA_SUBDIR}/"
+
+      - name: Sync accelerator mTLS secrets to Cloud VM
+        env:
+          CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
+          CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
+          ACCELERATOR_SERVER_CERT: ${{ secrets.ACCELERATOR_SERVER_CERT }}
+          ACCELERATOR_SERVER_KEY: ${{ secrets.ACCELERATOR_SERVER_KEY }}
+          ACCELERATOR_CA_CERT: ${{ secrets.ACCELERATOR_CA_CERT }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-i ~/.ssh/cloud_vm_key -p ${CLOUD_VM_SSH_PORT} -o StrictHostKeyChecking=yes"
+          REMOTE="${CLOUD_VM_USER}@${CLOUD_VM_HOST}"
+          REMOTE_SECRETS_DIR="${COMPOSE_DIRECTORY}/config/${CUDA_CONFIG_SUBDIR}/secrets"
+
+          stage_dir="$(mktemp -d)"
+          trap 'rm -rf "${stage_dir}"' EXIT
+          umask 077
+
+          printf '%s' "${ACCELERATOR_SERVER_CERT}" > "${stage_dir}/server.pem"
+          printf '%s' "${ACCELERATOR_SERVER_KEY}"  > "${stage_dir}/server-key.pem"
+          printf '%s' "${ACCELERATOR_CA_CERT}"     > "${stage_dir}/ca.pem"
+          chmod 600 "${stage_dir}"/*.pem
+
+          ssh ${SSH_OPTS} "${REMOTE}" \
+            "mkdir -p '${REMOTE_SECRETS_DIR}' && chmod 700 '${REMOTE_SECRETS_DIR}'"
+
+          rsync -az --chmod=F600 -e "ssh ${SSH_OPTS}" \
+            "${stage_dir}/server.pem" \
+            "${stage_dir}/server-key.pem" \
+            "${stage_dir}/ca.pem" \
+            "${REMOTE}:${REMOTE_SECRETS_DIR}/"
 
       - name: Pull and restart services on Cloud VM
         env:

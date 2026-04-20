@@ -113,3 +113,5 @@ server
 .kilo/
 .opencode/
 acceptance.test
+.secrets/accelerator-ca.srl
+scripts/dev/__pycache__/update_launch_go_attach_process_id.cpython-313.pyc

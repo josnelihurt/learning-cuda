@@ -42,7 +42,8 @@ type Container struct {
 	UploadVideoUseCase         *videoapp.UploadVideoUseCase
 	StreamVideoUseCase         *videoapp.StreamVideoUseCase
 
-	GRPCProcessorClient *processor.GRPCClient
+	AcceleratorRegistry *processor.Registry
+	AcceleratorControl  *processor.ControlServer
 	DeviceMonitor       domainInterfaces.MQTTDeviceMonitor
 }
 
@@ -85,22 +86,17 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	buildInfoRepo := build.NewBuildInfoRepository(buildInfo)
 	versionRepo := version.NewVersionRepository()
 
-	if cfg.Processor.GRPCServerAddress == "" {
-		return nil, fmt.Errorf("processor.grpc_server_address is required but not configured")
-	}
+	registry := processor.NewRegistry(log)
 
-	grpcClient, err := processor.NewGRPCClient(ctx, processor.GRPCClientConfig{
-		Address:      cfg.Processor.GRPCServerAddress,
-		DialTimeout:  5 * time.Second,
-		MaxRecvBytes: 64 * 1024 * 1024,
-		MaxSendBytes: 64 * 1024 * 1024,
-	})
+	controlServer, err := processor.NewControlServer(cfg.Processor, registry)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize gRPC processor client (required): %w", err)
+		log.Warn().Err(err).Msg("control server not initialized (certs missing?); accelerator connections will fail")
+		controlServer = nil
+	} else {
+		log.Info().
+			Str("listen_address", cfg.Processor.ListenAddress).
+			Msg("accelerator control server created")
 	}
-	log.Info().
-		Str("grpc_address", cfg.Processor.GRPCServerAddress).
-		Msg("gRPC client initialized successfully")
 
 	evaluateFFUseCase := ffapp.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 
@@ -124,7 +120,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 			return video.NewFFmpegVideoPlayer(videoPath)
 		},
 		func(browserSessionID string) (videoapp.StreamVideoPeer, error) {
-			return webrtcinfra.NewGoPeer(grpcClient, browserSessionID), nil
+			return webrtcinfra.NewGoPeer(browserSessionID), nil
 		},
 	)
 
@@ -152,19 +148,17 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		ListVideosUseCase:          listVideosUseCase,
 		UploadVideoUseCase:         uploadVideoUseCase,
 		StreamVideoUseCase:         streamVideoUseCase,
-		GRPCProcessorClient:        grpcClient,
+		AcceleratorRegistry:        registry,
+		AcceleratorControl:         controlServer,
 		DeviceMonitor:              deviceMonitor,
 	}, nil
 }
 
 func (c *Container) Close(ctx context.Context) error {
-	log := logger.Global()
-
-	if c.GRPCProcessorClient != nil {
-		if err := c.GRPCProcessorClient.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing gRPC processor client")
-		}
+	if c.AcceleratorControl != nil {
+		stopCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		c.AcceleratorControl.Stop(stopCtx)
 	}
-
 	return nil
 }

@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 cc_library(
     name = "live_video_processor_lib",
@@ -39,21 +39,6 @@ cc_library(
 )
 
 cc_library(
-    name = "image_processor_service_impl_lib",
-    srcs = ["image_processor_service_impl.cpp"],
-    hdrs = ["image_processor_service_impl.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":processor_engine_contract",
-        ":webrtc_manager_lib",
-        "//proto:image_processor_service_cc_proto",
-        "//proto:image_processor_service_grpc",
-        "@com_github_grpc_grpc//:grpc++",
-        "@spdlog",
-    ],
-)
-
-cc_library(
     name = "webrtc_manager_lib",
     srcs = ["webrtc_manager.cpp"],
     hdrs = ["webrtc_manager.h"],
@@ -68,27 +53,29 @@ cc_library(
 )
 
 cc_library(
-    name = "webrtc_signaling_service_impl_lib",
-    srcs = ["webrtc_signaling_service_impl.cpp"],
-    hdrs = ["webrtc_signaling_service_impl.h"],
+    name = "accelerator_control_client_lib",
+    srcs = ["accelerator_control_client.cpp"],
+    hdrs = ["accelerator_control_client.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":processor_engine_contract",
         ":webrtc_manager_lib",
-        "//proto:webrtc_signal_cc_proto",
-        "//proto:webrtc_signal_grpc",
+        "//proto:accelerator_control_cc_proto",
+        "//proto:accelerator_control_grpc",
+        "//proto:image_processor_service_cc_proto",
+        "//proto:common_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@spdlog",
     ],
 )
 
 cc_binary(
-    name = "image_processor_grpc_server",
-    srcs = ["server_main.cpp"],
+    name = "accelerator_control_client",
+    srcs = ["main_client.cpp"],
     visibility = ["//visibility:public"],
     deps = [
-        ":image_processor_service_impl_lib",
+        ":accelerator_control_client_lib",
         ":processor_engine_adapter_lib",
-        ":webrtc_signaling_service_impl_lib",
         ":webrtc_manager_lib",
         "//src/cpp_accelerator/ports/shared_lib:processor_engine",
         "//proto:image_processor_service_cc_proto",
@@ -96,19 +83,5 @@ cc_binary(
         "@spdlog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/strings:strings",
-    ],
-)
-
-cc_test(
-    name = "image_processor_service_impl_test",
-    srcs = ["image_processor_service_impl_test.cpp"],
-    linkstatic = False,
-    deps = [
-        ":image_processor_service_impl_lib",
-        ":processor_engine_contract",
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/strings:strings",
-        "@googletest//:gtest_main",
     ],
 )

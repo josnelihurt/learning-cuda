@@ -1,0 +1,117 @@
+// AcceleratorControl — bidirectional control stream initiated by accelerators dialing the cloud.
+//
+// Each registered accelerator dials the cloud Go server and opens a single
+// AcceleratorControlService.Connect() stream.  All commands (image processing,
+// filter listing, version queries, WebRTC signaling) are multiplexed over that
+// one stream inside AcceleratorMessage envelopes.  Every envelope carries a
+// command_id (UUID v7) for in-stream demultiplexing and an optional trace_context
+// for cross-service span stitching.
+//
+// Context: .ignore/.prompts/plans/reverse-grpc-topology/
+
+syntax = "proto3";
+
+package cuda_learning;
+
+import "common.proto";
+import "image_processor_service.proto";
+import "webrtc_signal.proto";
+
+option go_package = "github.com/jrb/cuda-learning/proto/gen";
+
+// AcceleratorControlService is hosted by the cloud Go server.
+// Accelerators (C++/Jetson) dial outbound and open a Connect stream.
+service AcceleratorControlService {
+  // Connect opens the bidirectional command stream for one accelerator.
+  // The accelerator sends Register as its first message; the server replies
+  // with RegisterAck.  All subsequent commands flow in either direction
+  // inside AcceleratorMessage envelopes for the lifetime of the connection.
+  rpc Connect(stream ConnectRequest) returns (stream ConnectResponse);
+}
+
+// ConnectRequest is the accelerator-to-server direction of the bidi stream.
+message ConnectRequest {
+  AcceleratorMessage message = 1;
+}
+
+// ConnectResponse is the server-to-accelerator direction of the bidi stream.
+message ConnectResponse {
+  AcceleratorMessage message = 1;
+}
+
+// AcceleratorMessage is the single envelope for every message on the stream.
+// command_id is required on every message; trace_context is optional but
+// should be populated whenever a span is active.
+message AcceleratorMessage {
+  // UUID v7 for in-stream demultiplexing. Required on every message.
+  string command_id = 1;
+  // W3C trace context for cross-service span stitching.
+  TraceContext trace_context = 2;
+
+  oneof payload {
+    Register register = 10;
+    RegisterAck register_ack = 11;
+
+    ProcessImageRequest process_image_request = 20;
+    ProcessImageResponse process_image_response = 21;
+
+    ListFiltersRequest list_filters_request = 30;
+    ListFiltersResponse list_filters_response = 31;
+
+    GetVersionInfoRequest get_version_request = 40;
+    GetVersionInfoResponse get_version_response = 41;
+
+    SignalingMessage signaling_message = 50;
+
+    Keepalive keepalive = 60;
+
+    ErrorReport error = 70;
+  }
+}
+
+// Register is the first message sent by the accelerator after Connect().
+// The server replies with RegisterAck.  If RegisterAck.accepted is false
+// the accelerator must close the stream and back off before retrying.
+message Register {
+  // Stable device identifier, e.g. "jetson-living-room".
+  string device_id = 1;
+  // Human-friendly name shown in the v2 UI device selector.
+  string display_name = 2;
+  // Build commit or semver string, e.g. "v1.2.3" or "abc1234".
+  string accelerator_version = 3;
+  // Full capability surface reported by the accelerator library.
+  LibraryCapabilities capabilities = 4;
+  // Accelerator hardware types this device supports (CUDA, CPU, OPENCL).
+  repeated AcceleratorType supported_accelerator_types = 5;
+  // Free-form metadata reserved for v2 multi-device routing.
+  map<string, string> labels = 6;
+}
+
+// RegisterAck is the server's response to Register.
+message RegisterAck {
+  // true if the server accepted the registration and the stream is live.
+  bool accepted = 1;
+  // Populated only when accepted is false; describes why registration failed.
+  string reject_reason = 2;
+  // Server-side correlation id assigned to this accelerator connection.
+  string assigned_session_id = 3;
+}
+
+// Keepalive is sent by either side to confirm the stream is alive.
+// Either side may send it; the receiver does not reply.
+message Keepalive {
+  // Unix epoch milliseconds at the sender.
+  int64 sender_unix_ms = 1;
+}
+
+// ErrorReport signals a processing error on a specific command or a fatal
+// stream condition.  The command_id on the enclosing AcceleratorMessage
+// correlates this report to the failed command, if any.
+message ErrorReport {
+  // Short machine-readable code, e.g. "PROCESSING_FAILED".
+  string code = 1;
+  // Human-readable description.
+  string message = 2;
+  // If true, the sender intends to close the stream immediately after this message.
+  bool fatal = 3;
+}

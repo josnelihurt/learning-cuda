@@ -104,12 +104,15 @@ graph TB
     
     subgraph "Go Infrastructure Layer"
         GRPCProcessor[GRPCProcessor]
+        AcceleratorGateway[AcceleratorGateway<br/>Routing Facade]
+        ControlServer[ControlServer<br/>mTLS gRPC Server]
+        Registry[Registry<br/>Session Manager]
         FeatureFlags[Goff Integration]
         FileSystem[File System Repos]
     end
     
-    subgraph "C++ Backend"
-        CppBackend[C++ CUDA Accelerator<br/>gRPC Server]
+    subgraph "C++ Accelerator Client"
+        CppClient[C++ CUDA Accelerator<br/>gRPC Client<br/>Outbound mTLS]
     end
     
     Browser --> AuxHTTP
@@ -132,7 +135,11 @@ graph TB
     FileUC --> Video
     
     ImageProcessor --> GRPCProcessor
-    GRPCProcessor --> CppBackend
+    GRPCProcessor --> AcceleratorGateway
+    AcceleratorGateway --> Registry
+    Registry --> ControlServer
+    
+    CppClient -->|mTLS bidi stream| ControlServer
     
     ConfigUC --> FeatureFlags
     FileUC --> FileSystem
@@ -168,7 +175,11 @@ webserver/
 │   ├── infrastructure/  # External integrations
 │   │   ├── processor/   # C++/CUDA integration
 │   │   │   ├── grpc_processor.go
-│   │   │   ├── grpc_client.go
+│   │   │   ├── accelerator_gateway.go
+│   │   │   ├── control_server.go
+│   │   │   ├── registry.go
+│   │   │   ├── session.go
+│   │   │   ├── signaling_adapter.go
 │   │   │   └── grpc_repository.go
 │   │   ├── featureflags/# Goff integration (YAML-based)
 │   │   ├── filesystem/  # File repositories
@@ -257,9 +268,24 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
 ### Infrastructure Layer
 
 **Processor Integration** (`pkg/infrastructure/processor/`):
-- `GRPCProcessor`: Integrates with C++ library via gRPC
-- `grpc_client.go`: gRPC client implementation for remote processing
-- Implements `domain.ImageProcessor` interface
+- `GRPCProcessor`: Domain-to-proto translation layer, converts domain types to protobuf enums and delegates to AcceleratorGateway
+- `AcceleratorGateway`: Application-layer routing facade that sends commands to accelerators via the registry
+  - `callAccelerator`: Generic pattern for sending commands and awaiting responses by command_id
+  - `ProcessImage`, `ListFilters`, `GetVersionInfo`, `SignalingStream`: Command-specific methods
+- `ControlServer`: mTLS gRPC server hosting AcceleratorControlService
+  - Accepts inbound connections from C++ accelerator clients
+  - Handles Register messages and creates AcceleratorSession instances
+  - Dispatches responses via pendingMap correlation
+- `Registry`: Thread-safe map of device_id to AcceleratorSession
+  - v1 enforces single-accelerator policy (map shape supports v2 multi-device)
+  - Methods: Add, Remove, Get, First
+- `AcceleratorSession`: Wraps a live bidi stream with device metadata
+  - `Send`: Thread-safe message writing via mutex serialization
+  - `Await`: Blocks on command_id channel for response correlation
+  - `SubscribeSignaling`/`UnsubscribeSignaling`/`deliverSignaling`: WebRTC signaling fanout
+  - Inner `pendingMap` maps command_id to response channels
+- `signaling_adapter.go`: Adapts accelerator bidi stream to WebRTC signaling service interface
+- `grpc_repository.go`: Repository layer, delegates GetCapabilities to AcceleratorGateway.ListFilters
 
 **Feature Flags** (`pkg/infrastructure/featureflags/`):
 - Goff client integration for feature flag management (YAML-based)
@@ -287,7 +313,8 @@ All use cases follow the same pattern: they receive domain models, orchestrate b
   - Go API receives WebRTC signaling requests via Connect-RPC
   - `webrtc_handler.go` establishes WebRTC sessions
   - `webrtc_session_manager.go` manages session lifecycle
-  - GoPeer communicates with C++ WebRTC manager for frame processing
+  - Signaling messages are tunneled through the AcceleratorControlService bidi stream
+  - `signaling_adapter.go` adapts the bidi stream to the WebRTC signaling service interface
   - Video frames are streamed via WebRTC data channels using H.264 codec
 
 ### Dependency Injection
@@ -320,28 +347,32 @@ sequenceDiagram
     participant Main as main.go
     participant Container as Container
     participant Config as Config Manager
-    participant GRPCClient as GRPCClient
-    participant GRPCServer as gRPC Server
+    participant Registry as Registry
+    participant ControlSrv as ControlServer
     participant App as App Setup
     
     Main->>Container: New(ctx, configFile)
     Container->>Config: New(configFile)
     Container->>Config: Load configuration
     
-    Container->>GRPCClient: NewGRPCClient(ctx, config)
-    GRPCClient->>GRPCServer: Dial gRPC server
-    GRPCServer-->>GRPCClient: Connected
+    Container->>Registry: NewRegistry()
+    Container->>ControlSrv: NewControlServer(config, registry)
+    ControlSrv->>ControlSrv: Start mTLS gRPC server
+    
+    Note over ControlSrv: Listening for accelerator connections
     
     Container->>Container: Create Use Cases
     Container->>Container: Create Repositories
     Container->>App: New(ctx, options...)
     App->>App: Register handlers
     App-->>Main: App ready
+    
+    Note over Main,ControlSrv: C++ accelerators can now dial in
 ```
 
 ### Processing Flows
 
-#### gRPC Processing Flow
+#### gRPC Processing Flow (Reverse Topology)
 
 ```mermaid
 sequenceDiagram
@@ -350,8 +381,10 @@ sequenceDiagram
     participant UseCase as ProcessImageUseCase
     participant Processor as ImageProcessor
     participant GRPCProc as GRPCProcessor
-    participant GRPCClient as GRPCClient
-    participant CppBackend as C++ Backend
+    participant Gateway as AcceleratorGateway
+    participant Registry as Registry
+    participant Session as AcceleratorSession
+    participant CppClient as C++ Accelerator Client
     
     Client->>Handler: ProcessImage(request)
     Handler->>Handler: Convert protobuf to domain
@@ -361,10 +394,20 @@ sequenceDiagram
     Processor->>GRPCProc: ProcessImage(ctx, image, filters, accelerator)
     
     GRPCProc->>GRPCProc: Convert domain to protobuf
-    GRPCProc->>GRPCClient: ProcessImage(ctx, request)
-    GRPCClient->>CppBackend: gRPC call ProcessImage()
-    CppBackend-->>GRPCClient: ProcessImageResponse
-    GRPCClient-->>GRPCProc: ProcessImageResponse
+    GRPCProc->>Gateway: ProcessImage(ctx, request)
+    
+    Gateway->>Registry: First() or Get(device_id)
+    Registry-->>Gateway: AcceleratorSession
+    
+    Gateway->>Gateway: Generate command_id (UUID v7)
+    Gateway->>Session: Send(ProcessImageRequest with command_id)
+    Session->>CppClient: Write to bidi stream
+    CppClient-->>Session: Processing...
+    Session-->>Gateway: Await(ctx, command_id)
+    CppClient->>Session: ProcessImageResponse with command_id
+    Session-->>Gateway: Response via pendingMap
+    
+    Gateway-->>GRPCProc: ProcessImageResponse
     GRPCProc->>GRPCProc: Convert protobuf to domain.Image
     GRPCProc-->>Processor: domain.Image
     Processor-->>UseCase: domain.Image
@@ -383,13 +426,27 @@ sequenceDiagram
     participant Handler as ImageProcessorHandler
     participant CapabilitiesUC as ProcessorCapabilitiesUseCase
     participant Processor as ImageProcessor
-    participant GRPCServer as gRPC Server
+    participant Gateway as AcceleratorGateway
+    participant Registry as Registry
+    participant Session as AcceleratorSession
+    participant CppClient as C++ Accelerator Client
     
     Client->>Handler: ListFilters(request)
     Handler->>CapabilitiesUC: GetCapabilities(ctx)
     CapabilitiesUC->>Processor: GetCapabilities()
-    Processor->>GRPCServer: gRPC ListFilters()
-    GRPCServer-->>Processor: ListFiltersResponse
+    
+    Processor->>Gateway: ListFilters(ctx)
+    Gateway->>Registry: First() or Get(device_id)
+    Registry-->>Gateway: AcceleratorSession
+    
+    Gateway->>Gateway: Generate command_id (UUID v7)
+    Gateway->>Session: Send(ListFiltersRequest with command_id)
+    Session->>CppClient: Write to bidi stream
+    Session-->>Gateway: Await(ctx, command_id)
+    CppClient->>Session: ListFiltersResponse with command_id
+    Session-->>Gateway: Response via pendingMap
+    
+    Gateway-->>Processor: Filter definitions
     Processor-->>CapabilitiesUC: Filter definitions
     CapabilitiesUC-->>Handler: Filter definitions
     Handler->>Handler: Build ListFiltersResponse

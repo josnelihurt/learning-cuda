@@ -17,23 +17,24 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 - OpenTelemetry integration for distributed tracing and log aggregation
 - Extensible filter pipeline architecture
 - Thread-safe concurrent processing
-- gRPC service support with streaming capabilities
+- **Accelerator Control Client** with mTLS outbound connections to Go cloud server
+- **Multiplexed bidirectional gRPC stream** for all commands (image processing, filters, version, signaling)
 - WebRTC signaling support for real-time video streaming
 - Command pattern for program execution
 - Buffer pooling for memory efficiency
-- Video streaming support (StreamProcessVideo)
 - Configuration management system
 
 ## Architecture
 
 ### Component Overview
 
-The library supports **gRPC Service** as the primary integration path. The CGO (Shared Library) path is deprecated and no longer used by the Go server. All processing requests flow through the gRPC service, which converges at the `ProcessorEngine` to orchestrate image processing through the filter pipeline.
+The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream for all communication. The CGO (Shared Library) path is deprecated and no longer used by the Go server. All processing requests are received from the Go server through the AcceleratorControlService protocol, which converges at the `ProcessorEngine` to orchestrate image processing through the filter pipeline.
 
 ```mermaid
 graph TB
-    subgraph "Go Client"
-        GoClient[Go Client Application]
+    subgraph "Go Cloud Server"
+        GoServer[Go Server<br/>AcceleratorControlService<br/>mTLS]
+        Registry[Registry<br/>Session Manager]
     end
     
     subgraph "CGO Integration Path (Deprecated)"
@@ -42,10 +43,10 @@ graph TB
         SharedLibImpl[cuda_processor_impl.cpp]
     end
     
-    subgraph "gRPC Integration Path"
-        GRPCServer[gRPC Server C++]
-        GRPCService[ImageProcessorServiceImpl]
-        EngineAdapter[ProcessorEngineAdapter]
+    subgraph "Accelerator Control Client (C++)"
+        AccelClient[AcceleratorControlClient<br/>Outbound mTLS]
+        WebRTCMgr[WebRTCManager]
+        BidiStream[Bidi Stream<br/>Multiplexed Messages]
     end
     
     subgraph "C++ Core Processing"
@@ -64,15 +65,16 @@ graph TB
         CpuFilters[CPU Filters]
     end
     
-    GoClient -.->|Deprecated| Loader
-    GoClient --> GRPCServer
+    GoServer --> Registry
+    
+    AccelClient -->|mTLS bidi| GoServer
+    AccelClient --> BidiStream
+    AccelClient --> WebRTCMgr
+    AccelClient --> ProcessorEngine
+    
     Loader -.->|Deprecated| CAPI
     CAPI -.->|Deprecated| SharedLibImpl
     SharedLibImpl -.->|Deprecated| ProcessorEngine
-    
-    GRPCServer --> GRPCService
-    GRPCService --> EngineAdapter
-    EngineAdapter --> ProcessorEngine
     
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -86,15 +88,16 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph "Go Client"
-        GoClient[Go Client]
+    subgraph "Go Cloud Server"
+        GoServer[Go Server<br/>AcceleratorControlService]
     end
     
     subgraph "C++ Ports Layer"
         CAPI[C API - processor_api.h]
         SharedLib[cuda_processor_impl.cpp]
-        GRPCService[ImageProcessorServiceImpl]
-        EngineAdapter[ProcessorEngineAdapter]
+        AccelClient[AcceleratorControlClient]
+        Provider[ProcessorEngineProvider]
+        WebRTCPort[WebRTCManager]
     end
     
     subgraph "C++ Application Layer"
@@ -124,12 +127,13 @@ graph TB
         Result[Result Type]
     end
     
-    GoClient --> CAPI
-    GoClient --> GRPCService
+    GoServer -->|mTLS bidi| AccelClient
+    AccelClient --> Provider
+    Provider --> ProcessorEngine
+    AccelClient --> WebRTCPort
+    
     CAPI --> SharedLib
     SharedLib --> ProcessorEngine
-    GRPCService --> EngineAdapter
-    EngineAdapter --> ProcessorEngine
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
     FilterPipeline --> IFilter
@@ -170,28 +174,45 @@ sequenceDiagram
     Note over GoClient,Engine: Ready for processing
 ```
 
-#### gRPC Service Initialization
+#### Accelerator Control Client Initialization
 
 ```mermaid
 sequenceDiagram
-    participant Server as gRPC Server (C++)
+    participant Main as main_client.cpp
+    participant Flags as absl Flags
     participant Engine as ProcessorEngine
-    participant Adapter as ProcessorEngineAdapter
-    participant Service as ImageProcessorServiceImpl
     participant TM as TelemetryManager
+    participant Provider as ProcessorEngineAdapter
+    participant WebRTC as WebRTCManager
+    participant Client as AcceleratorControlClient
     
-    Server->>Engine: Create ProcessorEngine("grpc-transport")
-    Server->>Engine: Initialize(InitRequest)
-    Engine->>TM: Initialize("grpc-transport", endpoint)
+    Main->>Flags: Parse flags (control_addr, device_id, mTLS paths)
+    Flags-->>Main: Configuration
+    
+    Main->>Engine: Create ProcessorEngine("accelerator-client")
+    Main->>Engine: Initialize(InitRequest)
+    Engine->>TM: Initialize("accelerator-client", endpoint)
     TM->>TM: Create OpenTelemetry exporter
-    Engine-->>Server: InitResponse{code: 0}
+    Engine-->>Main: InitResponse{code: 0}
     
-    Server->>Adapter: Create ProcessorEngineAdapter(engine)
-    Server->>Service: Create ImageProcessorServiceImpl(adapter)
-    Server->>Server: grpc::ServerBuilder.BuildAndStart()
-    Server-->>Server: Server listening on port
+    Main->>Provider: Create ProcessorEngineAdapter(engine)
+    Main->>WebRTC: Create WebRTCManager
+    Main->>Client: Create AcceleratorControlClient(config, provider, webrtc)
+    Main->>Client: Run()
     
-    Note over Server,Service: gRPC server ready for connections
+    Client->>Client: Load mTLS credentials
+    Client->>Client: Create mTLS gRPC channel
+    Client->>Client: Dial Go control server
+    Client->>Client: Connect() - open bidi stream
+    Client->>Client: Send Register(device_id, caps, version)
+    Client-->>Client: Receive RegisterAck(session_id)
+    
+    Note over Client: Connected and registered<br/>Ready to receive commands
+    
+    loop Reconnect with backoff
+        Client->>Client: Read/Dispatch loop
+        Note over Client: ProcessImage, ListFilters,<br/>GetVersionInfo, SignalingMessage
+    end
 ```
 
 ### Processing Flows
@@ -246,23 +267,22 @@ sequenceDiagram
     CAPI-->>GoClient: ProcessImageResponse
 ```
 
-#### gRPC Processing Flow
+#### Accelerator Control Client Processing Flow
 
 ```mermaid
 sequenceDiagram
-    participant GoClient as Go Client
-    participant GRPCServer as gRPC Server (C++)
-    participant Service as ImageProcessorServiceImpl
-    participant Adapter as ProcessorEngineAdapter
+    participant GoServer as Go Server<br/>AcceleratorControlService
+    participant Client as AcceleratorControlClient
+    participant Provider as ProcessorEngineProvider
     participant Engine as ProcessorEngine
     participant Pipeline as FilterPipeline
     participant Filter as Filter (CUDA/CPU)
     
-    GoClient->>GRPCServer: gRPC call ProcessImage()
-    GRPCServer->>Service: ProcessImage(ServerContext, request, response)
+    GoServer->>Client: ProcessImageRequest (via bidi stream)
+    Client->>Client: Extract command_id, payload
     
-    Service->>Adapter: ProcessImage(request, response)
-    Adapter->>Engine: ProcessImage(request, response)
+    Client->>Provider: ProcessImage(request, response)
+    Provider->>Engine: ProcessImage(request, response)
     
     Engine->>Engine: Parse ProcessImageRequest
     Note over Engine: Extract filters, accelerator, image data
@@ -282,10 +302,10 @@ sequenceDiagram
     
     Pipeline-->>Engine: Processed image data
     Engine->>Engine: Build ProcessImageResponse
-    Engine-->>Adapter: response populated
-    Adapter-->>Service: response populated
-    Service-->>GRPCServer: gRPC::Status::OK
-    GRPCServer-->>GoClient: ProcessImageResponse
+    Engine-->>Provider: response populated
+    Provider-->>Client: response populated
+    Client->>Client: Wrap in AcceleratorMessage with command_id
+    Client-->>GoServer: ProcessImageResponse (via bidi stream)
 ```
 
 ## Directory Structure
@@ -331,14 +351,12 @@ cpp_accelerator/
 │   └── filters/          # Filter equivalence tests
 │       └── blur_equivalence_test.cpp
 ├── ports/               # Ports layer - external adapters
-│   ├── grpc/            # gRPC & WebRTC service implementation (primary integration path)
-│   │   ├── image_processor_service_impl.h/cpp
-│   │   ├── processor_engine_adapter.h/cpp
-│   │   ├── processor_engine_provider.h
-│   │   ├── webrtc_manager.h/cpp              # WebRTC session management
-│   │   ├── webrtc_signaling_service_impl.h/cpp # WebRTC signaling
-│   │   ├── live_video_processor.h/cpp         # Real-time video processing
-│   │   └── server_main.cpp
+│   ├── grpc/            # Accelerator control client implementation (primary integration path)
+│   │   ├── accelerator_control_client.h/cpp   # Outbound mTLS client to Go server
+│   │   ├── processor_engine_adapter.h/cpp     # Adapter for ProcessorEngine
+│   │   ├── processor_engine_provider.h        # Provider interface
+│   │   ├── webrtc_manager.h/cpp               # WebRTC session management
+│   │   └── main_client.cpp                    # Client entry point
 │   └── shared_lib/      # Shared library exports
 │       ├── processor_api.h
 │       ├── processor_engine.h/cpp
@@ -370,63 +388,68 @@ cpp_accelerator/
 
 ## Key Components
 
-### gRPC Service Port
+### Accelerator Control Client
 
-The library provides a gRPC service implementation (`ImageProcessorServiceImpl`) that exposes image processing capabilities over the network. The service implements the `ImageProcessorService` protocol buffer interface.
+The library provides an outbound gRPC client (`AcceleratorControlClient`) that connects to a Go cloud server via mTLS. The client implements the `AcceleratorControlService` protocol buffer interface with a single multiplexed bidirectional stream.
 
-**Service Methods**:
+**Multiplexed Message Types**:
 
-- **ProcessImage**: Processes a single image with specified filters and accelerator
-  - Accepts `ProcessImageRequest` with image data, filter configuration, and accelerator selection
-  - Returns `ProcessImageResponse` with processed image data and metadata
+The client sends and receives messages through the `AcceleratorMessage` envelope with `oneof payload`:
 
-- **ListFilters**: Returns available filter capabilities and their parameters
-  - Accepts `ListFiltersRequest` with API version and trace context
-  - Returns `ListFiltersResponse` with filter definitions including parameter types (select, range, number, checkbox, text)
+- **Register** (C++ → Go): First message sent on connection
+  - Contains `device_id`, `display_name`, `version`, `capabilities`, `labels`
+  - Go server responds with `RegisterAck` (accepted/rejected, assigned `session_id`)
 
-- **StreamProcessVideo**: Processes video frames in a streaming fashion
-  - Bidirectional streaming: accepts `ProcessImageRequest` frames, returns `ProcessImageResponse` frames
-  - Enables efficient video processing without loading entire video into memory
+- **ProcessImageRequest** (Go → C++): Image processing command
+  - Contains image data, filter configuration, accelerator selection
+  - Client responds with `ProcessImageResponse` with processed image data
 
-- **GetVersionInfo**: Returns library version information
-  - Accepts `GetVersionInfoRequest`
-  - Returns `GetVersionInfoResponse` with version details
+- **ListFiltersRequest** (Go → C++): Capability discovery
+  - Client responds with `ListFiltersResponse` containing filter definitions
+
+- **GetVersionInfoRequest** (Go → C++): Version query
+  - Client responds with `GetVersionInfoResponse` with library version details
+
+- **SignalingMessage** (bidirectional): WebRTC signaling
+  - SDP offers/answers, ICE candidates tunneled through the bidi stream
+
+- **Keepalive** (bidirectional): Liveness check
+  - No reply expected; used to detect dead connections
+
+- **ErrorReport** (bidirectional): Error signaling
+  - Optional `fatal` flag indicates connection should close
 
 **Architecture**:
 
-The gRPC service uses the `ProcessorEngineProvider` interface pattern to abstract the underlying processing engine. `ProcessorEngineAdapter` adapts the `ProcessorEngine` (from shared_lib port) to the provider interface, enabling the same processing logic to be used by both C API and gRPC interfaces.
+The `AcceleratorControlClient` holds a `ProcessorEngineProvider` interface for local processing and a `WebRTCManager` for WebRTC peer connections. The client:
+1. Dials the Go control server with mTLS credentials
+2. Opens a bidirectional stream via `Connect()`
+3. Sends `Register` message with device metadata
+4. Waits for `RegisterAck` confirmation
+5. Enters read/dispatch loop, processing incoming commands from Go
+
+Each message carries a `command_id` (UUID v7) for request/response correlation and an optional `trace_context` (W3C) for distributed tracing.
 
 ### WebRTC Real-time Video Processing
 
-The library provides WebRTC-based real-time video streaming capabilities through WebRTCManager and WebRTCSignalingService.
+The library provides WebRTC-based real-time video streaming capabilities through WebRTCManager. WebRTC signaling messages are tunneled through the AcceleratorControlClient's multiplexed bidi stream.
 
 **Components**:
 
 - **WebRTCManager** (`webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, and session lifecycle
   - Creates and manages WebRTC PeerConnection instances
   - Handles ICE candidate exchange between peers
-  - Integrates with LiveVideoProcessor for frame processing
+  - Receives signaling messages from AcceleratorControlClient
   - Cleans up inactive sessions
 
-- **WebRTCSignalingServiceImpl** (`webrtc_signaling_service_impl.h/cpp`): Implements the signaling protocol for WebRTC session establishment
-  - Implements `WebRTCSignalingService` from `webrtc_signal.proto`
-  - Supports bidirectional streaming via `SignalingStream`
-  - Exposes HTTP endpoints for signaling operations
-  - Handles SDP offer/answer exchange
+**Signaling Flow**:
 
-- **LiveVideoProcessor** (`live_video_processor.h/cpp`): Handles real-time video decoding, filtering, and re-encoding
-  - Decodes incoming H.264 video frames
-  - Applies filters in real-time using ProcessorEngine
-  - Re-encodes processed frames back to H.264
-  - Manages frame buffers and timing
-
-**Proto Services** (from `webrtc_signal.proto`):
-
-- **StartSession**: Establishes WebRTC session with SDP offer
-- **SendIceCandidate**: Exchanges ICE candidates for connection establishment
-- **PollEvents**: Polls for signaling events (candidates, answers)
-- **CloseSession**: Closes WebRTC session and releases resources
-- **SignalingStream**: Bidirectional streaming for real-time signaling events
+WebRTC signaling is now integrated into the AcceleratorControlService protocol:
+1. Go server sends `SignalingMessage` to C++ client via the bidi stream
+2. AcceleratorControlClient dispatches signaling to WebRTCManager
+3. WebRTCManager processes SDP offers/answers and ICE candidates
+4. C++ client responds with `SignalingMessage` via the bidi stream
+5. Direct WebRTC data channel established for video frame transport
 
 **Architecture**:
 
@@ -435,6 +458,7 @@ WebRTC replaces WebSocket for real-time video transport, providing:
 - H.264 video codec support for efficient streaming
 - Direct integration with ProcessorEngine for per-frame processing
 - ICE candidate handling for NAT traversal
+- Signaling tunneled through the same mTLS connection used for processing commands
 
 ### Command Pattern
 
@@ -664,7 +688,7 @@ The library includes comprehensive test coverage across all layers:
 - **Unit Tests**: Individual component testing (filters, pipeline, buffer pool, etc.)
 - **Integration Tests**: Cross-component interaction testing
 - **Equivalence Tests**: Verify CPU and CUDA filters produce identical results (`infrastructure/filters/blur_equivalence_test.cpp`)
-- **gRPC Service Tests**: Test gRPC service implementation and adapter patterns
+- **Accelerator Control Client Tests**: Test outbound client implementation and message handling
 - **Command Factory Tests**: Test command creation and execution
 
 **Running Tests**:
@@ -680,7 +704,6 @@ bazel test //src/cpp_accelerator/core:logger_test
 bazel test //src/cpp_accelerator/application/pipeline:filter_pipeline_test
 bazel test //src/cpp_accelerator/application/commands:commands_test
 bazel test //src/cpp_accelerator/infrastructure/filters:blur_equivalence_test
-bazel test //src/cpp_accelerator/ports/grpc:image_processor_service_impl_test
 ```
 
 Run equivalence tests to verify CPU/CUDA consistency:
@@ -695,9 +718,9 @@ Build shared library:
 bazel build //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so
 ```
 
-Build gRPC server:
+Build accelerator control client:
 ```bash
-bazel build //src/cpp_accelerator/ports/grpc:image_processor_grpc_server
+bazel build //src/cpp_accelerator/ports/grpc:accelerator_control_client
 ```
 
 Build all:

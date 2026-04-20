@@ -12,12 +12,12 @@ import (
 )
 
 type GRPCProcessor struct {
-	client *GRPCClient
+	gateway *AcceleratorGateway
 }
 
-func NewGRPCProcessor(client *GRPCClient) *GRPCProcessor {
+func NewGRPCProcessor(gateway *AcceleratorGateway) *GRPCProcessor {
 	return &GRPCProcessor{
-		client: client,
+		gateway: gateway,
 	}
 }
 
@@ -168,7 +168,7 @@ func (p *GRPCProcessor) ProcessImage(
 	}
 
 	span.AddEvent("gRPC call started")
-	resp, err := p.client.ProcessImage(ctx, procReq)
+	resp, err := p.gateway.ProcessImage(ctx, procReq)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("processing failed via gRPC: %w", err)

@@ -9,23 +9,23 @@ import (
 )
 
 type GRPCRepository struct {
-	client      *GRPCClient
+	gateway     *AcceleratorGateway
 	filterCodec *adapters.FilterCodec
 }
 
-func NewGRPCRepository(client *GRPCClient) *GRPCRepository {
+func NewGRPCRepository(gateway *AcceleratorGateway) *GRPCRepository {
 	return &GRPCRepository{
-		client:      client,
+		gateway:     gateway,
 		filterCodec: adapters.NewFilterCodec(),
 	}
 }
 
 func (r *GRPCRepository) GetCapabilities(ctx context.Context) (*gen.LibraryCapabilities, error) {
-	if r.client == nil {
-		return nil, fmt.Errorf("grpc client not initialized")
+	if r.gateway == nil {
+		return nil, fmt.Errorf("accelerator gateway not initialized")
 	}
 
-	resp, err := r.client.ListFilters(ctx)
+	resp, err := r.gateway.ListFilters(ctx)
 	if err != nil {
 		return nil, err
 	}

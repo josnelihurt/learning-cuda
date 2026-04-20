@@ -7,6 +7,7 @@ services:
     ports:
       - "8080:8080"
       - "8443:8443"
+      - "60062:60062"
     
     volumes:
       - ./bin/server:/app/server:ro
@@ -52,21 +53,13 @@ services:
       - dev-network
 
   grpc-server-dev:
-    image: ${GRPC_SERVER_IMAGE:-local/josnelihurt-code/learning-cuda/grpc-server:latest-amd64}
-    container_name: cuda-grpc-server-dev
-    restart: unless-stopped
-    runtime: nvidia
-
-    environment:
-      - OTEL_LOGS_ENABLED=true
-      - OTEL_LOGS_ENDPOINT=https://otel-cuda-demo.josnelihurt.me/v1/logs
-      - OTEL_ENVIRONMENT=development
-
-    ports:
-      - "60061:60061"
-
-    networks:
-      - dev-network
+    # The C++ gRPC server has been removed (step-08). Accelerators now dial outbound
+    # to the Go app on port 60062. Run the accelerator_control_client binary on the
+    # Jetson/home machine — see src/cpp_accelerator/docker-compose.yml and
+    # docs/runbooks/accelerator-mtls.md.
+    image: scratch
+    profiles:
+      - disabled
 
   integration-tests:
     build:

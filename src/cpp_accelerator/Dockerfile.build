@@ -116,7 +116,7 @@ COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
 ENV USE_BAZEL_VERSION=8.4.2
-RUN bazel --batch fetch //src/cpp_accelerator/ports/grpc:image_processor_grpc_server || true
+RUN bazel --batch fetch //src/cpp_accelerator/ports/grpc:accelerator_control_client
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     NPROC=$(nproc) && \
@@ -139,7 +139,7 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //src/cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+          //src/cpp_accelerator/ports/grpc:accelerator_control_client 2>&1 | tee /tmp/bazel-build.log && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
@@ -153,13 +153,13 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //src/cpp_accelerator/ports/grpc:image_processor_grpc_server 2>&1 | tee /tmp/bazel-build.log && \
+          //src/cpp_accelerator/ports/grpc:accelerator_control_client 2>&1 | tee /tmp/bazel-build.log && \
         echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
     fi
 
 RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/bin && \
-    cp -L bazel-bin/src/cpp_accelerator/ports/grpc/image_processor_grpc_server /artifacts/bin/image_processor_grpc_server
+    cp -L bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client /artifacts/bin/accelerator_control_client
 
 FROM grpc-built AS grpc-artifacts
 
@@ -193,7 +193,7 @@ RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
 
 WORKDIR /opt/cuda/grpc
 
-COPY --from=grpc-artifacts /artifacts/bin/image_processor_grpc_server ./bin/image_processor_grpc_server
+COPY --from=grpc-artifacts /artifacts/bin/accelerator_control_client ./bin/accelerator_control_client
 COPY --from=grpc-artifacts /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
 
 # Copy VERSION file for GetVersionInfo endpoint
@@ -203,5 +203,5 @@ ENV LD_LIBRARY_PATH=/opt/cuda/grpc/lib:${LD_LIBRARY_PATH}
 
 EXPOSE 60061
 
-ENTRYPOINT ["./bin/image_processor_grpc_server"]
+ENTRYPOINT ["./bin/accelerator_control_client"]
 

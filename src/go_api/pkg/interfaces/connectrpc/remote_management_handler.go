@@ -18,14 +18,14 @@ import (
 )
 
 type RemoteManagementHandler struct {
-	grpcClient    *processor.GRPCClient
+	gateway       *processor.AcceleratorGateway
 	config        *config.Manager
 	deviceMonitor domainInterfaces.MQTTDeviceMonitor
 }
 
-func NewRemoteManagementHandler(grpcClient *processor.GRPCClient, configManager *config.Manager, deviceMonitor domainInterfaces.MQTTDeviceMonitor) *RemoteManagementHandler {
+func NewRemoteManagementHandler(gateway *processor.AcceleratorGateway, configManager *config.Manager, deviceMonitor domainInterfaces.MQTTDeviceMonitor) *RemoteManagementHandler {
 	return &RemoteManagementHandler{
-		grpcClient:    grpcClient,
+		gateway:       gateway,
 		config:        configManager,
 		deviceMonitor: deviceMonitor,
 	}
@@ -74,7 +74,7 @@ type healthCheckResult struct {
 func (h *RemoteManagementHandler) checkAcceleratorHealth(ctx context.Context) healthCheckResult {
 	span := trace.SpanFromContext(ctx)
 
-	if h.grpcClient == nil {
+	if h.gateway == nil {
 		span.RecordError(fmt.Errorf("grpc client not available"))
 		return healthCheckResult{
 			status:  pb.AcceleratorHealthStatus_ACCELERATOR_HEALTH_STATUS_UNHEALTHY,
@@ -84,7 +84,7 @@ func (h *RemoteManagementHandler) checkAcceleratorHealth(ctx context.Context) he
 
 	versionReq := &pb.GetVersionInfoRequest{}
 
-	versionResp, err := h.grpcClient.GetVersionInfo(ctx, versionReq)
+	versionResp, err := h.gateway.GetVersionInfo(ctx, versionReq)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(

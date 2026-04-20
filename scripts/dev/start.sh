@@ -12,7 +12,7 @@ DEV_PID_GRPC="${DEV_PID_DIR}/grpc.pid"
 DEV_PID_GO="${DEV_PID_DIR}/go.pid"
 DEV_PID_VITE="${DEV_PID_DIR}/vite.pid"
 
-DEV_LOG_GRPC="${DEV_LOG_DIR}/grpc-server.log"
+DEV_LOG_GRPC="${DEV_LOG_DIR}/accelerator-client.log"
 DEV_LOG_GO="${DEV_LOG_DIR}/goserver.log"
 DEV_LOG_VITE="${DEV_LOG_DIR}/vite.log"
 
@@ -27,6 +27,22 @@ VITE_PID=
 die() {
     echo "Error: $*" >&2
     exit 1
+}
+
+# Updates .vscode/launch.json "processId" for the Go attach configuration
+# (type=go, request=attach). Uses JSON parse to locate the target; preserves
+# JSONC line comments. On missing python3 or launch file, no-op.
+update_launch_go_attach_process_id() {
+    local pid="$1"
+    local launch_json="${PROJECT_ROOT}/.vscode/launch.json"
+
+    command -v python3 >/dev/null 2>&1 || return 0
+    [ -f "$launch_json" ] || return 0
+
+    if ! python3 "$SCRIPT_DIR/update_launch_go_attach_process_id.py" "$launch_json" "$pid"
+    then
+        echo "Warning: could not update Go attach processId in .vscode/launch.json" >&2
+    fi
 }
 
 parse_args() {
@@ -45,7 +61,7 @@ parse_args() {
 print_help() {
     echo "Usage: ./scripts/dev/start.sh [OPTIONS]"
     echo ""
-    echo "Starts the C++ gRPC processor, Go API (HTTPS), and Vite dev server."
+    echo "Starts the C++ accelerator client, Go API (HTTPS), and Vite dev server."
     echo ""
     echo "Local dev (split ports):"
     echo "  - UI:  https://localhost:3000/react and https://localhost:3000/lit (Vite pretty paths)"
@@ -58,7 +74,7 @@ print_help() {
     echo "Vite only (Go already running): cd src/front-end && npm run dev (needs .secrets/localhost+2*.pem)."
     echo ""
     echo "Options:"
-    echo "  --build, -b    Build C++ gRPC server and Go backend before starting"
+    echo "  --build, -b    Build C++ accelerator client and Go backend before starting"
     echo "  --help, -h     Show this help message"
     echo ""
     echo "Examples:"
@@ -98,26 +114,31 @@ run_optional_build() {
         ./scripts/build/protos.sh
     fi
 
-    echo "Building gRPC processor server..."
-    bazel build //src/cpp_accelerator/ports/grpc:image_processor_grpc_server
+    echo "Building C++ accelerator client..."
+    bazel build //src/cpp_accelerator/ports/grpc:accelerator_control_client
 
     echo "Building backend with Go..."
     (cd src/go_api && make build)
 }
 
 require_grpc_binary() {
-    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/image_processor_grpc_server"
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client"
     if [ ! -x "$GRPC_SERVER_BIN" ]; then
-        echo "Error: gRPC server binary not found at ${GRPC_SERVER_BIN}" >&2
+        echo "Error: accelerator client binary not found at ${GRPC_SERVER_BIN}" >&2
         echo "       Run './scripts/dev/start.sh --build' to build it." >&2
         exit 1
     fi
 }
 
 start_grpc() {
-    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/image_processor_grpc_server"
-    echo "Starting gRPC (C++) server..."
-    "$GRPC_SERVER_BIN" --listen_addr=0.0.0.0:60061 >"$DEV_LOG_GRPC" 2>&1 &
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client"
+    echo "Starting C++ accelerator client..."
+    "$GRPC_SERVER_BIN" \
+        --control_addr=localhost:60062 \
+        --client_cert="${PROJECT_ROOT}/.secrets/dev-accelerator-client.pem" \
+        --client_key="${PROJECT_ROOT}/.secrets/dev-accelerator-client-key.pem" \
+        --ca_cert="${PROJECT_ROOT}/.secrets/accelerator-ca.pem" \
+        >"$DEV_LOG_GRPC" 2>&1 &
     GRPC_PID=$!
     echo "$GRPC_PID" >"$DEV_PID_GRPC"
 }
@@ -125,15 +146,26 @@ start_grpc() {
 start_go() {
     echo "Starting Go server..."
     echo "Building Go server..."
-    (cd "$PROJECT_ROOT/src/go_api" && make build) || die "Go build failed"
+    if ! (cd "$PROJECT_ROOT/src/go_api" && make build); then
+        update_launch_go_attach_process_id -1
+        die "Go build failed"
+    fi
 
-    [ -f "$PROJECT_ROOT/bin/server" ] || die "Go build did not produce bin/server"
+    if [ ! -f "$PROJECT_ROOT/bin/server" ]; then
+        update_launch_go_attach_process_id -1
+        die "Go build did not produce bin/server"
+    fi
 
     "$PROJECT_ROOT/bin/server" -config=config/config.dev.yaml >"$DEV_LOG_GO" 2>&1 &
     GO_PID=$!
     echo "$GO_PID" >"$DEV_PID_GO"
 
-    kill -0 "$GO_PID" 2>/dev/null || die "Go server failed to start"
+    if ! kill -0 "$GO_PID" 2>/dev/null; then
+        update_launch_go_attach_process_id -1
+        die "Go server failed to start"
+    fi
+
+    update_launch_go_attach_process_id "$GO_PID"
 }
 
 start_vite() {
@@ -162,10 +194,10 @@ print_summary() {
     echo "Dev stack:"
     echo "  UI (Vite):   https://localhost:3000"
     echo "  API (HTTPS): https://localhost:8443"
-    echo "  gRPC (C++):  localhost:60061"
+    echo "  Accelerator: → localhost:60062 (outbound)"
     echo "================================================"
     echo ""
-    echo "  gRPC server PID: $GRPC_PID ($DEV_PID_GRPC)"
+    echo "  Accelerator PID: $GRPC_PID ($DEV_PID_GRPC)"
     echo "  Go server PID:   $GO_PID ($DEV_PID_GO)"
     echo "  Vite PID:        $VITE_PID ($DEV_PID_VITE)"
     echo ""

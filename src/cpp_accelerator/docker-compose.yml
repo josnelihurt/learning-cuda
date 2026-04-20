@@ -1,7 +1,7 @@
 services:
-  grpc-server:
-    image: ${GRPC_SERVER_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/grpc-server:latest-arm64}
-    container_name: cuda-grpc-server
+  accelerator-client:
+    image: ${ACCELERATOR_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/grpc-server:latest-arm64}
+    container_name: cuda-accelerator-client
     restart: unless-stopped
     runtime: nvidia
 
@@ -12,7 +12,16 @@ services:
       - OTEL_LOGS_ENDPOINT=https://otel-cuda-demo.josnelihurt.me/v1/logs
       - OTEL_ENVIRONMENT=production
 
-    ports:
-      - "60061:60061"
+    command:
+      - accelerator_control_client
+      - --control_addr=${ACCELERATOR_CLOUD_ENDPOINT:-cloud.example.com:60062}
+      - --device_id=${ACCELERATOR_DEVICE_ID:-jetson-prod-01}
+      - --display_name=${ACCELERATOR_DISPLAY_NAME:-Jetson Orin}
+      - --client_cert=/secrets/client.pem
+      - --client_key=/secrets/client-key.pem
+      - --ca_cert=/secrets/ca.pem
+
+    volumes:
+      - ${ACCELERATOR_SECRETS_DIR:-./secrets}:/secrets:ro
 
 volumes: {}

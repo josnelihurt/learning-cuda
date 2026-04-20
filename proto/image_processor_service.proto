@@ -197,6 +197,8 @@ service ImageProcessorService {
     };
   }
   
+  // TODO: buf lint — ProcessImageRequest/Response reused across multiple RPCs and not named
+  // StreamProcessVideoRequest/Response; rename when this RPC is next modified.
   rpc StreamProcessVideo(stream ProcessImageRequest) returns (stream ProcessImageResponse);
   
   rpc GetVersionInfo(GetVersionInfoRequest) returns (GetVersionInfoResponse);

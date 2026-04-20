@@ -49,6 +49,9 @@ export const ImageProcessorService = {
       kind: MethodKind.Unary,
     },
     /**
+     * TODO: buf lint — ProcessImageRequest/Response reused across multiple RPCs and not named
+     * StreamProcessVideoRequest/Response; rename when this RPC is next modified.
+     *
      * @generated from rpc cuda_learning.ImageProcessorService.StreamProcessVideo
      */
     streamProcessVideo: {

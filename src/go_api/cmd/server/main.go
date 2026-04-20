@@ -30,6 +30,13 @@ func main() {
 
 	log := logger.Global()
 
+	if di.AcceleratorControl == nil {
+		log.Fatal().Msg("Accelerator control server is not initialized")
+	}
+	if err := di.AcceleratorControl.Start(); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start accelerator control server")
+	}
+
 	tracerProvider, err := telemetry.New(
 		ctx,
 		di.Config.IsObservabilityEnabled(ctx),
@@ -37,15 +44,6 @@ func main() {
 	)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to initialize telemetry")
-	}
-
-	if di.AcceleratorControl != nil {
-		if err := di.AcceleratorControl.Start(); err != nil {
-			log.Fatal().Err(err).Msg("Failed to start accelerator control server")
-		}
-		log.Info().Msg("Accelerator control server started")
-	} else {
-		log.Warn().Msg("Accelerator control server not started (check cert configuration)")
 	}
 
 	acceleratorGateway := processor.NewAcceleratorGateway(processor.AcceleratorGatewayConfig{
@@ -62,7 +60,7 @@ func main() {
 
 	server, err := app.New(ctx, app.Deps{
 		Config:                di.Config,
-		UseCase:               processImageUseCase,
+		ProcessImageUC:        processImageUseCase,
 		AcceleratorGateway:    acceleratorGateway,
 		ProcessorCapsUC:       processorCapsUseCase,
 		GetSystemInfoUC:       di.GetSystemInfoUseCase,

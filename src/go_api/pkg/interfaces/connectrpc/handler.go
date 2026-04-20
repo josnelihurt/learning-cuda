@@ -7,47 +7,43 @@ import (
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
 	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
-	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/adapters"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type ImageProcessorHandler struct {
-	useCase       *imageapp.ProcessImageUseCase
-	streamVideoUC *videoapp.StreamVideoUseCase
-	adapter       *adapters.ProtobufAdapter
-	filterCodec   *adapters.FilterCodec
-	capabilities  processorCapabilitiesProvider
-	evaluateFFUse *ffapp.EvaluateFeatureFlagUseCase
-	grpcClient    interface {
+	// Use Cases
+	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
+	streamVideoUC  streamVideoUseCase
+	capabilities   processorCapabilitiesUseCase
+	evaluateFFUse  evaluateFeatureFlagUseCase
+	adapter        *adapters.ProtobufAdapter
+	filterCodec    *adapters.FilterCodec
+	grpcClient     interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	}
 }
 
-type processorCapabilitiesProvider interface {
-	Execute(ctx context.Context, useGRPC bool) (*pb.LibraryCapabilities, systemapp.ProcessorBackendOrigin, error)
-}
-
 func NewImageProcessorHandlerWithGRPC(
-	useCase *imageapp.ProcessImageUseCase,
-	capabilitiesUC processorCapabilitiesProvider,
-	evaluateFFUse *ffapp.EvaluateFeatureFlagUseCase,
-	streamVideoUC *videoapp.StreamVideoUseCase,
+	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput],
+	capabilitiesUC processorCapabilitiesUseCase,
+	evaluateFFUC evaluateFeatureFlagUseCase,
+	streamVideoUC streamVideoUseCase,
 	grpcClient interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	},
 ) *ImageProcessorHandler {
 	return &ImageProcessorHandler{
-		useCase:       useCase,
-		streamVideoUC: streamVideoUC,
+		processImageUC: processImageUC,
+		streamVideoUC:  streamVideoUC,
+		// TODO: Add adapters to the container
 		adapter:       adapters.NewProtobufAdapter(),
 		filterCodec:   adapters.NewFilterCodec(),
 		capabilities:  capabilitiesUC,
-		evaluateFFUse: evaluateFFUse,
+		evaluateFFUse: evaluateFFUC,
 		grpcClient:    grpcClient,
 	}
 }
@@ -61,12 +57,12 @@ func (h *ImageProcessorHandler) ProcessImage(
 	opts := h.adapter.ExtractProcessingOptions(msg)
 	domainImg := h.adapter.ToDomainImage(msg)
 
-	processedImg, err := h.useCase.Execute(ctx, domainImg, opts)
+	result, err := h.processImageUC.Execute(ctx, imageapp.ProcessImageUseCaseInput{Image: domainImg, Opts: opts})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	resp := h.adapter.ToProtobufResponse(processedImg)
+	resp := h.adapter.ToProtobufResponse(result.Image)
 
 	return connect.NewResponse(resp), nil
 }

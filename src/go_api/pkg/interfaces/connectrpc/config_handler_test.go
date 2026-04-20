@@ -20,5 +20,5 @@ func TestNewConfigHandler(t *testing.T) {
 
 	// Assert
 	require.NotNil(t, sut)
-	assert.Equal(t, mockConfigManager, sut.configManager)
+	assert.Equal(t, mockConfigManager, sut.ConfigManager)
 }

@@ -38,10 +38,10 @@ func RegisterConfigService(
 
 func RegisterFileService(
 	mux *http.ServeMux,
-	listAvailableImagesUC *imageapp.ListAvailableImagesUseCase,
-	uploadImageUC *imageapp.UploadImageUseCase,
-	listVideosUC *videoapp.ListVideosUseCase,
-	uploadVideoUC *videoapp.UploadVideoUseCase,
+	listAvailableImagesUC useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput],
+	uploadImageUC useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput],
+	listVideosUC useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput],
+	uploadVideoUC useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput],
 	interceptors ...connect.Interceptor,
 ) {
 	fileHandler := NewFileHandler(listAvailableImagesUC, uploadImageUC, listVideosUC, uploadVideoUC)

@@ -95,9 +95,9 @@ func TestListAvailableImagesUseCase_Execute(t *testing.T) {
 			sut := NewListAvailableImagesUseCase(mockRepo)
 			ctx := context.Background()
 
-			result, err := sut.Execute(ctx)
+			output, err := sut.Execute(ctx, ListAvailableImagesUseCaseInput{})
 
-			tt.assertResult(t, result, err)
+			tt.assertResult(t, output.Images, err)
 			mockRepo.AssertExpectations(t)
 		})
 	}

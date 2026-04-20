@@ -24,13 +24,22 @@ var (
 
 const maxVideoSize = 100 * 1024 * 1024
 
+type UploadVideoUseCaseInput struct {
+	FileData []byte
+	Filename string
+}
+
+type UploadVideoUseCaseOutput struct {
+	Video *domain.Video
+}
+
 type UploadVideoUseCase struct {
-	repository  domain.VideoRepository
+	repository  videoRepository
 	videosDir   string
 	previewsDir string
 }
 
-func NewUploadVideoUseCase(repository domain.VideoRepository, videosDir, previewsDir string) *UploadVideoUseCase {
+func NewUploadVideoUseCase(repository videoRepository, videosDir, previewsDir string) *UploadVideoUseCase {
 	return &UploadVideoUseCase{
 		repository:  repository,
 		videosDir:   videosDir,
@@ -38,7 +47,7 @@ func NewUploadVideoUseCase(repository domain.VideoRepository, videosDir, preview
 	}
 }
 
-func (uc *UploadVideoUseCase) Execute(ctx context.Context, fileData []byte, filename string) (*domain.Video, error) {
+func (uc *UploadVideoUseCase) Execute(ctx context.Context, input UploadVideoUseCaseInput) (UploadVideoUseCaseOutput, error) {
 	tracer := otel.Tracer("upload-video")
 	_, span := tracer.Start(ctx, "UploadVideo",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -46,27 +55,27 @@ func (uc *UploadVideoUseCase) Execute(ctx context.Context, fileData []byte, file
 	defer span.End()
 
 	span.SetAttributes(
-		attribute.String("filename", filename),
-		attribute.Int("file_size", len(fileData)),
+		attribute.String("filename", input.Filename),
+		attribute.Int("file_size", len(input.FileData)),
 	)
 
-	if err := uc.validateFormat(filename); err != nil {
+	if err := uc.validateFormat(input.Filename); err != nil {
 		span.SetAttributes(attribute.Bool("error.invalid_format", true))
-		return nil, err
+		return UploadVideoUseCaseOutput{}, err
 	}
 
-	if err := uc.validateSize(fileData); err != nil {
+	if err := uc.validateSize(input.FileData); err != nil {
 		span.SetAttributes(attribute.Bool("error.file_too_large", true))
-		return nil, err
+		return UploadVideoUseCaseOutput{}, err
 	}
 
-	id := strings.TrimSuffix(filename, filepath.Ext(filename))
-	videoPath := filepath.Join(uc.videosDir, filename)
+	id := strings.TrimSuffix(input.Filename, filepath.Ext(input.Filename))
+	videoPath := filepath.Join(uc.videosDir, input.Filename)
 	previewPath := filepath.Join(uc.previewsDir, id+".png")
 
-	if err := os.WriteFile(videoPath, fileData, 0o600); err != nil {
+	if err := os.WriteFile(videoPath, input.FileData, 0o600); err != nil {
 		span.SetAttributes(attribute.Bool("error", true))
-		return nil, fmt.Errorf("failed to save video: %w", err)
+		return UploadVideoUseCaseOutput{}, fmt.Errorf("failed to save video: %w", err)
 	}
 
 	previewImagePath := ""
@@ -79,25 +88,25 @@ func (uc *UploadVideoUseCase) Execute(ctx context.Context, fileData []byte, file
 		span.SetAttributes(attribute.Bool("preview.generated", true))
 	}
 
-	video := &domain.Video{
+	vid := &domain.Video{
 		ID:               id,
 		DisplayName:      strings.ReplaceAll(id, "-", " "),
-		Path:             filepath.Join(rootPath, "data", "videos", filename),
+		Path:             filepath.Join(rootPath, "data", "videos", input.Filename),
 		PreviewImagePath: previewImagePath,
 		IsDefault:        false,
 	}
 
-	if err := uc.repository.Save(ctx, video); err != nil {
+	if err := uc.repository.Save(ctx, vid); err != nil {
 		span.SetAttributes(attribute.Bool("error", true))
-		return nil, err
+		return UploadVideoUseCaseOutput{}, err
 	}
 
 	span.SetAttributes(
-		attribute.String("video.id", video.ID),
+		attribute.String("video.id", vid.ID),
 		attribute.Bool("upload.success", true),
 	)
 
-	return video, nil
+	return UploadVideoUseCaseOutput{Video: vid}, nil
 }
 
 func (uc *UploadVideoUseCase) validateFormat(filename string) error {

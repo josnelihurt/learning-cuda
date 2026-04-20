@@ -3,7 +3,6 @@ package video
 import (
 	"context"
 
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -19,17 +18,23 @@ type InputSource struct {
 	PreviewImagePath string
 }
 
-type ListInputsUseCase struct {
-	videoRepository domain.VideoRepository
+type ListInputsUseCaseInput struct{}
+
+type ListInputsUseCaseOutput struct {
+	Inputs []InputSource
 }
 
-func NewListInputsUseCase(videoRepository domain.VideoRepository) *ListInputsUseCase {
+type ListInputsUseCase struct {
+	videoRepository videoRepository
+}
+
+func NewListInputsUseCase(videoRepository videoRepository) *ListInputsUseCase {
 	return &ListInputsUseCase{
 		videoRepository: videoRepository,
 	}
 }
 
-func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error) {
+func (uc *ListInputsUseCase) Execute(ctx context.Context, _ ListInputsUseCaseInput) (ListInputsUseCaseOutput, error) {
 	tracer := otel.Tracer("list-inputs")
 	_, span := tracer.Start(ctx, "ListInputs",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -88,5 +93,5 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context) ([]InputSource, error)
 		attribute.Int("input_sources.video_count", videoCount),
 	)
 
-	return sources, nil
+	return ListInputsUseCaseOutput{Inputs: sources}, nil
 }

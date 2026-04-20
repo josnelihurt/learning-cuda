@@ -10,12 +10,10 @@ import (
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/build"
 	configrepo "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/featureflags"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/filesystem"
-	httpinfra "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/http"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/mqtt"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
@@ -25,21 +23,21 @@ import (
 )
 
 type Container struct {
-	Config     *config.Manager
-	HTTPClient *httpinfra.ClientProxy
+	Config *config.Manager
 
-	FeatureFlagRepo domain.FeatureFlagRepository
-	VideoRepository domain.VideoRepository
+	FeatureFlagRepo featureFlagRepository
+	VideoRepository videoRepository
 
-	ProcessImageUseCase        *imageapp.ProcessImageUseCase
-	EvaluateFeatureFlagUseCase *ffapp.EvaluateFeatureFlagUseCase
-	GetSystemInfoUseCase       *systemapp.GetSystemInfoUseCase
-	ListInputsUseCase          *videoapp.ListInputsUseCase
-	ListAvailableImagesUseCase *imageapp.ListAvailableImagesUseCase
-	UploadImageUseCase         *imageapp.UploadImageUseCase
-	ListVideosUseCase          *videoapp.ListVideosUseCase
-	UploadVideoUseCase         *videoapp.UploadVideoUseCase
-	StreamVideoUseCase         *videoapp.StreamVideoUseCase
+	ProcessImageUseCase        useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
+	EvaluateFeatureFlagUseCase evaluateFeatureFlagUseCase
+	GetSystemInfoUseCase       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
+	ListInputsUseCase          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
+	ListAvailableImagesUseCase useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
+	UploadImageUseCase         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
+	ListVideosUseCase          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
+	UploadVideoUseCase         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
+	// TODO: replace with streamVideoUseCase this is not possible right now because the StreamVideoUseCase depends on proto objects
+	StreamVideoUseCase *videoapp.StreamVideoUseCase
 
 	AcceleratorRegistry *processor.Registry
 	AcceleratorControl  *processor.ControlServer
@@ -62,13 +60,7 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	})
 	log.Info().Str("config_file", configFile).Any("config", cfg).Msg("Container initialized")
 
-	httpClient := httpinfra.NewInstrumentedClient(httpinfra.ClientConfig{
-		Timeout:         cfg.HTTPClientTimeout,
-		MaxIdleConns:    100,
-		IdleConnTimeout: 90 * time.Second,
-	})
-
-	var featureFlagRepo domain.FeatureFlagRepository
+	var featureFlagRepo featureFlagRepository
 
 	if cfg.GoFeatureFlag.Enabled {
 		goffRepo := featureflags.NewGoffRepository(cfg.GoFeatureFlag.FilePath)
@@ -89,13 +81,12 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	controlServer, err := processor.NewControlServer(cfg.Processor, registry)
 	if err != nil {
-		log.Warn().Err(err).Msg("control server not initialized (certs missing?); accelerator connections will fail")
-		controlServer = nil
-	} else {
-		log.Info().
-			Str("listen_address", cfg.Processor.ListenAddress).
-			Msg("accelerator control server created")
+		err = fmt.Errorf("control server not initialized (certs missing?); accelerator connections will fail: %w", err)
+		return nil, err
 	}
+	log.Info().
+		Str("listen_address", cfg.Processor.ListenAddress).
+		Msg("accelerator control server created")
 
 	evaluateFFUseCase := ffapp.NewEvaluateFeatureFlagUseCase(featureFlagRepo)
 
@@ -105,8 +96,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	listInputsUseCase := videoapp.NewListInputsUseCase(videoRepo)
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
-	// Create use case for listing available images
-	// language: english-only
 	listAvailableImagesUseCase := imageapp.NewListAvailableImagesUseCase(staticImageRepo) //nolint:language
 	uploadImageUseCase := imageapp.NewUploadImageUseCase(staticImageRepo)
 
@@ -136,7 +125,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 
 	return &Container{
 		Config:                     cfg,
-		HTTPClient:                 httpClient,
 		FeatureFlagRepo:            featureFlagRepo,
 		VideoRepository:            videoRepo,
 		EvaluateFeatureFlagUseCase: evaluateFFUseCase,

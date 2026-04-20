@@ -36,7 +36,7 @@ type StreamVideoPeerFactory func(browserSessionID string) (StreamVideoPeer, erro
 
 type StreamVideoUseCase struct {
 	baseCtx         context.Context
-	videoRepository domain.VideoRepository
+	videoRepository videoRepository
 	playerFactory   StreamVideoPlayerFactory
 	peerFactory     StreamVideoPeerFactory
 
@@ -52,7 +52,7 @@ type videoPlaybackSession struct {
 
 func NewStreamVideoUseCase(
 	baseCtx context.Context,
-	videoRepository domain.VideoRepository,
+	videoRepository videoRepository,
 	playerFactory StreamVideoPlayerFactory,
 	peerFactory StreamVideoPeerFactory,
 ) *StreamVideoUseCase {

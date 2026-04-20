@@ -9,17 +9,24 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type ListAvailableImagesUseCase struct {
-	repository domain.StaticImageRepository
+type ListAvailableImagesUseCaseInput struct {
 }
 
-func NewListAvailableImagesUseCase(repository domain.StaticImageRepository) *ListAvailableImagesUseCase {
+type ListAvailableImagesUseCaseOutput struct {
+	Images []domain.StaticImage
+}
+
+type ListAvailableImagesUseCase struct {
+	repository staticImageRepository
+}
+
+func NewListAvailableImagesUseCase(repository staticImageRepository) *ListAvailableImagesUseCase {
 	return &ListAvailableImagesUseCase{
 		repository: repository,
 	}
 }
 
-func (uc *ListAvailableImagesUseCase) Execute(ctx context.Context) ([]domain.StaticImage, error) {
+func (uc *ListAvailableImagesUseCase) Execute(ctx context.Context, input ListAvailableImagesUseCaseInput) (ListAvailableImagesUseCaseOutput, error) {
 	tracer := otel.Tracer("list-available-images")
 	ctx, span := tracer.Start(ctx, "ListAvailableImagesUseCase.Execute",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -29,12 +36,14 @@ func (uc *ListAvailableImagesUseCase) Execute(ctx context.Context) ([]domain.Sta
 	images, err := uc.repository.FindAll(ctx)
 	if err != nil {
 		span.RecordError(err)
-		return nil, err
+		return ListAvailableImagesUseCaseOutput{}, err
 	}
 
 	span.SetAttributes(
 		attribute.Int("images.count", len(images)),
 	)
 
-	return images, nil
+	return ListAvailableImagesUseCaseOutput{
+		Images: images,
+	}, nil
 }

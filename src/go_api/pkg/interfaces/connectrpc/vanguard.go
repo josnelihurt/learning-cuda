@@ -6,28 +6,26 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/vanguard"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
 	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
-	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
 
 // VanguardConfig groups all dependencies needed to setup Vanguard transcoder
 type VanguardConfig struct {
 	ImageProcessorHandler *ImageProcessorHandler
-	FeatureFlagRepo       domain.FeatureFlagRepository
-	ListInputsUC          *videoapp.ListInputsUseCase
-	EvaluateFFUC          *ffapp.EvaluateFeatureFlagUseCase
-	GetSystemInfoUC       *systemapp.GetSystemInfoUseCase
+	FeatureFlagRepo       featureFlagRepository
+	ListInputsUC          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
+	EvaluateFFUC          evaluateFeatureFlagUseCase
+	GetSystemInfoUC       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
 	ConfigManager         *config.Manager
-	ProcessorCapsUC       *systemapp.ProcessorCapabilitiesUseCase
-	ListAvailableImagesUC *imageapp.ListAvailableImagesUseCase
-	UploadImageUC         *imageapp.UploadImageUseCase
-	ListVideosUC          *videoapp.ListVideosUseCase
-	UploadVideoUC         *videoapp.UploadVideoUseCase
+	ProcessorCapsUC       processorCapabilitiesUseCase
+	ListAvailableImagesUC useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
+	UploadImageUC         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
+	ListVideosUC          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
+	UploadVideoUC         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
 	Interceptors          []connect.Interceptor
 }
 

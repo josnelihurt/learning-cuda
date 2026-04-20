@@ -13,13 +13,13 @@ import (
 )
 
 type VideoPlaybackUseCase struct {
-	videoRepository domain.VideoRepository
-	videoPlayer     domain.VideoPlayer
+	videoRepository videoRepository
+	videoPlayer     videoPlayer
 }
 
 func NewVideoPlaybackUseCase(
-	videoRepository domain.VideoRepository,
-	videoPlayer domain.VideoPlayer,
+	videoRepository videoRepository,
+	videoPlayer videoPlayer,
 ) *VideoPlaybackUseCase {
 	return &VideoPlaybackUseCase{
 		videoRepository: videoRepository,

@@ -160,10 +160,10 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 			ctx := context.Background()
 
 			// Act
-			result, err := sut.Execute(ctx)
+			output, err := sut.Execute(ctx, GetSystemInfoUseCaseInput{})
 
 			// Assert
-			tt.assertResult(t, result, err)
+			tt.assertResult(t, output.SystemInfo, err)
 			mockConfig.AssertExpectations(t)
 			mockBuildInfo.AssertExpectations(t)
 			mockVersion.AssertExpectations(t)

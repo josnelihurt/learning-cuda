@@ -222,10 +222,10 @@ main() {
     require_grpc_binary
     ensure_state_dirs
 
-    start_grpc
     trap cleanup_on_signal INT TERM
 
     start_go
+    start_grpc
     start_vite
 
     print_summary

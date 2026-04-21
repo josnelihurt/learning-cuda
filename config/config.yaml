@@ -34,7 +34,7 @@ processor:
   library_base_path: ".ignore/lib/cuda_learning"
 
 mqtt:
-  broker: "vultur.josnelihurt.me"
+  broker: ""
   port: 1883
   client_id: "cuda-learning-remote-management"
   topic: "pow/S31JetsonNanoOrin"

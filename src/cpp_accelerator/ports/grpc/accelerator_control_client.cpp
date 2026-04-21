@@ -144,7 +144,12 @@ bool AcceleratorControlClient::RunOnce() {
 
   // Send Register.
   if (!Send(BuildRegisterMessage())) {
-    spdlog::error("[AcceleratorControl] Failed to send Register");
+    if (ctx_ != nullptr) {
+      spdlog::error("[AcceleratorControl] Failed to send Register — {}",
+                    ctx_->debug_error_string());
+    } else {
+      spdlog::error("[AcceleratorControl] Failed to send Register");
+    }
     cleanup();
     return stop_requested_;
   }

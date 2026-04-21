@@ -44,8 +44,7 @@ func NewClient(cfg config.MQTTConfig) (*Client, error) {
 	opts.AddBroker(brokerURL)
 	opts.SetClientID(cfg.ClientID)
 	opts.SetAutoReconnect(true)
-	opts.SetConnectRetry(true)
-	opts.SetConnectRetryInterval(5 * time.Second)
+	opts.SetConnectRetry(false)
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetPingTimeout(10 * time.Second)
 	opts.SetConnectTimeout(10 * time.Second)
@@ -282,6 +281,9 @@ func (c *Client) RestartDevice() error {
 }
 
 func (c *Client) Disconnect() {
+	if c == nil || c.client == nil {
+		return
+	}
 	log.Info().Msg("Disconnecting MQTT client")
 	c.client.Disconnect(250)
 	log.Info().Msg("MQTT client disconnected")

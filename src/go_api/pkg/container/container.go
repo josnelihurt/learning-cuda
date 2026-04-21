@@ -26,9 +26,7 @@ type Container struct {
 	Config *config.Manager
 
 	FeatureFlagRepo featureFlagRepository
-	VideoRepository videoRepository
 
-	ProcessImageUseCase               useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
 	EvaluateFeatureFlagBooleanUseCase useCase[ffapp.EvaluateFeatureFlagBooleanUseCaseInput, ffapp.EvaluateFeatureFlagBooleanUseCaseOutput]
 	EvaluateFeatureFlagStringUseCase  useCase[ffapp.EvaluateFeatureFlagStringUseCaseInput, ffapp.EvaluateFeatureFlagStringUseCaseOutput]
 	GetSystemInfoUseCase              useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
@@ -128,7 +126,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	return &Container{
 		Config:                            cfg,
 		FeatureFlagRepo:                   featureFlagRepo,
-		VideoRepository:                   videoRepo,
 		EvaluateFeatureFlagBooleanUseCase: evaluateFFBooleanUseCase,
 		EvaluateFeatureFlagStringUseCase:  evaluateFFStringUseCase,
 		GetSystemInfoUseCase:              getSystemInfoUseCase,

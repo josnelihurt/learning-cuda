@@ -5,7 +5,6 @@ type Image struct {
 	Data   []byte
 	Width  int
 	Height int
-	Format string
 }
 
 // FilterType represents the type of filter to apply
@@ -52,10 +51,4 @@ type BlurParameters struct {
 	Sigma      float32
 	BorderMode BorderMode
 	Separable  bool
-}
-
-// ModelInferenceParameters represents parameters for the model inference filter.
-type ModelInferenceParameters struct {
-	ModelID             string
-	ConfidenceThreshold float32
 }

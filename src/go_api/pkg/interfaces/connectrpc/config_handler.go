@@ -57,18 +57,27 @@ func (h *ConfigHandler) GetStreamConfig(
 	}
 
 	logLevelResolver := func() string {
+		const defaultLogLevel = "INFO"
+		if h.EvaluateFFStringUC == nil {
+			logger.FromContext(ctx).Warn().Msg("frontend log level flag resolver missing; using default")
+			return defaultLogLevel
+		}
 		logLevel, err := h.EvaluateFFStringUC.Execute(ctx, ffapp.EvaluateFeatureFlagStringUseCaseInput{
 			FlagKey:       "frontend_log_level",
 			EntityID:      "default",
-			FallbackValue: "INFO",
+			FallbackValue: defaultLogLevel,
 		})
 		if err != nil || logLevel.Result == "" {
-			logLevel.Result = "INFO"
+			logLevel.Result = defaultLogLevel
 		}
 		return logLevel.Result
 	}
 
 	consoleLoggingResolver := func() bool {
+		if h.EvaluateFFBooleanUC == nil {
+			logger.FromContext(ctx).Warn().Msg("frontend console logging flag resolver missing; using default")
+			return true
+		}
 		consoleLogging, err := h.EvaluateFFBooleanUC.Execute(ctx, ffapp.EvaluateFeatureFlagBooleanUseCaseInput{
 			FlagKey:       "frontend_console_logging",
 			EntityID:      "default",

@@ -11,7 +11,7 @@ import (
 	pion "github.com/pion/webrtc/v4"
 )
 
-const GoVideoDataChannelLabelPrefix = "go-video-"
+const goVideoDataChannelLabelPrefix = "go-video-"
 
 type SignalingClient interface {
 	SignalingStream(ctx context.Context) (pb.WebRTCSignalingService_SignalingStreamClient, error)
@@ -30,7 +30,7 @@ type GoPeer struct {
 }
 
 func NewGoPeer(browserSession string) *GoPeer {
-	sessionID := GoVideoDataChannelLabelPrefix + browserSession
+	sessionID := goVideoDataChannelLabelPrefix + browserSession
 
 	return &GoPeer{
 		browserSession: browserSession,
@@ -172,10 +172,6 @@ func (p *GoPeer) Send(payload []byte) error {
 	}
 
 	return p.dataChannel.Send(payload)
-}
-
-func (p *GoPeer) DataChannel() *pion.DataChannel {
-	return p.dataChannel
 }
 
 func (p *GoPeer) Label() string {

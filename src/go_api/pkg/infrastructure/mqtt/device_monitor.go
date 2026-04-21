@@ -192,10 +192,6 @@ func (dm *DeviceMonitor) PowerOn() error {
 	return dm.link.publishPower(true)
 }
 
-func (dm *DeviceMonitor) PowerOff() error {
-	return nil //DISABLED
-}
-
 func (dm *DeviceMonitor) Subscribe(callback func(*domain.DeviceStatus)) func() {
 	statusCopy := dm.status
 	callback(statusCopy)

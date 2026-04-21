@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/app"
-	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/container"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
@@ -47,30 +46,26 @@ func main() {
 		Registry: di.AcceleratorRegistry,
 	})
 
-	grpcProcessor := processor.NewGRPCProcessor(acceleratorGateway)
-	processImageUseCase := imageapp.NewProcessImageUseCase(grpcProcessor)
-
 	processorCapsUseCase := systemapp.NewProcessorCapabilitiesUseCase(
-		nil,
 		processor.NewGRPCRepository(acceleratorGateway),
 	)
 
 	server, err := app.New(ctx, app.Deps{
-		Config:                 di.Config,
-		ProcessImageUC:         processImageUseCase,
-		AcceleratorGateway:     acceleratorGateway,
-		ProcessorCapsUC:        processorCapsUseCase,
-		GetSystemInfoUC:        di.GetSystemInfoUseCase,
-		FeatureFlagRepo:        di.FeatureFlagRepo,
-		ListInputsUC:           di.ListInputsUseCase,
-		StartVideoPlaybackUC:   di.StartVideoPlaybackUseCase,
-		StopVideoPlaybackUC:    di.StopVideoPlaybackUseCase,
-		ListAvailableImagesUC:  di.ListAvailableImagesUseCase,
-		UploadImageUC:          di.UploadImageUseCase,
-		ListVideosUC:           di.ListVideosUseCase,
-		UploadVideoUC:          di.UploadVideoUseCase,
-		VideoRepository:        di.VideoRepository,
-		DeviceMonitor:          di.DeviceMonitor,
+		Config:                di.Config,
+		AcceleratorGateway:    acceleratorGateway,
+		ProcessorCapsUC:       processorCapsUseCase,
+		GetSystemInfoUC:       di.GetSystemInfoUseCase,
+		EvaluateFFBooleanUC:   di.EvaluateFeatureFlagBooleanUseCase,
+		EvaluateFFStringUC:    di.EvaluateFeatureFlagStringUseCase,
+		FeatureFlagRepo:       di.FeatureFlagRepo,
+		ListInputsUC:          di.ListInputsUseCase,
+		StartVideoPlaybackUC:  di.StartVideoPlaybackUseCase,
+		StopVideoPlaybackUC:   di.StopVideoPlaybackUseCase,
+		ListAvailableImagesUC: di.ListAvailableImagesUseCase,
+		UploadImageUC:         di.UploadImageUseCase,
+		ListVideosUC:          di.ListVideosUseCase,
+		UploadVideoUC:         di.UploadVideoUseCase,
+		DeviceMonitor:         di.DeviceMonitor,
 	})
 	if err != nil {
 		logger.Global().Fatal().Err(err).Msg("Failed to initialize app")

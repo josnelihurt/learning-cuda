@@ -7,7 +7,6 @@ import (
 	"connectrpc.com/connect"
 	pb "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/jrb/cuda-learning/proto/gen/genconnect"
-	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/interfaces/adapters"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,20 +14,17 @@ import (
 )
 
 type ImageProcessorHandler struct {
-	// Use Cases
-	processImageUC      useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
 	startVideoPlaybackUC useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput]
 	stopVideoPlaybackUC  useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput]
-	capabilities        processorCapabilitiesUseCase
-	adapter             *adapters.ProtobufAdapter
-	filterCodec         *adapters.FilterCodec
-	grpcClient          interface {
+	capabilities         processorCapabilitiesUseCase
+	adapter              *adapters.ProtobufAdapter
+	filterCodec          *adapters.FilterCodec
+	grpcClient           interface {
 		GetVersionInfo(context.Context, *pb.GetVersionInfoRequest) (*pb.GetVersionInfoResponse, error)
 	}
 }
 
 func NewImageProcessorHandlerWithGRPC(
-	processImageUC useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput],
 	capabilitiesUC processorCapabilitiesUseCase,
 	startVideoPlaybackUC useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput],
 	stopVideoPlaybackUC useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput],
@@ -37,34 +33,13 @@ func NewImageProcessorHandlerWithGRPC(
 	},
 ) *ImageProcessorHandler {
 	return &ImageProcessorHandler{
-		processImageUC:      processImageUC,
 		startVideoPlaybackUC: startVideoPlaybackUC,
 		stopVideoPlaybackUC:  stopVideoPlaybackUC,
-		// TODO: Add adapters to the container
-		adapter:      adapters.NewProtobufAdapter(),
-		filterCodec:  adapters.NewFilterCodec(),
-		capabilities: capabilitiesUC,
-		grpcClient:   grpcClient,
+		adapter:              adapters.NewProtobufAdapter(),
+		filterCodec:          adapters.NewFilterCodec(),
+		capabilities:         capabilitiesUC,
+		grpcClient:           grpcClient,
 	}
-}
-
-func (h *ImageProcessorHandler) ProcessImage(
-	ctx context.Context,
-	req *connect.Request[pb.ProcessImageRequest],
-) (*connect.Response[pb.ProcessImageResponse], error) {
-	msg := req.Msg
-
-	opts := h.adapter.ExtractProcessingOptions(msg)
-	domainImg := h.adapter.ToDomainImage(msg)
-
-	result, err := h.processImageUC.Execute(ctx, imageapp.ProcessImageUseCaseInput{Image: domainImg, Opts: opts})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
-	resp := h.adapter.ToProtobufResponse(result.Image)
-
-	return connect.NewResponse(resp), nil
 }
 
 func (h *ImageProcessorHandler) ListFilters(
@@ -167,16 +142,6 @@ func (h *ImageProcessorHandler) StopVideoPlayback(
 		ApiVersion:   result.APIVersion,
 	}
 	return connect.NewResponse(resp), nil
-}
-
-func (h *ImageProcessorHandler) StreamProcessVideo(
-	ctx context.Context,
-	stream *connect.BidiStream[pb.ProcessImageRequest, pb.ProcessImageResponse],
-) error {
-	return connect.NewError(
-		connect.CodeUnimplemented,
-		errors.New("StreamProcessVideo is not implemented; use StartVideoPlayback/StopVideoPlayback"),
-	)
 }
 
 func (h *ImageProcessorHandler) GetVersionInfo(

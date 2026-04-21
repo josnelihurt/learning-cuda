@@ -245,6 +245,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
 
   try {
     jrb::application::pipeline::FilterPipeline pipeline;
+    jrb::infrastructure::cuda::YOLODetector* yolo_detector = nullptr;
 
     for (int i = 0; i < request.filters_size(); i++) {
       const auto filter = request.filters(i);
@@ -306,6 +307,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
 
         auto detector = jrb::infrastructure::cuda::ModelManager::GetInstance().GetDetector(model_id, confidence);
         if (detector) {
+          yolo_detector = detector.get();
           pipeline.AddFilter(std::move(detector));
           scoped_span.AddEvent("Added YOLO model inference filter");
         } else {
@@ -354,6 +356,22 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
     response->set_width(output_buffer.width);
     response->set_height(output_buffer.height);
     response->set_channels(output_buffer.channels);
+
+    // Populate detections if a detector was used
+    if (yolo_detector) {
+      const auto& detections = yolo_detector->GetDetections();
+      for (const auto& det : detections) {
+        auto* detection_msg = response->add_detections();
+        detection_msg->set_x(det.x);
+        detection_msg->set_y(det.y);
+        detection_msg->set_width(det.width);
+        detection_msg->set_height(det.height);
+        detection_msg->set_class_id(det.class_id);
+        detection_msg->set_class_name(det.class_name);
+        detection_msg->set_confidence(det.confidence);
+      }
+      scoped_span.SetAttribute("detections.count", static_cast<int64_t>(detections.size()));
+    }
 
     scoped_span.SetAttribute("result.width", static_cast<int64_t>(output_buffer.width));
     scoped_span.SetAttribute("result.height", static_cast<int64_t>(output_buffer.height));

@@ -14,6 +14,7 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
+#include "src/cpp_accelerator/ports/grpc/data_channel_framing.h"
 #include "src/cpp_accelerator/ports/grpc/live_video_processor.h"
 
 namespace jrb::ports::shared_lib {
@@ -48,6 +49,7 @@ public:
   struct SessionState {
     std::shared_ptr<rtc::PeerConnection> peer_connection;
     std::shared_ptr<rtc::DataChannel> data_channel;
+    std::shared_ptr<rtc::DataChannel> detection_channel;
     std::shared_ptr<rtc::Track> inbound_video_track;
     std::shared_ptr<rtc::Track> outbound_video_track;
     std::shared_ptr<rtc::RtcpReceivingSession> inbound_rtcp_session;
@@ -57,6 +59,9 @@ public:
     std::shared_ptr<rtc::RtcpSrReporter> outbound_sr_reporter;
     std::shared_ptr<rtc::RtcpNackResponder> outbound_nack_responder;
     std::unique_ptr<LiveVideoProcessor> live_video_processor;
+    std::unique_ptr<ChunkReassembler> incoming_reassembler =
+        std::make_unique<ChunkReassembler>();
+    std::atomic<uint32_t> outgoing_message_id{0};
     cuda_learning::ProcessImageRequest live_filter_state;
     std::vector<rtc::Candidate> pending_candidates;
     std::queue<rtc::Candidate> local_candidates_queue;

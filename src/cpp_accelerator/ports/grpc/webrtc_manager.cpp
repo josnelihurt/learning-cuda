@@ -38,12 +38,20 @@ bool ShouldRegisterSessionChannel(const std::string& session_id, const std::stri
   return !IsGoVideoSession(session_id) && !IsGoVideoSession(label);
 }
 
-rtc::binary StringToBinary(const std::string& payload) {
-  rtc::binary data(payload.size());
-  if (!payload.empty()) {
-    std::memcpy(data.data(), payload.data(), payload.size());
+// Sends a logical message over the data channel as one or more framed chunks.
+// Short-circuits and logs on the first send failure.
+void SendFramed(rtc::DataChannel& dc,
+                const std::string& payload,
+                uint32_t message_id) {
+  const auto span = std::span<const std::byte>(
+      reinterpret_cast<const std::byte*>(payload.data()), payload.size());
+  auto chunks = PackMessage(message_id, span);
+  for (auto& chunk : chunks) {
+    if (!dc.send(std::move(chunk))) {
+      spdlog::error("[framing] Failed to send chunk for message_id={}", message_id);
+      return;
+    }
   }
-  return data;
 }
 
 void CopyProcessMetadata(const cuda_learning::ProcessImageRequest& request,
@@ -150,10 +158,20 @@ bool WebRTCManager::Initialize() {
     config_->portRangeBegin = 10000;
     config_->portRangeEnd = 10199;
 
+    // The library default advertises ~256 KiB as the SCTP max message size.
+    // Our ProcessImageRequest payloads for full-resolution frames (e.g. 512x512
+    // RGB = ~768 KiB, plus protobuf overhead) routinely exceed that, and Chrome
+    // aborts the send with OperationError: data-channel-failure, tearing the
+    // channel down. Raise the advertised limit so peers can safely transmit
+    // single-message frames up to this cap before we decide to chunk.
+    constexpr size_t kMaxDataChannelMessageBytes = 16 * 1024 * 1024;  // 16 MiB
+    config_->maxMessageSize = kMaxDataChannelMessageBytes;
+
     spdlog::info("WebRTC Configuration:");
     spdlog::info("  - STUN Server: stun.l.google.com:19302");
     spdlog::info("  - UDP Port Range: {}-{} ({} ports)", config_->portRangeBegin,
                  config_->portRangeEnd, config_->portRangeEnd - config_->portRangeBegin + 1);
+    spdlog::info("  - Data channel max message size: {} bytes", kMaxDataChannelMessageBytes);
     spdlog::info("  - TURN Server: Not configured");
     spdlog::info("  - Session Cleanup: Enabled (30s timeout)");
 
@@ -484,10 +502,29 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     // This must be done BEFORE setRemoteDescription to ensure we capture the channel
     session->peer_connection->onDataChannel([weak_self = weak_from_this(), session_id, session](
                                                 std::shared_ptr<rtc::DataChannel> data_channel) {
-      spdlog::info("[WebRTC:{}] Remote data channel received: {}", session_id,
-                   data_channel->label());
-      session->data_channel = data_channel;
       const std::string label = data_channel->label();
+      spdlog::info("[WebRTC:{}] Remote data channel received: {}", session_id, label);
+
+      if (label == "detections") {
+        data_channel->onOpen([session_id]() {
+          spdlog::info("[WebRTC:{}] Detection channel opened", session_id);
+        });
+        data_channel->onClosed([session_id, session]() {
+          spdlog::warn("[WebRTC:{}] Detection channel closed", session_id);
+          std::lock_guard<std::mutex> cl(session->mutex);
+          session->detection_channel = nullptr;
+        });
+        data_channel->onError([session_id](std::string err) {
+          spdlog::error("[WebRTC:{}] Detection channel error: {}", session_id, err);
+        });
+        {
+          std::lock_guard<std::mutex> lock(session->mutex);
+          session->detection_channel = data_channel;
+        }
+        return;
+      }
+
+      session->data_channel = data_channel;
 
       std::weak_ptr<rtc::DataChannel> weak_dc = data_channel;
 
@@ -530,11 +567,18 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
           return;
         }
 
-        const auto& payload = std::get<rtc::binary>(data);
+        const auto& raw_chunk = std::get<rtc::binary>(data);
+        const auto raw_span = std::span<const std::byte>(raw_chunk.data(), raw_chunk.size());
+        auto maybe_payload = session->incoming_reassembler->PushChunk(raw_span);
+        if (!maybe_payload.has_value()) {
+          return;  // chunk accepted but message not yet complete
+        }
+        const auto& assembled = maybe_payload.value();
+
         cuda_learning::ProcessImageRequest request;
-        if (!request.ParseFromArray(payload.data(), static_cast<int>(payload.size()))) {
+        if (!request.ParseFromArray(assembled.data(), static_cast<int>(assembled.size()))) {
           spdlog::warn("[WebRTC:{}] Failed to parse ProcessImageRequest ({} bytes)", session_id,
-                       payload.size());
+                       assembled.size());
           return;
         }
 
@@ -579,6 +623,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
                        response.code(), response.message());
         }
 
+        response.set_frame_id(request.frame_id());
+
         std::string output;
         if (!response.SerializeToString(&output)) {
           spdlog::error("[WebRTC:{}] Failed to serialize ProcessImageResponse", session_id);
@@ -591,9 +637,29 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
           return;
         }
 
-        if (!dc->send(StringToBinary(output))) {
-          spdlog::warn("[WebRTC:{}] Failed to send ProcessImageResponse on data channel",
-                       session_id);
+        SendFramed(*dc, output,
+                   session->outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
+
+        if (response.detections_size() > 0) {
+          std::shared_ptr<rtc::DataChannel> det_ch;
+          {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            det_ch = session->detection_channel;
+          }
+          if (det_ch && det_ch->isOpen()) {
+            cuda_learning::DetectionFrame det_frame;
+            det_frame.set_frame_id(request.frame_id());
+            det_frame.set_image_width(request.width());
+            det_frame.set_image_height(request.height());
+            for (const auto& d : response.detections()) {
+              *det_frame.add_detections() = d;
+            }
+            std::string det_output;
+            if (det_frame.SerializeToString(&det_output)) {
+              SendFramed(*det_ch, det_output,
+                         session->outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
+            }
+          }
         }
       });
 
@@ -890,6 +956,17 @@ bool WebRTCManager::HandleRemoteCandidate(const std::string& session_id,
     rtc::Candidate candidate(candidate_str, sdp_mid);
     std::lock_guard<std::mutex> lock(session->mutex);
 
+    // Defense in depth: libdatachannel/juice can reset the ICE agent and tear down
+    // an established DTLS/SCTP transport when remote candidates arrive after the peer
+    // connection is already connected. The browser filters these out too, but we also
+    // drop them here so a stale client cannot destabilize an active session.
+    const auto pc_state = session->peer_connection->state();
+    if (pc_state == rtc::PeerConnection::State::Connected) {
+      spdlog::debug("[WebRTC:{}] Ignoring late remote ICE candidate (peer already connected): {}",
+                    session_id, candidate_str);
+      return true;
+    }
+
     if (session->peer_connection->remoteDescription().has_value()) {
       session->peer_connection->addRemoteCandidate(candidate);
       spdlog::info("[WebRTC:{}] Added remote ICE candidate: {}", session_id, candidate_str);
@@ -949,12 +1026,12 @@ void WebRTCManager::SendToSession(const std::string& session_id, const std::stri
     return;
   }
 
-  if (!channel->send(StringToBinary(bytes))) {
-    spdlog::warn("[WebRTC:{}] Failed to route response to session", session_id);
-    return;
-  }
-
   auto session = GetSession(session_id);
+  const uint32_t msg_id = session
+      ? session->outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U
+      : 1U;
+  SendFramed(*channel, bytes, msg_id);
+
   if (session) {
     std::lock_guard<std::mutex> lock(session->mutex);
     session->last_heartbeat = std::chrono::steady_clock::now();

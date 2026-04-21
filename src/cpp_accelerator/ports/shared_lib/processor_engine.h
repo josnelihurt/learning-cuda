@@ -11,6 +11,7 @@
 #pragma GCC diagnostic pop
 
 #include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
+#include "src/cpp_accelerator/infrastructure/cuda/yolo_detector.h"
 #include "processor_api.h"
 
 namespace jrb::ports::shared_lib {

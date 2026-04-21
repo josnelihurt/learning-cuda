@@ -1,4 +1,23 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+cc_library(
+    name = "data_channel_framing_lib",
+    srcs = ["data_channel_framing.cpp"],
+    hdrs = ["data_channel_framing.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@spdlog",
+    ],
+)
+
+cc_test(
+    name = "data_channel_framing_test",
+    srcs = ["data_channel_framing_test.cpp"],
+    deps = [
+        ":data_channel_framing_lib",
+        "@googletest//:gtest_main",
+    ],
+)
 
 cc_library(
     name = "live_video_processor_lib",
@@ -44,6 +63,7 @@ cc_library(
     hdrs = ["webrtc_manager.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":data_channel_framing_lib",
         ":live_video_processor_lib",
         "//proto:image_processor_service_cc_proto",
         "//src/cpp_accelerator/ports/shared_lib:processor_engine",

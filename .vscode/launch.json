@@ -32,6 +32,14 @@
             "processId": 171573,
             "MIMode": "gdb",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Debug Front-end",
+            "url": "https://localhost:3000",
+            "webRoot": "${workspaceFolder}/src/front-end",
+            "sourceMaps": true
         }
     ]
 }

@@ -28,117 +28,6 @@ const HEARTBEAT_STALE_THRESHOLD_MS = 15_000;
 const HEARTBEAT_MAX_CONSECUTIVE_FAILURES = 3;
 const ICE_GATHERING_TIMEOUT_MS = 1_500;
 
-const DIAGNOSTIC_BUFFER_CAPACITY = 200;
-
-interface WebRTCDiagnosticEntry {
-  ts: number;
-  kind: string;
-  sessionId: string;
-  [extra: string]: unknown;
-}
-
-type WebRTCDiagnosticWindow = typeof globalThis & {
-  __webrtcDiagnostics?: WebRTCDiagnosticEntry[];
-  __dumpWebrtcDiagnostics?: () => string;
-  __clearWebrtcDiagnostics?: () => void;
-};
-
-function ensureDiagnosticBuffer(): WebRTCDiagnosticEntry[] {
-  const w = globalThis as WebRTCDiagnosticWindow;
-  if (!w.__webrtcDiagnostics) {
-    w.__webrtcDiagnostics = [];
-  }
-  if (!w.__dumpWebrtcDiagnostics) {
-    w.__dumpWebrtcDiagnostics = () =>
-      JSON.stringify(w.__webrtcDiagnostics ?? [], null, 2);
-  }
-  if (!w.__clearWebrtcDiagnostics) {
-    w.__clearWebrtcDiagnostics = () => {
-      if (w.__webrtcDiagnostics) {
-        w.__webrtcDiagnostics.length = 0;
-      }
-    };
-  }
-  return w.__webrtcDiagnostics;
-}
-
-function recordDiagnostic(
-  kind: string,
-  sessionId: string,
-  extra: Record<string, unknown> = {}
-): void {
-  try {
-    const entry: WebRTCDiagnosticEntry = {
-      ts: Date.now(),
-      kind,
-      sessionId,
-      ...extra,
-    };
-    const buffer = ensureDiagnosticBuffer();
-    buffer.push(entry);
-    if (buffer.length > DIAGNOSTIC_BUFFER_CAPACITY) {
-      buffer.splice(0, buffer.length - DIAGNOSTIC_BUFFER_CAPACITY);
-    }
-    // Emit as a plain string so MCP transports that drop structured payloads
-    // still retain the full diagnostic trail in the console log.
-    // eslint-disable-next-line no-console
-    console.log('__WEBRTC_DIAG__ ' + JSON.stringify(entry));
-  } catch {
-    // The diagnostic buffer is best-effort; it must never propagate failures
-    // into the signaling or data channel paths.
-  }
-}
-
-function snapshotPeerState(
-  peerConnection: RTCPeerConnection
-): Record<string, unknown> {
-  const sctp = (peerConnection as RTCPeerConnection & { sctp?: RTCSctpTransport | null }).sctp;
-  const snapshot: Record<string, unknown> = {
-    connectionState: peerConnection.connectionState,
-    iceConnectionState: peerConnection.iceConnectionState,
-    iceGatheringState: peerConnection.iceGatheringState,
-    signalingState: peerConnection.signalingState,
-  };
-  if (sctp) {
-    snapshot.sctpState = sctp.state;
-    snapshot.sctpMaxMessageSize = sctp.maxMessageSize;
-    const dtls = sctp.transport;
-    if (dtls) {
-      snapshot.dtlsState = dtls.state;
-      const ice = dtls.iceTransport;
-      if (ice) {
-        snapshot.iceRole = ice.role;
-        const selected = ice.getSelectedCandidatePair?.();
-        if (selected) {
-          snapshot.selectedLocalType = selected.local?.type;
-          snapshot.selectedRemoteType = selected.remote?.type;
-          snapshot.selectedLocalProtocol = selected.local?.protocol;
-          snapshot.selectedRemoteProtocol = selected.remote?.protocol;
-        }
-      }
-    }
-  }
-  return snapshot;
-}
-
-function extractRtcError(
-  event: Event
-): Record<string, unknown> | undefined {
-  const rtcError = (event as RTCErrorEvent).error;
-  if (!rtcError) {
-    return undefined;
-  }
-  return {
-    name: rtcError.name,
-    message: rtcError.message,
-    errorDetail: rtcError.errorDetail,
-    sctpCauseCode: rtcError.sctpCauseCode ?? null,
-    receivedAlert: rtcError.receivedAlert ?? null,
-    sentAlert: rtcError.sentAlert ?? null,
-    httpRequestStatusCode: rtcError.httpRequestStatusCode ?? null,
-  };
-}
-
 export class WebRTCService implements IWebRTCService {
   private initialized = false;
   private initPromise: Promise<void> | null = null;
@@ -552,7 +441,7 @@ export class WebRTCService implements IWebRTCService {
       }
       this.lastHeartbeatSentAt.set(sessionId, Date.now());
       this.heartbeatConsecutiveFailures.set(sessionId, 0);
-      logger.debug(`[WebRTC:${sessionId}] Heartbeat sent`, {
+      logger.verbose(`[WebRTC:${sessionId}] Heartbeat sent`, {
         'heartbeat.reason': reason,
       });
     } catch (error) {
@@ -1034,12 +923,6 @@ export class WebRTCService implements IWebRTCService {
       }
 
       logger.info(`[WebRTC:${sessionId}] Data channel opened`, debugInfo);
-      recordDiagnostic('dc.open', sessionId, {
-        label: dataChannel.label,
-        id: dataChannel.id,
-        readyState: dataChannel.readyState,
-        peer: snapshotPeerState(peerConnection),
-      });
 
       // Chrome fires onopen as soon as the DCEP handshake accepts the channel,
       // but the underlying RTCSctpTransport can still be in 'connecting'. A
@@ -1050,17 +933,8 @@ export class WebRTCService implements IWebRTCService {
       void this.waitForSctpConnected(peerConnection)
         .then(() => {
           if (dataChannel.readyState !== 'open') {
-            recordDiagnostic('dc.ready_skipped', sessionId, {
-              reason: 'channel_not_open_after_sctp_wait',
-              readyState: dataChannel.readyState,
-              peer: snapshotPeerState(peerConnection),
-            });
             return;
           }
-          recordDiagnostic('dc.ready', sessionId, {
-            label: dataChannel.label,
-            peer: snapshotPeerState(peerConnection),
-          });
           this.connectionState = 'connected';
           this.lastRequest = 'Data channel ready';
           this.lastRequestTime = new Date();
@@ -1069,10 +943,6 @@ export class WebRTCService implements IWebRTCService {
         .catch((error) => {
           logger.error(`[WebRTC:${sessionId}] SCTP wait failed`, {
             'error.message': error instanceof Error ? error.message : String(error),
-          });
-          recordDiagnostic('dc.ready_failed', sessionId, {
-            error: error instanceof Error ? error.message : String(error),
-            peer: snapshotPeerState(peerConnection),
           });
         });
     };
@@ -1112,13 +982,6 @@ export class WebRTCService implements IWebRTCService {
       logger.error(
         `[WebRTC:${sessionId}] Data channel error (flat) ${JSON.stringify(errorInfo)}`
       );
-      recordDiagnostic('dc.error', sessionId, {
-        label: dataChannel.label,
-        readyState: dataChannel.readyState,
-        eventType: event.type,
-        rtcError: extractRtcError(event),
-        peer: snapshotPeerState(peerConnection),
-      });
 
       if (dataChannel.readyState === 'closed') {
         this.connectionState = 'disconnected';
@@ -1131,12 +994,6 @@ export class WebRTCService implements IWebRTCService {
         'data_channel.label': dataChannel.label,
         'peer_connection.state': peerConnection.connectionState,
         'peer_connection.ice_connection_state': peerConnection.iceConnectionState,
-      });
-      recordDiagnostic('dc.close', sessionId, {
-        label: dataChannel.label,
-        readyState: dataChannel.readyState,
-        bufferedAmount: dataChannel.bufferedAmount,
-        peer: snapshotPeerState(peerConnection),
       });
       this.connectionState = 'disconnected';
       if (this.sessions.has(sessionId)) {
@@ -1183,9 +1040,6 @@ export class WebRTCService implements IWebRTCService {
         'ice_connection_state': peerConnection.iceConnectionState,
         'signaling_state': peerConnection.signalingState,
       });
-      recordDiagnostic('pc.connection_state', sessionId, {
-        peer: snapshotPeerState(peerConnection),
-      });
 
       if (state === 'connected') {
         this.connectionState = 'connected';
@@ -1200,25 +1054,10 @@ export class WebRTCService implements IWebRTCService {
         'ice_connection_state': iceState,
         'connection_state': peerConnection.connectionState,
       });
-      recordDiagnostic('pc.ice_connection_state', sessionId, {
-        peer: snapshotPeerState(peerConnection),
-      });
 
       if (iceState === 'failed' || iceState === 'disconnected' || iceState === 'closed') {
         this.connectionState = iceState === 'failed' ? 'error' : 'disconnected';
       }
-    };
-
-    peerConnection.onicegatheringstatechange = () => {
-      recordDiagnostic('pc.ice_gathering_state', sessionId, {
-        peer: snapshotPeerState(peerConnection),
-      });
-    };
-
-    peerConnection.onsignalingstatechange = () => {
-      recordDiagnostic('pc.signaling_state', sessionId, {
-        peer: snapshotPeerState(peerConnection),
-      });
     };
 
     peerConnection.onicecandidateerror = (event: Event) => {
@@ -1232,7 +1071,6 @@ export class WebRTCService implements IWebRTCService {
         hostCandidate: iceEvent.hostCandidate,
       };
       logger.debug(`[WebRTC:${sessionId}] ICE candidate error ${JSON.stringify(payload)}`);
-      recordDiagnostic('pc.ice_error', sessionId, payload);
     };
   }
 

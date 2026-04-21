@@ -49,6 +49,13 @@ class OtelLogger implements ILogger {
       console.warn('Failed to initialize logger:', error);
       this.initialized = false;
     }
+    finally {
+      console.log('Initializing logger with this.minLogLevel:', this.minLogLevel, 'this.consoleEnabled:', this.consoleEnabled, 'this.environment:', this.environment, 'this.observabilityEnabled:', this.observabilityEnabled);
+    }
+  }
+
+  verbose(message: string, attributes?: LogAttributes): void {
+    this.log(SeverityNumber.DEBUG4, 'VERBOSE', message, attributes);
   }
 
   debug(message: string, attributes?: LogAttributes): void {
@@ -65,10 +72,6 @@ class OtelLogger implements ILogger {
 
   error(message: string, attributes?: LogAttributes): void {
     this.log(SeverityNumber.ERROR, 'ERROR', message, attributes);
-  }
-
-  isDebugEnabled(): boolean {
-    return this.minLogLevel <= SeverityNumber.DEBUG;
   }
 
   async shutdown(): Promise<void> {
@@ -165,12 +168,12 @@ class OtelLogger implements ILogger {
         : undefined;
     const consoleCaller = parsed?.label;
 
-    if (this.consoleEnabled) {
-      this.logToConsole(severityNumber, message, attributes, consoleCaller);
-    }
-
     if (!this.initialized || !this.shouldLog(severityNumber)) {
       return;
+    }
+
+    if (this.consoleEnabled) {
+      this.logToConsole(severityNumber, message, attributes, consoleCaller);
     }
 
     const traceHeaders = telemetryService.getTraceHeaders() || {};

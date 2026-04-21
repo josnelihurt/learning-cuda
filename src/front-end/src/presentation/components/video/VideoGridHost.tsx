@@ -8,7 +8,7 @@ import { useAppServices } from '@/presentation/providers/app-services-provider';
 import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
-import { FilterData } from '@/domain/value-objects';
+import { AcceleratorConfig, FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { VideoGrid } from './VideoGrid';
 import { SourceDrawer } from './SourceDrawer';
@@ -17,8 +17,8 @@ import { ImageSelectorModal } from './ImageSelectorModal';
 import { AcceleratorStatusFab } from './AcceleratorStatusFab';
 import { useToast } from '@/presentation/hooks/useToast';
 import { StatsPanel as ReactStatsPanel } from '@/presentation/components/app/StatsPanel';
-import { useServiceContext } from '@/presentation/context/service-context';
 import {
+  type Detection,
   GenericFilterParameterSelection,
   GenericFilterSelection,
   ProcessImageRequest,
@@ -40,6 +40,9 @@ type GridSource = {
   resolution: string;
   accelerator: 'gpu' | 'cpu';
   videoId?: string;
+  detections: Detection[];
+  detectionImageWidth: number;
+  detectionImageHeight: number;
 };
 
 const MAX_SOURCES = 9;
@@ -150,7 +153,6 @@ export function VideoGridHost() {
   const pendingSourceNumberForImageChangeRef = useRef<number | null>(null);
   const sourcesRef = useRef<GridSource[]>([]);
   const { container, ready } = useAppServices();
-  const { imageProcessorClient } = useServiceContext();
   const toast = useToast();
   const {
     activeFilters,
@@ -424,6 +426,14 @@ export function VideoGridHost() {
             ),
           }));
         });
+        transport.onDetectionResult((frame) => {
+          updateSource(uniqueId, (source) => ({
+            ...source,
+            detections: frame.detections,
+            detectionImageWidth: frame.imageWidth,
+            detectionImageHeight: frame.imageHeight,
+          }));
+        });
       }
 
       const source: GridSource = {
@@ -442,6 +452,9 @@ export function VideoGridHost() {
         resolution: 'original',
         accelerator: 'gpu',
         videoId: inputSource.type === 'video' ? inputSource.id : undefined,
+        detections: [],
+        detectionImageWidth: 0,
+        detectionImageHeight: 0,
       };
 
       setSources((current) => [...current, source]);
@@ -566,6 +579,12 @@ export function VideoGridHost() {
     }
 
     const applyForStatic = async () => {
+      if (!selectedSource.transport) {
+        logger.error('Static source is missing a WebRTC transport', {
+          'source.id': selectedSource.id,
+        });
+        return;
+      }
       try {
         const originalImg = new Image();
         originalImg.crossOrigin = 'anonymous';
@@ -580,16 +599,22 @@ export function VideoGridHost() {
         const targetWidth = Math.floor(originalWidth / factor);
         const targetHeight = Math.floor(originalHeight / factor);
 
-        const request = new ProcessImageRequest({
-          imageData: await rasterizeImageToRgb(selectedSource.originalImageSrc, targetWidth, targetHeight),
-          width: targetWidth,
-          height: targetHeight,
-          channels: 3,
-          genericFilters: mapFiltersToGenericSelections(normalizedFilters),
-          apiVersion: '1.0',
-        });
+        const rasterized = await rasterizeImageToRgb(
+          selectedSource.originalImageSrc,
+          targetWidth,
+          targetHeight
+        );
 
-        const response = await imageProcessorClient.processImage(request);
+        const response = await selectedSource.transport.sendSingleImage(
+          rasterized,
+          targetWidth,
+          targetHeight,
+          3,
+          mapFiltersToValueObjects(normalizedFilters),
+          new AcceleratorConfig(selectedAccelerator),
+          new GrayscaleAlgorithm('bt601')
+        );
+
         if (
           response.code === 0 &&
           response.imageData?.byteLength &&
@@ -625,18 +650,22 @@ export function VideoGridHost() {
     void applyForStatic();
   }, [
     activeFilters,
-    imageProcessorClient,
-    mapFiltersToGenericSelections,
     mapFiltersToValueObjects,
     ready,
     selectedAccelerator,
     selectedResolution,
     selectedSourceId,
+    toastManager,
     updateSource,
     sendCameraControlRequest,
   ]);
 
   useEffect(() => {
+    // Only tear down sessions when the browser is actually unloading. React 18
+    // StrictMode re-runs effect cleanups during development remounts; running
+    // disconnect/closeSession there caused session churn (a new WebRTC session
+    // was spawned on the next send, leaving orphaned channels on the backend
+    // and triggering "Frame timed out" on the frontend).
     const stopAllSources = () => {
       sourcesRef.current.forEach((source) => {
         source.transport?.disconnect();
@@ -648,7 +677,6 @@ export function VideoGridHost() {
     window.addEventListener('beforeunload', stopAllSources);
     return () => {
       window.removeEventListener('beforeunload', stopAllSources);
-      stopAllSources();
     };
   }, []);
 
@@ -663,6 +691,9 @@ export function VideoGridHost() {
           imageSrc: source.currentImageSrc || source.imagePath,
           remoteStream: source.remoteStream,
           filters: source.filters,
+          detections: source.detections,
+          detectionImageWidth: source.detectionImageWidth,
+          detectionImageHeight: source.detectionImageHeight,
         }))}
         selectedSourceId={selectedSourceId}
         onSelectSource={selectSourceById}

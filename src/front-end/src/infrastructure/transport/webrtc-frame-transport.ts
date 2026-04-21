@@ -4,6 +4,7 @@ import type { IFrameTransportService } from '@/domain/interfaces/IFrameTransport
 import { AcceleratorConfig, FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
 import { ImageProcessorService } from '@/gen/image_processor_service_connect';
 import {
+  DetectionFrame,
   GenericFilterParameterSelection,
   GenericFilterSelection,
   ProcessImageRequest,
@@ -13,15 +14,19 @@ import {
 } from '@/gen/image_processor_service_pb';
 import { BorderMode, GrayscaleType, TraceContext } from '@/gen/common_pb';
 import type { IStatsDisplay, IToastDisplay, ICameraPreview } from './transport-types';
+import { ChunkReassembler, nextMessageId, packMessage } from './data-channel-framing';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
 import { logger } from '@/infrastructure/observability/otel-logger';
 
 type FrameResultCallback = (data: ProcessImageResponse) => void;
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
 type PendingResponse = {
   resolve: (response: ProcessImageResponse) => void;
   reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 };
 
 function serializeValue(value: unknown): string {
@@ -142,9 +147,13 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
   private readonly client: PromiseClient<typeof ImageProcessorService>;
   private sessionId: string | null = null;
   private frameResultCallback: FrameResultCallback | null = null;
+  private detectionResultCallback: ((frame: DetectionFrame) => void) | null = null;
+  private frameIdCounter = 0n;
   private connectPromise: Promise<void> | null = null;
-  private pendingResponses: PendingResponse[] = [];
+  private pendingResponses: Map<bigint, PendingResponse> = new Map();
   private connectionState: 'connected' | 'disconnected' | 'connecting' | 'error' = 'disconnected';
+  private frameChannelReassembler = new ChunkReassembler();
+  private detectionChannelReassembler = new ChunkReassembler();
   private lastRequest: string | null = null;
   private lastRequestTime: Date | null = null;
 
@@ -166,7 +175,12 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     this.sessionId = null;
     this.connectPromise = null;
     this.connectionState = 'disconnected';
-    this.pendingResponses.splice(0).forEach(({ reject }) => reject(new Error('Transport disconnected')));
+    const pending = Array.from(this.pendingResponses.values());
+    this.pendingResponses.clear();
+    for (const entry of pending) {
+      clearTimeout(entry.timer);
+      entry.reject(new Error('Transport disconnected'));
+    }
     this.statsManager.updateTransportStatus('disconnected', 'Disconnected');
 
     if (sessionId) {
@@ -208,7 +222,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     accelerator: AcceleratorConfig,
     grayscale: GrayscaleAlgorithm
   ): void {
-    void this.sendRequest(image, filters, accelerator, grayscale).catch((error) => {
+    void this.sendRequest(image, filters, accelerator, grayscale, { awaitResponse: false }).catch((error) => {
       this.handleError('Failed to send frame', error);
     });
   }
@@ -224,13 +238,60 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const acceleratorConfig = new AcceleratorConfig(accelerator);
     const grayscale = new GrayscaleAlgorithm('bt601');
 
-    return new Promise<ProcessImageResponse>((resolve, reject) => {
-      this.pendingResponses.push({ resolve, reject });
-      void this.sendRequest(image, filters, acceleratorConfig, grayscale).catch((error) => {
-        this.pendingResponses = this.pendingResponses.filter((pending) => pending.resolve !== resolve);
-        reject(error);
-      });
-    });
+    return this.sendRequest(image, filters, acceleratorConfig, grayscale, { awaitResponse: true }) as Promise<ProcessImageResponse>;
+  }
+
+  async sendSingleImage(
+    rasterizedBytes: Uint8Array,
+    width: number,
+    height: number,
+    channels: number,
+    filters: FilterData[],
+    accelerator: AcceleratorConfig,
+    grayscale: GrayscaleAlgorithm
+  ): Promise<ProcessImageResponse> {
+    await this.ensureConnected();
+    if (!this.sessionId) {
+      throw new Error('WebRTC session is not available');
+    }
+
+    const dataChannel = webrtcService.getDataChannel(this.sessionId);
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+      throw new Error('WebRTC data channel is not open');
+    }
+
+    this.lastRequest = 'ProcessImageRequest';
+    this.lastRequestTime = new Date();
+
+    const frameId = ++this.frameIdCounter;
+    const pending = this.registerPending(frameId);
+
+    const payload = new ProcessImageRequest({
+      imageData: rasterizedBytes,
+      width,
+      height,
+      channels,
+      filters: filters.filter((filter) => !filter.isNone()).map((filter) => filter.toProtocol()),
+      accelerator: accelerator.toProtocol(),
+      grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
+      blurParams: extractBlurParams(filters),
+      genericFilters: toGenericFilterSelections(filters),
+      sessionId: this.sessionId,
+      traceContext: buildTraceContext(),
+      apiVersion: '1.0',
+      frameId,
+    }).toBinary();
+
+    try {
+      for (const chunk of packMessage(nextMessageId(), payload)) {
+        dataChannel.send(chunk);
+      }
+    } catch (error) {
+      this.rejectPending(frameId, error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+
+    return pending;
   }
 
   sendStartVideo(videoId: string, filters: FilterData[], accelerator: string): void {
@@ -280,6 +341,10 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     this.frameResultCallback = callback;
   }
 
+  onDetectionResult(callback: (frame: DetectionFrame) => void): void {
+    this.detectionResultCallback = callback;
+  }
+
   isConnected(): boolean {
     if (!this.sessionId) {
       return false;
@@ -309,8 +374,13 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     this.connectPromise = (async () => {
       const session = await webrtcService.createSession(this.sourceId);
       this.sessionId = session.getId();
-      const dataChannel = await this.waitForOpenChannel(session.getId());
+      // waitForTransportReady waits until readyState === 'open' AND the
+      // underlying SCTP association is 'connected'. Without the second wait
+      // the first send() races the SCTP handshake and Chrome tears the
+      // channel down with OperationError: data-channel-failure.
+      const dataChannel = await webrtcService.waitForTransportReady(session.getId());
       this.attachDataChannel(dataChannel);
+      this.attachDetectionChannel(session.getId());
       this.connectionState = 'connected';
       this.lastRequest = 'Data channel connected';
       this.lastRequestTime = new Date();
@@ -322,50 +392,74 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     return this.connectPromise;
   }
 
-  private async waitForOpenChannel(sessionId: string): Promise<RTCDataChannel> {
-    const initial = webrtcService.getDataChannel(sessionId);
-    if (initial && initial.readyState === 'open') {
-      return initial;
-    }
-
-    return new Promise<RTCDataChannel>((resolve, reject) => {
-      const startedAt = Date.now();
-      const timer = window.setInterval(() => {
-        const dataChannel = webrtcService.getDataChannel(sessionId);
-        if (dataChannel?.readyState === 'open') {
-          clearInterval(timer);
-          resolve(dataChannel);
-          return;
-        }
-        if (Date.now() - startedAt > 10000) {
-          clearInterval(timer);
-          reject(new Error('Timed out waiting for the WebRTC data channel'));
-        }
-      }, 100);
-    });
-  }
-
   private attachDataChannel(dataChannel: RTCDataChannel): void {
     dataChannel.binaryType = 'arraybuffer';
+    this.frameChannelReassembler = new ChunkReassembler();
+    const previousOnMessage = dataChannel.onmessage;
+    const previousOnError = dataChannel.onerror;
+    const previousOnClose = dataChannel.onclose;
+
     dataChannel.onmessage = (event: MessageEvent<ArrayBuffer | Blob | string>) => {
+      previousOnMessage?.call(dataChannel, event);
       const payload = event.data;
       if (typeof payload === 'string') {
         return;
       }
       const bufferPromise = payload instanceof Blob ? payload.arrayBuffer() : Promise.resolve(payload);
       void bufferPromise.then((buffer) => {
-        this.handleResponse(ProcessImageResponse.fromBinary(new Uint8Array(buffer)));
+        const assembled = this.frameChannelReassembler.pushChunk(buffer);
+        if (assembled === null) {
+          return;
+        }
+        this.handleResponse(ProcessImageResponse.fromBinary(assembled));
       }).catch((error) => {
         this.handleError('Failed to decode frame response', error);
       });
     };
-    dataChannel.onerror = () => {
+    dataChannel.onerror = (event) => {
+      previousOnError?.call(dataChannel, event);
       this.connectionState = 'error';
       this.statsManager.updateTransportStatus('disconnected', 'Transport error');
     };
-    dataChannel.onclose = () => {
+    dataChannel.onclose = (event: Event) => {
+      previousOnClose?.call(dataChannel, event);
       this.connectionState = 'disconnected';
       this.statsManager.updateTransportStatus('disconnected', 'Disconnected');
+      this.failPendingResponses(new Error('WebRTC data channel closed'));
+    };
+  }
+
+  private failPendingResponses(error: Error): void {
+    if (this.pendingResponses.size === 0) {
+      return;
+    }
+    const pending = Array.from(this.pendingResponses.entries());
+    this.pendingResponses.clear();
+    for (const [, entry] of pending) {
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
+  }
+
+  private attachDetectionChannel(sessionId: string): void {
+    const dc = webrtcService.getDetectionDataChannel(sessionId);
+    if (!dc) return;
+    this.detectionChannelReassembler = new ChunkReassembler();
+    const previousOnMessage = dc.onmessage;
+    dc.onmessage = (event: MessageEvent) => {
+      previousOnMessage?.call(dc, event);
+      const payload = event.data;
+      const bufferPromise = payload instanceof Blob ? payload.arrayBuffer() : Promise.resolve(payload as ArrayBuffer);
+      void bufferPromise.then((buffer) => {
+        const assembled = this.detectionChannelReassembler.pushChunk(buffer);
+        if (assembled === null) {
+          return;
+        }
+        const frame = DetectionFrame.fromBinary(assembled);
+        this.detectionResultCallback?.(frame);
+      }).catch((error) => {
+        this.handleError('Failed to decode detection frame', error);
+      });
     };
   }
 
@@ -373,8 +467,9 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     image: ImageData,
     filters: FilterData[],
     accelerator: AcceleratorConfig,
-    grayscale: GrayscaleAlgorithm
-  ): Promise<void> {
+    grayscale: GrayscaleAlgorithm,
+    options: { awaitResponse: boolean }
+  ): Promise<ProcessImageResponse | void> {
     await this.ensureConnected();
     if (!this.sessionId) {
       throw new Error('WebRTC session is not available');
@@ -395,6 +490,9 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       image.getHeight()
     );
 
+    const frameId = ++this.frameIdCounter;
+    const pending = options.awaitResponse ? this.registerPending(frameId) : null;
+
     const payload = new ProcessImageRequest({
       imageData: rasterized.imageData,
       width: image.getWidth(),
@@ -408,9 +506,44 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       sessionId: this.sessionId,
       traceContext: buildTraceContext(),
       apiVersion: '1.0',
+      frameId,
     }).toBinary();
 
-    dataChannel.send(payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength));
+    try {
+      for (const chunk of packMessage(nextMessageId(), payload)) {
+        dataChannel.send(chunk);
+      }
+    } catch (error) {
+      if (pending) {
+        this.rejectPending(frameId, error instanceof Error ? error : new Error(String(error)));
+      }
+      throw error;
+    }
+
+    if (pending) {
+      return pending;
+    }
+    return undefined;
+  }
+
+  private registerPending(frameId: bigint): Promise<ProcessImageResponse> {
+    return new Promise<ProcessImageResponse>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingResponses.delete(frameId);
+        reject(new Error(`Frame ${frameId} timed out after ${REQUEST_TIMEOUT_MS}ms`));
+      }, REQUEST_TIMEOUT_MS);
+      this.pendingResponses.set(frameId, { resolve, reject, timer });
+    });
+  }
+
+  private rejectPending(frameId: bigint, error: Error): void {
+    const entry = this.pendingResponses.get(frameId);
+    if (!entry) {
+      return;
+    }
+    clearTimeout(entry.timer);
+    this.pendingResponses.delete(frameId);
+    entry.reject(error);
   }
 
   private handleResponse(response: ProcessImageResponse): void {
@@ -426,16 +559,31 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       this.statsManager.updateCameraStatus('Processing failed', 'error');
     }
 
-    const pending = this.pendingResponses.shift();
-    if (pending) {
-      if (response.code === 0) {
-        pending.resolve(response);
-      } else {
-        pending.reject(new Error(response.message || 'Frame processing failed'));
+    const frameId = response.frameId;
+    if (frameId && frameId !== 0n) {
+      const pending = this.pendingResponses.get(frameId);
+      if (pending) {
+        clearTimeout(pending.timer);
+        this.pendingResponses.delete(frameId);
+        if (response.code === 0) {
+          pending.resolve(response);
+        } else {
+          pending.reject(new Error(response.message || 'Frame processing failed'));
+        }
       }
     }
 
     this.frameResultCallback?.(response);
+
+    if (this.detectionResultCallback && response.detections && response.detections.length > 0) {
+      const synthesized = new DetectionFrame({
+        frameId: response.frameId,
+        imageWidth: response.width,
+        imageHeight: response.height,
+        detections: response.detections,
+      });
+      this.detectionResultCallback(synthesized);
+    }
   }
 
   private handleError(message: string, error: unknown): void {

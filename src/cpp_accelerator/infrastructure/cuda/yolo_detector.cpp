@@ -10,6 +10,24 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
+// COCO 80 class names (indices 0-79)
+static constexpr const char* kCocoClassNames[] = {
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck",
+    "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench",
+    "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
+    "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis",
+    "snowboard", "sports ball", "kite", "baseball bat", "baseball glove",
+    "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup",
+    "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange",
+    "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+    "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse",
+    "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
+    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+    "toothbrush"
+};
+static_assert(sizeof(kCocoClassNames) / sizeof(kCocoClassNames[0]) == 80,
+              "kCocoClassNames must have exactly 80 entries");
+
 namespace jrb::infrastructure::cuda {
 
 class YOLODetector::Impl {
@@ -107,6 +125,7 @@ private:
                     .width = x2 - x1,
                     .height = y2 - y1,
                     .class_id = class_id,
+                    .class_name = kCocoClassNames[std::min(class_id, 79)],
                     .confidence = conf,
                 });
             }
@@ -143,6 +162,7 @@ private:
                     .width = width,
                     .height = height,
                     .class_id = max_class_id,
+                    .class_name = kCocoClassNames[std::min(max_class_id, 79)],
                     .confidence = max_confidence,
                 });
             }
@@ -228,105 +248,36 @@ void CopyInputToOutput(const jrb::domain::interfaces::FilterContext& context) {
     }
 }
 
-void DrawHLine(uint8_t* buf, int width, int height, int channels,
-               int x0, int x1, int y, uint8_t r, uint8_t g, uint8_t b) {
-    if (y < 0 || y >= height) return;
-    if (x0 < 0) x0 = 0;
-    if (x1 >= width) x1 = width - 1;
-    for (int x = x0; x <= x1; ++x) {
-        uint8_t* p = buf + (y * width + x) * channels;
-        if (channels >= 3) {
-            p[0] = r; p[1] = g; p[2] = b;
-        } else {
-            p[0] = static_cast<uint8_t>((r + g + b) / 3);
-        }
-        if (channels == 4) p[3] = 0xFF;
-    }
-}
-
-void DrawVLine(uint8_t* buf, int width, int height, int channels,
-               int x, int y0, int y1, uint8_t r, uint8_t g, uint8_t b) {
-    if (x < 0 || x >= width) return;
-    if (y0 < 0) y0 = 0;
-    if (y1 >= height) y1 = height - 1;
-    for (int y = y0; y <= y1; ++y) {
-        uint8_t* p = buf + (y * width + x) * channels;
-        if (channels >= 3) {
-            p[0] = r; p[1] = g; p[2] = b;
-        } else {
-            p[0] = static_cast<uint8_t>((r + g + b) / 3);
-        }
-        if (channels == 4) p[3] = 0xFF;
-    }
-}
-
-void DrawRect(uint8_t* buf, int width, int height, int channels,
-              int x, int y, int w, int h, int thickness,
-              uint8_t r, uint8_t g, uint8_t b) {
-    for (int t = 0; t < thickness; ++t) {
-        DrawHLine(buf, width, height, channels, x, x + w, y + t, r, g, b);
-        DrawHLine(buf, width, height, channels, x, x + w, y + h - t, r, g, b);
-        DrawVLine(buf, width, height, channels, x + t, y, y + h, r, g, b);
-        DrawVLine(buf, width, height, channels, x + w - t, y, y + h, r, g, b);
-    }
-}
-
-struct Color { uint8_t r, g, b; };
-Color ColorForClass(int class_id) {
-    static const Color palette[] = {
-        {255, 56, 56}, {255, 157, 151}, {255, 112, 31}, {255, 178, 29},
-        {207, 210, 49}, {72, 249, 10}, {146, 204, 23}, {61, 219, 134},
-        {26, 147, 52}, {0, 212, 187}, {44, 153, 168}, {0, 194, 255},
-        {52, 69, 147}, {100, 115, 255}, {0, 24, 236}, {132, 56, 255},
-        {82, 0, 133}, {203, 56, 255}, {255, 149, 200}, {255, 55, 199},
-    };
-    constexpr int palette_size = sizeof(palette) / sizeof(palette[0]);
-    return palette[(class_id % palette_size + palette_size) % palette_size];
-}
-
 }  // namespace
 
 bool YOLODetector::Apply(jrb::domain::interfaces::FilterContext& context) {
     const int width = context.input.width;
     const int height = context.input.height;
 
-    detections_ = impl_->Detect(
-        context.input.data,
-        width,
-        height,
-        context.input.channels
+    auto raw = impl_->Detect(
+        context.input.data, width, height, context.input.channels
     );
 
-    CopyInputToOutput(context);
-
+    // Convert from 640x640 model space to original image pixel space
     constexpr int kModelSize = 640;
     const float scale = std::min(static_cast<float>(kModelSize) / width,
                                  static_cast<float>(kModelSize) / height);
     const float pad_x = (kModelSize - width * scale) * 0.5f;
     const float pad_y = (kModelSize - height * scale) * 0.5f;
 
-    uint8_t* out = context.output.data;
-    const int out_channels = context.output.channels;
-    constexpr int kThickness = 2;
-
-    for (const auto& det : detections_) {
-        const float box_x = (det.x - pad_x) / scale;
-        const float box_y = (det.y - pad_y) / scale;
-        const float box_w = det.width / scale;
-        const float box_h = det.height / scale;
-
-        int x = std::max(0, static_cast<int>(std::round(box_x)));
-        int y = std::max(0, static_cast<int>(std::round(box_y)));
-        int w = std::min(width - 1 - x, static_cast<int>(std::round(box_w)));
-        int h = std::min(height - 1 - y, static_cast<int>(std::round(box_h)));
-        if (w <= 0 || h <= 0) continue;
-
-        const Color c = ColorForClass(det.class_id);
-        DrawRect(out, width, height, out_channels, x, y, w, h, kThickness,
-                 c.r, c.g, c.b);
+    detections_.clear();
+    for (const auto& det : raw) {
+        float x = std::max(0.0f, (det.x - pad_x) / scale);
+        float y = std::max(0.0f, (det.y - pad_y) / scale);
+        float w = std::min(static_cast<float>(width) - x, det.width / scale);
+        float h = std::min(static_cast<float>(height) - y, det.height / scale);
+        if (w <= 0.0f || h <= 0.0f) continue;
+        detections_.push_back({x, y, w, h, det.class_id, det.class_name, det.confidence});
     }
 
-    spdlog::info("YOLO detected {} objects, drawn on output", detections_.size());
+    CopyInputToOutput(context);
+
+    spdlog::info("YOLO detected {} objects", detections_.size());
     return true;
 }
 

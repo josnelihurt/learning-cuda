@@ -17,7 +17,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { AcceleratorType, LibraryCapabilities, TraceContext } from "./common_pb.js";
-import { GetVersionInfoRequest, GetVersionInfoResponse, ListFiltersRequest, ListFiltersResponse, ProcessImageRequest, ProcessImageResponse } from "./image_processor_service_pb.js";
+import { GetVersionInfoRequest, GetVersionInfoResponse, ListFiltersRequest, ListFiltersResponse } from "./image_processor_service_pb.js";
 import { SignalingMessage } from "./webrtc_signal_pb.js";
 
 /**
@@ -137,18 +137,6 @@ export class AcceleratorMessage extends Message<AcceleratorMessage> {
     case: "registerAck";
   } | {
     /**
-     * @generated from field: cuda_learning.ProcessImageRequest process_image_request = 20;
-     */
-    value: ProcessImageRequest;
-    case: "processImageRequest";
-  } | {
-    /**
-     * @generated from field: cuda_learning.ProcessImageResponse process_image_response = 21;
-     */
-    value: ProcessImageResponse;
-    case: "processImageResponse";
-  } | {
-    /**
      * @generated from field: cuda_learning.ListFiltersRequest list_filters_request = 30;
      */
     value: ListFiltersRequest;
@@ -203,8 +191,6 @@ export class AcceleratorMessage extends Message<AcceleratorMessage> {
     { no: 2, name: "trace_context", kind: "message", T: TraceContext },
     { no: 10, name: "register", kind: "message", T: Register, oneof: "payload" },
     { no: 11, name: "register_ack", kind: "message", T: RegisterAck, oneof: "payload" },
-    { no: 20, name: "process_image_request", kind: "message", T: ProcessImageRequest, oneof: "payload" },
-    { no: 21, name: "process_image_response", kind: "message", T: ProcessImageResponse, oneof: "payload" },
     { no: 30, name: "list_filters_request", kind: "message", T: ListFiltersRequest, oneof: "payload" },
     { no: 31, name: "list_filters_response", kind: "message", T: ListFiltersResponse, oneof: "payload" },
     { no: 40, name: "get_version_request", kind: "message", T: GetVersionInfoRequest, oneof: "payload" },

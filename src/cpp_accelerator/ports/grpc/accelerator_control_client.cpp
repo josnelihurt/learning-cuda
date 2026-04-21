@@ -220,9 +220,6 @@ bool AcceleratorControlClient::Send(cuda_learning::AcceleratorMessage msg) {
 void AcceleratorControlClient::Dispatch(const cuda_learning::AcceleratorMessage& msg) {
   const std::string& cmd_id = msg.command_id();
   switch (msg.payload_case()) {
-    case cuda_learning::AcceleratorMessage::kProcessImageRequest:
-      HandleProcessImageRequest(cmd_id, msg.process_image_request());
-      break;
     case cuda_learning::AcceleratorMessage::kListFiltersRequest:
       HandleListFiltersRequest(cmd_id, msg.list_filters_request());
       break;
@@ -239,22 +236,6 @@ void AcceleratorControlClient::Dispatch(const cuda_learning::AcceleratorMessage&
       spdlog::warn("[AcceleratorControl] Unknown payload type: {}",
                    static_cast<int>(msg.payload_case()));
       break;
-  }
-}
-
-void AcceleratorControlClient::HandleProcessImageRequest(
-    const std::string& command_id, const cuda_learning::ProcessImageRequest& req) {
-  cuda_learning::ProcessImageResponse resp;
-  if (!engine_ || !engine_->ProcessImage(req, &resp)) {
-    resp.set_code(6);
-    resp.set_message("engine unavailable");
-  }
-
-  cuda_learning::AcceleratorMessage out;
-  out.set_command_id(command_id);
-  *out.mutable_process_image_response() = std::move(resp);
-  if (!Send(std::move(out))) {
-    spdlog::warn("[AcceleratorControl] Failed to send ProcessImageResponse cmd={}", command_id);
   }
 }
 

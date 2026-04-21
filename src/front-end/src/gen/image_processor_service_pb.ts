@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { AcceleratorType, FilterType, GaussianBlurParameters, GrayscaleType, LibraryCapabilities, ModelInferenceParameters, TraceContext } from "./common_pb.js";
 
 /**
@@ -456,6 +456,11 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
   modelParams?: ModelInferenceParameters;
 
   /**
+   * @generated from field: uint64 frame_id = 33 [json_name = "frame_id"];
+   */
+  frameId = protoInt64.zero;
+
+  /**
    * OpenTelemetry trace context propagation (deprecated - use trace_context instead)
    *
    * @generated from field: string trace_id = 15 [json_name = "trace_id"];
@@ -501,6 +506,7 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
     { no: 27, name: "generic_filters", jsonName: "generic_filters", kind: "message", T: GenericFilterSelection, repeated: true },
     { no: 29, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 31, name: "model_params", jsonName: "model_params", kind: "message", T: ModelInferenceParameters },
+    { no: 33, name: "frame_id", jsonName: "frame_id", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 15, name: "trace_id", jsonName: "trace_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 17, name: "span_id", jsonName: "span_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "trace_flags", jsonName: "trace_flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
@@ -522,6 +528,79 @@ export class ProcessImageRequest extends Message<ProcessImageRequest> {
 
   static equals(a: ProcessImageRequest | PlainMessage<ProcessImageRequest> | undefined, b: ProcessImageRequest | PlainMessage<ProcessImageRequest> | undefined): boolean {
     return proto3.util.equals(ProcessImageRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.Detection
+ */
+export class Detection extends Message<Detection> {
+  /**
+   * @generated from field: float x = 1;
+   */
+  x = 0;
+
+  /**
+   * @generated from field: float y = 2;
+   */
+  y = 0;
+
+  /**
+   * @generated from field: float width = 3;
+   */
+  width = 0;
+
+  /**
+   * @generated from field: float height = 4;
+   */
+  height = 0;
+
+  /**
+   * @generated from field: int32 class_id = 5 [json_name = "class_id"];
+   */
+  classId = 0;
+
+  /**
+   * @generated from field: string class_name = 6 [json_name = "class_name"];
+   */
+  className = "";
+
+  /**
+   * @generated from field: float confidence = 7;
+   */
+  confidence = 0;
+
+  constructor(data?: PartialMessage<Detection>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.Detection";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "x", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 2, name: "y", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 3, name: "width", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 4, name: "height", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 5, name: "class_id", jsonName: "class_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 6, name: "class_name", jsonName: "class_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "confidence", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Detection {
+    return new Detection().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Detection {
+    return new Detection().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Detection {
+    return new Detection().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Detection | PlainMessage<Detection> | undefined, b: Detection | PlainMessage<Detection> | undefined): boolean {
+    return proto3.util.equals(Detection, a, b);
   }
 }
 
@@ -571,6 +650,16 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
    */
   apiVersion = "";
 
+  /**
+   * @generated from field: repeated cuda_learning.Detection detections = 17;
+   */
+  detections: Detection[] = [];
+
+  /**
+   * @generated from field: uint64 frame_id = 19 [json_name = "frame_id"];
+   */
+  frameId = protoInt64.zero;
+
   constructor(data?: PartialMessage<ProcessImageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -587,6 +676,8 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
     { no: 11, name: "channels", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 13, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
     { no: 15, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 17, name: "detections", kind: "message", T: Detection, repeated: true },
+    { no: 19, name: "frame_id", jsonName: "frame_id", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProcessImageResponse {
@@ -603,6 +694,63 @@ export class ProcessImageResponse extends Message<ProcessImageResponse> {
 
   static equals(a: ProcessImageResponse | PlainMessage<ProcessImageResponse> | undefined, b: ProcessImageResponse | PlainMessage<ProcessImageResponse> | undefined): boolean {
     return proto3.util.equals(ProcessImageResponse, a, b);
+  }
+}
+
+/**
+ * Lightweight message sent on the detection WebRTC DataChannel
+ *
+ * @generated from message cuda_learning.DetectionFrame
+ */
+export class DetectionFrame extends Message<DetectionFrame> {
+  /**
+   * @generated from field: uint64 frame_id = 1 [json_name = "frame_id"];
+   */
+  frameId = protoInt64.zero;
+
+  /**
+   * @generated from field: repeated cuda_learning.Detection detections = 2;
+   */
+  detections: Detection[] = [];
+
+  /**
+   * @generated from field: int32 image_width = 3 [json_name = "image_width"];
+   */
+  imageWidth = 0;
+
+  /**
+   * @generated from field: int32 image_height = 4 [json_name = "image_height"];
+   */
+  imageHeight = 0;
+
+  constructor(data?: PartialMessage<DetectionFrame>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.DetectionFrame";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "frame_id", jsonName: "frame_id", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 2, name: "detections", kind: "message", T: Detection, repeated: true },
+    { no: 3, name: "image_width", jsonName: "image_width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "image_height", jsonName: "image_height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DetectionFrame {
+    return new DetectionFrame().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DetectionFrame {
+    return new DetectionFrame().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DetectionFrame {
+    return new DetectionFrame().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DetectionFrame | PlainMessage<DetectionFrame> | undefined, b: DetectionFrame | PlainMessage<DetectionFrame> | undefined): boolean {
+    return proto3.util.equals(DetectionFrame, a, b);
   }
 }
 

@@ -29,9 +29,8 @@ die() {
     exit 1
 }
 
-# Updates .vscode/launch.json "processId" for the Go attach configuration
-# (type=go, request=attach). Uses JSON parse to locate the target; preserves
-# JSONC line comments. On missing python3 or launch file, no-op.
+# Updates .vscode/launch.json "processId" for the Go attach configuration.
+# On missing python3 or launch file, no-op.
 update_launch_go_attach_process_id() {
     local pid="$1"
     local launch_json="${PROJECT_ROOT}/.vscode/launch.json"
@@ -42,6 +41,21 @@ update_launch_go_attach_process_id() {
     if ! python3 "$SCRIPT_DIR/update_launch_go_attach_process_id.py" "$launch_json" "$pid"
     then
         echo "Warning: could not update Go attach processId in .vscode/launch.json" >&2
+    fi
+}
+
+# Updates .vscode/launch.json "processId" for the C++ accelerator attach
+# configuration. On missing python3 or launch file, no-op.
+update_launch_cpp_attach_process_id() {
+    local pid="$1"
+    local launch_json="${PROJECT_ROOT}/.vscode/launch.json"
+
+    command -v python3 >/dev/null 2>&1 || return 0
+    [ -f "$launch_json" ] || return 0
+
+    if ! python3 "$SCRIPT_DIR/update_launch_cpp_attach_process_id.py" "$launch_json" "$pid"
+    then
+        echo "Warning: could not update C++ attach processId in .vscode/launch.json" >&2
     fi
 }
 
@@ -141,6 +155,13 @@ start_grpc() {
         >"$DEV_LOG_GRPC" 2>&1 &
     GRPC_PID=$!
     echo "$GRPC_PID" >"$DEV_PID_GRPC"
+
+    if ! kill -0 "$GRPC_PID" 2>/dev/null; then
+        update_launch_cpp_attach_process_id -1
+        die "C++ accelerator client failed to start"
+    fi
+
+    update_launch_cpp_attach_process_id "$GRPC_PID"
 }
 
 start_go() {

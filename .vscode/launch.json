@@ -21,7 +21,16 @@
             "type": "go",
             "request": "attach",
             "mode": "local",
-            "processId": 193466,
+            "processId": 171562,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Attach to C++ Accelerator",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceFolder}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client",
+            "processId": 171573,
+            "MIMode": "gdb",
             "cwd": "${workspaceFolder}"
         }
     ]

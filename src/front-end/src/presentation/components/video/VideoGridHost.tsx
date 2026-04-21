@@ -403,11 +403,11 @@ export function VideoGridHost() {
         inputSource.type === 'camera'
           ? null
           : new WebRTCFrameTransportService(
-              uniqueId,
-              statsManager as IStatsDisplay,
-              cameraManager as never,
-              toastManager as IToastDisplay
-            );
+            uniqueId,
+            statsManager as IStatsDisplay,
+            cameraManager as never,
+            toastManager as IToastDisplay
+          );
       if (transport) {
         transport.connect();
         statsManager.setTransportService(transport);
@@ -458,7 +458,7 @@ export function VideoGridHost() {
       };
 
       setSources((current) => [...current, source]);
-          if (sourcesRef.current.length === 0) {
+      if (sourcesRef.current.length === 0) {
         setSelectedSourceId(uniqueId);
         emitSelectionState(source);
       }
@@ -519,11 +519,11 @@ export function VideoGridHost() {
         current.map((source) =>
           source.number === sourceNumber
             ? {
-                ...source,
-                imagePath,
-                originalImageSrc: imagePath,
-                currentImageSrc: imagePath,
-              }
+              ...source,
+              imagePath,
+              originalImageSrc: imagePath,
+              currentImageSrc: imagePath,
+            }
             : source
         )
       );
@@ -604,6 +604,19 @@ export function VideoGridHost() {
           targetWidth,
           targetHeight
         );
+
+        if (normalizedFilters.length === 1 && normalizedFilters[0].id === 'none') {
+          updateSource(selectedSource.id, (source) => ({
+            ...source,
+            currentImageSrc: frameResponseToDataUrl(
+              rasterized,
+              targetWidth,
+              targetHeight,
+              3
+            ),
+          }));
+          return
+        }
 
         const response = await selectedSource.transport.sendSingleImage(
           rasterized,

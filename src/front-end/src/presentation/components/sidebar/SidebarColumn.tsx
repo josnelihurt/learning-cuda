@@ -22,7 +22,7 @@ function sidebarColumnReducer(state: SidebarColumnState, action: SidebarColumnAc
 }
 
 export function SidebarColumn(): ReactElement {
-  const { setActiveFilters, processorFilterEpoch, activeFilters } = useDashboardState();
+  const { setActiveFilters, processorFilterEpoch, activeFilters, selectedSourceNumber } = useDashboardState();
   const [state, dispatch] = useReducer(sidebarColumnReducer, INITIAL_SIDEBAR_STATE);
 
   useEffect(() => {
@@ -70,6 +70,7 @@ export function SidebarColumn(): ReactElement {
           <SidebarControls />
           <div data-testid="react-filters-section">
             <FilterPanel
+              key={selectedSourceNumber}
               processorFilterEpoch={processorFilterEpoch}
               onFiltersChange={setActiveFilters}
               initialActiveFilters={activeFilters}

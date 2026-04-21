@@ -140,8 +140,7 @@ The tests follow the **Given/When/Then** BDD pattern with step definitions organ
 - `steps/bdd_context.go` - BDDContext with business logic and client management
 
 ### Test Data
-- `testdata/checksums.json` - SHA-256 checksums for deterministic image processing validation
-- `scripts/generate_checksums.go` - Tool for regenerating checksums after visual inspection
+- `testdata/` - Currently empty; test data for upload/invalid-format scenarios is generated programmatically by `bdd_context.go`
 
 ### Then (Assertion)
 - `ThenTheResponseShouldContainTransportFormat()` - Validates transport format

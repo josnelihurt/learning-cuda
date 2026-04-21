@@ -36,7 +36,7 @@ This isn't another tutorial project. It's my way of exploring CUDA, OpenCL, and 
 
 Real-time image and video processing through CUDA kernels. Point your webcam at something, pick a filter (grayscale more to come), and watch it process on your GPU (or CPU for comparison). Shows FPS and processing time so you can actually see the performance difference.
 
-The system supports multiple input sources—webcam, static images, video files—and processes them through a growing library of filters. Each filter has both GPU and CPU implementations, so you can compare performance and learn how different algorithms work.
+The system supports multiple input sources—webcam, static images, video files—and processes them through a growing library of filters and YOLO object detection. Each filter has both GPU and CPU implementations, so you can compare performance and learn how different algorithms work. Real-time detection results are streamed back to the browser via WebRTC data channels with structured binary framing.
 
 **Why I built it this way**: Reading tutorials and doing lab exercises gets boring fast. I learn better by building something I'd actually want to use. So instead of following "CUDA 101" step-by-step, I built a real system with the same practices I use at work—clean architecture, proper testing, observability, the whole deal.
 
@@ -72,6 +72,8 @@ graph TB
         ProcessorEngine[Processor Engine]
         CudaKernels[CUDA Kernels]
         CpuFallback[CPU Fallback]
+        YOLODetector[YOLO Detector<br/>ONNX Runtime]
+        DataChannelFraming[Data Channel Framing]
     end
     
     subgraph "Observability"
@@ -92,9 +94,11 @@ graph TB
     
     AccelClient -->|mTLS bidi stream| ControlServer
     AccelClient --> ProcessorEngine
+    AccelClient --> DataChannelFraming
     ProcessorEngine --> SharedLib
     SharedLib --> CudaKernels
     SharedLib --> CpuFallback
+    SharedLib --> YOLODetector
     
     Services --> Jaeger
     Services --> Loki
@@ -141,8 +145,12 @@ graph TB
         SharedLibrary[Shared Library<br/>libcuda_processor.so]
         GrayscaleKernel[Grayscale Kernels]
         BlurKernel[Blur Kernels]
+        YOLODetector[YOLO Detector]
+        ModelManager[Model Manager]
         FilterDefs[Filter Definitions]
         WebRTCManager[WebRTC Manager]
+        DataChannelFraming[Data Channel Framing]
+        LiveVideoProcessor[Live Video Processor]
     end
 
     subgraph "External Services"
@@ -171,10 +179,14 @@ graph TB
     AccelClient -->|mTLS bidi| ControlServer
     AccelClient --> ProcessorEngine
     AccelClient --> WebRTCManager
+    AccelClient --> DataChannelFraming
+    AccelClient --> LiveVideoProcessor
     ProcessorEngine --> SharedLibrary
     SharedLibrary --> GrayscaleKernel
     SharedLibrary --> BlurKernel
+    SharedLibrary --> YOLODetector
     SharedLibrary --> FilterDefs
+    YOLODetector --> ModelManager
 
     GoFeatureFlagRepository --> GOFeatureFlags
     Logger --> Jaeger
@@ -189,7 +201,7 @@ The system uses a reverse gRPC topology where C++ accelerator clients dial into 
 - Go acts as the gRPC server hosting `AcceleratorControlService`
 - Accepts inbound mTLS connections from registered accelerators
 - Multiplexes all commands over a single bidirectional stream per accelerator
-- Message types: Register, ProcessImage, ListFilters, GetVersionInfo, SignalingMessage, Keepalive, ErrorReport
+- Message types: Register, ProcessImage, ListFilters, GetVersionInfo, SignalingMessage, Keepalive, ErrorReport, DetectionResult
 - Implemented in: `src/go_api/pkg/infrastructure/processor/control_server.go`
 - Registry: `src/go_api/pkg/infrastructure/processor/registry.go`
 - Session management: `src/go_api/pkg/infrastructure/processor/session.go`
@@ -436,15 +448,15 @@ src/cpp_accelerator/
   application/         # Use cases, FilterPipeline, BufferPool, Commands
   domain/              # Interfaces (IFilter, ImageBuffer, IImageProcessor)
   infrastructure/
-    cuda/              # GPU kernels
+    cuda/              # GPU kernels, YOLO detector, model management
     cpu/               # CPU fallback implementations
     filters/           # Equivalence tests
     image/             # Image loader/writer
     config/            # Configuration management
   ports/
-    grpc/              # gRPC service implementation
+    grpc/              # gRPC service, data channel framing, live video processor
     shared_lib/        # Shared library exports
-    cgo/               # CGO API
+    yolo_test/         # YOLO validation example
   core/                # Logger, Telemetry, Result type
 
 src/go_api/
@@ -460,8 +472,10 @@ src/go_api/
     telemetry/         # Observability
 
 src/front-end/        # React (Vite)
-  src/presentation/    # React dashboard (presentation layer)
-  src/shared/          # Shared utilities
+  src/application/     # DI container, application services
+  src/domain/          # Interfaces, value objects
+  src/infrastructure/  # Transport (WebRTC, data-channel-framing), data, external services
+  src/presentation/    # React components (video, filters, camera), hooks, context, providers
 
 scripts/               # organized scripts (dev/, test/, docker/, tools/, hooks/)
 proto/                 # Protocol Buffers definitions

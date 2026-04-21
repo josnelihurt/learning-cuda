@@ -6,4 +6,5 @@ type ProcessingOptions struct {
 	Accelerator   AcceleratorType
 	GrayscaleType GrayscaleType
 	BlurParams    *BlurParameters
+	ModelParams   *ModelInferenceParameters
 }

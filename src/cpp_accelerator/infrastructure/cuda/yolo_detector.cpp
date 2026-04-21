@@ -3,6 +3,7 @@
 #include <onnxruntime_cxx_api.h>
 #include <cmath>
 #include <algorithm>
+#include <cstring>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -82,8 +83,39 @@ private:
     std::vector<Detection> Postprocess(float* output, const std::vector<int64_t>& shape) {
         std::vector<Detection> detections;
 
-        int num_classes = shape[2] - 4;
-        int num_predictions = shape[1];
+        // YOLOv10 end-to-end NMS: shape [1, N, 6] = (x1, y1, x2, y2, conf, class_id)
+        if (shape.size() == 3 && shape[2] == 6) {
+            const int num_predictions = static_cast<int>(shape[1]);
+            for (int i = 0; i < num_predictions; ++i) {
+                float* p = output + i * 6;
+                float x1 = p[0];
+                float y1 = p[1];
+                float x2 = p[2];
+                float y2 = p[3];
+                float conf = p[4];
+                int class_id = static_cast<int>(p[5]);
+
+                if (conf < confidence_threshold_) {
+                    continue;
+                }
+                if (x2 <= x1 || y2 <= y1) {
+                    continue;
+                }
+                detections.push_back({
+                    .x = x1,
+                    .y = y1,
+                    .width = x2 - x1,
+                    .height = y2 - y1,
+                    .class_id = class_id,
+                    .confidence = conf,
+                });
+            }
+            return detections;
+        }
+
+        // YOLOv8-style: [1, N, 4 + num_classes] = (cx, cy, w, h, class0_conf, class1_conf, ...)
+        int num_classes = static_cast<int>(shape[2]) - 4;
+        int num_predictions = static_cast<int>(shape[1]);
 
         for (int i = 0; i < num_predictions; ++i) {
             float* prediction = output + i * (4 + num_classes);
@@ -111,12 +143,49 @@ private:
                     .width = width,
                     .height = height,
                     .class_id = max_class_id,
-                    .confidence = max_confidence
+                    .confidence = max_confidence,
                 });
             }
         }
 
-        return detections;
+        return ApplyNMS(detections, 0.45f);
+    }
+
+    static float BoxIoU(const Detection& a, const Detection& b) {
+        float ax2 = a.x + a.width;
+        float ay2 = a.y + a.height;
+        float bx2 = b.x + b.width;
+        float by2 = b.y + b.height;
+        float ix1 = std::max(a.x, b.x);
+        float iy1 = std::max(a.y, b.y);
+        float ix2 = std::min(ax2, bx2);
+        float iy2 = std::min(ay2, by2);
+        float iw = std::max(0.0f, ix2 - ix1);
+        float ih = std::max(0.0f, iy2 - iy1);
+        float inter = iw * ih;
+        float area_a = a.width * a.height;
+        float area_b = b.width * b.height;
+        float denom = area_a + area_b - inter;
+        return denom > 0.0f ? inter / denom : 0.0f;
+    }
+
+    static std::vector<Detection> ApplyNMS(std::vector<Detection> dets, float iou_threshold) {
+        std::sort(dets.begin(), dets.end(),
+                  [](const Detection& a, const Detection& b) { return a.confidence > b.confidence; });
+        std::vector<Detection> kept;
+        std::vector<bool> suppressed(dets.size(), false);
+        for (size_t i = 0; i < dets.size(); ++i) {
+            if (suppressed[i]) continue;
+            kept.push_back(dets[i]);
+            for (size_t j = i + 1; j < dets.size(); ++j) {
+                if (suppressed[j]) continue;
+                if (dets[j].class_id != dets[i].class_id) continue;
+                if (BoxIoU(dets[i], dets[j]) > iou_threshold) {
+                    suppressed[j] = true;
+                }
+            }
+        }
+        return kept;
     }
 
     std::unique_ptr<Ort::Env> env_;
@@ -135,15 +204,129 @@ YOLODetector::YOLODetector(const std::string& model_path, float confidence_thres
 
 YOLODetector::~YOLODetector() = default;
 
+namespace {
+
+void CopyInputToOutput(const jrb::domain::interfaces::FilterContext& context) {
+    const int width = context.input.width;
+    const int height = context.input.height;
+    const int in_channels = context.input.channels;
+    const int out_channels = context.output.channels;
+
+    if (in_channels == out_channels) {
+        std::memcpy(context.output.data, context.input.data,
+                    static_cast<size_t>(width) * height * in_channels);
+        return;
+    }
+
+    const int pixels = width * height;
+    for (int i = 0; i < pixels; ++i) {
+        const uint8_t* src = context.input.data + i * in_channels;
+        uint8_t* dst = context.output.data + i * out_channels;
+        for (int c = 0; c < out_channels; ++c) {
+            dst[c] = (c < in_channels) ? src[c] : 0xFF;
+        }
+    }
+}
+
+void DrawHLine(uint8_t* buf, int width, int height, int channels,
+               int x0, int x1, int y, uint8_t r, uint8_t g, uint8_t b) {
+    if (y < 0 || y >= height) return;
+    if (x0 < 0) x0 = 0;
+    if (x1 >= width) x1 = width - 1;
+    for (int x = x0; x <= x1; ++x) {
+        uint8_t* p = buf + (y * width + x) * channels;
+        if (channels >= 3) {
+            p[0] = r; p[1] = g; p[2] = b;
+        } else {
+            p[0] = static_cast<uint8_t>((r + g + b) / 3);
+        }
+        if (channels == 4) p[3] = 0xFF;
+    }
+}
+
+void DrawVLine(uint8_t* buf, int width, int height, int channels,
+               int x, int y0, int y1, uint8_t r, uint8_t g, uint8_t b) {
+    if (x < 0 || x >= width) return;
+    if (y0 < 0) y0 = 0;
+    if (y1 >= height) y1 = height - 1;
+    for (int y = y0; y <= y1; ++y) {
+        uint8_t* p = buf + (y * width + x) * channels;
+        if (channels >= 3) {
+            p[0] = r; p[1] = g; p[2] = b;
+        } else {
+            p[0] = static_cast<uint8_t>((r + g + b) / 3);
+        }
+        if (channels == 4) p[3] = 0xFF;
+    }
+}
+
+void DrawRect(uint8_t* buf, int width, int height, int channels,
+              int x, int y, int w, int h, int thickness,
+              uint8_t r, uint8_t g, uint8_t b) {
+    for (int t = 0; t < thickness; ++t) {
+        DrawHLine(buf, width, height, channels, x, x + w, y + t, r, g, b);
+        DrawHLine(buf, width, height, channels, x, x + w, y + h - t, r, g, b);
+        DrawVLine(buf, width, height, channels, x + t, y, y + h, r, g, b);
+        DrawVLine(buf, width, height, channels, x + w - t, y, y + h, r, g, b);
+    }
+}
+
+struct Color { uint8_t r, g, b; };
+Color ColorForClass(int class_id) {
+    static const Color palette[] = {
+        {255, 56, 56}, {255, 157, 151}, {255, 112, 31}, {255, 178, 29},
+        {207, 210, 49}, {72, 249, 10}, {146, 204, 23}, {61, 219, 134},
+        {26, 147, 52}, {0, 212, 187}, {44, 153, 168}, {0, 194, 255},
+        {52, 69, 147}, {100, 115, 255}, {0, 24, 236}, {132, 56, 255},
+        {82, 0, 133}, {203, 56, 255}, {255, 149, 200}, {255, 55, 199},
+    };
+    constexpr int palette_size = sizeof(palette) / sizeof(palette[0]);
+    return palette[(class_id % palette_size + palette_size) % palette_size];
+}
+
+}  // namespace
+
 bool YOLODetector::Apply(jrb::domain::interfaces::FilterContext& context) {
+    const int width = context.input.width;
+    const int height = context.input.height;
+
     detections_ = impl_->Detect(
         context.input.data,
-        context.input.width,
-        context.input.height,
+        width,
+        height,
         context.input.channels
     );
 
-    spdlog::info("YOLO detected {} objects", detections_.size());
+    CopyInputToOutput(context);
+
+    constexpr int kModelSize = 640;
+    const float scale = std::min(static_cast<float>(kModelSize) / width,
+                                 static_cast<float>(kModelSize) / height);
+    const float pad_x = (kModelSize - width * scale) * 0.5f;
+    const float pad_y = (kModelSize - height * scale) * 0.5f;
+
+    uint8_t* out = context.output.data;
+    const int out_channels = context.output.channels;
+    constexpr int kThickness = 2;
+
+    for (const auto& det : detections_) {
+        const float box_x = (det.x - pad_x) / scale;
+        const float box_y = (det.y - pad_y) / scale;
+        const float box_w = det.width / scale;
+        const float box_h = det.height / scale;
+
+        int x = std::max(0, static_cast<int>(std::round(box_x)));
+        int y = std::max(0, static_cast<int>(std::round(box_y)));
+        int w = std::min(width - 1 - x, static_cast<int>(std::round(box_w)));
+        int h = std::min(height - 1 - y, static_cast<int>(std::round(box_h)));
+        if (w <= 0 || h <= 0) continue;
+
+        const Color c = ColorForClass(det.class_id);
+        DrawRect(out, width, height, out_channels, x, y, w, h, kThickness,
+                 c.r, c.g, c.b);
+    }
+
+    spdlog::info("YOLO detected {} objects, drawn on output", detections_.size());
     return true;
 }
 

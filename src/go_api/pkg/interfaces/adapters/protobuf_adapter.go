@@ -23,31 +23,34 @@ func (a *ProtobufAdapter) ExtractProcessingOptions(req *pb.ProcessImageRequest) 
 		}
 	}
 
-	filters, grayscale, blurParams := a.resolveProtoProcessingFields(req)
+	filters, grayscale, blurParams, modelParams := a.resolveProtoProcessingFields(req)
 
 	return domain.ProcessingOptions{
 		Filters:       a.ToFilters(filters),
 		Accelerator:   a.ToAccelerator(req.Accelerator),
 		GrayscaleType: a.ToGrayscaleType(grayscale),
 		BlurParams:    a.ToBlurParameters(blurParams),
+		ModelParams:   a.ToModelParameters(modelParams),
 	}
 }
 
-func (a *ProtobufAdapter) resolveProtoProcessingFields(req *pb.ProcessImageRequest) ([]pb.FilterType, pb.GrayscaleType, *pb.GaussianBlurParameters) {
+func (a *ProtobufAdapter) resolveProtoProcessingFields(req *pb.ProcessImageRequest) ([]pb.FilterType, pb.GrayscaleType, *pb.GaussianBlurParameters, *pb.ModelInferenceParameters) {
 	filters := req.Filters
 	grayscale := req.GrayscaleType
 	blurParams := req.BlurParams
+	modelParams := req.ModelParams
 
 	if len(req.GenericFilters) > 0 {
-		genericFilters, genericGrayscale, genericBlur := a.genericSelectionsToProto(req.GenericFilters, grayscale, blurParams)
+		genericFilters, genericGrayscale, genericBlur, genericModel := a.genericSelectionsToProto(req.GenericFilters, grayscale, blurParams, modelParams)
 		if len(genericFilters) > 0 {
 			filters = genericFilters
 		}
 		grayscale = genericGrayscale
 		blurParams = genericBlur
+		modelParams = genericModel
 	}
 
-	return filters, grayscale, blurParams
+	return filters, grayscale, blurParams, modelParams
 }
 
 func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterType {
@@ -58,6 +61,8 @@ func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterTy
 			filters = append(filters, domain.FilterGrayscale)
 		case pb.FilterType_FILTER_TYPE_BLUR:
 			filters = append(filters, domain.FilterBlur)
+		case pb.FilterType_FILTER_TYPE_MODEL_INFERENCE:
+			filters = append(filters, domain.FilterModel)
 		case pb.FilterType_FILTER_TYPE_NONE:
 			filters = append(filters, domain.FilterNone)
 		case pb.FilterType_FILTER_TYPE_UNSPECIFIED:
@@ -67,6 +72,16 @@ func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterTy
 		}
 	}
 	return filters
+}
+
+func (a *ProtobufAdapter) ToModelParameters(pbModel *pb.ModelInferenceParameters) *domain.ModelInferenceParameters {
+	if pbModel == nil {
+		return nil
+	}
+	return &domain.ModelInferenceParameters{
+		ModelID:             pbModel.ModelId,
+		ConfidenceThreshold: pbModel.ConfidenceThreshold,
+	}
 }
 
 func (a *ProtobufAdapter) ToAccelerator(pbAccel pb.AcceleratorType) domain.AcceleratorType {
@@ -189,10 +204,12 @@ func (a *ProtobufAdapter) genericSelectionsToProto(
 	selections []*pb.GenericFilterSelection,
 	fallbackGrayscale pb.GrayscaleType,
 	fallbackBlur *pb.GaussianBlurParameters,
-) ([]pb.FilterType, pb.GrayscaleType, *pb.GaussianBlurParameters) {
+	fallbackModel *pb.ModelInferenceParameters,
+) ([]pb.FilterType, pb.GrayscaleType, *pb.GaussianBlurParameters, *pb.ModelInferenceParameters) {
 	filters := make([]pb.FilterType, 0, len(selections))
 	grayscale := fallbackGrayscale
 	blur := fallbackBlur
+	model := fallbackModel
 
 	for _, selection := range selections {
 		if selection == nil {
@@ -208,16 +225,51 @@ func (a *ProtobufAdapter) genericSelectionsToProto(
 		case "blur":
 			filters = append(filters, pb.FilterType_FILTER_TYPE_BLUR)
 			blur = a.blurFromGeneric(selection.Parameters, blur)
+		case "model_inference":
+			filters = append(filters, pb.FilterType_FILTER_TYPE_MODEL_INFERENCE)
+			model = a.modelFromGeneric(selection.Parameters, model)
 		default:
 			logger.Global().Warn().Str("filter_id", selection.FilterId).Msg("received unknown generic filter, skipping")
 		}
 	}
 
 	if len(filters) == 0 {
-		return nil, fallbackGrayscale, fallbackBlur
+		return nil, fallbackGrayscale, fallbackBlur, fallbackModel
 	}
 
-	return filters, grayscale, blur
+	return filters, grayscale, blur, model
+}
+
+func (a *ProtobufAdapter) modelFromGeneric(params []*pb.GenericFilterParameterSelection, fallback *pb.ModelInferenceParameters) *pb.ModelInferenceParameters {
+	result := &pb.ModelInferenceParameters{
+		ModelId:             "yolov10n",
+		ConfidenceThreshold: 0.5,
+	}
+	if fallback != nil {
+		result.ModelId = fallback.ModelId
+		result.ConfidenceThreshold = fallback.ConfidenceThreshold
+	}
+
+	for _, param := range params {
+		if param == nil {
+			continue
+		}
+		value, ok := firstGenericValue(param)
+		if !ok {
+			continue
+		}
+		switch strings.ToLower(param.ParameterId) {
+		case "model_id":
+			if value != "" {
+				result.ModelId = value
+			}
+		case "confidence_threshold":
+			if parsed, err := strconv.ParseFloat(value, 32); err == nil && parsed >= 0 {
+				result.ConfidenceThreshold = float32(parsed)
+			}
+		}
+	}
+	return result
 }
 
 func (a *ProtobufAdapter) grayscaleFromGeneric(params []*pb.GenericFilterParameterSelection, fallback pb.GrayscaleType) pb.GrayscaleType {

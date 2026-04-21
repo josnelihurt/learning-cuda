@@ -15,6 +15,7 @@ const (
 	FilterNone      FilterType = "none"
 	FilterGrayscale FilterType = "grayscale"
 	FilterBlur      FilterType = "blur"
+	FilterModel     FilterType = "model_inference"
 )
 
 // AcceleratorType represents the processing unit to use
@@ -51,4 +52,10 @@ type BlurParameters struct {
 	Sigma      float32
 	BorderMode BorderMode
 	Separable  bool
+}
+
+// ModelInferenceParameters represents parameters for the model inference filter.
+type ModelInferenceParameters struct {
+	ModelID             string
+	ConfidenceThreshold float32
 }

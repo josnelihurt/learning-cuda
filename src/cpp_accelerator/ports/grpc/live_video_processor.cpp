@@ -532,6 +532,39 @@ bool LiveVideoProcessor::ResolveGenericSelections(cuda_learning::ProcessImageReq
         continue;
       }
 
+      if (filter_id == "model_inference") {
+        filters.push_back(cuda_learning::FILTER_TYPE_MODEL_INFERENCE);
+        auto* model_params = request->mutable_model_params();
+        if (model_params->model_id().empty()) {
+          model_params->set_model_id("yolov10n");
+        }
+        if (model_params->confidence_threshold() <= 0.0F) {
+          model_params->set_confidence_threshold(0.5F);
+        }
+        for (const auto& parameter : selection.parameters()) {
+          const auto value = FirstGenericValue(parameter);
+          if (!value.has_value()) {
+            continue;
+          }
+          const std::string parameter_id = NormalizeFilterId(parameter.parameter_id());
+          if (parameter_id == "model_id") {
+            if (!value->empty()) {
+              model_params->set_model_id(*value);
+            }
+          } else if (parameter_id == "confidence_threshold") {
+            try {
+              const float parsed = std::stof(*value);
+              if (parsed > 0.0F) {
+                model_params->set_confidence_threshold(parsed);
+              }
+            } catch (const std::exception&) {
+              spdlog::warn("Ignoring invalid model confidence_threshold: {}", *value);
+            }
+          }
+        }
+        continue;
+      }
+
       spdlog::warn("Ignoring unsupported live generic filter: {}", selection.filter_id());
     }
   }

@@ -34,13 +34,14 @@ func (p *GRPCProcessor) domainToProtoBorderMode(mode domain.BorderMode) pb.Borde
 	}
 }
 
-func (p *GRPCProcessor) domainToProtoFilters(filters []domain.FilterType) ([]pb.FilterType, bool, error) {
+func (p *GRPCProcessor) domainToProtoFilters(filters []domain.FilterType) ([]pb.FilterType, bool, bool, error) {
 	if len(filters) == 0 || (len(filters) == 1 && filters[0] == domain.FilterNone) {
-		return nil, false, nil
+		return nil, false, false, nil
 	}
 
 	protoFilters := make([]pb.FilterType, 0, len(filters))
 	hasBlur := false
+	hasModel := false
 	for _, filter := range filters {
 		switch filter {
 		case domain.FilterNone:
@@ -50,11 +51,33 @@ func (p *GRPCProcessor) domainToProtoFilters(filters []domain.FilterType) ([]pb.
 		case domain.FilterBlur:
 			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_BLUR)
 			hasBlur = true
+		case domain.FilterModel:
+			protoFilters = append(protoFilters, pb.FilterType_FILTER_TYPE_MODEL_INFERENCE)
+			hasModel = true
 		default:
-			return nil, false, fmt.Errorf("unsupported filter type: %s", filter)
+			return nil, false, false, fmt.Errorf("unsupported filter type: %s", filter)
 		}
 	}
-	return protoFilters, hasBlur, nil
+	return protoFilters, hasBlur, hasModel, nil
+}
+
+func (p *GRPCProcessor) buildModelParams(hasModel bool, modelParams *domain.ModelInferenceParameters) *pb.ModelInferenceParameters {
+	if !hasModel {
+		return nil
+	}
+	result := &pb.ModelInferenceParameters{
+		ModelId:             "yolov10n",
+		ConfidenceThreshold: 0.5,
+	}
+	if modelParams != nil {
+		if modelParams.ModelID != "" {
+			result.ModelId = modelParams.ModelID
+		}
+		if modelParams.ConfidenceThreshold > 0 {
+			result.ConfidenceThreshold = modelParams.ConfidenceThreshold
+		}
+	}
+	return result
 }
 
 func (p *GRPCProcessor) buildBlurParams(hasBlur bool, blurParams *domain.BlurParameters) *pb.GaussianBlurParameters {
@@ -137,7 +160,7 @@ func (p *GRPCProcessor) ProcessImage(
 		attribute.String("grayscale_type", string(opts.GrayscaleType)),
 	)
 
-	protoFilters, hasBlur, err := p.domainToProtoFilters(opts.Filters)
+	protoFilters, hasBlur, hasModel, err := p.domainToProtoFilters(opts.Filters)
 	if err != nil {
 		return nil, err
 	}
@@ -146,16 +169,24 @@ func (p *GRPCProcessor) ProcessImage(
 	}
 
 	finalBlurParams := p.buildBlurParams(hasBlur, opts.BlurParams)
+	finalModelParams := p.buildModelParams(hasModel, opts.ModelParams)
 	protoAccelerator := p.domainToProtoAccelerator(opts.Accelerator)
 	protoGrayscaleType := p.domainToProtoGrayscaleType(opts.GrayscaleType)
 	traceID, spanID, traceFlags := extractTraceContext(ctx, span)
+
+	channels := int32(3)
+	if img.Width > 0 && img.Height > 0 {
+		if computed := int32(len(img.Data) / (img.Width * img.Height)); computed > 0 {
+			channels = computed
+		}
+	}
 
 	procReq := &pb.ProcessImageRequest{
 		ApiVersion:    "2.0.0",
 		ImageData:     img.Data,
 		Width:         int32(img.Width),
 		Height:        int32(img.Height),
-		Channels:      int32(3),
+		Channels:      channels,
 		Filters:       protoFilters,
 		Accelerator:   protoAccelerator,
 		GrayscaleType: protoGrayscaleType,
@@ -165,6 +196,9 @@ func (p *GRPCProcessor) ProcessImage(
 	}
 	if finalBlurParams != nil {
 		procReq.BlurParams = finalBlurParams
+	}
+	if finalModelParams != nil {
+		procReq.ModelParams = finalModelParams
 	}
 
 	span.AddEvent("gRPC call started")

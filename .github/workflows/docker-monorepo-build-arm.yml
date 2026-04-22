@@ -34,7 +34,7 @@ permissions:
 jobs:
   detect-changes:
     name: Detect changed paths
-    runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
       cpp_accelerator: ${{ steps.decide.outputs.cpp_accelerator }}
       yolo_model: ${{ steps.decide.outputs.yolo_model }}
@@ -92,7 +92,7 @@ jobs:
     name: Build all images (PRs only)
     if: github.event_name == 'pull_request'
     needs: detect-changes
-    runs-on: ["self-hosted", "Linux", "ARM64", "radxa"]
+    runs-on: ["self-hosted", "Linux", "ARM64", "radxa", "dev"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -97,6 +97,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Build yolo-model-gen image locally
+        if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
+        env:
+          REGISTRY: local
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: arm64
+        run: |
+          chmod +x scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh --stage yolo-tools --stage yolo-model
+
       - name: Build cpp-accelerator image locally
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
@@ -108,22 +118,13 @@ jobs:
           # Jetson deployment only consumes cpp-accelerator. Skip go/app/web-frontend/runtime-base
           # to cut ARM64 build time. Stages kept satisfy Dockerfile.build dependencies plus the
           # cpp-built guard in build-local.sh::run_cpp_accelerator_image.
+          # Note: yolo-model-gen must be built first (above) as cpp-accelerator now depends on it.
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage bazel-base \
             --stage proto \
             --stage cpp \
             --stage cpp-accelerator
-
-      - name: Build yolo-model-gen image locally
-        if: needs.detect-changes.outputs.yolo_model == 'true'
-        env:
-          REGISTRY: local
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh --stage yolo-tools --stage yolo-model
 
       - name: No relevant changes
         if: needs.detect-changes.outputs.cpp_accelerator != 'true' && needs.detect-changes.outputs.yolo_model != 'true'
@@ -147,7 +148,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push yolo-model-gen image
-        if: needs.detect-changes.outputs.yolo_model == 'true'
+        if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
@@ -164,6 +165,7 @@ jobs:
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
+          # Note: yolo-model-gen is built in the previous step as cpp-accelerator depends on it.
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage bazel-base \

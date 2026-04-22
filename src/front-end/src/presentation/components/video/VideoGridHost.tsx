@@ -636,6 +636,9 @@ export function VideoGridHost() {
               targetHeight,
               3
             ),
+            detections: [],
+            detectionImageWidth: 0,
+            detectionImageHeight: 0,
           }));
           return
         }
@@ -649,6 +652,16 @@ export function VideoGridHost() {
           new AcceleratorConfig(selectedAccelerator),
           new GrayscaleAlgorithm('bt601')
         );
+
+        logger.info('Static image response', {
+          code: response.code,
+          width: response.width,
+          height: response.height,
+          channels: response.channels,
+          imageBytesLen: response.imageData?.byteLength ?? 0,
+          detectionCount: response.detections?.length ?? 0,
+          filters: normalizedFilters.map((f) => f.id),
+        });
 
         if (
           response.code === 0 &&
@@ -664,6 +677,9 @@ export function VideoGridHost() {
               response.height,
               response.channels || 4
             ),
+            detections: response.detections,
+            detectionImageWidth: response.width,
+            detectionImageHeight: response.height,
           }));
           return;
         }

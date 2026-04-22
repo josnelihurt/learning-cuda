@@ -8,8 +8,11 @@ cc_binary(
     name = "yolo_validation_example",
     srcs = ["yolo_validation_example.cpp"],
     data = ["//data:static_images/lena.png"],
+    tags = ["manual"],
     deps = [
         "//src/cpp_accelerator/infrastructure/cuda:yolo_detector",
+        "//src/cpp_accelerator/infrastructure/cuda:yolo_factory",
+        "//src/cpp_accelerator/infrastructure/cuda:i_yolo_detector",
         "//src/cpp_accelerator/infrastructure/image:image_adapters",
         "@spdlog",
     ],

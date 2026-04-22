@@ -22,6 +22,7 @@ import { logger } from '@/infrastructure/observability/otel-logger';
 type FrameResultCallback = (data: ProcessImageResponse) => void;
 
 const REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_THRESHOLD = "0.45";
 
 type PendingResponse = {
   resolve: (response: ProcessImageResponse) => void;
@@ -269,9 +270,9 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const modelFilter = filters.find((f) => f.getId() === 'model_inference');
     const modelParams = modelFilter
       ? new ModelInferenceParameters({
-          modelId: modelFilter.getParameter('model_id') || 'yolov10n',
-          confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? '0.5'),
-        })
+        modelId: modelFilter.getParameter('model_id') || 'yolov10n',
+        confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? DEFAULT_THRESHOLD),
+      })
       : undefined;
 
     const payload = new ProcessImageRequest({
@@ -309,9 +310,9 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const modelFilter = filters.find((f) => f.getId() === 'model_inference');
     const modelParams = modelFilter
       ? new ModelInferenceParameters({
-          modelId: modelFilter.getParameter('model_id') || 'yolov10n',
-          confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? '0.5'),
-        })
+        modelId: modelFilter.getParameter('model_id') || 'yolov10n',
+        confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? DEFAULT_THRESHOLD),
+      })
       : undefined;
 
     void this.ensureConnected()
@@ -513,9 +514,9 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const modelFilter = filters.find((f) => f.getId() === 'model_inference');
     const modelParams = modelFilter
       ? new ModelInferenceParameters({
-          modelId: modelFilter.getParameter('model_id') || 'yolov10n',
-          confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? '0.5'),
-        })
+        modelId: modelFilter.getParameter('model_id') || 'yolov10n',
+        confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? DEFAULT_THRESHOLD),
+      })
       : undefined;
 
     const payload = new ProcessImageRequest({

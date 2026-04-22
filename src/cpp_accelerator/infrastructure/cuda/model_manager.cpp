@@ -1,4 +1,5 @@
 #include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
+#include "src/cpp_accelerator/infrastructure/cuda/yolo_factory.h"
 #include <spdlog/spdlog.h>
 
 namespace jrb::infrastructure::cuda {
@@ -26,7 +27,7 @@ void ModelManager::Initialize(const ModelRegistry& registry) {
   spdlog::info("ModelManager initialized with {} models", model_paths_.size());
 }
 
-std::shared_ptr<YOLODetector> ModelManager::GetDetector(
+std::shared_ptr<IYoloDetector> ModelManager::GetDetector(
     const std::string& model_id, float confidence_threshold) {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -37,7 +38,7 @@ std::shared_ptr<YOLODetector> ModelManager::GetDetector(
   }
 
   try {
-    auto detector = std::make_shared<YOLODetector>(it->second, confidence_threshold);
+    auto detector = CreateYoloDetector(it->second, confidence_threshold);
     spdlog::debug("Created detector for model: {} with confidence: {}", model_id, confidence_threshold);
     return detector;
   } catch (const std::exception& e) {

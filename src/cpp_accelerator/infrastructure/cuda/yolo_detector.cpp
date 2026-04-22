@@ -1,11 +1,12 @@
 #include "src/cpp_accelerator/infrastructure/cuda/yolo_detector.h"
 #include <NvInfer.h>
 #include <NvOnnxParser.h>
-#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/letterbox_kernel.h"
 
@@ -74,8 +75,7 @@ public:
   Impl(const std::string& model_path, float confidence_threshold)
       : logger_(std::make_unique<TRTLogger>()),
         confidence_threshold_(confidence_threshold),
-        model_path_(model_path),
-        input_tensor_values_(1 * 3 * 640 * 640) {
+        model_path_(model_path) {
     runtime_ = nvinfer1::createInferRuntime(*logger_);
     if (!runtime_) {
       throw std::runtime_error("Failed to create TensorRT runtime");
@@ -85,23 +85,34 @@ public:
   }
 
   ~Impl() {
-    // TensorRT 10.x: objects are managed by the library, no manual destroy needed
-    // The runtime will clean up associated resources
+    if (d_input_) cudaFree(d_input_);
+    if (d_output_) cudaFree(d_output_);
   }
 
   std::vector<Detection> Detect(const uint8_t* image_data, int width, int height, int channels) {
-    cudaError_t cuda_err = cuda_letterbox_resize(image_data, width, height, channels,
-                                                 input_tensor_values_.data(), 640, 640);
+    // Serialize access to GPU buffers and TRT context — not thread-safe.
+    std::lock_guard<std::mutex> lock(inference_mutex_);
+
+    cudaError_t cuda_err = cuda_letterbox_resize_to_device(image_data, width, height, channels,
+                                                           d_input_, 640, 640);
     if (cuda_err != cudaSuccess) {
-      spdlog::error("cuda_letterbox_resize failed: {}", cudaGetErrorString(cuda_err));
+      spdlog::error("cuda_letterbox_resize_to_device failed: {}", cudaGetErrorString(cuda_err));
       return {};
     }
 
-    if (!RunInference(input_tensor_values_.data())) {
+    if (!RunInference()) {
       return {};
     }
 
-    return Postprocess(output_buffer_.data(), output_shape_);
+    // Copy output from GPU to host for postprocessing
+    cudaError_t copy_err = cudaMemcpy(h_output_.data(), d_output_,
+                                      output_size_ * sizeof(float), cudaMemcpyDeviceToHost);
+    if (copy_err != cudaSuccess) {
+      spdlog::error("Output D2H copy failed: {}", cudaGetErrorString(copy_err));
+      return {};
+    }
+
+    return Postprocess(h_output_.data(), output_shape_);
   }
 
 private:
@@ -111,7 +122,8 @@ private:
     // Try to load cached engine
     std::ifstream engine_file(engine_path, std::ios::binary);
     if (engine_file.good()) {
-      spdlog::info("Loading cached TensorRT engine from: {}", engine_path);
+      spdlog::info("[TRT] Loading cached engine from: {} ...", engine_path);
+      auto t0 = std::chrono::steady_clock::now();
       engine_file.seekg(0, std::ios::end);
       size_t engine_size = engine_file.tellg();
       engine_file.seekg(0, std::ios::beg);
@@ -122,7 +134,10 @@ private:
       engine_ = runtime_->deserializeCudaEngine(engine_data.data(), engine_size);
 
       if (engine_) {
-        spdlog::info("Successfully loaded cached engine");
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::steady_clock::now() - t0)
+                           .count();
+        spdlog::info("[TRT] Cached engine loaded in {}ms", elapsed);
         context_ = engine_->createExecutionContext();
         if (!context_) {
           throw std::runtime_error("Failed to create execution context");
@@ -130,14 +145,13 @@ private:
         PrepareBuffers();
         return;
       }
+      spdlog::warn("[TRT] Cached engine deserialization failed — rebuilding from ONNX");
     }
 
     // No cached engine or load failed, build from ONNX
-    spdlog::info("No cached engine found, building from ONNX: {}", model_path_);
-    BuildEngineFromOnnx();
-
-    // Save engine for future runs
-    SaveEngine(engine_path);
+    spdlog::info("[TRT] No cached engine found, building from ONNX: {}", model_path_);
+    spdlog::info("[TRT] *** First-time engine build — this takes ~60-90s on x86, ~120s on Jetson ***");
+    BuildEngineFromOnnx(engine_path);
   }
 
   std::string GetEnginePath() {
@@ -148,11 +162,7 @@ private:
     }
 
     #if defined(__aarch64__)
-      // Try JetPack-specific engines first
-      std::string jp46_path = base_path + ".jp46.engine";
-      if (std::ifstream(jp46_path).good()) {
-        return jp46_path;
-      }
+      // Jetson Orin (JetPack 6, TRT 10.x) engine cache
       std::string jp6_path = base_path + ".jp6.engine";
       if (std::ifstream(jp6_path).good()) {
         return jp6_path;
@@ -162,7 +172,7 @@ private:
     return base_path + ".engine";
   }
 
-  void BuildEngineFromOnnx() {
+  void BuildEngineFromOnnx(const std::string& engine_path) {
     auto builder = nvinfer1::createInferBuilder(*logger_);
     if (!builder) {
       throw std::runtime_error("Failed to create TensorRT builder");
@@ -194,28 +204,56 @@ private:
       throw std::runtime_error("Failed to parse ONNX model: " + errors);
     }
 
-    // Build engine
     config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 1U << 30); // 1GB
 
-    // Build engine (using buildEngineWithConfig for TRT 10.x compatibility)
-    // Note: builder, network, config, parser are managed by TensorRT library
-    engine_ = builder->buildEngineWithConfig(*network, *config);
+    // TRT requires an optimization profile for any dynamic-shape inputs.
+    // YOLOv10 exports with a dynamic batch dimension; fix it at 1 × 3 × 640 × 640.
+    auto profile = builder->createOptimizationProfile();
+    for (int i = 0; i < network->getNbInputs(); ++i) {
+      auto* input = network->getInput(i);
+      nvinfer1::Dims dims = input->getDimensions();
+      // Replace any dynamic (-1) dimension with its fixed value.
+      // Batch is always 1; spatial dims are always 640×640.
+      nvinfer1::Dims fixed = dims;
+      for (int d = 0; d < fixed.nbDims; ++d) {
+        if (fixed.d[d] < 0) {
+          fixed.d[d] = (d == 0) ? 1 : 640; // batch=1, spatial=640
+        }
+      }
+      profile->setDimensions(input->getName(), nvinfer1::OptProfileSelector::kMIN, fixed);
+      profile->setDimensions(input->getName(), nvinfer1::OptProfileSelector::kOPT, fixed);
+      profile->setDimensions(input->getName(), nvinfer1::OptProfileSelector::kMAX, fixed);
+    }
+    config->addOptimizationProfile(profile);
+
+    spdlog::info("[TRT] Starting engine compilation (see TRT logs for per-layer progress)...");
+    auto build_t0 = std::chrono::steady_clock::now();
+
+    auto plan = builder->buildSerializedNetwork(*network, *config);
+    if (!plan) {
+      throw std::runtime_error("Failed to build TensorRT serialized engine");
+    }
+    auto build_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                             std::chrono::steady_clock::now() - build_t0)
+                             .count();
+    spdlog::info("[TRT] Engine compilation finished in {}s", build_elapsed);
+
+    engine_ = runtime_->deserializeCudaEngine(plan->data(), plan->size());
     if (!engine_) {
       throw std::runtime_error("Failed to build TensorRT engine");
     }
 
     spdlog::info("Successfully built TensorRT engine from ONNX");
-
     context_ = engine_->createExecutionContext();
     if (!context_) {
       throw std::runtime_error("Failed to create execution context");
     }
 
     PrepareBuffers();
+    SaveEngine(engine_path, plan);
   }
 
   void PrepareBuffers() {
-    // Get input/output info
     int num_io = engine_->getNbIOTensors();
     for (int i = 0; i < num_io; ++i) {
       const char* name = engine_->getIOTensorName(i);
@@ -224,79 +262,91 @@ private:
       if (mode == nvinfer1::TensorIOMode::kINPUT) {
         input_name_ = name;
         auto dims = engine_->getTensorShape(name);
+        nvinfer1::Dims fixed = dims;
         input_size_ = 1;
-        for (int j = 0; j < dims.nbDims; ++j) {
-          input_size_ *= dims.d[j];
+        for (int j = 0; j < fixed.nbDims; ++j) {
+          if (fixed.d[j] < 0) {
+            fixed.d[j] = (j == 0) ? 1 : 640;  // resolve any remaining dynamic dim
+          }
+          input_size_ *= fixed.d[j];
         }
-        spdlog::debug("Input: {} size={}", name, input_size_);
+        // Bind the fixed shape to the execution context so enqueueV3 knows tensor sizes
+        context_->setInputShape(name, fixed);
+        spdlog::info("[TRT] Input tensor '{}': {} floats", name, input_size_);
       } else {
         output_name_ = name;
-        auto dims = engine_->getTensorShape(name);
+        auto dims = context_->getTensorShape(name);  // context gives resolved shape
         output_size_ = 1;
         output_shape_.clear();
         for (int j = 0; j < dims.nbDims; ++j) {
           output_size_ *= dims.d[j];
           output_shape_.push_back(dims.d[j]);
         }
-        // Build shape string for debug output
         std::string shape_str;
         for (size_t j = 0; j < output_shape_.size(); ++j) {
           if (j > 0) shape_str += ",";
           shape_str += std::to_string(output_shape_[j]);
         }
-        spdlog::debug("Output: {} size={} shape=[{}]", name, output_size_, shape_str);
+        spdlog::info("[TRT] Output tensor '{}': {} floats, shape=[{}]", name, output_size_,
+                     shape_str);
       }
     }
 
-    output_buffer_.resize(output_size_);
+    if (input_size_ == 0 || output_size_ == 0) {
+      throw std::runtime_error("PrepareBuffers: zero-size tensor — engine may be malformed");
+    }
+
+    // Allocate persistent GPU buffers for TensorRT (setTensorAddress needs device pointers)
+    if (d_input_) cudaFree(d_input_);
+    if (d_output_) cudaFree(d_output_);
+
+    cudaError_t err = cudaMalloc(reinterpret_cast<void**>(&d_input_), input_size_ * sizeof(float));
+    if (err != cudaSuccess) {
+      throw std::runtime_error(std::string("cudaMalloc input failed: ") + cudaGetErrorString(err));
+    }
+    err = cudaMalloc(reinterpret_cast<void**>(&d_output_), output_size_ * sizeof(float));
+    if (err != cudaSuccess) {
+      cudaFree(d_input_);
+      d_input_ = nullptr;
+      throw std::runtime_error(std::string("cudaMalloc output failed: ") +
+                               cudaGetErrorString(err));
+    }
+    h_output_.resize(output_size_);
+    spdlog::info("[TRT] GPU buffers allocated: input={}B output={}B",
+                 input_size_ * sizeof(float), output_size_ * sizeof(float));
   }
 
-  bool RunInference(float* input_data) {
+  bool RunInference() {
     if (!context_ || !engine_) {
       spdlog::error("Engine or context not initialized");
       return false;
     }
 
-    // For simplicity, we're using host memory for now.
-    // TODO: Use CUDA device memory directly to avoid host round-trip
-    void* buffers[2] = {input_data, output_buffer_.data()};
-
-    // Set tensor addresses
-    if (!context_->setTensorAddress(input_name_.c_str(), buffers[0])) {
+    if (!context_->setTensorAddress(input_name_.c_str(), d_input_)) {
       spdlog::error("Failed to set input tensor address");
       return false;
     }
-    if (!context_->setTensorAddress(output_name_.c_str(), buffers[1])) {
+    if (!context_->setTensorAddress(output_name_.c_str(), d_output_)) {
       spdlog::error("Failed to set output tensor address");
       return false;
     }
-
-    // Execute inference
-    if (!context_->enqueueV3(0)) {  // 0 = default CUDA stream
+    if (!context_->enqueueV3(0)) {
       spdlog::error("TensorRT inference failed");
       return false;
     }
 
-    // Synchronize (since we're using host memory)
     cudaDeviceSynchronize();
-
     return true;
   }
 
-  void SaveEngine(const std::string& path) {
-    nvinfer1::IHostMemory* serialized = engine_->serialize();
-    if (!serialized) {
-      spdlog::error("Failed to serialize engine");
-      return;
-    }
-
+  void SaveEngine(const std::string& path, const nvinfer1::IHostMemory* plan) {
     std::ofstream engine_file(path, std::ios::binary);
     if (!engine_file) {
       spdlog::error("Failed to open engine file for writing: {}", path);
       return;
     }
 
-    engine_file.write(static_cast<const char*>(serialized->data()), serialized->size());
+    engine_file.write(static_cast<const char*>(plan->data()), plan->size());
     engine_file.close();
     spdlog::info("Saved engine to: {}", path);
   }
@@ -307,6 +357,8 @@ private:
     // YOLOv10 end-to-end NMS: shape [1, N, 6] = (x1, y1, x2, y2, conf, class_id)
     if (shape.size() == 3 && shape[2] == 6) {
       const int num_predictions = static_cast<int>(shape[1]);
+      float best_conf = 0.0f;
+      int best_class = -1;
       for (int i = 0; i < num_predictions; ++i) {
         float* p = output + i * 6;
         float x1 = p[0];
@@ -315,6 +367,11 @@ private:
         float y2 = p[3];
         float conf = p[4];
         int class_id = static_cast<int>(p[5]);
+
+        if (conf > best_conf) {
+          best_conf = conf;
+          best_class = class_id;
+        }
 
         if (conf < confidence_threshold_) {
           continue;
@@ -331,6 +388,10 @@ private:
             .class_name = kCocoClassNames[std::min(class_id, 79)],
             .confidence = conf,
         });
+      }
+      if (detections.empty() && best_conf > 0.0f) {
+        spdlog::info("YOLO: best raw score was {:.3f} ({}) — below threshold {:.2f}",
+                     best_conf, kCocoClassNames[std::min(best_class, 79)], confidence_threshold_);
       }
       return detections;
     }
@@ -421,14 +482,16 @@ private:
 
   float confidence_threshold_;
   std::string model_path_;
-  std::vector<float> input_tensor_values_;
-  std::vector<float> output_buffer_;
+  float* d_input_ = nullptr;   // GPU input buffer (1×3×640×640 floats)
+  float* d_output_ = nullptr;  // GPU output buffer
+  std::vector<float> h_output_; // CPU copy for postprocessing
 
   std::string input_name_;
   std::string output_name_;
   size_t input_size_ = 0;
   size_t output_size_ = 0;
   std::vector<int64_t> output_shape_;
+  mutable std::mutex inference_mutex_;
 };
 
 YOLODetector::YOLODetector(const std::string& model_path, float confidence_threshold)
@@ -440,6 +503,10 @@ YOLODetector::YOLODetector(const std::string& model_path, float confidence_thres
 YOLODetector::~YOLODetector() = default;
 
 namespace {
+
+// Thread-local storage for detection results — each WebRTC callback thread gets its own copy,
+// eliminating races between concurrent frame-processing threads.
+thread_local std::vector<jrb::infrastructure::cuda::Detection> tl_detections;
 
 void CopyInputToOutput(const jrb::domain::interfaces::FilterContext& context) {
   const int width = context.input.width;
@@ -478,7 +545,7 @@ bool YOLODetector::Apply(jrb::domain::interfaces::FilterContext& context) {
   const float pad_x = (kModelSize - width * scale) * 0.5f;
   const float pad_y = (kModelSize - height * scale) * 0.5f;
 
-  detections_.clear();
+  tl_detections.clear();
   for (const auto& det : raw) {
     float x = std::max(0.0f, (det.x - pad_x) / scale);
     float y = std::max(0.0f, (det.y - pad_y) / scale);
@@ -486,12 +553,12 @@ bool YOLODetector::Apply(jrb::domain::interfaces::FilterContext& context) {
     float h = std::min(static_cast<float>(height) - y, det.height / scale);
     if (w <= 0.0f || h <= 0.0f)
       continue;
-    detections_.push_back({x, y, w, h, det.class_id, det.class_name, det.confidence});
+    tl_detections.push_back({x, y, w, h, det.class_id, det.class_name, det.confidence});
   }
 
   CopyInputToOutput(context);
 
-  spdlog::debug("YOLO detected {} objects", detections_.size());
+  spdlog::debug("YOLO raw: {} object(s) before coordinate transform", tl_detections.size());
   return true;
 }
 
@@ -504,7 +571,7 @@ bool YOLODetector::IsInPlace() const {
 }
 
 const std::vector<Detection>& YOLODetector::GetDetections() const {
-  return detections_;
+  return tl_detections;
 }
 
 }  // namespace jrb::infrastructure::cuda

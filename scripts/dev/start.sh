@@ -89,12 +89,12 @@ print_help() {
     echo "Vite only (Go already running): cd src/front-end && npm run dev (needs .secrets/localhost+2*.pem)."
     echo ""
     echo "Options:"
-    echo "  --build, -b    Build C++ accelerator client and Go backend before starting"
+    echo "  --build, -b    Build C++ accelerator client (TensorRT) and Go backend before starting"
     echo "  --help, -h     Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/dev/start.sh         # Full stack"
-    echo "  ./scripts/dev/start.sh --build # Build + full stack"
+    echo "  ./scripts/dev/start.sh         # Full stack (uses existing binary)"
+    echo "  ./scripts/dev/start.sh --build # Build with TensorRT + full stack"
     exit 0
 }
 
@@ -233,6 +233,7 @@ print_summary() {
     echo "To stop: ./scripts/dev/stop.sh"
     echo "Logs:"
     echo "  tail -f $DEV_LOG_GRPC"
+    echo "  tail -f $DEV_LOG_ACCELERATOR"
     echo "  tail -f $DEV_LOG_GO"
     echo "  tail -f $DEV_LOG_VITE"
 }

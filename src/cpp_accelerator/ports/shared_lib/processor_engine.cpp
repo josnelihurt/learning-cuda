@@ -1,5 +1,6 @@
 #include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
+#include <chrono>
 #include <cstring>
 #include <string>
 #include <utility>
@@ -21,7 +22,6 @@
 #include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
-#include "src/cpp_accelerator/infrastructure/cuda/yolo_detector.h"
 
 namespace jrb::ports::shared_lib {
 
@@ -93,6 +93,27 @@ bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
     model_manager.Initialize(registry);
     spdlog::info("Model manager initialized with {} models",
                  model_manager.GetAvailableModels().size());
+
+    // Pre-load all TRT engines at startup to avoid long latency on the first request.
+    // Engine build from ONNX takes ~60-90s on x86 / ~120s on Jetson on first run;
+    // subsequent starts load the cached .engine file in <1s.
+    auto available_models = model_manager.GetAvailableModels();
+    spdlog::info("[Startup] Pre-loading {} TRT detector(s)...", available_models.size());
+    for (const auto& model_id : available_models) {
+      std::string cache_key = model_id + "@" + std::to_string(0.5f);
+      auto t0 = std::chrono::steady_clock::now();
+      auto detector = model_manager.GetDetector(model_id, 0.5f);
+      auto elapsed =
+          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - t0)
+              .count();
+      if (detector) {
+        detector_cache_[cache_key] = std::move(detector);
+        spdlog::info("[Startup] TRT engine ready for '{}' ({}s)", model_id, elapsed);
+      } else {
+        spdlog::error("[Startup] Failed to load TRT engine for '{}' after {}s", model_id, elapsed);
+      }
+    }
+    spdlog::info("[Startup] All detectors loaded — ready to accept connections");
   } catch (const std::exception& e) {
     spdlog::error("Initialization failed: {}", e.what());
     response->set_code(2);
@@ -196,7 +217,7 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   threshold_param->set_id("confidence_threshold");
   threshold_param->set_name("Confidence Threshold");
   threshold_param->set_type("number");
-  threshold_param->set_default_value("0.5");
+  threshold_param->set_default_value("0.45");
 
   return true;
 }
@@ -245,7 +266,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
 
   try {
     jrb::application::pipeline::FilterPipeline pipeline;
-    jrb::infrastructure::cuda::YOLODetector* yolo_detector = nullptr;
+    jrb::infrastructure::cuda::IYoloDetector* yolo_detector = nullptr;
 
     for (int i = 0; i < request.filters_size(); i++) {
       const auto filter = request.filters(i);
@@ -382,7 +403,13 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
     // Populate detections if a detector was used
     if (yolo_detector != nullptr) {
       const auto& detections = yolo_detector->GetDetections();
+      spdlog::info(
+          "YOLO: {} detection(s) for {}x{} image (confidence threshold {})", detections.size(),
+          request.width(), request.height(),
+          request.has_model_params() ? request.model_params().confidence_threshold() : 0.5f);
       for (const auto& det : detections) {
+        spdlog::info("  → {} ({:.0f}%) at [{:.0f},{:.0f} {}x{}]", det.class_name,
+                     det.confidence * 100.0f, det.x, det.y, det.width, det.height);
         auto* detection_msg = response->add_detections();
         detection_msg->set_x(det.x);
         detection_msg->set_y(det.y);

@@ -10,7 +10,7 @@ CUDA Learning Platform - Real-time image/video processing via CUDA GPU kernels. 
 
 ### Building Components
 ```bash
-# C++ (Bazel)
+# C++ (Bazel) — requires TensorRT dev headers installed
 bazel build //src/cpp_accelerator/...
 
 # Go (from src/go_api/)
@@ -120,4 +120,61 @@ Proto generation: `./scripts/build/protos.sh`
 - **Build**: Bazel for C++/CUDA, Makefile for Go
 - **Frontend**: React + TypeScript with Vite
 - **Observability**: OpenTelemetry, Jaeger tracing, Grafana dashboards, Loki logs
+
+## TensorRT Setup (YOLO inference)
+
+YOLO detection uses TensorRT. TensorRT dev headers must be installed — there is no stub fallback.
+
+**Minimum supported version: TRT 10.0** — both target platforms run TRT 10.x:
+- Jetson Nano Orin (JetPack 6 / R36): TRT 10.3, CUDA 12.6
+- Dev PC (x86, RTX 4000): TRT 10.x, CUDA 12.5+
+
+### x86 Ubuntu — install CUDA 12.9 + TensorRT dev headers
+
+The TRT packages must match the CUDA version your driver supports.  
+Driver 575.x supports **CUDA 12.9** — use the `+cuda12.9` TRT variant:
+
+```bash
+# If you accidentally have +cuda13.2 TRT (createInferBuilder error 35), run:
+sudo bash scripts/dev/fix-cuda-trt-versions.sh
+
+# Fresh install:
+sudo apt-get install -y cuda-toolkit-12-9 \
+  libnvinfer-dev=10.16.1.11-1+cuda12.9 \
+  libnvonnxparsers-dev=10.16.1.11-1+cuda12.9
+# Verify
+dpkg -l | grep libnvinfer
+```
+
+### Build
+```bash
+bazel build //src/cpp_accelerator/...
+# Or a single target
+bazel build //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so
+```
+
+### Dev stack
+```bash
+./scripts/dev/start.sh --build   # builds then starts all services
+```
+
+### Jetson Nano Orin / JetPack 6
+TensorRT 10.x is pre-installed with JetPack 6. Build normally:
+```bash
+bazel build //src/cpp_accelerator/...
+```
+The code targets the TRT 10.x API exclusively: `getNbIOTensors`, `setTensorAddress`,
+`enqueueV3`, `setMemoryPoolLimit`, and `buildSerializedNetwork`.
+
+### ONNX → TRT engine caching
+On first run with a new model, the detector builds a TRT engine from the `.onnx` file
+and saves it as `.engine` (or `.jp6.engine` on Jetson Orin / aarch64). Subsequent runs
+load the cached engine directly. The model path in `processor_engine.cpp` is:
+`data/models/yolov10n.onnx`.
+
+### Docker builds with TRT runtime
+Pass `--build-arg ENABLE_TENSORRT=true` to include TRT runtime libs in the container:
+```bash
+docker build --build-arg ENABLE_TENSORRT=true -f src/cpp_accelerator/Dockerfile.build .
+```
 

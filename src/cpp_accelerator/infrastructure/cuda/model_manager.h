@@ -1,11 +1,12 @@
 #pragma once
 
+#include "src/cpp_accelerator/infrastructure/cuda/i_yolo_detector.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
-#include "src/cpp_accelerator/infrastructure/cuda/yolo_detector.h"
 #include <memory>
 #include <string>
 #include <vector>
 #include <mutex>
+#include <unordered_map>
 
 namespace jrb::infrastructure::cuda {
 
@@ -14,7 +15,7 @@ class ModelManager {
   static ModelManager& GetInstance();
 
   void Initialize(const ModelRegistry& registry);
-  std::shared_ptr<YOLODetector> GetDetector(const std::string& model_id, float confidence_threshold);
+  std::shared_ptr<IYoloDetector> GetDetector(const std::string& model_id, float confidence_threshold);
   std::vector<std::string> GetAvailableModels() const;
 
  private:

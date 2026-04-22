@@ -1,4 +1,3 @@
-#include <csignal>
 #include <memory>
 #include <string>
 
@@ -10,6 +9,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 
+#include "src/cpp_accelerator/core/signal_handler.h"
 #include "src/cpp_accelerator/ports/grpc/accelerator_control_client.h"
 #include "src/cpp_accelerator/ports/grpc/processor_engine_adapter.h"
 #include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
@@ -32,19 +32,6 @@ ABSL_FLAG(std::string, ca_cert, ".secrets/accelerator-ca.pem",
           "Path to CA certificate used to verify the server (PEM).");
 ABSL_FLAG(int, max_reconnect_delay_s, 60,
           "Maximum reconnect back-off in seconds.");
-
-namespace {
-
-jrb::ports::grpc_service::AcceleratorControlClient* g_client = nullptr;
-
-void HandleSignal(int signum) {
-  spdlog::warn("Signal {} received — stopping accelerator client", signum);
-  if (g_client) {
-    g_client->Stop();
-  }
-}
-
-}  // namespace
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
@@ -87,12 +74,18 @@ int main(int argc, char** argv) {
   cfg.max_reconnect_delay_s = absl::GetFlag(FLAGS_max_reconnect_delay_s);
 
   jrb::ports::grpc_service::AcceleratorControlClient client(cfg, adapter, webrtc_manager);
-  g_client = &client;
 
-  std::signal(SIGINT,  HandleSignal);
-  std::signal(SIGTERM, HandleSignal);
+  auto& signal_handler = jrb::core::SignalHandler::GetInstance();
+  signal_handler.Initialize(
+    [&client]() {
+      spdlog::warn("Shutdown signal received — stopping accelerator client");
+      client.Stop();
+    }
+  );
 
   client.Run();
+
+  signal_handler.Shutdown();
 
   spdlog::info("Accelerator client exited gracefully");
   return 0;

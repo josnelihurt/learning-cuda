@@ -194,6 +194,8 @@ RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
       exit 1; \
     fi
 
+ARG ENABLE_TENSORRT=false
+
 FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS cpp-accelerator
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -208,6 +210,16 @@ RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
         libavutil58 \
         libswscale7 \
     && rm -rf /var/lib/apt/lists/*
+
+# Install TensorRT runtime libraries when ENABLE_TENSORRT=true
+# Required for YOLO inference with the TRT-enabled binary (built with --config=trt)
+ARG ENABLE_TENSORRT
+RUN if [ "$ENABLE_TENSORRT" = "true" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            libnvinfer10 \
+            libnvonnxparsers10 \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
 
 WORKDIR /opt/cuda/grpc
 

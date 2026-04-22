@@ -21,7 +21,7 @@
             "type": "go",
             "request": "attach",
             "mode": "local",
-            "processId": 299253,
+            "processId": 168351,
             "cwd": "${workspaceFolder}"
         },
         {
@@ -29,7 +29,7 @@
             "type": "cppdbg",
             "request": "attach",
             "program": "${workspaceFolder}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client",
-            "processId": 299271,
+            "processId": 168362,
             "MIMode": "gdb",
             "cwd": "${workspaceFolder}"
         },

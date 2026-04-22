@@ -6,7 +6,8 @@
 // deleted along with its BUILD target.
 // ============================================================================
 
-#include "src/cpp_accelerator/infrastructure/cuda/yolo_detector.h"
+#include "src/cpp_accelerator/infrastructure/cuda/i_yolo_detector.h"
+#include "src/cpp_accelerator/infrastructure/cuda/yolo_factory.h"
 #include "src/cpp_accelerator/infrastructure/image/image_loader.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 #include "spdlog/spdlog.h"
@@ -20,7 +21,7 @@ int main() {
         constexpr const char* model_path = "data/models/yolov10n.onnx";
 
         spdlog::info("Loading YOLO model from: {}", model_path);
-        jrb::infrastructure::cuda::YOLODetector detector(model_path, 0.5f);
+        auto detector = jrb::infrastructure::cuda::CreateYoloDetector(model_path, 0.5f);
 
         spdlog::info("YOLO model loaded successfully!");
         spdlog::info("CUDA Execution Provider: Active");
@@ -62,13 +63,13 @@ int main() {
             image_loader.channels()
         );
 
-        if (!detector.Apply(context)) {
+        if (!detector->Apply(context)) {
             spdlog::error("Detection failed!");
             return 1;
         }
 
         // Report results
-        const auto& detections = detector.GetDetections();
+        const auto& detections = detector->GetDetections();
         spdlog::info("Detection complete! Found {} objects:", detections.size());
 
         for (const auto& det : detections) {

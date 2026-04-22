@@ -1,12 +1,12 @@
-#include "src/cpp_accelerator/infrastructure/cuda/letterbox_kernel.h"
 #include <cuda_runtime.h>
 #include <cstdint>
+#include "src/cpp_accelerator/infrastructure/cuda/letterbox_kernel.h"
 
 namespace jrb::infrastructure::cuda {
 
 __global__ void letterbox_resize_kernel(const uint8_t* src, int src_w, int src_h, int src_c,
-                                        float* dst, int dst_w, int dst_h, float scale,
-                                        int pad_x, int pad_y) {
+                                        float* dst, int dst_w, int dst_h, float scale, int pad_x,
+                                        int pad_y) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -34,8 +34,11 @@ __global__ void letterbox_resize_kernel(const uint8_t* src, int src_w, int src_h
 
 }  // namespace jrb::infrastructure::cuda
 
-extern "C" cudaError_t cuda_letterbox_resize(const uint8_t* src, int src_w, int src_h, int src_c,
-                                              float* dst, int dst_w, int dst_h) {
+// Variant that writes the letterbox result directly into a pre-allocated device buffer.
+// Use this when the caller needs GPU memory (e.g. for TensorRT setTensorAddress).
+extern "C" cudaError_t cuda_letterbox_resize_to_device(const uint8_t* src_host, int src_w,
+                                                       int src_h, int src_c, float* dst_device,
+                                                       int dst_w, int dst_h) {
   float scale_x = static_cast<float>(dst_w) / src_w;
   float scale_y = static_cast<float>(dst_h) / src_h;
   float scale = scale_x < scale_y ? scale_x : scale_y;
@@ -44,26 +47,15 @@ extern "C" cudaError_t cuda_letterbox_resize(const uint8_t* src, int src_w, int 
   int pad_y = (dst_h - static_cast<int>(src_h * scale)) / 2;
 
   size_t src_size = static_cast<size_t>(src_w) * src_h * src_c;
-  size_t dst_size = static_cast<size_t>(dst_w) * dst_h * 3 * sizeof(float);
 
   uint8_t* d_src = nullptr;
-  float* d_dst = nullptr;
-
   cudaError_t err = cudaMalloc(&d_src, src_size);
-  if (err != cudaSuccess) {
+  if (err != cudaSuccess)
     return err;
-  }
 
-  err = cudaMalloc(&d_dst, dst_size);
+  err = cudaMemcpy(d_src, src_host, src_size, cudaMemcpyHostToDevice);
   if (err != cudaSuccess) {
     cudaFree(d_src);
-    return err;
-  }
-
-  err = cudaMemcpy(d_src, src, src_size, cudaMemcpyHostToDevice);
-  if (err != cudaSuccess) {
-    cudaFree(d_src);
-    cudaFree(d_dst);
     return err;
   }
 
@@ -72,30 +64,12 @@ extern "C" cudaError_t cuda_letterbox_resize(const uint8_t* src, int src_w, int 
                  (dst_h + block_size.y - 1) / block_size.y);
 
   jrb::infrastructure::cuda::letterbox_resize_kernel<<<grid_size, block_size>>>(
-      d_src, src_w, src_h, src_c, d_dst, dst_w, dst_h, scale, pad_x, pad_y);
+      d_src, src_w, src_h, src_c, dst_device, dst_w, dst_h, scale, pad_x, pad_y);
 
   err = cudaDeviceSynchronize();
-  if (err != cudaSuccess) {
-    cudaFree(d_src);
-    cudaFree(d_dst);
-    return err;
-  }
-
-  err = cudaGetLastError();
-  if (err != cudaSuccess) {
-    cudaFree(d_src);
-    cudaFree(d_dst);
-    return err;
-  }
-
-  err = cudaMemcpy(dst, d_dst, dst_size, cudaMemcpyDeviceToHost);
-  if (err != cudaSuccess) {
-    cudaFree(d_src);
-    cudaFree(d_dst);
-    return err;
-  }
-
   cudaFree(d_src);
-  cudaFree(d_dst);
-  return cudaSuccess;
+  if (err != cudaSuccess)
+    return err;
+
+  return cudaGetLastError();
 }

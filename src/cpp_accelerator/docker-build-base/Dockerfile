@@ -30,12 +30,18 @@ RUN apt-get update && apt-get install -y \
 
 # TensorRT for YOLO inference
 # For x86_64 desktop: Install from NVIDIA repository
-# For Jetson: TensorRT is pre-installed with JetPack (skip installation)
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
-    apt-get update && \
-    apt-get install -y --no-install-recommends libnvinfer-bin libnvinfer-dev libnvonnxparsers-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*; \
+# For aarch64 (ARM64 CI): Download and install from NVIDIA repo for compilation
+# For Jetson: TensorRT is pre-installed with JetPack (but we include for CI builds)
+RUN apt-get update && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        apt-get install -y --no-install-recommends libnvinfer-bin libnvinfer-dev libnvonnxparsers-dev && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        echo "Installing TensorRT dev libraries for ARM64 (compilation only)..."; \
+        apt-get install -y --no-install-recommends libnvinfer-dev libnvonnxparsers-dev && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*; \
     fi
 
 RUN BAZEL_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "linux-amd64" || echo "linux-arm64") && \

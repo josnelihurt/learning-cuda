@@ -529,15 +529,6 @@ http_archive(
     ],
 )
 
-# ONNX Runtime for YOLO object detection
-http_archive(
-    name = "onnxruntime_gpu",
-    build_file = "//bazel/third_party:onnxruntime.BUILD",
-    integrity = "sha256-TRwQ8LQQtnJhMCxuGLsbBbqSTKkIHjomlZ4NEqtp9TQ=",
-    strip_prefix = "onnxruntime-linux-x64-gpu-1.19.2",
-    urls = ["https://github.com/microsoft/onnxruntime/releases/download/v1.19.2/onnxruntime-linux-x64-gpu-1.19.2.tgz"],
-)
-
 http_archive(
     name = "com_github_cncf_xds",
     integrity = "sha256-3DBeIMn6gIIjIicbUKov+pF79P05c7zsUr/CjcMsWSc=",

@@ -10,7 +10,7 @@ ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
 
-FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-amd64 AS yolo-model
+FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model
 
 FROM bazel-base AS bazel-deps
 
@@ -52,6 +52,7 @@ COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
 RUN mkdir -p /build/data/models
+# Copy ONNX model - TensorRT engine will be generated at runtime (lazy generation)
 COPY --from=yolo-model /models/yolov10n.onnx /build/data/models/yolov10n.onnx
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \

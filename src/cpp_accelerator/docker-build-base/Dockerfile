@@ -28,14 +28,15 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# ONNX Runtime for YOLO inference
-ARG ONNXRUNTIME_VERSION=1.19.2
-RUN wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}.tgz && \
-    tar -xzf onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}.tgz && \
-    cp onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}/lib/libonnxruntime.so /usr/local/lib/ && \
-    cp -r onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}/include/* /usr/local/include/ && \
-    ldconfig && \
-    rm -rf onnxruntime-linux-x64-gpu-${ONNXRUNTIME_VERSION}*
+# TensorRT for YOLO inference
+# For x86_64 desktop: Install from NVIDIA repository
+# For Jetson: TensorRT is pre-installed with JetPack (skip installation)
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+    apt-get update && \
+    apt-get install -y --no-install-recommends libnvinfer-bin libnvinfer-dev libnvonnxparsers-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*; \
+    fi
 
 RUN BAZEL_ARCH=$([ "$TARGETARCH" = "amd64" ] && echo "linux-amd64" || echo "linux-arm64") && \
     echo "Downloading Bazelisk ${BAZELISK_VERSION} for architecture: $BAZEL_ARCH (TARGETARCH=$TARGETARCH)" && \

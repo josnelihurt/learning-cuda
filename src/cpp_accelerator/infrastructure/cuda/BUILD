@@ -1,6 +1,14 @@
 load("@rules_cuda//cuda:defs.bzl", "cuda_library")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
+config_setting(
+    name = "linux_aarch64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
 # Pure CUDA kernels without spdlog dependencies
 cuda_library(
     name = "cuda_kernels",
@@ -106,6 +114,17 @@ cc_test(
     ],
 )
 
+# TensorRT libraries for YOLO object detection
+# Assumes TensorRT is installed system-wide at /usr/local/lib
+cc_library(
+    name = "tensorrt",
+    linkopts = [
+        "-lnvinfer",
+        "-lnvonnxparser",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # YOLO Object Detector
 cc_library(
     name = "yolo_detector",
@@ -114,10 +133,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":cuda_kernels",
+        ":tensorrt",
         "//src/cpp_accelerator/core:telemetry",
         "//src/cpp_accelerator/domain/interfaces",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",
-        "@onnxruntime_gpu//:onnxruntime",
         "@spdlog",
     ],
 )

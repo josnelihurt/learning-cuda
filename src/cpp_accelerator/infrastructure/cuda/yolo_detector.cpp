@@ -1,8 +1,11 @@
 #include "src/cpp_accelerator/infrastructure/cuda/yolo_detector.h"
-#include <onnxruntime_cxx_api.h>
+#include <NvInfer.h>
+#include <NvOnnxParser.h>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <fstream>
+#include <memory>
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/letterbox_kernel.h"
 
@@ -44,19 +47,46 @@ static_assert(sizeof(kCocoClassNames) / sizeof(kCocoClassNames[0]) == 80,
 
 namespace jrb::infrastructure::cuda {
 
+// TensorRT Logger
+class TRTLogger : public nvinfer1::ILogger {
+public:
+  void log(Severity severity, const char* msg) noexcept override {
+    switch (severity) {
+      case Severity::kINTERNAL_ERROR:
+      case Severity::kERROR:
+        spdlog::error("[TRT] {}", msg);
+        break;
+      case Severity::kWARNING:
+        spdlog::warn("[TRT] {}", msg);
+        break;
+      case Severity::kINFO:
+        spdlog::info("[TRT] {}", msg);
+        break;
+      case Severity::kVERBOSE:
+        spdlog::debug("[TRT] {}", msg);
+        break;
+    }
+  }
+};
+
 class YOLODetector::Impl {
 public:
   Impl(const std::string& model_path, float confidence_threshold)
-      : confidence_threshold_(confidence_threshold), input_tensor_values_(1 * 3 * 640 * 640) {
-    env_ = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_ERROR, "YOLODetector");
-    Ort::SessionOptions session_options;
-    session_options.SetIntraOpNumThreads(1);
+      : logger_(std::make_unique<TRTLogger>()),
+        confidence_threshold_(confidence_threshold),
+        model_path_(model_path),
+        input_tensor_values_(1 * 3 * 640 * 640) {
+    runtime_ = nvinfer1::createInferRuntime(*logger_);
+    if (!runtime_) {
+      throw std::runtime_error("Failed to create TensorRT runtime");
+    }
 
-    OrtCUDAProviderOptions cuda_options;
-    cuda_options.device_id = 0;
-    session_options.AppendExecutionProvider_CUDA(cuda_options);
+    LoadEngine();
+  }
 
-    session_ = std::make_unique<Ort::Session>(*env_, model_path.c_str(), session_options);
+  ~Impl() {
+    // TensorRT 10.x: objects are managed by the library, no manual destroy needed
+    // The runtime will clean up associated resources
   }
 
   std::vector<Detection> Detect(const uint8_t* image_data, int width, int height, int channels) {
@@ -67,25 +97,210 @@ public:
       return {};
     }
 
-    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    if (!RunInference(input_tensor_values_.data())) {
+      return {};
+    }
 
-    std::vector<int64_t> input_shape = {1, 3, 640, 640};
-    size_t input_tensor_size = 1 * 3 * 640 * 640;
-
-    std::vector<Ort::Value> input_tensors;
-    input_tensors.push_back(Ort::Value::CreateTensor<float>(
-        memory_info, input_tensor_values_.data(), input_tensor_size, input_shape.data(), 4));
-
-    auto output_tensors = session_->Run(Ort::RunOptions{nullptr}, input_names_,
-                                        input_tensors.data(), 1, output_names_, 1);
-
-    float* output_data = output_tensors[0].GetTensorMutableData<float>();
-    auto output_shape = output_tensors[0].GetTensorTypeAndShapeInfo().GetShape();
-
-    return Postprocess(output_data, output_shape);
+    return Postprocess(output_buffer_.data(), output_shape_);
   }
 
 private:
+  void LoadEngine() {
+    std::string engine_path = GetEnginePath();
+
+    // Try to load cached engine
+    std::ifstream engine_file(engine_path, std::ios::binary);
+    if (engine_file.good()) {
+      spdlog::info("Loading cached TensorRT engine from: {}", engine_path);
+      engine_file.seekg(0, std::ios::end);
+      size_t engine_size = engine_file.tellg();
+      engine_file.seekg(0, std::ios::beg);
+      std::vector<char> engine_data(engine_size);
+      engine_file.read(engine_data.data(), engine_size);
+      engine_file.close();
+
+      engine_ = runtime_->deserializeCudaEngine(engine_data.data(), engine_size);
+
+      if (engine_) {
+        spdlog::info("Successfully loaded cached engine");
+        context_ = engine_->createExecutionContext();
+        if (!context_) {
+          throw std::runtime_error("Failed to create execution context");
+        }
+        PrepareBuffers();
+        return;
+      }
+    }
+
+    // No cached engine or load failed, build from ONNX
+    spdlog::info("No cached engine found, building from ONNX: {}", model_path_);
+    BuildEngineFromOnnx();
+
+    // Save engine for future runs
+    SaveEngine(engine_path);
+  }
+
+  std::string GetEnginePath() {
+    std::string base_path = model_path_;
+    // Remove .onnx extension if present
+    if (base_path.length() > 5 && base_path.substr(base_path.length() - 5) == ".onnx") {
+      base_path = base_path.substr(0, base_path.length() - 5);
+    }
+
+    #if defined(__aarch64__)
+      // Try JetPack-specific engines first
+      std::string jp46_path = base_path + ".jp46.engine";
+      if (std::ifstream(jp46_path).good()) {
+        return jp46_path;
+      }
+      std::string jp6_path = base_path + ".jp6.engine";
+      if (std::ifstream(jp6_path).good()) {
+        return jp6_path;
+      }
+    #endif
+
+    return base_path + ".engine";
+  }
+
+  void BuildEngineFromOnnx() {
+    auto builder = nvinfer1::createInferBuilder(*logger_);
+    if (!builder) {
+      throw std::runtime_error("Failed to create TensorRT builder");
+    }
+
+    // Use 0U instead of deprecated kEXPLICIT_BATCH for TRT 10.x
+    auto network = builder->createNetworkV2(0U);
+    if (!network) {
+      throw std::runtime_error("Failed to create network definition");
+    }
+
+    auto config = builder->createBuilderConfig();
+    if (!config) {
+      throw std::runtime_error("Failed to create builder config");
+    }
+
+    auto parser = nvonnxparser::createParser(*network, *logger_);
+    if (!parser) {
+      throw std::runtime_error("Failed to create ONNX parser");
+    }
+
+    // Parse ONNX model
+    if (!parser->parseFromFile(model_path_.c_str(), static_cast<int>(nvinfer1::ILogger::Severity::kINFO))) {
+      std::string errors;
+      for (int i = 0; i < parser->getNbErrors(); ++i) {
+        auto error = parser->getError(i);
+        errors += std::string(error->desc()) + "\n";
+      }
+      throw std::runtime_error("Failed to parse ONNX model: " + errors);
+    }
+
+    // Build engine
+    config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 1U << 30); // 1GB
+
+    // Build engine (using buildEngineWithConfig for TRT 10.x compatibility)
+    // Note: builder, network, config, parser are managed by TensorRT library
+    engine_ = builder->buildEngineWithConfig(*network, *config);
+    if (!engine_) {
+      throw std::runtime_error("Failed to build TensorRT engine");
+    }
+
+    spdlog::info("Successfully built TensorRT engine from ONNX");
+
+    context_ = engine_->createExecutionContext();
+    if (!context_) {
+      throw std::runtime_error("Failed to create execution context");
+    }
+
+    PrepareBuffers();
+  }
+
+  void PrepareBuffers() {
+    // Get input/output info
+    int num_io = engine_->getNbIOTensors();
+    for (int i = 0; i < num_io; ++i) {
+      const char* name = engine_->getIOTensorName(i);
+      nvinfer1::TensorIOMode mode = engine_->getTensorIOMode(name);
+
+      if (mode == nvinfer1::TensorIOMode::kINPUT) {
+        input_name_ = name;
+        auto dims = engine_->getTensorShape(name);
+        input_size_ = 1;
+        for (int j = 0; j < dims.nbDims; ++j) {
+          input_size_ *= dims.d[j];
+        }
+        spdlog::debug("Input: {} size={}", name, input_size_);
+      } else {
+        output_name_ = name;
+        auto dims = engine_->getTensorShape(name);
+        output_size_ = 1;
+        output_shape_.clear();
+        for (int j = 0; j < dims.nbDims; ++j) {
+          output_size_ *= dims.d[j];
+          output_shape_.push_back(dims.d[j]);
+        }
+        // Build shape string for debug output
+        std::string shape_str;
+        for (size_t j = 0; j < output_shape_.size(); ++j) {
+          if (j > 0) shape_str += ",";
+          shape_str += std::to_string(output_shape_[j]);
+        }
+        spdlog::debug("Output: {} size={} shape=[{}]", name, output_size_, shape_str);
+      }
+    }
+
+    output_buffer_.resize(output_size_);
+  }
+
+  bool RunInference(float* input_data) {
+    if (!context_ || !engine_) {
+      spdlog::error("Engine or context not initialized");
+      return false;
+    }
+
+    // For simplicity, we're using host memory for now.
+    // TODO: Use CUDA device memory directly to avoid host round-trip
+    void* buffers[2] = {input_data, output_buffer_.data()};
+
+    // Set tensor addresses
+    if (!context_->setTensorAddress(input_name_.c_str(), buffers[0])) {
+      spdlog::error("Failed to set input tensor address");
+      return false;
+    }
+    if (!context_->setTensorAddress(output_name_.c_str(), buffers[1])) {
+      spdlog::error("Failed to set output tensor address");
+      return false;
+    }
+
+    // Execute inference
+    if (!context_->enqueueV3(0)) {  // 0 = default CUDA stream
+      spdlog::error("TensorRT inference failed");
+      return false;
+    }
+
+    // Synchronize (since we're using host memory)
+    cudaDeviceSynchronize();
+
+    return true;
+  }
+
+  void SaveEngine(const std::string& path) {
+    nvinfer1::IHostMemory* serialized = engine_->serialize();
+    if (!serialized) {
+      spdlog::error("Failed to serialize engine");
+      return;
+    }
+
+    std::ofstream engine_file(path, std::ios::binary);
+    if (!engine_file) {
+      spdlog::error("Failed to open engine file for writing: {}", path);
+      return;
+    }
+
+    engine_file.write(static_cast<const char*>(serialized->data()), serialized->size());
+    engine_file.close();
+    spdlog::info("Saved engine to: {}", path);
+  }
+
   std::vector<Detection> Postprocess(float* output, const std::vector<int64_t>& shape) {
     std::vector<Detection> detections;
 
@@ -199,13 +414,21 @@ private:
     return kept;
   }
 
-  std::unique_ptr<Ort::Env> env_;
-  std::unique_ptr<Ort::Session> session_;
-  float confidence_threshold_;
-  std::vector<float> input_tensor_values_;
+  std::unique_ptr<TRTLogger> logger_;
+  nvinfer1::IRuntime* runtime_ = nullptr;
+  nvinfer1::ICudaEngine* engine_ = nullptr;
+  nvinfer1::IExecutionContext* context_ = nullptr;
 
-  static constexpr const char* input_names_[] = {"images"};
-  static constexpr const char* output_names_[] = {"output0"};
+  float confidence_threshold_;
+  std::string model_path_;
+  std::vector<float> input_tensor_values_;
+  std::vector<float> output_buffer_;
+
+  std::string input_name_;
+  std::string output_name_;
+  size_t input_size_ = 0;
+  size_t output_size_ = 0;
+  std::vector<int64_t> output_shape_;
 };
 
 YOLODetector::YOLODetector(const std::string& model_path, float confidence_threshold)

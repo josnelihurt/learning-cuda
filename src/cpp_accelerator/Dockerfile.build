@@ -6,7 +6,10 @@ ARG CUDA_VERSION=12.5.1
 ARG UBUNTU_VERSION=24.04
 ARG YOLO_MODEL_VERSION=0.1.0
 
+
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
+
+RUN echo "Pull model image from ${BASE_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH}"
 
 FROM ${BASE_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model
 

@@ -156,8 +156,12 @@ cd "${REPO_ROOT}"
 
 IMAGE_BASE="${REGISTRY}/${BASE_IMAGE_PREFIX}"
 TARGETARCH="${ARCH}"
-# Pre-built yolo-model-gen (ONNX) is pulled from GHCR; local BASE_REGISTRY only covers images built in this script.
-YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-ghcr.io/${BASE_IMAGE_PREFIX}}"
+# For local builds, use local registry for yolo-model-gen as well. For remote builds, default to GHCR.
+if [[ "${REGISTRY}" == "local" ]]; then
+  YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-local/${BASE_IMAGE_PREFIX}}"
+else
+  YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-ghcr.io/${BASE_IMAGE_PREFIX}}"
+fi
 
 print_stage_header() {
   local label="$1"

@@ -15,7 +15,7 @@ WORKDIR /models
 # Generate ONNX model inline - works for both x86_64 and ARM64
 RUN echo "Generating YOLO ONNX model for ${TARGETARCH}..." && \
     apt-get update && apt-get install -y --no-install-recommends python3 python3-pip wget && \
-    pip3 install ultralytics onnx onnxslim && \
+    pip3 install --break-system-packages ultralytics onnx onnxslim && \
     python3 -c "from ultralytics import YOLO; YOLO('yolov10n.pt').export(format='onnx', dynamic=True, simplify=True, imgsz=640)" && \
     mkdir -p /models && mv yolov10n.onnx /models/ && \
     apt-get purge -y python3 python3-pip wget && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && \

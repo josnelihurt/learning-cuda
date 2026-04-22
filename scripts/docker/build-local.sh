@@ -156,6 +156,8 @@ cd "${REPO_ROOT}"
 
 IMAGE_BASE="${REGISTRY}/${BASE_IMAGE_PREFIX}"
 TARGETARCH="${ARCH}"
+# Pre-built yolo-model-gen (ONNX) is pulled from GHCR; local BASE_REGISTRY only covers images built in this script.
+YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-ghcr.io/${BASE_IMAGE_PREFIX}}"
 
 print_stage_header() {
   local label="$1"
@@ -312,8 +314,10 @@ run_proto_generated() {
 run_cpp_built() {
   local proto_version
   local cpp_version
+  local yolo_model_version
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
+  yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
   
@@ -335,6 +339,8 @@ run_cpp_built() {
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
+    "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
+    "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
   )
 
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
@@ -419,8 +425,10 @@ run_app_image() {
 run_cpp_accelerator_image() {
   local proto_version
   local cpp_version
+  local yolo_model_version
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
+  yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
 
   local app_tag="cpp-accelerator-${cpp_version}-proto${proto_version}"
   local version_tag="${IMAGE_BASE}/cpp-accelerator:${app_tag}-${ARCH}"
@@ -446,6 +454,8 @@ run_cpp_accelerator_image() {
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
+    "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
+    "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
   )
 
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then

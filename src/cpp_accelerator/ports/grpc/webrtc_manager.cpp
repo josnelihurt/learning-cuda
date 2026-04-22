@@ -472,9 +472,10 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
         }
 
         std::vector<EncodedAccessUnit> encoded_units;
+        cuda_learning::DetectionFrame detection_frame;
         std::string error_message;
         const bool ok = session->live_video_processor->ProcessAccessUnit(
-            frame, info, session->live_filter_state, &encoded_units, &error_message);
+            frame, info, session->live_filter_state, &encoded_units, &detection_frame, &error_message);
         if (!ok) {
           spdlog::error("[WebRTC:{}] Live camera frame processing failed: {}", session_id,
                         error_message);
@@ -493,6 +494,21 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
             spdlog::error("[WebRTC:{}] Failed to send processed video frame: {}", session_id,
                           exception.what());
             return;
+          }
+        }
+
+        if (detection_frame.detections_size() > 0) {
+          std::shared_ptr<rtc::DataChannel> det_ch;
+          {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            det_ch = session->detection_channel;
+          }
+          if (det_ch && det_ch->isOpen()) {
+            std::string det_output;
+            if (detection_frame.SerializeToString(&det_output)) {
+              SendFramed(*det_ch, det_output,
+                         session->outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
+            }
           }
         }
       });

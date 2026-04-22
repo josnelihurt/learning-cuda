@@ -88,15 +88,16 @@ func (h *ImageProcessorHandler) StartVideoPlayback(
 	}
 
 	input := videoapp.StartVideoPlaybackUseCaseInput{
-		VideoID:       req.Msg.GetVideoId(),
-		SessionID:     req.Msg.GetSessionId(),
-		Filters:       h.adapter.ToFilters(req.Msg.GetFilters()),
-		Accelerator:   h.adapter.ToAccelerator(req.Msg.GetAccelerator()),
-		GrayscaleType: h.adapter.ToGrayscaleType(req.Msg.GetGrayscaleType()),
-		BlurParams:    h.adapter.ToBlurParameters(req.Msg.GetBlurParams()),
+		VideoID:        req.Msg.GetVideoId(),
+		SessionID:      req.Msg.GetSessionId(),
+		Filters:        h.adapter.ToFilters(req.Msg.GetFilters()),
+		Accelerator:    h.adapter.ToAccelerator(req.Msg.GetAccelerator()),
+		GrayscaleType:  h.adapter.ToGrayscaleType(req.Msg.GetGrayscaleType()),
+		BlurParams:     h.adapter.ToBlurParameters(req.Msg.GetBlurParams()),
 		GenericFilters: req.Msg.GetGenericFilters(),
-		TraceContext:  req.Msg.GetTraceContext().GetTraceparent(),
-		APIVersion:    req.Msg.GetApiVersion(),
+		ModelParams:    req.Msg.GetModelParams(),
+		TraceContext:   req.Msg.GetTraceContext().GetTraceparent(),
+		APIVersion:     req.Msg.GetApiVersion(),
 	}
 
 	result, err := h.startVideoPlaybackUC.Execute(ctx, input)

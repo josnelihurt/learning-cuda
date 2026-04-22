@@ -37,6 +37,7 @@ class LiveVideoProcessor {
   bool ProcessAccessUnit(const rtc::binary& access_unit, const rtc::FrameInfo& frame_info,
                          const cuda_learning::ProcessImageRequest& state,
                          std::vector<EncodedAccessUnit>* encoded_units,
+                         cuda_learning::DetectionFrame* detection_frame,
                          std::string* error_message);
 
  private:

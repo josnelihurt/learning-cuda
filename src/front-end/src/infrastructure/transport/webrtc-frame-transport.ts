@@ -12,7 +12,7 @@ import {
   StartVideoPlaybackRequest,
   StopVideoPlaybackRequest,
 } from '@/gen/image_processor_service_pb';
-import { BorderMode, GrayscaleType, TraceContext } from '@/gen/common_pb';
+import { BorderMode, GrayscaleType, ModelInferenceParameters, TraceContext } from '@/gen/common_pb';
 import type { IStatsDisplay, IToastDisplay, ICameraPreview } from './transport-types';
 import { ChunkReassembler, nextMessageId, packMessage } from './data-channel-framing';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
@@ -266,6 +266,14 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const frameId = ++this.frameIdCounter;
     const pending = this.registerPending(frameId);
 
+    const modelFilter = filters.find((f) => f.getId() === 'model_inference');
+    const modelParams = modelFilter
+      ? new ModelInferenceParameters({
+          modelId: modelFilter.getParameter('model_id') || 'yolov10n',
+          confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? '0.5'),
+        })
+      : undefined;
+
     const payload = new ProcessImageRequest({
       imageData: rasterizedBytes,
       width,
@@ -276,6 +284,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
       blurParams: extractBlurParams(filters),
       genericFilters: toGenericFilterSelections(filters),
+      modelParams,
       sessionId: this.sessionId,
       traceContext: buildTraceContext(),
       apiVersion: '1.0',
@@ -297,6 +306,13 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
   sendStartVideo(videoId: string, filters: FilterData[], accelerator: string): void {
     const acceleratorConfig = new AcceleratorConfig(accelerator);
     const grayscale = new GrayscaleAlgorithm('bt601');
+    const modelFilter = filters.find((f) => f.getId() === 'model_inference');
+    const modelParams = modelFilter
+      ? new ModelInferenceParameters({
+          modelId: modelFilter.getParameter('model_id') || 'yolov10n',
+          confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? '0.5'),
+        })
+      : undefined;
 
     void this.ensureConnected()
       .then(() => this.client.startVideoPlayback(new StartVideoPlaybackRequest({
@@ -307,6 +323,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
         grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
         blurParams: extractBlurParams(filters),
         genericFilters: toGenericFilterSelections(filters),
+        modelParams,
         traceContext: buildTraceContext(),
         apiVersion: '1.0',
       })))
@@ -493,6 +510,14 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const frameId = ++this.frameIdCounter;
     const pending = options.awaitResponse ? this.registerPending(frameId) : null;
 
+    const modelFilter = filters.find((f) => f.getId() === 'model_inference');
+    const modelParams = modelFilter
+      ? new ModelInferenceParameters({
+          modelId: modelFilter.getParameter('model_id') || 'yolov10n',
+          confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? '0.5'),
+        })
+      : undefined;
+
     const payload = new ProcessImageRequest({
       imageData: rasterized.imageData,
       width: image.getWidth(),
@@ -503,6 +528,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
       blurParams: extractBlurParams(filters),
       genericFilters: toGenericFilterSelections(filters),
+      modelParams,
       sessionId: this.sessionId,
       traceContext: buildTraceContext(),
       apiVersion: '1.0',

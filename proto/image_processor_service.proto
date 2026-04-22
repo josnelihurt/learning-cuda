@@ -124,6 +124,7 @@ message StartVideoPlaybackRequest {
   repeated GenericFilterSelection generic_filters = 13 [json_name = "generic_filters"];
   TraceContext trace_context = 15 [json_name = "trace_context"];
   string api_version = 17 [json_name = "api_version"];
+  ModelInferenceParameters model_params = 19 [json_name = "model_params"];
 }
 
 message StartVideoPlaybackResponse {

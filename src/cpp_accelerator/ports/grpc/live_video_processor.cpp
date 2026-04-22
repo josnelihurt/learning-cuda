@@ -143,6 +143,7 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
                                            const rtc::FrameInfo& frame_info,
                                            const cuda_learning::ProcessImageRequest& state,
                                            std::vector<EncodedAccessUnit>* encoded_units,
+                                           cuda_learning::DetectionFrame* detection_frame,
                                            std::string* error_message) {
   if (encoded_units == nullptr) {
     if (error_message != nullptr) {
@@ -235,6 +236,16 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
                                    error_message)) {
         av_frame_unref(decoded_frame_);
         return false;
+      }
+
+      if (detection_frame != nullptr && processing_response.detections_size() > 0) {
+        detection_frame->Clear();
+        detection_frame->set_frame_id(static_cast<uint64_t>(next_pts_));
+        detection_frame->set_image_width(decoded_frame_->width);
+        detection_frame->set_image_height(decoded_frame_->height);
+        for (const auto& d : processing_response.detections()) {
+          *detection_frame->add_detections() = d;
+        }
       }
     }
 

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #pragma GCC diagnostic push
@@ -35,6 +36,8 @@ private:
                     cuda_learning::ProcessImageResponse* response);
 
   std::string component_name_;
+  std::unordered_map<std::string, std::shared_ptr<jrb::infrastructure::cuda::YOLODetector>>
+      detector_cache_;
 };
 
 }  // namespace jrb::ports::shared_lib

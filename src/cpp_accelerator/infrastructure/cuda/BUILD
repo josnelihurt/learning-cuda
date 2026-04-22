@@ -7,10 +7,12 @@ cuda_library(
     srcs = [
         "blur_kernel.cu",
         "grayscale_kernel.cu",
+        "letterbox_kernel.cu",
     ],
     hdrs = [
         "blur_kernel.h",
         "grayscale_kernel.h",
+        "letterbox_kernel.h",
     ],
     copts = [
         "--expt-relaxed-constexpr",
@@ -111,6 +113,7 @@ cc_library(
     hdrs = ["yolo_detector.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":cuda_kernels",
         "//src/cpp_accelerator/core:telemetry",
         "//src/cpp_accelerator/domain/interfaces",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",

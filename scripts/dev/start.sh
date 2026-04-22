@@ -13,6 +13,7 @@ DEV_PID_GO="${DEV_PID_DIR}/go.pid"
 DEV_PID_VITE="${DEV_PID_DIR}/vite.pid"
 
 DEV_LOG_GRPC="${DEV_LOG_DIR}/accelerator-client.log"
+DEV_LOG_ACCELERATOR="/tmp/cppaccelerator.log"
 DEV_LOG_GO="${DEV_LOG_DIR}/goserver.log"
 DEV_LOG_VITE="${DEV_LOG_DIR}/vite.log"
 
@@ -117,6 +118,13 @@ ensure_tls_certs() {
 
 ensure_state_dirs() {
     mkdir -p "$DEV_PID_DIR" "$DEV_LOG_DIR"
+}
+
+truncate_dev_logs() {
+    echo "Truncating dev logs..."
+    for f in "$DEV_LOG_GRPC" "$DEV_LOG_GO" "$DEV_LOG_VITE"; do
+        : >"$f"
+    done
 }
 
 run_optional_build() {
@@ -242,6 +250,7 @@ main() {
     run_optional_build
     require_grpc_binary
     ensure_state_dirs
+    truncate_dev_logs
 
     trap cleanup_on_signal INT TERM
 

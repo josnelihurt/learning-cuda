@@ -88,8 +88,8 @@ bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
 
     auto& model_manager = jrb::infrastructure::cuda::ModelManager::GetInstance();
     jrb::infrastructure::cuda::ModelRegistry registry;
-    registry.RegisterModel({"yolov10n", "YOLO v10 Nano", "data/models/yolov10n.onnx",
-                            "Fastest YOLO v10 model"});
+    registry.RegisterModel(
+        {"yolov10n", "YOLO v10 Nano", "data/models/yolov10n.onnx", "Fastest YOLO v10 model"});
     model_manager.Initialize(registry);
     spdlog::info("Model manager initialized with {} models",
                  model_manager.GetAvailableModels().size());
@@ -305,20 +305,28 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
                            : 0.5f;
         }
 
-        auto detector = jrb::infrastructure::cuda::ModelManager::GetInstance().GetDetector(model_id, confidence);
-        if (detector) {
-          yolo_detector = detector.get();
-          pipeline.AddFilter(std::move(detector));
-          scoped_span.AddEvent("Added YOLO model inference filter");
-        } else {
-          spdlog::error("Failed to get detector for model: {}", model_id);
+        std::string cache_key = model_id + "@" + std::to_string(confidence);
+        auto cache_it = detector_cache_.find(cache_key);
+        if (cache_it == detector_cache_.end()) {
+          auto new_detector = jrb::infrastructure::cuda::ModelManager::GetInstance().GetDetector(
+              model_id, confidence);
+          if (!new_detector) {
+            spdlog::error("Failed to get detector for model: {}", model_id);
+          } else {
+            detector_cache_[cache_key] = std::move(new_detector);
+            cache_it = detector_cache_.find(cache_key);
+          }
+        }
+        if (cache_it != detector_cache_.end()) {
+          yolo_detector = cache_it->second.get();
+          scoped_span.AddEvent("Using cached YOLO model inference filter");
         }
       } else {
         spdlog::warn("Unsupported filter type: {}", filter);
       }
     }
 
-    if (pipeline.GetFilterCount() == 0) {
+    if (pipeline.GetFilterCount() == 0 && yolo_detector == nullptr) {
       spdlog::error("No valid filters to apply");
       response->set_code(5);
       response->set_message("No valid filters to apply");
@@ -341,13 +349,27 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
     jrb::domain::interfaces::ImageBufferMut output_buffer(output_data.data(), request.width(),
                                                           request.height(), output_channels);
 
-    bool success = pipeline.Apply(input_buffer, output_buffer);
-    if (!success) {
-      spdlog::error("Filter pipeline processing failed");
-      scoped_span.RecordError("Filter pipeline processing failed");
-      response->set_code(7);
-      response->set_message("Filter pipeline processing failed");
-      return false;
+    if (pipeline.GetFilterCount() > 0) {
+      bool success = pipeline.Apply(input_buffer, output_buffer);
+      if (!success) {
+        spdlog::error("Filter pipeline processing failed");
+        scoped_span.RecordError("Filter pipeline processing failed");
+        response->set_code(7);
+        response->set_message("Filter pipeline processing failed");
+        return false;
+      }
+    }
+
+    if (yolo_detector != nullptr) {
+      // Run detection on the original RGB input for best accuracy.
+      // output_buffer is used as the passthrough target; use output_buffer.channels to avoid
+      // a size mismatch when a channel-reducing filter (e.g. grayscale) ran before YOLO.
+      jrb::domain::interfaces::FilterContext det_context(input_buffer.data, output_buffer.data,
+                                                         input_buffer.width, input_buffer.height,
+                                                         input_buffer.channels);
+      det_context.output = jrb::domain::interfaces::ImageBufferMut(
+          output_buffer.data, output_buffer.width, output_buffer.height, output_buffer.channels);
+      yolo_detector->Apply(det_context);
     }
 
     response->set_code(0);
@@ -358,7 +380,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
     response->set_channels(output_buffer.channels);
 
     // Populate detections if a detector was used
-    if (yolo_detector) {
+    if (yolo_detector != nullptr) {
       const auto& detections = yolo_detector->GetDetections();
       for (const auto& det : detections) {
         auto* detection_msg = response->add_detections();

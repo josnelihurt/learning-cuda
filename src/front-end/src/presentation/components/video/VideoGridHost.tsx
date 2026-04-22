@@ -19,10 +19,12 @@ import { useToast } from '@/presentation/hooks/useToast';
 import { StatsPanel as ReactStatsPanel } from '@/presentation/components/app/StatsPanel';
 import {
   type Detection,
+  DetectionFrame,
   GenericFilterParameterSelection,
   GenericFilterSelection,
   ProcessImageRequest,
 } from '@/gen/image_processor_service_pb';
+import { ChunkReassembler } from '@/infrastructure/transport/data-channel-framing';
 
 type GridSource = {
   id: string;
@@ -306,6 +308,27 @@ export function VideoGridHost() {
           currentFilters,
           currentSource.accelerator
         );
+
+        const detectionChannel = webrtcService.getDetectionDataChannel(session.getId());
+        if (detectionChannel) {
+          const reassembler = new ChunkReassembler();
+          detectionChannel.onmessage = (event: MessageEvent) => {
+            const payload = event.data as ArrayBuffer | Blob;
+            const bufferPromise =
+              payload instanceof Blob ? payload.arrayBuffer() : Promise.resolve(payload as ArrayBuffer);
+            void bufferPromise.then((buffer) => {
+              const assembled = reassembler.pushChunk(buffer);
+              if (assembled === null) return;
+              const frame = DetectionFrame.fromBinary(assembled);
+              updateSource(sourceId, (current) => ({
+                ...current,
+                detections: frame.detections,
+                detectionImageWidth: frame.imageWidth,
+                detectionImageHeight: frame.imageHeight,
+              }));
+            });
+          };
+        }
       } catch (error) {
         logger.error('Failed to create camera MediaTrack session', {
           'error.message': error instanceof Error ? error.message : String(error),

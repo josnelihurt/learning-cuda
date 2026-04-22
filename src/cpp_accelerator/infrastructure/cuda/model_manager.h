@@ -14,7 +14,7 @@ class ModelManager {
   static ModelManager& GetInstance();
 
   void Initialize(const ModelRegistry& registry);
-  std::unique_ptr<YOLODetector> GetDetector(const std::string& model_id, float confidence_threshold);
+  std::shared_ptr<YOLODetector> GetDetector(const std::string& model_id, float confidence_threshold);
   std::vector<std::string> GetAvailableModels() const;
 
  private:

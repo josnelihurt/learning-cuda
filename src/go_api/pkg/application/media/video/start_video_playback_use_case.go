@@ -28,6 +28,7 @@ type StartVideoPlaybackUseCaseInput struct {
 	GrayscaleType   domain.GrayscaleType
 	BlurParams      *domain.BlurParameters
 	GenericFilters  []*pb.GenericFilterSelection
+	ModelParams     *pb.ModelInferenceParameters
 	TraceContext    string
 	APIVersion      string
 }
@@ -198,6 +199,7 @@ func buildVideoFrameRequest(input StartVideoPlaybackUseCaseInput, frame *domain.
 		GrayscaleType:  convertGrayscaleType(input.GrayscaleType),
 		BlurParams:     convertBlurParams(input.BlurParams),
 		GenericFilters: input.GenericFilters,
+		ModelParams:    input.ModelParams,
 		SessionId:      input.SessionID,
 		TraceContext:   &pb.TraceContext{Traceparent: input.TraceContext},
 		ApiVersion:     input.APIVersion,
@@ -235,6 +237,8 @@ func convertFilters(filters []domain.FilterType) []pb.FilterType {
 			result = append(result, pb.FilterType_FILTER_TYPE_GRAYSCALE)
 		case domain.FilterBlur:
 			result = append(result, pb.FilterType_FILTER_TYPE_BLUR)
+		case domain.FilterModel:
+			result = append(result, pb.FilterType_FILTER_TYPE_MODEL_INFERENCE)
 		default:
 			result = append(result, pb.FilterType_FILTER_TYPE_NONE)
 		}

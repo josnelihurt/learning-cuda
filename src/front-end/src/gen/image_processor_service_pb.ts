@@ -803,6 +803,11 @@ export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest
    */
   apiVersion = "";
 
+  /**
+   * @generated from field: cuda_learning.ModelInferenceParameters model_params = 19 [json_name = "model_params"];
+   */
+  modelParams?: ModelInferenceParameters;
+
   constructor(data?: PartialMessage<StartVideoPlaybackRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -820,6 +825,7 @@ export class StartVideoPlaybackRequest extends Message<StartVideoPlaybackRequest
     { no: 13, name: "generic_filters", jsonName: "generic_filters", kind: "message", T: GenericFilterSelection, repeated: true },
     { no: 15, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
     { no: 17, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 19, name: "model_params", jsonName: "model_params", kind: "message", T: ModelInferenceParameters },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartVideoPlaybackRequest {

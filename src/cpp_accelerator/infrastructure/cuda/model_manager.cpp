@@ -26,7 +26,7 @@ void ModelManager::Initialize(const ModelRegistry& registry) {
   spdlog::info("ModelManager initialized with {} models", model_paths_.size());
 }
 
-std::unique_ptr<YOLODetector> ModelManager::GetDetector(
+std::shared_ptr<YOLODetector> ModelManager::GetDetector(
     const std::string& model_id, float confidence_threshold) {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -37,7 +37,7 @@ std::unique_ptr<YOLODetector> ModelManager::GetDetector(
   }
 
   try {
-    auto detector = std::make_unique<YOLODetector>(it->second, confidence_threshold);
+    auto detector = std::make_shared<YOLODetector>(it->second, confidence_threshold);
     spdlog::debug("Created detector for model: {} with confidence: {}", model_id, confidence_threshold);
     return detector;
   } catch (const std::exception& e) {

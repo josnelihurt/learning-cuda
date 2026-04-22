@@ -63,6 +63,23 @@ func newWebRTCSignalingSession(
 	return session, nil
 }
 
+// signalingMessageSessionID returns the session ID embedded in msg, or "" for
+// message types that carry no session ID (e.g. KeepAlive).
+func signalingMessageSessionID(msg *pb.SignalingMessage) string {
+	switch m := msg.GetMessage().(type) {
+	case *pb.SignalingMessage_StartSessionResponse:
+		return m.StartSessionResponse.GetSessionId()
+	case *pb.SignalingMessage_IceCandidate:
+		return m.IceCandidate.GetSessionId()
+	case *pb.SignalingMessage_IceCandidateResponse:
+		return m.IceCandidateResponse.GetSessionId()
+	case *pb.SignalingMessage_CloseSessionResponse:
+		return m.CloseSessionResponse.GetSessionId()
+	default:
+		return ""
+	}
+}
+
 func (s *webRTCSignalingSession) receiveLoop() {
 	for {
 		msg, err := s.stream.Recv()
@@ -75,6 +92,13 @@ func (s *webRTCSignalingSession) receiveLoop() {
 			}
 			s.markClosed(err)
 			return
+		}
+
+		// The C++ fanout delivers all sessions' messages on every subscriber channel.
+		// Drop messages whose session_id doesn't match this session to prevent one
+		// session's close/response from bleeding into another session's event queue.
+		if msgID := signalingMessageSessionID(msg); msgID != "" && msgID != s.id {
+			continue
 		}
 
 		s.appendEvent(msg)

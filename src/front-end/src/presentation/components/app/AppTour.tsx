@@ -73,13 +73,20 @@ const TOUR_STEPS: TourStep[] = [
 export function AppTour(): ReactElement {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
-  const [focusStyle, setFocusStyle] = useState<Record<string, string>>({});
-  const [tooltipStyle, setTooltipStyle] = useState<Record<string, string>>({});
   const [tooltipPlacement, setTooltipPlacement] =
     useState<'right' | 'left' | 'top' | 'bottom'>('right');
   const animationFrameRef = useRef(0);
+  const focusRingRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   const step = useMemo(() => TOUR_STEPS[stepIndex], [stepIndex]);
+
+  const applyStyles = (element: HTMLElement | null, styles: Record<string, string>) => {
+    if (!element) return;
+    for (const [prop, value] of Object.entries(styles)) {
+      element.style.setProperty(prop, value);
+    }
+  };
 
   const findTarget = useCallback((selector: string): HTMLElement | null => {
     const direct = document.querySelector(selector);
@@ -206,7 +213,7 @@ export function AppTour(): ReactElement {
 
       const target = findTarget(currentStep.selector);
       if (!target) {
-        if (!withScroll && focusStyle.width) {
+        if (!withScroll && focusRingRef.current?.style.width) {
           cancelAnimationFrame(animationFrameRef.current);
           animationFrameRef.current = requestAnimationFrame(() => updateLayout());
           return;
@@ -215,14 +222,14 @@ export function AppTour(): ReactElement {
         const fallbackRoot = findTarget('[data-testid="video-grid-host"], .sidebar, button[data-testid="add-input-fab"], body');
         const bounds = fallbackRoot?.getBoundingClientRect();
         const fallbackRect = bounds ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
-        setFocusStyle({
+        applyStyles(focusRingRef.current, {
           top: `${fallbackRect.top}px`,
           left: `${fallbackRect.left}px`,
           width: `${fallbackRect.width}px`,
           height: `${fallbackRect.height}px`,
         });
         const { style, placement } = calculateTooltipPosition(fallbackRect, currentStep.id);
-        setTooltipStyle(style);
+        applyStyles(tooltipRef.current, style);
         setTooltipPlacement(placement);
         return;
       }
@@ -233,17 +240,17 @@ export function AppTour(): ReactElement {
 
       const rect = target.getBoundingClientRect();
       const padding = 16;
-      setFocusStyle({
+      applyStyles(focusRingRef.current, {
         top: `${Math.max(rect.top - padding, 16)}px`,
         left: `${Math.max(rect.left - padding, 16)}px`,
         width: `${rect.width + padding * 2}px`,
         height: `${rect.height + padding * 2}px`,
       });
       const { style, placement } = calculateTooltipPosition(rect, currentStep.id);
-      setTooltipStyle(style);
+      applyStyles(tooltipRef.current, style);
       setTooltipPlacement(placement);
     },
-    [calculateTooltipPosition, findTarget, focusStyle.width, stepIndex]
+    [calculateTooltipPosition, findTarget, stepIndex]
   );
 
   const dismiss = useCallback(() => {
@@ -306,8 +313,8 @@ export function AppTour(): ReactElement {
 
   return (
     <div className={styles.overlay} role="presentation">
-      <div className={styles.focusRing} style={focusStyle} />
-      <div className={styles.tooltip} style={tooltipStyle} role="dialog" aria-modal="true" aria-labelledby={`${step.id}-title`}>
+      <div ref={focusRingRef} className={styles.focusRing} />
+      <div ref={tooltipRef} className={styles.tooltip} role="dialog" aria-modal="true" aria-labelledby={`${step.id}-title`}>
         <div className={`${styles.arrow} ${arrowPlacementClass}`} />
         <span className={styles.stepMeta}>
           Step {stepIndex + 1} of {TOUR_STEPS.length}

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useImageUpload } from '@/presentation/hooks/useImageUpload';
 import type { StaticImage } from '@/gen/config_service_pb';
 import styles from './ImageUpload.module.css';
@@ -11,6 +11,13 @@ export function ImageUpload({ onImageUploaded }: ImageUploadProps) {
   const { uploading, progress, error, uploadFile } = useImageUpload();
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const progressFillRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (progressFillRef.current) {
+      progressFillRef.current.style.width = `${progress}%`;
+    }
+  }, [progress]);
 
   const handleClick = () => {
     if (!uploading && fileInputRef.current) {
@@ -89,7 +96,7 @@ export function ImageUpload({ onImageUploaded }: ImageUploadProps) {
 
         {uploading && (
           <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+            <div ref={progressFillRef} className={styles.progressFill} />
           </div>
         )}
       </div>

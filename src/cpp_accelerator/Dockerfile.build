@@ -10,7 +10,27 @@ ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
 
-FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model
+# Try to use pre-built yolo-model-gen image, or build it inline if not available
+FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model-prebuilt
+
+FROM bazel-base AS yolo-model-gen
+WORKDIR /models
+# Copy model export script and generate ONNX inline if pre-built image not available
+RUN echo "Checking for yolo-model-gen image..." && \
+    if ! docker pull ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} 2>/dev/null; then \
+      echo "Pre-built yolo-model-gen image not found for ${TARGETARCH}, building..." && \
+      apt-get update && apt-get install -y --no-install-recommends python3 python3-pip && \
+      pip3 install ultralytics onnx onnxslim && \
+      python3 -c "from ultralytics import YOLO; YOLO('yolov10n.pt').export(format='onnx', dynamic=True, simplify=True, imgsz=640)" && \
+      mkdir -p /models && mv yolov10n.onnx /models/ && \
+      apt-get purge -y python3 python3-pip && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*; \
+    else \
+      echo "Using pre-built yolo-model-gen image"; \
+      mkdir -p /models && \
+      docker create --platform linux/${TARGETARCH/amd64/x86_64/arm64/arm/v7} ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} temp-container && \
+      docker cp temp-container:/models /models && \
+      docker rm temp-container; \
+    fi
 
 FROM bazel-base AS bazel-deps
 
@@ -53,7 +73,7 @@ COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
 
 RUN mkdir -p /build/data/models
 # Copy ONNX model - TensorRT engine will be generated at runtime (lazy generation)
-COPY --from=yolo-model /models/yolov10n.onnx /build/data/models/yolov10n.onnx
+COPY --from=yolo-model-gen /models/yolov10n.onnx /build/data/models/yolov10n.onnx
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     NPROC=$(nproc) && \

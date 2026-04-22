@@ -154,6 +154,7 @@ export function VideoGridHost() {
   const cameraSessionSourceIdsRef = useRef<Set<string>>(new Set());
   const pendingSourceNumberForImageChangeRef = useRef<number | null>(null);
   const sourcesRef = useRef<GridSource[]>([]);
+  const selectedSourceIdRef = useRef<string | null>(null);
   const { container, ready } = useAppServices();
   const toast = useToast();
   const {
@@ -168,6 +169,10 @@ export function VideoGridHost() {
   useEffect(() => {
     sourcesRef.current = sources;
   }, [sources]);
+
+  useEffect(() => {
+    selectedSourceIdRef.current = selectedSourceId;
+  }, [selectedSourceId]);
 
   const statsManager = useMemo(
     () =>
@@ -381,18 +386,12 @@ export function VideoGridHost() {
       });
     }
     setSources((current) => current.filter((item) => item.id !== sourceId));
-    setSelectedSourceId((currentSelected) => {
-      if (currentSelected !== sourceId) {
-        return currentSelected;
-      }
+    if (selectedSourceIdRef.current === sourceId) {
       const remaining = sourcesRef.current.filter((item) => item.id !== sourceId);
       const nextSource = remaining[0] ?? null;
-      if (nextSource) {
-        emitSelectionState(nextSource);
-        return nextSource.id;
-      }
-      return null;
-    });
+      setSelectedSourceId(nextSource?.id ?? null);
+      emitSelectionState(nextSource);
+    }
   }, [emitSelectionState]);
 
   const activeTransportService = useMemo(() => {

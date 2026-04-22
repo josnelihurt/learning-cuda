@@ -10,7 +10,7 @@ ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
 
-FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model
+FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-amd64 AS yolo-model
 
 FROM bazel-base AS bazel-deps
 

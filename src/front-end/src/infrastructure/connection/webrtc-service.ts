@@ -1093,6 +1093,10 @@ export class WebRTCService implements IWebRTCService {
   }
 
   private cleanupSession(sessionId: string): void {
+    // Delete from sessions map first so onclose/onconnectionstatechange handlers
+    // see sessions.has(sessionId) === false and skip triggerReconnect.
+    this.sessions.delete(sessionId);
+
     const heartbeatTimer = this.heartbeatTimers.get(sessionId);
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
@@ -1151,7 +1155,6 @@ export class WebRTCService implements IWebRTCService {
       this.detectionChannels.delete(sessionId);
     }
 
-    this.sessions.delete(sessionId);
     this.remoteStreams.delete(sessionId);
     this.remoteStreamHandlers.delete(sessionId);
   }

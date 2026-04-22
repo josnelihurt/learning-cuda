@@ -120,14 +120,14 @@ cc_library(
     name = "tensorrt",
     linkopts = [
         "-lnvinfer",
-        "-lnvonnxparser",
+        "-lnvonnxparsers",
     ],
     visibility = ["//visibility:public"],
 )
 
-# YOLO Object Detector
+# YOLO Object Detector (TensorRT implementation)
 cc_library(
-    name = "yolo_detector",
+    name = "yolo_detector_trt",
     srcs = ["yolo_detector.cpp"],
     hdrs = ["yolo_detector.h"],
     visibility = ["//visibility:public"],
@@ -138,6 +138,40 @@ cc_library(
         "//src/cpp_accelerator/domain/interfaces",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",
         "@spdlog",
+    ],
+    target_compatible_with = ["//src/cpp_accelerator/infrastructure/cuda:has_tensorrt"],
+)
+
+# YOLO Object Detector (stub implementation for CI without TensorRT)
+cc_library(
+    name = "yolo_detector_stub",
+    srcs = ["yolo_detector_stub.cpp"],
+    hdrs = ["yolo_detector_stub.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/cpp_accelerator/core:telemetry",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "@spdlog",
+    ],
+)
+
+# YOLO Detector alias - selects appropriate implementation
+alias(
+    name = "yolo_detector",
+    actual = select({
+        "//src/cpp_accelerator/infrastructure/cuda:has_tensorrt": ":yolo_detector_trt",
+        "//conditions:default": ":yolo_detector_stub",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+# Constraint for TensorRT availability
+config_setting(
+    name = "has_tensorrt",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
     ],
 )
 

@@ -5,7 +5,6 @@ services:
     restart: unless-stopped
     runtime: nvidia
     ports:
-      - "60061:60061/tcp"  # gRPC control
       - "60060:60060/tcp"  # WebRTC TCP fallback for clients behind UDP-blocking firewalls
       - "10000-10199:10000-10199/udp"  # WebRTC ICE candidates
       - "60062:60062/udp"    # WebRTC fallback UDP

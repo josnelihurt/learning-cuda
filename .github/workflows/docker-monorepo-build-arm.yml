@@ -115,18 +115,18 @@ jobs:
           # Create container from scratch image and copy .onnx file
           # Use placeholder command since scratch images have no default
           CONTAINER_ID=$(docker create "${AMD64_IMAGE}" /bin/true)
-          docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
+          docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" src/cpp_accelerator/yolo-model-gen/yolov10n.onnx
           docker rm "${CONTAINER_ID}"
 
           # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
           docker build \
             --platform linux/arm64 \
-            --build-arg "ONNX_FILE=/tmp/yolov10n.onnx" \
+            --build-arg "ONNX_FILE=yolov10n.onnx" \
             --target artifact_from_prebuilt \
             -f src/cpp_accelerator/yolo-model-gen/Dockerfile \
             -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64 \
             -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64 \
-            .
+            src/cpp_accelerator/yolo-model-gen
 
           echo "Built ARM64 yolo-model-gen artifact using x86 ONNX model"
 

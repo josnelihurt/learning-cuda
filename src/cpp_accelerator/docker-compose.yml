@@ -24,6 +24,9 @@ services:
 
     volumes:
       - ${ACCELERATOR_SECRETS_DIR:-./secrets}:/secrets:ro
+      - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1:ro
+      - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so:ro
+      - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvinfer.so.10:/usr/lib/aarch64-linux-gnu/libnvinfer.so.10:ro
       - /usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:/usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:ro

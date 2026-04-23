@@ -1,4 +1,6 @@
 import { type ReactNode, type ReactElement } from 'react';
+import type { Detection } from '@/gen/image_processor_service_pb';
+import { colorForClassId } from './detection-colors';
 import styles from './VideoSourceCard.module.css';
 
 type VideoSourceCardProps = {
@@ -12,6 +14,9 @@ type VideoSourceCardProps = {
   onClose: (sourceId: string) => void;
   onChangeImage: (sourceId: string, sourceNumber: number) => void;
   children?: ReactNode;
+  detections?: Detection[];
+  detectionImageWidth?: number;
+  detectionImageHeight?: number;
 };
 
 export function VideoSourceCard({
@@ -25,9 +30,17 @@ export function VideoSourceCard({
   onClose,
   onChangeImage,
   children,
+  detections,
+  detectionImageWidth,
+  detectionImageHeight,
 }: VideoSourceCardProps): ReactElement {
   const cardClassName = isSelected ? `${styles.card} ${styles.selected}` : styles.card;
   const shouldRenderProcessedImage = Boolean(imageSrc);
+  const hasDetections =
+    Array.isArray(detections) &&
+    detections.length > 0 &&
+    (detectionImageWidth ?? 0) > 0 &&
+    (detectionImageHeight ?? 0) > 0;
 
   return (
     <div className={styles.source}>
@@ -67,6 +80,45 @@ export function VideoSourceCard({
             <img src={imageSrc} alt={sourceName} crossOrigin="anonymous" />
           ) : null}
           {children}
+          {hasDetections ? (
+            <svg
+              className={styles.detectionOverlay}
+              viewBox={`0 0 ${detectionImageWidth} ${detectionImageHeight}`}
+              preserveAspectRatio="xMidYMid meet"
+              data-testid="detection-overlay"
+            >
+              {detections!.map((detection, index) => {
+                const color = colorForClassId(detection.classId);
+                const label = `${detection.className || `class ${detection.classId}`} ${Math.round(detection.confidence * 100)}%`;
+                return (
+                  <g key={`${detection.classId}-${index}`}>
+                    <rect
+                      x={detection.x}
+                      y={detection.y}
+                      width={detection.width}
+                      height={detection.height}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={Math.max(2, detectionImageWidth! / 320)}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <text
+                      x={detection.x + 4}
+                      y={Math.max(detection.y - 4, 12)}
+                      fill={color}
+                      fontSize={Math.max(12, detectionImageWidth! / 40)}
+                      fontFamily="sans-serif"
+                      stroke="rgba(0,0,0,0.7)"
+                      strokeWidth={0.5}
+                      paintOrder="stroke"
+                    >
+                      {label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          ) : null}
         </div>
       </div>
     </div>

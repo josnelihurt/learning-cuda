@@ -67,8 +67,6 @@ class AcceleratorControlClient {
   void Dispatch(const cuda_learning::AcceleratorMessage& msg);
 
   // Handlers for each command type.
-  void HandleProcessImageRequest(const std::string& command_id,
-                                 const cuda_learning::ProcessImageRequest& req);
   void HandleListFiltersRequest(const std::string& command_id,
                                 const cuda_learning::ListFiltersRequest& req);
   void HandleGetVersionRequest(const std::string& command_id,

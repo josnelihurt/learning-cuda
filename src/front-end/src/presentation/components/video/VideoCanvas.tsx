@@ -1,11 +1,26 @@
 import { useRef, useEffect, type ReactElement } from 'react';
 import styles from './VideoCanvas.module.css';
 
+// Generate a color from a class ID using HSL
+function colorForClassId(classId: number): string {
+  const hue = (classId * 137.5) % 360; // Golden angle for color variety
+  return `hsl(${hue}, 70%, 50%)`;
+}
+
 interface VideoCanvasProps {
   width?: number;
   height?: number;
   onFrame?: (base64data: string, width: number, height: number) => void;
   className?: string;
+  detections?: Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    className?: string;
+    confidence?: number;
+    classId?: number;
+  }>;
 }
 
 export function VideoCanvas({
@@ -13,6 +28,7 @@ export function VideoCanvas({
   height = 480,
   onFrame,
   className,
+  detections = [],
 }: VideoCanvasProps): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -79,6 +95,30 @@ export function VideoCanvas({
       img.onload = () => {
         if (ctxRef.current) {
           ctxRef.current.drawImage(img, 0, 0, w, h);
+
+          // Draw detections if present
+          if (detections && detections.length > 0) {
+            detections.forEach((det) => {
+              const color = colorForClassId(det.classId ?? 0);
+              ctxRef.current!.strokeStyle = color;
+              ctxRef.current!.lineWidth = 2;
+              ctxRef.current!.strokeRect(det.x, det.y, det.width, det.height);
+
+              // Draw label with confidence
+              if (det.className) {
+                const label = det.confidence
+                  ? `${det.className} ${(det.confidence * 100).toFixed(0)}%`
+                  : det.className;
+
+                ctxRef.current!.font = '12px Arial';
+                ctxRef.current!.fillStyle = color;
+                ctxRef.current!.fillRect(det.x, det.y - 20, label.length * 7 + 4, 18);
+
+                ctxRef.current!.fillStyle = '#fff';
+                ctxRef.current!.fillText(label, det.x + 2, det.y - 6);
+              }
+            });
+          }
         }
       };
       img.src = `data:image/jpeg;base64,${base64data}`;
@@ -96,7 +136,7 @@ export function VideoCanvas({
         ctxRef.current.clearRect(0, 0, width, height);
       }
     };
-  }, [onFrame, width, height]);
+  }, [onFrame, width, height, detections]);
 
   return (
     <div className={`${styles.canvasContainer} ${className || ''}`} data-testid="video-canvas-container">

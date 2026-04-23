@@ -22,9 +22,6 @@ func NewAcceleratorGateway(cfg AcceleratorGatewayConfig) *AcceleratorGateway {
 	return &AcceleratorGateway{registry: cfg.Registry}
 }
 
-// Close is a no-op; kept for interface compatibility.
-func (c *AcceleratorGateway) Close() error { return nil }
-
 // callAccelerator sends a request envelope and awaits the matching response.
 func (c *AcceleratorGateway) callAccelerator(
 	ctx context.Context,
@@ -78,29 +75,6 @@ func (c *AcceleratorGateway) ListFilters(ctx context.Context) (*gen.ListFiltersR
 		return nil, err
 	}
 	return result.(*gen.ListFiltersResponse), nil
-}
-
-func (c *AcceleratorGateway) ProcessImage(ctx context.Context, req *gen.ProcessImageRequest) (*gen.ProcessImageResponse, error) {
-	result, err := c.callAccelerator(ctx,
-		func(commandID string) *gen.AcceleratorMessage {
-			return &gen.AcceleratorMessage{
-				Payload: &gen.AcceleratorMessage_ProcessImageRequest{
-					ProcessImageRequest: req,
-				},
-			}
-		},
-		func(resp *gen.AcceleratorMessage) (any, error) {
-			r, ok := resp.GetPayload().(*gen.AcceleratorMessage_ProcessImageResponse)
-			if !ok {
-				return nil, fmt.Errorf("unexpected response type for ProcessImage")
-			}
-			return r.ProcessImageResponse, nil
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*gen.ProcessImageResponse), nil
 }
 
 func (c *AcceleratorGateway) GetVersionInfo(ctx context.Context, req *gen.GetVersionInfoRequest) (*gen.GetVersionInfoResponse, error) {

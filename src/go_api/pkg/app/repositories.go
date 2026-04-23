@@ -13,9 +13,3 @@ type featureFlagRepository interface {
 	ListFlags(ctx context.Context) ([]domain.FeatureFlag, error)
 	UpsertFlag(ctx context.Context, flag domain.FeatureFlag) error
 }
-
-type videoRepository interface {
-	List(ctx context.Context) ([]domain.Video, error)
-	GetByID(ctx context.Context, id string) (*domain.Video, error)
-	Save(ctx context.Context, video *domain.Video) error
-}

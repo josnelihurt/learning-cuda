@@ -13,6 +13,7 @@ DEV_PID_GO="${DEV_PID_DIR}/go.pid"
 DEV_PID_VITE="${DEV_PID_DIR}/vite.pid"
 
 DEV_LOG_GRPC="${DEV_LOG_DIR}/accelerator-client.log"
+DEV_LOG_ACCELERATOR="/tmp/cppaccelerator.log"
 DEV_LOG_GO="${DEV_LOG_DIR}/goserver.log"
 DEV_LOG_VITE="${DEV_LOG_DIR}/vite.log"
 
@@ -29,9 +30,8 @@ die() {
     exit 1
 }
 
-# Updates .vscode/launch.json "processId" for the Go attach configuration
-# (type=go, request=attach). Uses JSON parse to locate the target; preserves
-# JSONC line comments. On missing python3 or launch file, no-op.
+# Updates .vscode/launch.json "processId" for the Go attach configuration.
+# On missing python3 or launch file, no-op.
 update_launch_go_attach_process_id() {
     local pid="$1"
     local launch_json="${PROJECT_ROOT}/.vscode/launch.json"
@@ -42,6 +42,21 @@ update_launch_go_attach_process_id() {
     if ! python3 "$SCRIPT_DIR/update_launch_go_attach_process_id.py" "$launch_json" "$pid"
     then
         echo "Warning: could not update Go attach processId in .vscode/launch.json" >&2
+    fi
+}
+
+# Updates .vscode/launch.json "processId" for the C++ accelerator attach
+# configuration. On missing python3 or launch file, no-op.
+update_launch_cpp_attach_process_id() {
+    local pid="$1"
+    local launch_json="${PROJECT_ROOT}/.vscode/launch.json"
+
+    command -v python3 >/dev/null 2>&1 || return 0
+    [ -f "$launch_json" ] || return 0
+
+    if ! python3 "$SCRIPT_DIR/update_launch_cpp_attach_process_id.py" "$launch_json" "$pid"
+    then
+        echo "Warning: could not update C++ attach processId in .vscode/launch.json" >&2
     fi
 }
 
@@ -74,12 +89,12 @@ print_help() {
     echo "Vite only (Go already running): cd src/front-end && npm run dev (needs .secrets/localhost+2*.pem)."
     echo ""
     echo "Options:"
-    echo "  --build, -b    Build C++ accelerator client and Go backend before starting"
+    echo "  --build, -b    Build C++ accelerator client (TensorRT) and Go backend before starting"
     echo "  --help, -h     Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/dev/start.sh         # Full stack"
-    echo "  ./scripts/dev/start.sh --build # Build + full stack"
+    echo "  ./scripts/dev/start.sh         # Full stack (uses existing binary)"
+    echo "  ./scripts/dev/start.sh --build # Build with TensorRT + full stack"
     exit 0
 }
 
@@ -103,6 +118,13 @@ ensure_tls_certs() {
 
 ensure_state_dirs() {
     mkdir -p "$DEV_PID_DIR" "$DEV_LOG_DIR"
+}
+
+truncate_dev_logs() {
+    echo "Truncating dev logs..."
+    for f in "$DEV_LOG_GRPC" "$DEV_LOG_GO" "$DEV_LOG_VITE"; do
+        : >"$f"
+    done
 }
 
 run_optional_build() {
@@ -141,6 +163,13 @@ start_grpc() {
         >"$DEV_LOG_GRPC" 2>&1 &
     GRPC_PID=$!
     echo "$GRPC_PID" >"$DEV_PID_GRPC"
+
+    if ! kill -0 "$GRPC_PID" 2>/dev/null; then
+        update_launch_cpp_attach_process_id -1
+        die "C++ accelerator client failed to start"
+    fi
+
+    update_launch_cpp_attach_process_id "$GRPC_PID"
 }
 
 start_go() {
@@ -204,6 +233,7 @@ print_summary() {
     echo "To stop: ./scripts/dev/stop.sh"
     echo "Logs:"
     echo "  tail -f $DEV_LOG_GRPC"
+    echo "  tail -f $DEV_LOG_ACCELERATOR"
     echo "  tail -f $DEV_LOG_GO"
     echo "  tail -f $DEV_LOG_VITE"
 }
@@ -221,11 +251,12 @@ main() {
     run_optional_build
     require_grpc_binary
     ensure_state_dirs
+    truncate_dev_logs
 
-    start_grpc
     trap cleanup_on_signal INT TERM
 
     start_go
+    start_grpc
     start_vite
 
     print_summary

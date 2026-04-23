@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
@@ -188,39 +189,9 @@ func (p *FFmpegVideoPlayer) Play(ctx context.Context, frameCallback func(*domain
 	}
 }
 
-// GetDimensions returns the video dimensions
-func (p *FFmpegVideoPlayer) GetDimensions() (width, height int) {
-	return p.width, p.height
-}
-
-// GetFPS returns the video frame rate
-func (p *FFmpegVideoPlayer) GetFPS() float64 {
-	return p.fps
-}
-
 // isProcessFinished checks if an error from Process.Kill indicates the process was already finished
 func isProcessFinished(err error) bool {
-	// Process.Signal and Process.Kill return an error if the process has already exited.
-	// On Unix systems, this is typically os.ErrProcessDone.
-	// On Windows, the error message may contain "already finished".
-	// For now, we check common patterns indicating the process was done.
 	return err != nil && (err.Error() == "os: process already finished" ||
 		err.Error() == "wait: no child processes" ||
-		containsString(err.Error(), "already finished"))
-}
-
-// containsString is a simple helper for substring check
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr ||
-		len(s) > len(substr) && contains(s, substr))
-}
-
-// contains checks if substr is in s
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+		strings.Contains(err.Error(), "already finished"))
 }

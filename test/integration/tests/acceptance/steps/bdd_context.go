@@ -3,13 +3,9 @@ package steps
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"image"
-	_ "image/png" // Required for PNG image encoding/decoding
 	"io"
 	"net/http"
 	"os"
@@ -51,14 +47,7 @@ type BDDContext struct {
 	defaultFormat          string
 	defaultEndpoint        string
 	connectClient          genconnect.ImageProcessorServiceClient
-	currentImage           []byte
-	currentImagePNG        []byte
-	currentImageWidth      int32
-	currentImageHeight     int32
-	currentChannels        int32
-	processedImage         []byte
 	lastError              error
-	checksums              map[string]string
 	inputSources           []*pb.InputSource
 	availableImages        []*pb.StaticImage
 	configClient           genconnect.ConfigServiceClient
@@ -90,17 +79,13 @@ func NewBDDContext(serviceBaseURL string) *BDDContext {
 	configClient := genconnect.NewConfigServiceClient(httpClient, serviceBaseURL)
 	fileClient := genconnect.NewFileServiceClient(httpClient, serviceBaseURL)
 
-	ctx := &BDDContext{
+	return &BDDContext{
 		httpClient:     httpClient,
 		serviceBaseURL: serviceBaseURL,
 		connectClient:  connectClient,
 		configClient:   configClient,
 		fileClient:     fileClient,
-		checksums:      make(map[string]string),
 	}
-
-	ctx.loadChecksums()
-	return ctx
 }
 
 func (c *BDDContext) GivenTheServiceIsRunning() error {
@@ -290,357 +275,6 @@ func (c *BDDContext) ThenTheResponseShouldContainHealthStatus(status string) err
 	return nil
 }
 
-func (c *BDDContext) loadChecksums() {
-	checksumPath := filepath.Join("testdata", "checksums.json")
-	data, err := os.ReadFile(checksumPath)
-	if err != nil {
-		return
-	}
-
-	var checksumData struct {
-		Checksums []struct {
-			Image         string `json:"image"`
-			Filter        string `json:"filter"`
-			Accelerator   string `json:"accelerator"`
-			GrayscaleType string `json:"grayscale_type"`
-			Checksum      string `json:"checksum"`
-		} `json:"checksums"`
-	}
-
-	if err := json.Unmarshal(data, &checksumData); err != nil {
-		return
-	}
-
-	for _, entry := range checksumData.Checksums {
-		key := fmt.Sprintf("%s_%s_%s_%s", entry.Image, entry.Filter, entry.Accelerator, entry.GrayscaleType)
-		c.checksums[key] = entry.Checksum
-	}
-}
-
-func (c *BDDContext) GivenIHaveImage(imageName string) error {
-	imagePath := repoPath("data", imageName)
-
-	pngData, err := os.ReadFile(imagePath)
-	if err != nil {
-		return fmt.Errorf("failed to read PNG file %s: %w", imageName, err)
-	}
-	c.currentImagePNG = pngData
-
-	file, err := os.Open(imagePath)
-	if err != nil {
-		return fmt.Errorf("failed to open image %s: %w", imageName, err)
-	}
-	defer file.Close()
-
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return fmt.Errorf("failed to decode image: %w", err)
-	}
-
-	bounds := img.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
-
-	rawData := make([]byte, width*height*3)
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			idx := (y*width + x) * 3
-			rawData[idx] = byte(r >> 8)
-			rawData[idx+1] = byte(g >> 8)
-			rawData[idx+2] = byte(b >> 8)
-		}
-	}
-
-	c.currentImage = rawData
-	c.currentImageWidth = int32(width)
-	c.currentImageHeight = int32(height)
-	c.currentChannels = 3
-
-	return nil
-}
-
-func (c *BDDContext) WhenICallProcessImageWith(filter, accelerator, grayscaleType string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	filterEnum := parseFilterType(filter)
-	acceleratorEnum := parseAcceleratorType(accelerator)
-	grayscaleEnum := parseGrayscaleType(grayscaleType)
-
-	req := &pb.ProcessImageRequest{
-		ImageData:     c.currentImage,
-		Width:         c.currentImageWidth,
-		Height:        c.currentImageHeight,
-		Channels:      c.currentChannels,
-		Filters:       []pb.FilterType{filterEnum},
-		Accelerator:   acceleratorEnum,
-		GrayscaleType: grayscaleEnum,
-	}
-
-	resp, err := c.connectClient.ProcessImage(ctx, connect.NewRequest(req))
-	if err != nil {
-		c.lastError = err
-		return nil
-	}
-
-	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
-	c.processedImage = resp.Msg.ImageData
-	c.lastError = nil
-
-	if resp.Msg.Code != 0 {
-		c.lastError = fmt.Errorf("processing failed: %s", resp.Msg.Message)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenICallProcessImageWithBlurFilter(accelerator string, kernelSize int, sigma float64, borderMode string, separable bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	acceleratorEnum := parseAcceleratorType(accelerator)
-
-	borderModeEnum := pb.BorderMode_BORDER_MODE_REFLECT
-	switch borderMode {
-	case "CLAMP":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_CLAMP
-	case "REFLECT":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_REFLECT
-	case "WRAP":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_WRAP
-	}
-
-	blurParams := &pb.GaussianBlurParameters{
-		KernelSize: int32(kernelSize),
-		Sigma:      float32(sigma),
-		BorderMode: borderModeEnum,
-		Separable:  separable,
-	}
-
-	req := &pb.ProcessImageRequest{
-		ImageData:     c.currentImage,
-		Width:         c.currentImageWidth,
-		Height:        c.currentImageHeight,
-		Channels:      c.currentChannels,
-		Filters:       []pb.FilterType{pb.FilterType_FILTER_TYPE_BLUR},
-		Accelerator:   acceleratorEnum,
-		GrayscaleType: pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED,
-		BlurParams:    blurParams,
-	}
-
-	resp, err := c.connectClient.ProcessImage(ctx, connect.NewRequest(req))
-	if err != nil {
-		c.lastError = err
-		return nil
-	}
-
-	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
-	c.processedImage = resp.Msg.ImageData
-	c.lastError = nil
-
-	if resp.Msg.Code != 0 {
-		c.lastError = fmt.Errorf("processing failed: %s", resp.Msg.Message)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenICallProcessImageWithMultipleFilters(filters string, accelerator string, grayscaleType string, blurKernelSize int, blurSigma float64, blurBorderMode string, blurSeparable bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	acceleratorEnum := parseAcceleratorType(accelerator)
-	grayscaleEnum := parseGrayscaleType(grayscaleType)
-
-	var protoFilters []pb.FilterType
-	var blurParams *pb.GaussianBlurParameters
-
-	if filters == "GRAYSCALE_AND_BLUR" {
-		protoFilters = []pb.FilterType{pb.FilterType_FILTER_TYPE_GRAYSCALE, pb.FilterType_FILTER_TYPE_BLUR}
-	} else if filters == "BLUR_AND_GRAYSCALE" {
-		protoFilters = []pb.FilterType{pb.FilterType_FILTER_TYPE_BLUR, pb.FilterType_FILTER_TYPE_GRAYSCALE}
-	} else {
-		return fmt.Errorf("unsupported filter combination: %s", filters)
-	}
-
-	borderModeEnum := pb.BorderMode_BORDER_MODE_REFLECT
-	switch blurBorderMode {
-	case "CLAMP":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_CLAMP
-	case "REFLECT":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_REFLECT
-	case "WRAP":
-		borderModeEnum = pb.BorderMode_BORDER_MODE_WRAP
-	}
-
-	blurParams = &pb.GaussianBlurParameters{
-		KernelSize: int32(blurKernelSize),
-		Sigma:      float32(blurSigma),
-		BorderMode: borderModeEnum,
-		Separable:  blurSeparable,
-	}
-
-	req := &pb.ProcessImageRequest{
-		ImageData:     c.currentImage,
-		Width:         c.currentImageWidth,
-		Height:        c.currentImageHeight,
-		Channels:      c.currentChannels,
-		Filters:       protoFilters,
-		Accelerator:   acceleratorEnum,
-		GrayscaleType: grayscaleEnum,
-		BlurParams:    blurParams,
-	}
-
-	resp, err := c.connectClient.ProcessImage(ctx, connect.NewRequest(req))
-	if err != nil {
-		c.lastError = err
-		return nil
-	}
-
-	c.lastResponse = &http.Response{StatusCode: http.StatusOK}
-	c.processedImage = resp.Msg.ImageData
-	c.lastError = nil
-
-	if resp.Msg.Code != 0 {
-		c.lastError = fmt.Errorf("processing failed: %s", resp.Msg.Message)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) WhenICallProcessImageWithInvalidData(errorType string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	var req *pb.ProcessImageRequest
-
-	switch errorType {
-	case "empty_image":
-		req = &pb.ProcessImageRequest{
-			ImageData:   []byte{},
-			Width:       0,
-			Height:      0,
-			Channels:    0,
-			Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
-		}
-	case "zero_dimensions":
-		req = &pb.ProcessImageRequest{
-			ImageData:   c.currentImage,
-			Width:       0,
-			Height:      0,
-			Channels:    c.currentChannels,
-			Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
-		}
-	case "invalid_channels":
-		req = &pb.ProcessImageRequest{
-			ImageData:   c.currentImage,
-			Width:       c.currentImageWidth,
-			Height:      c.currentImageHeight,
-			Channels:    0,
-			Filters:     []pb.FilterType{pb.FilterType_FILTER_TYPE_NONE},
-			Accelerator: pb.AcceleratorType_ACCELERATOR_TYPE_CUDA,
-		}
-	}
-
-	_, err := c.connectClient.ProcessImage(ctx, connect.NewRequest(req))
-	c.lastError = err
-	return nil
-}
-
-func (c *BDDContext) WhenICallStreamProcessVideo() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	stream := c.connectClient.StreamProcessVideo(ctx)
-	err := stream.CloseRequest()
-	if err != nil {
-		c.lastError = err
-		return nil
-	}
-
-	_, err = stream.Receive()
-	c.lastError = err
-	return nil
-}
-
-func (c *BDDContext) ThenTheProcessingShouldSucceed() error {
-	if c.lastError != nil {
-		return fmt.Errorf("expected success but got error: %w", c.lastError)
-	}
-	return nil
-}
-
-func (c *BDDContext) ThenTheProcessingShouldFail() error {
-	if c.lastError == nil {
-		return fmt.Errorf("expected error but processing succeeded")
-	}
-	return nil
-}
-
-func (c *BDDContext) ThenTheImageChecksumShouldMatch(imageName, filter, accelerator, grayscaleType string) error {
-	if c.processedImage == nil {
-		return fmt.Errorf("no processed image available")
-	}
-
-	actualChecksum := calculateChecksum(c.processedImage)
-	key := fmt.Sprintf("%s_%s_%s_%s", imageName, filter, accelerator, grayscaleType)
-	expectedChecksum, exists := c.checksums[key]
-
-	if !exists {
-		return fmt.Errorf("no checksum found for key: %s (available keys: %v)", key, c.getChecksumKeys())
-	}
-
-	if actualChecksum != expectedChecksum {
-		return fmt.Errorf("checksum mismatch for %s: expected %s, got %s", key, expectedChecksum[:16]+"...", actualChecksum[:16]+"...")
-	}
-
-	return nil
-}
-
-func (c *BDDContext) ThenTheResponseShouldBeUnimplemented() error {
-	if c.lastError == nil {
-		return fmt.Errorf("expected Unimplemented error but got success")
-	}
-
-	errorStr := c.lastError.Error()
-	if !bytes.Contains([]byte(errorStr), []byte("unimplemented")) &&
-		!bytes.Contains([]byte(errorStr), []byte("Unimplemented")) &&
-		!bytes.Contains([]byte(errorStr), []byte("Not Supported")) {
-		return fmt.Errorf("expected Unimplemented error but got: %w", c.lastError)
-	}
-
-	return nil
-}
-
-func (c *BDDContext) getChecksumKeys() []string {
-	keys := make([]string, 0, len(c.checksums))
-	for k := range c.checksums {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func calculateChecksum(data []byte) string {
-	hash := sha256.Sum256(data)
-	return hex.EncodeToString(hash[:])
-}
-
-func parseFilterType(filter string) pb.FilterType {
-	switch filter {
-	case "FILTER_TYPE_NONE", "NONE":
-		return pb.FilterType_FILTER_TYPE_NONE
-	case "FILTER_TYPE_GRAYSCALE", "GRAYSCALE":
-		return pb.FilterType_FILTER_TYPE_GRAYSCALE
-	case "FILTER_TYPE_BLUR", "BLUR":
-		return pb.FilterType_FILTER_TYPE_BLUR
-	default:
-		return pb.FilterType_FILTER_TYPE_UNSPECIFIED
-	}
-}
-
 func parseAcceleratorType(accelerator string) pb.AcceleratorType {
 	switch accelerator {
 	case "ACCELERATOR_TYPE_CUDA", "CUDA", "GPU":
@@ -649,23 +283,6 @@ func parseAcceleratorType(accelerator string) pb.AcceleratorType {
 		return pb.AcceleratorType_ACCELERATOR_TYPE_CPU
 	default:
 		return pb.AcceleratorType_ACCELERATOR_TYPE_UNSPECIFIED
-	}
-}
-
-func parseGrayscaleType(gsType string) pb.GrayscaleType {
-	switch gsType {
-	case "GRAYSCALE_TYPE_BT601", "BT601":
-		return pb.GrayscaleType_GRAYSCALE_TYPE_BT601
-	case "GRAYSCALE_TYPE_BT709", "BT709":
-		return pb.GrayscaleType_GRAYSCALE_TYPE_BT709
-	case "GRAYSCALE_TYPE_AVERAGE", "AVERAGE":
-		return pb.GrayscaleType_GRAYSCALE_TYPE_AVERAGE
-	case "GRAYSCALE_TYPE_LIGHTNESS", "LIGHTNESS":
-		return pb.GrayscaleType_GRAYSCALE_TYPE_LIGHTNESS
-	case "GRAYSCALE_TYPE_LUMINOSITY", "LUMINOSITY":
-		return pb.GrayscaleType_GRAYSCALE_TYPE_LUMINOSITY
-	default:
-		return pb.GrayscaleType_GRAYSCALE_TYPE_UNSPECIFIED
 	}
 }
 

@@ -1,67 +1,50 @@
 # Test Data Directory
 
-This directory contains checksums for integration tests.
+This directory is a placeholder for acceptance test data files.
 
-## Images
+## Current State
 
-Test images are loaded from the project's `data/` directory to avoid duplication:
-- `../../../../../data/lena.png`: Standard test image used for image processing validation
+This directory is currently empty. All test data used by the acceptance tests is generated programmatically at runtime or referenced from the project's `data/` directory.
 
-## Checksums
+## Test Data Sources
 
-The `checksums.json` file contains SHA-256 checksums of processed images for each combination of:
-- Image file
-- Filter type (NONE, GRAYSCALE)
-- Accelerator type (GPU, CPU)
-- Grayscale algorithm (BT601, BT709, AVERAGE, LIGHTNESS, LUMINOSITY)
+### Static Images
 
-## Generating Checksums
+Static images served by the service are loaded from `data/static_images/`:
+- `airplane.png`, `barbara.png`, `cameraman.png`, `couple.png`, `goldhill.png`
+- `house.png`, `lena.png`, `mandrill.png`, `peppers.png`, `sailboat.png`
 
-**Prerequisites:**
-1. Ensure the CUDA service is running on `https://localhost:8443`
-2. Make sure the service has GPU access (or use CPU-only mode)
+These are validated by the `available_images.feature` test scenarios.
 
-**To generate checksums:**
+### Videos
 
-```bash
-cd integration/tests/acceptance/scripts
-./run_checksum_generation.sh
-```
+Video files served by the service are loaded from `data/videos/`:
+- `sample.mp4`, `test-small.mp4`, `e2e-test.mp4`
 
-Or manually:
+### Video Previews
 
-```bash
-cd integration/tests/acceptance/scripts
-go run generate_checksums.go https://localhost:8443
-```
+Preview thumbnails for videos are stored in `data/video_previews/`:
+- Generated automatically when videos are uploaded
+- Named as `{video_id}.png`
 
-This will:
-1. Load each test image
-2. Process it with all filter/accelerator/grayscale combinations
-3. Calculate SHA-256 checksums of the results
-4. Save checksums to `testdata/checksums.json`
+### Models
 
-## Checksum Format
+YOLO detection models are stored in `data/models/`:
+- `yolov10n.onnx`
 
-```json
-{
-  "generated_at": "2024-01-01T12:00:00Z",
-  "checksums": [
-    {
-      "image": "lena.png",
-      "filter": "FILTER_TYPE_NONE",
-      "accelerator": "ACCELERATOR_TYPE_CUDA",
-      "grayscale_type": "",
-      "checksum": "abc123...",
-      "width": 512,
-      "height": 512,
-      "channels": 4
-    }
-  ]
-}
-```
+### Programmatically Generated Test Data
 
-## Usage in Tests
+The following test data is created at runtime by the test step definitions (see `steps/bdd_context.go`):
 
-Tests automatically load checksums from `checksums.json` and compare them against processed images to validate that image processing produces consistent results.
+- **PNG images** for upload tests: Generated via `createTestPNGImage()` (100x100 minimal valid PNG)
+- **MP4 videos** for upload tests: Generated via `createTestMP4Video()` (minimal valid ftyp+mdat structure)
+- **Large file payloads**: Allocated in memory to test size limit validation (11MB for images, 101MB for videos)
+- **Invalid format payloads**: Small byte arrays with incorrect magic bytes (JPEG header for PNG tests, AVI header for MP4 tests)
 
+### External Test Data
+
+Some video upload tests read real video files from `data/videos/test-small.mp4` when available (e.g., the `preview-test.mp4` upload scenario).
+
+## Adding Test Data Files
+
+If checksum files or other static test data are needed in the future, place them in this directory and update this README accordingly.

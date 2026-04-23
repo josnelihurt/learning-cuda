@@ -5,7 +5,6 @@ type Image struct {
 	Data   []byte
 	Width  int
 	Height int
-	Format string
 }
 
 // FilterType represents the type of filter to apply
@@ -15,6 +14,7 @@ const (
 	FilterNone      FilterType = "none"
 	FilterGrayscale FilterType = "grayscale"
 	FilterBlur      FilterType = "blur"
+	FilterModel     FilterType = "model_inference"
 )
 
 // AcceleratorType represents the processing unit to use

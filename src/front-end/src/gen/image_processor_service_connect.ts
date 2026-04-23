@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetVersionInfoRequest, GetVersionInfoResponse, ListFiltersRequest, ListFiltersResponse, ProcessImageRequest, ProcessImageResponse, StartVideoPlaybackRequest, StartVideoPlaybackResponse, StopVideoPlaybackRequest, StopVideoPlaybackResponse } from "./image_processor_service_pb.js";
+import { GetVersionInfoRequest, GetVersionInfoResponse, ListFiltersRequest, ListFiltersResponse, StartVideoPlaybackRequest, StartVideoPlaybackResponse, StopVideoPlaybackRequest, StopVideoPlaybackResponse } from "./image_processor_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -12,15 +12,6 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const ImageProcessorService = {
   typeName: "cuda_learning.ImageProcessorService",
   methods: {
-    /**
-     * @generated from rpc cuda_learning.ImageProcessorService.ProcessImage
-     */
-    processImage: {
-      name: "ProcessImage",
-      I: ProcessImageRequest,
-      O: ProcessImageResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * @generated from rpc cuda_learning.ImageProcessorService.ListFilters
      */
@@ -47,18 +38,6 @@ export const ImageProcessorService = {
       I: StopVideoPlaybackRequest,
       O: StopVideoPlaybackResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * TODO: buf lint — ProcessImageRequest/Response reused across multiple RPCs and not named
-     * StreamProcessVideoRequest/Response; rename when this RPC is next modified.
-     *
-     * @generated from rpc cuda_learning.ImageProcessorService.StreamProcessVideo
-     */
-    streamProcessVideo: {
-      name: "StreamProcessVideo",
-      I: ProcessImageRequest,
-      O: ProcessImageResponse,
-      kind: MethodKind.BiDiStreaming,
     },
     /**
      * @generated from rpc cuda_learning.ImageProcessorService.GetVersionInfo

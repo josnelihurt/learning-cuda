@@ -3,6 +3,7 @@ import { useWebRTCStream } from '@/presentation/hooks/useWebRTCStream';
 import { VideoSourceSelector } from './VideoSourceSelector';
 import { VideoCanvas } from './VideoCanvas';
 import type { StaticImage } from '@/gen/common_pb';
+import type { Detection } from '@/gen/image_processor_service_pb';
 import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import styles from './VideoStreamer.module.css';
 
@@ -21,6 +22,7 @@ export function VideoStreamer(): ReactElement {
     type: 'camera',
   });
   const [availableVideos] = useState<StaticImage[]>([]);
+  const [detections, setDetections] = useState<Detection[]>([]);
 
   const handleSourceChange = useCallback((source: { type: 'camera' | 'file'; id?: string }) => {
     setSelectedSource(source);
@@ -33,6 +35,7 @@ export function VideoStreamer(): ReactElement {
 
   const handleStopStream = useCallback(async () => {
     await stopStream();
+    setDetections([]);
   }, [stopStream]);
 
   const isDisabled = connectionState === 'connecting';
@@ -82,7 +85,19 @@ export function VideoStreamer(): ReactElement {
 
       <div className={styles.canvas}>
         {isStreaming ? (
-          <VideoCanvas width={640} height={480} />
+          <VideoCanvas 
+            width={640} 
+            height={480} 
+            detections={detections.map(d => ({
+              x: d.x,
+              y: d.y,
+              width: d.width,
+              height: d.height,
+              className: d.className,
+              confidence: d.confidence,
+              classId: d.classId,
+            }))}
+          />
         ) : (
           <div className={styles.emptyState} data-testid="empty-state">
             <h4>No Stream Active</h4>

@@ -18,6 +18,8 @@ export interface IWebRTCService {
   setupPingChannel(sessionId: string): Promise<void>;
   createSession(sourceId: string, options?: CreateWebRTCSessionOptions): Promise<WebRTCSession>;
   getDataChannel(sessionId: string): RTCDataChannel | null;
+  getPeerConnection(sessionId: string): RTCPeerConnection | null;
+  waitForTransportReady(sessionId: string, timeoutMs?: number): Promise<RTCDataChannel>;
   sendControlRequest(sessionId: string, request: ProcessImageRequest): void;
   closeSession(sessionId: string): Promise<void>;
   startHeartbeat(sessionId: string, intervalMs: number): void;

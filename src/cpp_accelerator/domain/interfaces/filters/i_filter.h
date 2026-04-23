@@ -4,7 +4,7 @@
 
 namespace jrb::domain::interfaces {
 
-enum class FilterType { GRAYSCALE, BLUR };
+enum class FilterType { GRAYSCALE, BLUR, MODEL_INFERENCE };
 
 class IFilter {
 public:

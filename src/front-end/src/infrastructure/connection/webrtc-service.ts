@@ -17,12 +17,16 @@ import {
 import { ProcessImageRequest } from '@/gen/image_processor_service_pb';
 import { WebRTCSignalingService } from '@/gen/webrtc_signal_connect';
 import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
+import { nextMessageId, packMessage } from '@/infrastructure/transport/data-channel-framing';
 
 type ConnectionState = 'connected' | 'disconnected' | 'connecting' | 'error';
 
 const DEFAULT_POLL_TIMEOUT_MS = 25_000;
 const RETRY_DELAY_MS = 1_000;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 10_000;
+const HEARTBEAT_STALE_THRESHOLD_MS = 15_000;
+const HEARTBEAT_MAX_CONSECUTIVE_FAILURES = 3;
+const ICE_GATHERING_TIMEOUT_MS = 1_500;
 
 export class WebRTCService implements IWebRTCService {
   private initialized = false;
@@ -30,6 +34,7 @@ export class WebRTCService implements IWebRTCService {
   private sessions: Map<string, WebRTCSession> = new Map();
   private peerConnections: Map<string, RTCPeerConnection> = new Map();
   private dataChannels: Map<string, RTCDataChannel> = new Map();
+  private detectionChannels: Map<string, RTCDataChannel> = new Map();
   private remoteStreamHandlers: Map<string, (stream: MediaStream) => void> = new Map();
   private remoteStreams: Map<string, MediaStream> = new Map();
   private pollControllers: Map<string, AbortController> = new Map();
@@ -39,6 +44,10 @@ export class WebRTCService implements IWebRTCService {
   private pendingIceCandidates: Map<string, RTCIceCandidate[]> = new Map();
   private sessionNegotiated: Map<string, boolean> = new Map();
   private heartbeatTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private lastHeartbeatSentAt: Map<string, number> = new Map();
+  private lastHeartbeatAckAt: Map<string, number> = new Map();
+  private heartbeatConsecutiveFailures: Map<string, number> = new Map();
+  private reconnectingSessions: Set<string> = new Set();
   private connectionState: ConnectionState = 'disconnected';
   private lastRequest: string | null = null;
   private lastRequestTime: Date | null = null;
@@ -202,7 +211,9 @@ export class WebRTCService implements IWebRTCService {
 
     dataChannel.onopen = () => {
       logger.debug(`[WebRTC:${sessionId}] Data channel opened`);
-      dataChannel.send('ping');
+      for (const chunk of packMessage(nextMessageId(), new TextEncoder().encode('ping'))) {
+        dataChannel.send(chunk);
+      }
       logger.debug(`[WebRTC:${sessionId}] Sent: ping`);
     };
 
@@ -295,7 +306,7 @@ export class WebRTCService implements IWebRTCService {
 
     const shouldUseDataChannel = options.useDataChannel ?? true;
     if (shouldUseDataChannel) {
-      const dataChannel = this.createDataChannel(peerConnection, 'ping-pong-channel');
+      const dataChannel = this.createDataChannel(peerConnection, 'process-image');
       if (!dataChannel) {
         logger.debug(`[WebRTC:${sessionId}] Failed to create data channel`);
         peerConnection.close();
@@ -303,6 +314,20 @@ export class WebRTCService implements IWebRTCService {
       }
       this.dataChannels.set(sessionId, dataChannel);
       this.configureDataChannelHandlers(sessionId, dataChannel, peerConnection);
+
+      // Opening multiple SCTP data channels concurrently in the same SDP
+      // triggers a DCEP race with libdatachannel on the C++ side that causes
+      // the SCTP stream to close within milliseconds of opening. Detections
+      // for frame-processing mode travel inside ProcessImageResponse, so the
+      // auxiliary channel is only required when video frames flow via an
+      // RTP media track (camera-mediatrack) and responses are async.
+      if (sessionMode === 'camera-mediatrack') {
+        const detectionChannel = this.createDataChannel(peerConnection, 'detections');
+        if (detectionChannel) {
+          detectionChannel.binaryType = 'arraybuffer';
+          this.detectionChannels.set(sessionId, detectionChannel);
+        }
+      }
     }
 
     try {
@@ -366,10 +391,12 @@ export class WebRTCService implements IWebRTCService {
     }
 
     const timer = setInterval(() => {
-      this.sendHeartbeat(sessionId);
+      this.sendHeartbeat(sessionId, 'interval');
+      this.evaluateHeartbeatHealth(sessionId);
     }, effectiveInterval);
 
     this.heartbeatTimers.set(sessionId, timer);
+    this.lastHeartbeatAckAt.set(sessionId, Date.now());
     logger.debug(`[WebRTC:${sessionId}] Heartbeat started`, {
       'webrtc.heartbeat_interval_ms': effectiveInterval,
     });
@@ -393,9 +420,13 @@ export class WebRTCService implements IWebRTCService {
     }
   }
 
-  private sendHeartbeat(sessionId: string): void {
+  private sendHeartbeat(sessionId: string, reason: 'open' | 'interval' | 'guarded-resend'): void {
     const dataChannel = this.dataChannels.get(sessionId);
     if (!dataChannel || dataChannel.readyState !== 'open') {
+      logger.debug(`[WebRTC:${sessionId}] Heartbeat skipped: data channel not open`, {
+        'heartbeat.reason': reason,
+        'data_channel.ready_state': dataChannel?.readyState ?? 'missing',
+      });
       return;
     }
 
@@ -405,13 +436,73 @@ export class WebRTCService implements IWebRTCService {
     const payload = new ProcessImageRequest({ sessionId, apiVersion: '1.0' }).toBinary();
 
     try {
-      dataChannel.send(payload);
+      for (const chunk of packMessage(nextMessageId(), payload)) {
+        dataChannel.send(chunk);
+      }
+      this.lastHeartbeatSentAt.set(sessionId, Date.now());
+      this.heartbeatConsecutiveFailures.set(sessionId, 0);
+      logger.verbose(`[WebRTC:${sessionId}] Heartbeat sent`, {
+        'heartbeat.reason': reason,
+      });
     } catch (error) {
+      const failures = (this.heartbeatConsecutiveFailures.get(sessionId) ?? 0) + 1;
+      this.heartbeatConsecutiveFailures.set(sessionId, failures);
       logger.debug(`[WebRTC:${sessionId}] Heartbeat send failed`, {
         'error.message': error instanceof Error ? error.message : String(error),
         'data_channel.ready_state': dataChannel.readyState,
+        'heartbeat.reason': reason,
+        'heartbeat.consecutive_failures': failures,
       });
     }
+  }
+
+  private evaluateHeartbeatHealth(sessionId: string): void {
+    const lastSentAt = this.lastHeartbeatSentAt.get(sessionId) ?? 0;
+    const lastAckAt = this.lastHeartbeatAckAt.get(sessionId) ?? 0;
+    const failures = this.heartbeatConsecutiveFailures.get(sessionId) ?? 0;
+    const now = Date.now();
+
+    if (lastAckAt > 0 && now - lastAckAt > DEFAULT_HEARTBEAT_INTERVAL_MS) {
+      this.sendHeartbeat(sessionId, 'guarded-resend');
+    }
+
+    if (failures >= HEARTBEAT_MAX_CONSECUTIVE_FAILURES) {
+      logger.warn(`[WebRTC:${sessionId}] Heartbeat degraded: repeated send failures`, {
+        'heartbeat.consecutive_failures': failures,
+      });
+      this.triggerReconnect(sessionId, 'send-failures');
+      return;
+    }
+
+    if (lastSentAt > 0 && now - lastSentAt > HEARTBEAT_STALE_THRESHOLD_MS) {
+      logger.warn(`[WebRTC:${sessionId}] Heartbeat degraded: stale outbound heartbeat`, {
+        'heartbeat.last_sent_ms_ago': now - lastSentAt,
+        'heartbeat.last_ack_ms_ago': lastAckAt > 0 ? now - lastAckAt : -1,
+      });
+      this.triggerReconnect(sessionId, 'stale-heartbeat');
+    }
+  }
+
+  private triggerReconnect(
+    sessionId: string,
+    reason: 'send-failures' | 'stale-heartbeat' | 'data-channel-error' | 'data-channel-closed'
+  ): void {
+    if (this.reconnectingSessions.has(sessionId)) {
+      return;
+    }
+
+    this.reconnectingSessions.add(sessionId);
+    logger.warn(`[WebRTC:${sessionId}] Triggering controlled reconnect`, {
+      'reconnect.reason': reason,
+    });
+
+    void this.closeSession(sessionId).catch((error) => {
+      logger.error(`[WebRTC:${sessionId}] Controlled reconnect close failed`, {
+        'error.message': error instanceof Error ? error.message : String(error),
+      });
+    }).finally(() => {
+      this.reconnectingSessions.delete(sessionId);
+    });
   }
 
   getActiveSessions(): WebRTCSession[] {
@@ -422,6 +513,10 @@ export class WebRTCService implements IWebRTCService {
     return this.dataChannels.get(sessionId) ?? null;
   }
 
+  getDetectionDataChannel(sessionId: string): RTCDataChannel | null {
+    return this.detectionChannels.get(sessionId) ?? null;
+  }
+
   sendControlRequest(sessionId: string, request: ProcessImageRequest): void {
     const dataChannel = this.dataChannels.get(sessionId);
     if (!dataChannel || dataChannel.readyState !== 'open') {
@@ -429,7 +524,9 @@ export class WebRTCService implements IWebRTCService {
     }
 
     const payload = request.toBinary();
-    dataChannel.send(payload);
+    for (const chunk of packMessage(nextMessageId(), payload)) {
+      dataChannel.send(chunk);
+    }
   }
 
   getConnectionStatus(): { state: ConnectionState; lastRequest: string | null; lastRequestTime: Date | null } {
@@ -476,23 +573,77 @@ export class WebRTCService implements IWebRTCService {
         return;
       }
 
+      // Once the peer connection is established, discard late trickle candidates.
+      // libdatachannel (juice) reinitializes the ICE agent when new remote candidates
+      // arrive post-connection, which tears down the DTLS/SCTP transport and aborts
+      // the data channel within milliseconds of it opening. The already-selected pair
+      // keeps the connection alive; late srflx/relay candidates are redundant on LAN.
+      if (
+        peerConnection.connectionState === 'connected' ||
+        peerConnection.iceConnectionState === 'connected' ||
+        peerConnection.iceConnectionState === 'completed'
+      ) {
+        logger.debug(`[WebRTC:${sessionId}] Discarding late trickle ICE candidate`, {
+          'webrtc.candidate_type': event.candidate.type ?? 'unknown',
+          'peer_connection.state': peerConnection.connectionState,
+          'peer_connection.ice_connection_state': peerConnection.iceConnectionState,
+        });
+        return;
+      }
+
       void this.sendIceCandidateSafe(sessionId, event.candidate);
     };
 
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
+    // Block until ICE gathering completes so the SDP offer embeds every candidate.
+    // libdatachannel/juice on the peer side reinitializes the ICE agent when new
+    // remote candidates arrive after the DTLS/SCTP transport is established, which
+    // aborts the data channel milliseconds after it opens. Non-trickle negotiation
+    // avoids that race entirely; the modest extra setup latency is acceptable for
+    // a dev/LAN topology and still compatible with STUN over WAN.
+    await this.waitForIceGatheringComplete(peerConnection, ICE_GATHERING_TIMEOUT_MS);
+
+    const finalOfferSdp = peerConnection.localDescription?.sdp || offer.sdp || '';
+
     this.lastRequest = 'StartSession';
     this.lastRequestTime = new Date();
     const response = await this.signalingClient.startSession({
       sessionId,
-      sdpOffer: offer.sdp || '',
+      sdpOffer: finalOfferSdp,
     });
 
     await this.applyStartSessionResponse(sessionId, response);
 
     this.sessionNegotiated.set(sessionId, true);
-    await this.flushPendingIceCandidates(sessionId);
+    // Any candidates gathered after the SDP was serialized are redundant: they
+    // were not in the offer the peer parsed, and sending them now would trigger
+    // the exact post-connect ICE reset that we just avoided.
+    this.pendingIceCandidates.get(sessionId)?.splice(0);
+  }
+
+  private waitForIceGatheringComplete(
+    peerConnection: RTCPeerConnection,
+    timeoutMs: number
+  ): Promise<void> {
+    if (peerConnection.iceGatheringState === 'complete') {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      const settle = (): void => {
+        peerConnection.removeEventListener('icegatheringstatechange', onChange);
+        clearTimeout(timer);
+        resolve();
+      };
+      const onChange = (): void => {
+        if (peerConnection.iceGatheringState === 'complete') {
+          settle();
+        }
+      };
+      const timer = setTimeout(settle, timeoutMs);
+      peerConnection.addEventListener('icegatheringstatechange', onChange);
+    });
   }
 
   private async sendIceCandidateSafe(
@@ -519,21 +670,6 @@ export class WebRTCService implements IWebRTCService {
     }
   }
 
-  private async flushPendingIceCandidates(sessionId: string): Promise<void> {
-    const buffer = this.pendingIceCandidates.get(sessionId);
-    if (!buffer || buffer.length === 0) {
-      return;
-    }
-
-    const drained = buffer.splice(0, buffer.length);
-    logger.debug(`[WebRTC:${sessionId}] Flushing buffered ICE candidates`, {
-      'webrtc.flushed_candidates': drained.length,
-    });
-
-    for (const candidate of drained) {
-      await this.sendIceCandidateSafe(sessionId, candidate);
-    }
-  }
 
   private async applyStartSessionResponse(
     sessionId: string,
@@ -612,7 +748,18 @@ export class WebRTCService implements IWebRTCService {
     }
 
     if (caseName === 'startSessionResponse') {
+      if (this.sessionNegotiated.get(sessionId)) {
+        logger.debug(
+          `[WebRTC:${sessionId}] Ignoring duplicate startSessionResponse (already negotiated)`,
+          {
+            'peer_connection.signaling_state': peerConnection?.signalingState ?? 'unknown',
+          }
+        );
+        return;
+      }
       await this.applyStartSessionResponse(sessionId, message.message.value);
+      this.sessionNegotiated.set(sessionId, true);
+      this.pendingIceCandidates.get(sessionId)?.splice(0);
       return;
     }
 
@@ -644,12 +791,76 @@ export class WebRTCService implements IWebRTCService {
     }
 
     if (caseName === 'keepAlive') {
+      this.lastHeartbeatAckAt.set(sessionId, Date.now());
       logger.debug(`[WebRTC:${sessionId}] Keepalive received`);
     }
   }
 
   isDataChannelOpen(sessionId: string): boolean {
     return this.dataChannels.get(sessionId)?.readyState === 'open';
+  }
+
+  getPeerConnection(sessionId: string): RTCPeerConnection | null {
+    return this.peerConnections.get(sessionId) ?? null;
+  }
+
+  async waitForTransportReady(sessionId: string, timeoutMs = 10_000): Promise<RTCDataChannel> {
+    const started = Date.now();
+    await this.waitForDataChannelOpen(sessionId, timeoutMs);
+    const dataChannel = this.dataChannels.get(sessionId);
+    if (!dataChannel) {
+      throw new Error(`Data channel not found for session ${sessionId}`);
+    }
+    const peerConnection = this.peerConnections.get(sessionId);
+    if (!peerConnection) {
+      throw new Error(`Peer connection not found for session ${sessionId}`);
+    }
+    const remaining = Math.max(0, timeoutMs - (Date.now() - started));
+    await this.waitForSctpConnected(peerConnection, remaining);
+    return dataChannel;
+  }
+
+  private waitForSctpConnected(
+    peerConnection: RTCPeerConnection,
+    timeoutMs = 3_000
+  ): Promise<void> {
+    const sctp = peerConnection.sctp;
+    if (!sctp) {
+      return Promise.resolve();
+    }
+    if (sctp.state === 'connected') {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve, reject) => {
+      const started = Date.now();
+      const tick = (): void => {
+        const currentSctp = peerConnection.sctp;
+        const connectionState = peerConnection.connectionState;
+        if (connectionState === 'closed' || connectionState === 'failed') {
+          reject(
+            new Error(`Peer connection ${connectionState} while waiting for SCTP`)
+          );
+          return;
+        }
+        if (currentSctp && currentSctp.state === 'connected') {
+          resolve();
+          return;
+        }
+        if (Date.now() - started >= timeoutMs) {
+          // Degrade gracefully: do not block the caller forever. Consumers
+          // should still guard their sends, but at least the session proceeds.
+          logger.warn('[WebRTC] SCTP connected wait timed out, proceeding anyway', {
+            'sctp.state': currentSctp?.state ?? 'missing',
+            'peer.connection_state': connectionState,
+            'timeout_ms': timeoutMs,
+          });
+          resolve();
+          return;
+        }
+        setTimeout(tick, 15);
+      };
+      tick();
+    });
   }
 
   private waitForDataChannelOpen(sessionId: string, timeoutMs = 10_000): Promise<void> {
@@ -712,29 +923,69 @@ export class WebRTCService implements IWebRTCService {
       }
 
       logger.info(`[WebRTC:${sessionId}] Data channel opened`, debugInfo);
-      this.connectionState = 'connected';
-      this.lastRequest = 'Data channel open';
-      this.lastRequestTime = new Date();
-      this.startHeartbeat(sessionId, DEFAULT_HEARTBEAT_INTERVAL_MS);
+
+      // Chrome fires onopen as soon as the DCEP handshake accepts the channel,
+      // but the underlying RTCSctpTransport can still be in 'connecting'. A
+      // send() in that window raises OperationError: "Failure to send data"
+      // (errorDetail: data-channel-failure) and Chrome closes the channel.
+      // We must wait for sctp.state === 'connected' before exposing the
+      // channel as usable and before starting the heartbeat loop.
+      void this.waitForSctpConnected(peerConnection)
+        .then(() => {
+          if (dataChannel.readyState !== 'open') {
+            return;
+          }
+          this.connectionState = 'connected';
+          this.lastRequest = 'Data channel ready';
+          this.lastRequestTime = new Date();
+          this.startHeartbeat(sessionId, DEFAULT_HEARTBEAT_INTERVAL_MS);
+        })
+        .catch((error) => {
+          logger.error(`[WebRTC:${sessionId}] SCTP wait failed`, {
+            'error.message': error instanceof Error ? error.message : String(error),
+          });
+        });
     };
 
     dataChannel.onmessage = (event: MessageEvent) => {
+      this.lastHeartbeatAckAt.set(sessionId, Date.now());
       this.connectionState = 'connected';
       this.lastRequest = typeof event.data === 'string' ? 'Data channel message' : 'Binary frame received';
       this.lastRequestTime = new Date();
     };
 
-    dataChannel.onerror = (error: Event) => {
-      logger.error(`[WebRTC:${sessionId}] Data channel error`, {
-        'error.type': error.type,
+    dataChannel.onerror = (event: Event) => {
+      const rtcError = (event as RTCErrorEvent).error;
+      const errorInfo: Record<string, string | number | boolean> = {
+        'error.type': event.type,
         'data_channel.label': dataChannel.label,
         'data_channel.ready_state': dataChannel.readyState,
         'peer_connection.state': peerConnection.connectionState,
         'peer_connection.ice_connection_state': peerConnection.iceConnectionState,
-      });
+      };
+      if (rtcError) {
+        errorInfo['rtc_error.message'] = rtcError.message;
+        errorInfo['rtc_error.error_detail'] = rtcError.errorDetail;
+        if (rtcError.sctpCauseCode != null) {
+          errorInfo['rtc_error.sctp_cause_code'] = rtcError.sctpCauseCode;
+        }
+        if (rtcError.receivedAlert != null) {
+          errorInfo['rtc_error.received_alert'] = rtcError.receivedAlert;
+        }
+        if (rtcError.sentAlert != null) {
+          errorInfo['rtc_error.sent_alert'] = rtcError.sentAlert;
+        }
+      }
+      logger.error(`[WebRTC:${sessionId}] Data channel error`, errorInfo);
+      // Additional flat-string log so MCP transports that truncate object
+      // payloads still carry the full RTCError details in plain text.
+      logger.error(
+        `[WebRTC:${sessionId}] Data channel error (flat) ${JSON.stringify(errorInfo)}`
+      );
 
       if (dataChannel.readyState === 'closed') {
         this.connectionState = 'disconnected';
+        this.triggerReconnect(sessionId, 'data-channel-error');
       }
     };
 
@@ -745,6 +996,9 @@ export class WebRTCService implements IWebRTCService {
         'peer_connection.ice_connection_state': peerConnection.iceConnectionState,
       });
       this.connectionState = 'disconnected';
+      if (this.sessions.has(sessionId)) {
+        this.triggerReconnect(sessionId, 'data-channel-closed');
+      }
     };
   }
 
@@ -805,6 +1059,19 @@ export class WebRTCService implements IWebRTCService {
         this.connectionState = iceState === 'failed' ? 'error' : 'disconnected';
       }
     };
+
+    peerConnection.onicecandidateerror = (event: Event) => {
+      const iceEvent = event as RTCPeerConnectionIceErrorEvent;
+      const payload = {
+        errorCode: iceEvent.errorCode,
+        errorText: iceEvent.errorText,
+        address: iceEvent.address,
+        port: iceEvent.port,
+        url: iceEvent.url,
+        hostCandidate: iceEvent.hostCandidate,
+      };
+      logger.debug(`[WebRTC:${sessionId}] ICE candidate error ${JSON.stringify(payload)}`);
+    };
   }
 
   private handleSessionError(sessionId: string, error: Error): void {
@@ -826,6 +1093,10 @@ export class WebRTCService implements IWebRTCService {
   }
 
   private cleanupSession(sessionId: string): void {
+    // Delete from sessions map first so onclose/onconnectionstatechange handlers
+    // see sessions.has(sessionId) === false and skip triggerReconnect.
+    this.sessions.delete(sessionId);
+
     const heartbeatTimer = this.heartbeatTimers.get(sessionId);
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
@@ -834,6 +1105,10 @@ export class WebRTCService implements IWebRTCService {
 
     this.pendingIceCandidates.delete(sessionId);
     this.sessionNegotiated.delete(sessionId);
+    this.lastHeartbeatSentAt.delete(sessionId);
+    this.lastHeartbeatAckAt.delete(sessionId);
+    this.heartbeatConsecutiveFailures.delete(sessionId);
+    this.reconnectingSessions.delete(sessionId);
 
     const pollController = this.pollControllers.get(sessionId);
     if (pollController) {
@@ -868,7 +1143,18 @@ export class WebRTCService implements IWebRTCService {
       this.dataChannels.delete(sessionId);
     }
 
-    this.sessions.delete(sessionId);
+    const detectionChannel = this.detectionChannels.get(sessionId);
+    if (detectionChannel) {
+      try {
+        detectionChannel.close();
+      } catch (error) {
+        logger.debug(`[WebRTC:${sessionId}] Error closing detection channel`, {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      }
+      this.detectionChannels.delete(sessionId);
+    }
+
     this.remoteStreams.delete(sessionId);
     this.remoteStreamHandlers.delete(sessionId);
   }

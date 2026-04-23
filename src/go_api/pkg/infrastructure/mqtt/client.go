@@ -44,8 +44,7 @@ func NewClient(cfg config.MQTTConfig) (*Client, error) {
 	opts.AddBroker(brokerURL)
 	opts.SetClientID(cfg.ClientID)
 	opts.SetAutoReconnect(true)
-	opts.SetConnectRetry(true)
-	opts.SetConnectRetryInterval(5 * time.Second)
+	opts.SetConnectRetry(false)
 	opts.SetKeepAlive(30 * time.Second)
 	opts.SetPingTimeout(10 * time.Second)
 	opts.SetConnectTimeout(10 * time.Second)
@@ -88,32 +87,6 @@ func (c *Client) PublishPowerCommand(on bool) error {
 	}
 
 	log.Info().Str("topic", topic).Str("payload", payload).Msg("Power command published")
-
-	return nil
-}
-
-func (c *Client) SubscribeToSensor(callback func(power float64, timestamp string) error) error {
-	topic := fmt.Sprintf("tele/%s/SENSOR", c.config.Topic)
-
-	messageHandler := func(client mqtt.Client, msg mqtt.Message) {
-		var sensorData SensorData
-		if err := json.Unmarshal(msg.Payload(), &sensorData); err != nil {
-			return
-		}
-
-		if err := callback(sensorData.ENERGY.Power, sensorData.Time); err != nil {
-			return
-		}
-	}
-
-	token := c.client.Subscribe(topic, 0, messageHandler)
-	token.Wait()
-
-	if token.Error() != nil {
-		return fmt.Errorf("failed to subscribe to sensor topic: %w", token.Error())
-	}
-
-	log.Info().Str("topic", topic).Msg("Subscribed to sensor topic")
 
 	return nil
 }
@@ -224,64 +197,14 @@ func (c *Client) SubscribeToLWT(callback func(status string) error) error {
 	return nil
 }
 
-func (c *Client) RequestInfo1() error {
-	topic := fmt.Sprintf("cmnd/%s/INFO1", c.config.Topic)
-	token := c.client.Publish(topic, 0, false, "")
-	token.Wait()
-
-	if token.Error() != nil {
-		return fmt.Errorf("failed to request INFO1: %w", token.Error())
-	}
-
-	log.Info().Str("topic", topic).Msg("Requested INFO1")
-
-	return nil
-}
-
-func (c *Client) RequestInfo2() error {
-	topic := fmt.Sprintf("cmnd/%s/INFO2", c.config.Topic)
-	token := c.client.Publish(topic, 0, false, "")
-	token.Wait()
-
-	if token.Error() != nil {
-		return fmt.Errorf("failed to request INFO2: %w", token.Error())
-	}
-
-	log.Info().Str("topic", topic).Msg("Requested INFO2")
-
-	return nil
-}
-
-func (c *Client) RequestSensorStatus() error {
-	topic := fmt.Sprintf("cmnd/%s/STATUS", c.config.Topic)
-	token := c.client.Publish(topic, 0, false, "8")
-	token.Wait()
-
-	if token.Error() != nil {
-		return fmt.Errorf("failed to request sensor status: %w", token.Error())
-	}
-
-	log.Info().Str("topic", topic).Msg("Requested sensor status")
-
-	return nil
-}
-
 func (c *Client) RestartDevice() error {
 	return nil //DISABLED
-	topic := fmt.Sprintf("cmnd/%s/RESTART", c.config.Topic)
-	token := c.client.Publish(topic, 0, false, "1")
-	token.Wait()
-
-	if token.Error() != nil {
-		return fmt.Errorf("failed to restart device: %w", token.Error())
-	}
-
-	log.Info().Str("topic", topic).Msg("Restarted device")
-
-	return nil
 }
 
 func (c *Client) Disconnect() {
+	if c == nil || c.client == nil {
+		return
+	}
 	log.Info().Msg("Disconnecting MQTT client")
 	c.client.Disconnect(250)
 	log.Info().Msg("MQTT client disconnected")

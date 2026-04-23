@@ -138,7 +138,7 @@ func TestImageProcessorHandler_ListFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			sut := NewImageProcessorHandlerWithGRPC(nil, tt.provider, nil, nil, &mockAcceleratorGateway{})
+			sut := NewImageProcessorHandlerWithGRPC(tt.provider, nil, nil, &mockAcceleratorGateway{})
 			req := connect.NewRequest(&pb.ListFiltersRequest{})
 
 			// Act

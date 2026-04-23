@@ -53,7 +53,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base runtime-base integration-base proto cpp golang app cpp-accelerator web-frontend)
+ALL_STAGES=(proto-tools go-builder bazel-base yolo-tools yolo-model runtime-base integration-base proto cpp golang app cpp-accelerator web-frontend)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -156,6 +156,12 @@ cd "${REPO_ROOT}"
 
 IMAGE_BASE="${REGISTRY}/${BASE_IMAGE_PREFIX}"
 TARGETARCH="${ARCH}"
+# For local builds, use local registry for yolo-model-gen as well. For remote builds, default to GHCR.
+if [[ "${REGISTRY}" == "local" ]]; then
+  YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-local/${BASE_IMAGE_PREFIX}}"
+else
+  YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-ghcr.io/${BASE_IMAGE_PREFIX}}"
+fi
 
 print_stage_header() {
   local label="$1"
@@ -248,6 +254,30 @@ run_bazel_base() {
   build_and_tag "${version_tag}" "${latest_tag}" "src/cpp_accelerator/docker-build-base/Dockerfile" "true"
 }
 
+run_yolo_tools() {
+  local version
+  version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
+  local version_tag="${IMAGE_BASE}/base:yolo-tools-${version}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/base:yolo-tools-latest-${ARCH}"
+
+  print_stage_header "Building yolo tools base (${version})"
+  build_and_tag "${version_tag}" "${latest_tag}" \
+    "src/cpp_accelerator/yolo-model-gen/Dockerfile" "true" \
+    "--target" "tools"
+}
+
+run_yolo_model() {
+  local version
+  version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
+  local version_tag="${IMAGE_BASE}/yolo-model-gen:${version}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/yolo-model-gen:latest-${ARCH}"
+
+  print_stage_header "Building yolo model artifact (${version})"
+  build_and_tag "${version_tag}" "${latest_tag}" \
+    "src/cpp_accelerator/yolo-model-gen/Dockerfile" "true" \
+    "--target" "artifact"
+}
+
 run_runtime_base() {
   local version
   version="$(read_version "runtime/VERSION")"
@@ -288,8 +318,10 @@ run_proto_generated() {
 run_cpp_built() {
   local proto_version
   local cpp_version
+  local yolo_model_version
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
+  yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
   
@@ -311,6 +343,8 @@ run_cpp_built() {
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
+    "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
+    "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
   )
 
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
@@ -395,8 +429,10 @@ run_app_image() {
 run_cpp_accelerator_image() {
   local proto_version
   local cpp_version
+  local yolo_model_version
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
+  yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
 
   local app_tag="cpp-accelerator-${cpp_version}-proto${proto_version}"
   local version_tag="${IMAGE_BASE}/cpp-accelerator:${app_tag}-${ARCH}"
@@ -422,6 +458,8 @@ run_cpp_accelerator_image() {
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
+    "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
+    "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
   )
 
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
@@ -478,6 +516,12 @@ for stage in "${REQUESTED_STAGES[@]}"; do
       ;;
     bazel-base)
       run_bazel_base
+      ;;
+    yolo-tools)
+      run_yolo_tools
+      ;;
+    yolo-model)
+      run_yolo_model
       ;;
     runtime-base)
       run_runtime_base

@@ -46,6 +46,8 @@ cc_library(
         "//src/cpp_accelerator/infrastructure/cpu:grayscale_filter",
         "//src/cpp_accelerator/infrastructure/cuda:blur_processor",
         "//src/cpp_accelerator/infrastructure/cuda:grayscale_filter",
+        "//src/cpp_accelerator/infrastructure/cuda:i_yolo_detector",
+        "//src/cpp_accelerator/infrastructure/cuda:model_manager",
         "//proto:common_cc_proto",
         "//proto:image_processor_service_cc_proto",
         "@spdlog",

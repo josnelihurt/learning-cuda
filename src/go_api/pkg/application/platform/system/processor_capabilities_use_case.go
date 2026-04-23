@@ -14,16 +14,13 @@ const (
 )
 
 type ProcessorCapabilitiesUseCase struct {
-	cppRepo  processorCapabilitiesRepository
 	grpcRepo processorCapabilitiesRepository
 }
 
 func NewProcessorCapabilitiesUseCase(
-	cppRepo processorCapabilitiesRepository,
 	grpcRepo processorCapabilitiesRepository,
 ) *ProcessorCapabilitiesUseCase {
 	return &ProcessorCapabilitiesUseCase{
-		cppRepo:  cppRepo,
 		grpcRepo: grpcRepo,
 	}
 }

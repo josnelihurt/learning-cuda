@@ -20,6 +20,8 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 - **Accelerator Control Client** with mTLS outbound connections to Go cloud server
 - **Multiplexed bidirectional gRPC stream** for all commands (image processing, filters, version, signaling)
 - WebRTC signaling support for real-time video streaming
+- **YOLO object detection** via ONNX Runtime with CUDA Execution Provider
+- **Data channel framing** for structured detection result transport over WebRTC
 - Command pattern for program execution
 - Buffer pooling for memory efficiency
 - Configuration management system
@@ -63,6 +65,8 @@ graph TB
     subgraph "Infrastructure"
         CudaFilters[CUDA Filters]
         CpuFilters[CPU Filters]
+        YOLODetector[YOLO Detector]
+        ModelManager[Model Manager]
     end
     
     GoServer --> Registry
@@ -81,6 +85,8 @@ graph TB
     FilterPipeline --> IFilter
     IFilter --> CudaFilters
     IFilter --> CpuFilters
+    CudaFilters --> YOLODetector
+    YOLODetector --> ModelManager
     FilterPipeline --> ImageBuffer
 ```
 
@@ -98,6 +104,8 @@ graph TB
         AccelClient[AcceleratorControlClient]
         Provider[ProcessorEngineProvider]
         WebRTCPort[WebRTCManager]
+        DataChannelFraming[DataChannelFraming]
+        LiveVideoProcessor[LiveVideoProcessor]
     end
     
     subgraph "C++ Application Layer"
@@ -337,7 +345,10 @@ cpp_accelerator/
 │   │   ├── grayscale_kernel.cu/h
 │   │   ├── blur_kernel.cu/h
 │   │   ├── grayscale_filter.h/cpp
-│   │   └── blur_processor.h/wrapper.cpp
+│   │   ├── blur_processor.h/wrapper.cpp
+│   │   ├── yolo_detector.h/cpp        # YOLO object detection (ONNX Runtime)
+│   │   ├── model_manager.h/cpp        # ONNX model loading & management
+│   │   └── model_registry.h/cpp       # Model path registry
 │   ├── cpu/             # CPU fallback implementations
 │   │   ├── grayscale_filter.h/cpp
 │   │   └── blur_filter.h/cpp
@@ -356,6 +367,9 @@ cpp_accelerator/
 │   │   ├── processor_engine_adapter.h/cpp     # Adapter for ProcessorEngine
 │   │   ├── processor_engine_provider.h        # Provider interface
 │   │   ├── webrtc_manager.h/cpp               # WebRTC session management
+│   │   ├── data_channel_framing.h/cpp         # Binary framing protocol for WebRTC data channels
+│   │   ├── data_channel_framing_test.cpp      # Framing protocol tests
+│   │   ├── live_video_processor.h/cpp         # Real-time video frame processing
 │   │   └── main_client.cpp                    # Client entry point
 │   └── shared_lib/      # Shared library exports
 │       ├── processor_api.h
@@ -442,6 +456,16 @@ The library provides WebRTC-based real-time video streaming capabilities through
   - Receives signaling messages from AcceleratorControlClient
   - Cleans up inactive sessions
 
+- **DataChannelFraming** (`data_channel_framing.h/cpp`): Binary framing protocol for structured data transport over WebRTC data channels
+  - Encodes/decodes framed messages with type headers and payloads
+  - Supports detection results, frame metadata, and control messages
+  - Tests in `data_channel_framing_test.cpp`
+
+- **LiveVideoProcessor** (`live_video_processor.h/cpp`): Real-time video frame processing pipeline
+  - Integrates with WebRTC data channels for frame ingestion
+  - Applies YOLO detection or filter processing per frame
+  - Returns processed frames and detection results via data channel
+
 **Signaling Flow**:
 
 WebRTC signaling is now integrated into the AcceleratorControlService protocol:
@@ -459,6 +483,30 @@ WebRTC replaces WebSocket for real-time video transport, providing:
 - Direct integration with ProcessorEngine for per-frame processing
 - ICE candidate handling for NAT traversal
 - Signaling tunneled through the same mTLS connection used for processing commands
+- Structured detection results via DataChannelFraming protocol
+
+### YOLO Object Detection
+
+The library includes YOLO object detection via ONNX Runtime with CUDA Execution Provider for GPU-accelerated inference.
+
+**Components**:
+
+- **YOLODetector** (`infrastructure/cuda/yolo_detector.h/cpp`): YOLO inference engine
+  - Loads ONNX models exported from Ultralytics
+  - Uses ONNX Runtime with CUDA Execution Provider for GPU inference
+  - Preprocessing: resize to 640x640, normalize
+  - Postprocessing: NMS, confidence thresholding
+  - Returns `std::vector<Detection>` with bounding boxes and class labels
+
+- **ModelManager** (`infrastructure/cuda/model_manager.h/cpp`): ONNX model lifecycle management
+  - Loads and caches ONNX Runtime sessions
+  - Manages CUDA EP configuration
+  - Thread-safe model access
+
+- **ModelRegistry** (`infrastructure/cuda/model_registry.h/cpp`): Model path resolution
+  - Maps model names to filesystem paths
+  - Validates model file existence
+  - Default model path: `data/models/`
 
 ### Command Pattern
 

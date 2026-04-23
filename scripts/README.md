@@ -5,12 +5,13 @@ This directory consolidates operational tooling used during development, CI buil
 ## Directory Catalog
 - `build/`: language-specific build helpers (`golang.sh`, `protos.sh`, `frontend.sh`) wired into CI jobs or local automation.
 - `deployment/`: infrastructure launchers for staging, production, GitHub runners, and ARM64 hardware. See [Deployment Tooling](#deployment-tooling) for deeper coverage.
-- `dev/`: developer convenience wrappers (`start.sh`, `stop.sh`, `clean.sh`, `grafana-mcp-server.sh`) for local iterative flows with hot reload.
-- `docker/`: utilities for building images locally, generating certs, and validating host prerequisites, highlighted in [Local Docker Tooling](#local-docker-tooling).
-- `hooks/`: git hook installers and language-specific linters run before commits or pushes.
-- `linters/`: language-agnostic lint orchestration, including the Dockerfile used by the language compliance pipeline.
+- `dev/`: developer convenience wrappers for local iterative flows with hot reload. Includes service lifecycle (`start.sh`, `stop.sh`, `clean.sh`), observability (`grafana-mcp-server.sh`), mTLS certificate tooling (`mint-accelerator-ca.sh`, `mint-accelerator-cert.sh`), and VS Code attach helpers (`update_launch_*_attach_process_id.py`).
+- `docker/`: utilities for building and pushing images, generating certs, and validating host prerequisites. See [Local Docker Tooling](#local-docker-tooling).
+- `hooks/`: git hook installers and language-specific linters run before commits or pushes. Includes the pre-push build verifier.
+- `linters/`: language-agnostic lint orchestration (`language-check.sh`) and the Dockerfile (`language.dockerfile`) used by the language compliance pipeline.
+- `models/`: ML model export utilities. `export_yolo_to_onnx.py` downloads and exports YOLO models to ONNX format for C++/CUDA deployment.
 - `secrets/`: bootstrap scripts for encrypted secrets material. `setup.sh` initializes development and production secrets from templates.
-- `test/`: coverage, unit, integration, BDD, E2E, and workflow-local runners mirroring CI behaviour.
+- `test/`: coverage, unit, integration, BDD, E2E, and workflow-local runners mirroring CI behaviour. See [Test Runners](#test-runners) for details.
 - `tools/`: ad-hoc video and frame analysis helpers for experimentation and debugging:
   - `extract-frames.sh`: extract frames from video files
   - `generate-video.sh`: generate test video files
@@ -21,21 +22,34 @@ This directory consolidates operational tooling used during development, CI buil
 ```mermaid
 flowchart LR
     DevStart[scripts/dev/start.sh]
+    DevMintCA[scripts/dev/mint-accelerator-ca.sh]
+    DevMintCert[scripts/dev/mint-accelerator-cert.sh]
     BuildProtos[scripts/build/protos.sh]
     DockerLocal[scripts/docker/build-local.sh]
-    Tests[scripts/test/*.sh]
+    DockerPush[scripts/docker/push-tagged-images.sh]
+    UnitTests[scripts/test/unit-tests.sh]
+    Integration[scripts/test/integration.sh]
+    E2E[scripts/test/e2e.sh]
     Staging[scripts/deployment/staging_local/start.sh]
     Runners[scripts/deployment/github-runner/start.sh]
     Radxa[scripts/deployment/radxa/deploy-runner.sh]
+    CloudVM[scripts/deployment/cloud-vm/deploy.sh]
     Prox4[scripts/deployment/prox4/ansible/site.yml]
+    ExportModel[scripts/models/export_yolo_to_onnx.py]
 
+    DevMintCA --> DevMintCert
     DevStart --> DockerLocal
-    BuildProtos --> Tests
+    BuildProtos --> UnitTests
+    DockerLocal --> DockerPush
     DockerLocal --> Staging
-    Tests --> Staging
+    UnitTests --> Integration
+    Integration --> E2E
+    E2E --> Staging
     Runners --> CI[Self-hosted runners]
     Prox4 --> Runners
     Radxa --> CI
+    CloudVM --> CI
+    ExportModel --> CudaKernels[CUDA inference]
 ```
 
 ## Deployment Tooling
@@ -47,6 +61,7 @@ flowchart LR
 
 ### `deployment/staging_local`
 - Ships a docker-compose stack mirroring production, pulling AMD64 images from GHCR. Useful for validating image outputs from CI on a laptop or workstation.
+- `start.sh` launches the full stack; `stop.sh` tears it down while preserving volumes; `clean.sh` removes volumes as well.
 
 ### `deployment/jetson-nano`
 - Automates production deployment on Jetson Nano hardware using Ansible playbooks (`deploy.sh` orchestrates `init`, `sync`, and `start`). Aligns with the ARM64 CI workflow outputs.
@@ -69,9 +84,21 @@ flowchart LR
 
 ## Local Docker Tooling
 - `docker/build-local.sh`: builds the monorepo Docker image using the same Dockerfiles as CI, enabling preflight validation before opening pull requests.
+- `docker/push-tagged-images.sh`: pushes locally built images to GHCR and publishes `latest-${ARCH}` aliases for `app`, `cpp-accelerator`, and `web-frontend`. Requires `ripgrep`.
 - `docker/install-nvidia-toolkit.sh`: configures host NVIDIA drivers and container toolkit, matching the requirements enforced on self-hosted runners.
 - `docker/generate-certs.sh`: issues local TLS certs consumed by `scripts/dev/start.sh` and staging stacks.
 - `docker/validate-env.sh`: validates Docker environment prerequisites (SSL certs, Docker daemon, NVIDIA toolkit, GPU availability).
+
+## Test Runners
+- `test/unit-tests.sh`: runs unit tests for Go, C++ (Bazel), and frontend (Vitest). Supports `--skip-golang` and `--skip-frontend` flags for selective execution.
+- `test/coverage.sh`: runs all coverage tests across the full stack.
+- `test/linters.sh`: runs all linters. Supports `--fix` for auto-fixing lint issues.
+- `test/e2e.sh`: runs Playwright end-to-end tests. Supports `--chromium` for fast Chromium-only runs, or runs all browsers by default.
+- `test/integration.sh`: runs Docker-based BDD and E2E tests using `docker-compose.dev.yml`. Accepts `backend`, `e2e`, or `all` (default) to select which test suites to execute. Requires local services running (`scripts/dev/start.sh`).
+- `test/workflow-local.sh`: tests GitHub Actions workflows locally using [act](https://github.com/nektos/act). Supports `--dry-run`, `--job <name>`, and `--list` flags. Requires `.secrets.act` with a valid `GITHUB_TOKEN`. See `test/README-act.md` for setup instructions.
+
+## Model Export
+- `models/export_yolo_to_onnx.py`: downloads a YOLO model (default: `yolov10n`) and exports it to ONNX format with dynamic axes and simplification. Requires `ultralytics` package. Output goes to `data/models/` by default.
 
 ## Runner Operations Reference
 For provisioning internals, troubleshooting workflows, and label conventions, refer to the dedicated CI documentation in [`docs/ci-workflows.md`](../docs/ci-workflows.md). The two documents complement each other: this file covers script entry points, while the CI doc explains how the workflows consume the resulting infrastructure.

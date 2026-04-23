@@ -46,7 +46,6 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	steps.InitializeGivenSteps(ctx, testCtx)
 	steps.InitializeWhenSteps(ctx, testCtx)
 	steps.InitializeThenSteps(ctx, testCtx)
-	steps.InitializeImageSteps(ctx, testCtx)
 	steps.InitializeInputSourceSteps(ctx, testCtx)
 	steps.InitializeAvailableImagesSteps(ctx, testCtx)
 }

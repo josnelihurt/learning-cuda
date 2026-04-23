@@ -52,9 +52,6 @@ message AcceleratorMessage {
     Register register = 10;
     RegisterAck register_ack = 11;
 
-    ProcessImageRequest process_image_request = 20;
-    ProcessImageResponse process_image_response = 21;
-
     ListFiltersRequest list_filters_request = 30;
     ListFiltersResponse list_filters_response = 31;
 

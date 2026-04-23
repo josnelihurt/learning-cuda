@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
+	ffapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/flags"
 	imageapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/image"
 	videoapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/media/video"
 	systemapp "github.com/jrb/cuda-learning/src/go_api/pkg/application/platform/system"
@@ -36,8 +37,9 @@ type Deps struct {
 
 	ProcessorCapsUC processorCapabilitiesProvider
 
-	ProcessImageUC        useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
 	GetSystemInfoUC       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
+	EvaluateFFBooleanUC   useCase[ffapp.EvaluateFeatureFlagBooleanUseCaseInput, ffapp.EvaluateFeatureFlagBooleanUseCaseOutput]
+	EvaluateFFStringUC    useCase[ffapp.EvaluateFeatureFlagStringUseCaseInput, ffapp.EvaluateFeatureFlagStringUseCaseOutput]
 	ListInputsUC          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
 	ListAvailableImagesUC useCase[imageapp.ListAvailableImagesUseCaseInput, imageapp.ListAvailableImagesUseCaseOutput]
 	UploadImageUC         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
@@ -52,15 +54,11 @@ type Deps struct {
 
 	// Repositories
 	FeatureFlagRepo featureFlagRepository
-	VideoRepository videoRepository
 }
 
 func New(ctx context.Context, deps Deps) (*App, error) {
 	if deps.Config == nil {
 		return nil, errors.New("config is required")
-	}
-	if deps.ProcessImageUC == nil {
-		return nil, errors.New("process image use case is required")
 	}
 	if deps.AcceleratorGateway == nil {
 		return nil, errors.New("accelerator gateway is required")
@@ -70,6 +68,12 @@ func New(ctx context.Context, deps Deps) (*App, error) {
 	}
 	if deps.GetSystemInfoUC == nil {
 		return nil, errors.New("get system info use case is required")
+	}
+	if deps.EvaluateFFBooleanUC == nil {
+		return nil, errors.New("evaluate feature flag boolean use case is required")
+	}
+	if deps.EvaluateFFStringUC == nil {
+		return nil, errors.New("evaluate feature flag string use case is required")
 	}
 	if deps.FeatureFlagRepo == nil {
 		return nil, errors.New("feature flag repository is required")
@@ -148,7 +152,6 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	rpcHandler := connectrpc.NewImageProcessorHandlerWithGRPC(
-		a.ProcessImageUC,
 		a.ProcessorCapsUC,
 		a.StartVideoPlaybackUC,
 		a.StopVideoPlaybackUC,
@@ -158,11 +161,13 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	connectrpc.RegisterConfigService(
 		mux,
 		connectrpc.ConfigHandlerDeps{
-			FeatureFlagRepo: a.FeatureFlagRepo,
-			ListInputsUC:    a.ListInputsUC,
-			GetSystemInfoUC: a.GetSystemInfoUC,
-			ConfigManager:   a.Config,
-			ProcessorCapsUC: a.ProcessorCapsUC,
+			FeatureFlagRepo:     a.FeatureFlagRepo,
+			ListInputsUC:        a.ListInputsUC,
+			GetSystemInfoUC:     a.GetSystemInfoUC,
+			EvaluateFFBooleanUC: a.EvaluateFFBooleanUC,
+			EvaluateFFStringUC:  a.EvaluateFFStringUC,
+			ConfigManager:       a.Config,
+			ProcessorCapsUC:     a.ProcessorCapsUC,
 		},
 		a.interceptors...,
 	)
@@ -197,6 +202,8 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		FeatureFlagRepo:       a.FeatureFlagRepo,
 		ListInputsUC:          a.ListInputsUC,
 		GetSystemInfoUC:       a.GetSystemInfoUC,
+		EvaluateFFBooleanUC:   a.EvaluateFFBooleanUC,
+		EvaluateFFStringUC:    a.EvaluateFFStringUC,
 		ConfigManager:         a.Config,
 		ProcessorCapsUC:       a.ProcessorCapsUC,
 		ListAvailableImagesUC: a.ListAvailableImagesUC,

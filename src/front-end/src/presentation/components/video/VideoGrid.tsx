@@ -2,6 +2,7 @@ import { type ReactElement } from 'react';
 import { CameraPreview } from './CameraPreview';
 import { VideoSourceCard } from './VideoSourceCard';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import type { Detection } from '@/gen/image_processor_service_pb';
 import styles from './VideoGrid.module.css';
 
 export type GridSource = {
@@ -12,6 +13,9 @@ export type GridSource = {
   imageSrc: string;
   remoteStream?: MediaStream | null;
   filters?: ActiveFilterState[];
+  detections?: Detection[];
+  detectionImageWidth?: number;
+  detectionImageHeight?: number;
 };
 
 type CameraFramePayload = {
@@ -70,6 +74,9 @@ export function VideoGrid({
             onSelect={onSelectSource}
             onClose={onCloseSource}
             onChangeImage={onChangeImageRequest}
+            detections={source.detections}
+            detectionImageWidth={source.detectionImageWidth}
+            detectionImageHeight={source.detectionImageHeight}
           >
             {source.type === 'camera' ? (
               <CameraPreview

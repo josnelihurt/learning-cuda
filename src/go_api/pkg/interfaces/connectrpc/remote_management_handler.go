@@ -23,7 +23,6 @@ type deviceMonitor interface {
 	Start(ctx context.Context) error
 	Stop() error
 	PowerOn() error
-	PowerOff() error
 	Subscribe(callback func(status *domain.DeviceStatus)) func()
 }
 

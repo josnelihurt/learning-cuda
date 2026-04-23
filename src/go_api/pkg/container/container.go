@@ -26,9 +26,7 @@ type Container struct {
 	Config *config.Manager
 
 	FeatureFlagRepo featureFlagRepository
-	VideoRepository videoRepository
 
-	ProcessImageUseCase               useCase[imageapp.ProcessImageUseCaseInput, imageapp.ProcessImageUseCaseOutput]
 	EvaluateFeatureFlagBooleanUseCase useCase[ffapp.EvaluateFeatureFlagBooleanUseCaseInput, ffapp.EvaluateFeatureFlagBooleanUseCaseOutput]
 	EvaluateFeatureFlagStringUseCase  useCase[ffapp.EvaluateFeatureFlagStringUseCaseInput, ffapp.EvaluateFeatureFlagStringUseCaseOutput]
 	GetSystemInfoUseCase              useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
@@ -88,6 +86,11 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	log.Info().
 		Str("listen_address", cfg.Processor.ListenAddress).
 		Msg("accelerator control server created")
+	// Listen before MQTT and other slow init — otherwise accelerators dial :60062
+	// while the process is still blocked in container.New (e.g. broker connect retry).
+	if err := controlServer.Start(); err != nil {
+		return nil, fmt.Errorf("accelerator control server start: %w", err)
+	}
 
 	evaluateFFBooleanUseCase := ffapp.NewEvaluateFeatureFlagBooleanUseCase(featureFlagRepo)
 	evaluateFFStringUseCase := ffapp.NewEvaluateFeatureFlagStringUseCase(featureFlagRepo)
@@ -118,21 +121,11 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	)
 	stopVideoPlaybackUseCase := videoapp.NewStopVideoPlaybackUseCase(sessionManager)
 
-	var deviceMonitor *mqtt.DeviceMonitor
-	if cfg.MQTT.Broker != "" {
-		monitor, err := mqtt.NewDeviceMonitor(ctx, cfg.MQTT)
-		if err != nil {
-			log.Warn().Err(err).Msg("Failed to initialize MQTT device monitor")
-		} else {
-			deviceMonitor = monitor
-			log.Info().Msg("MQTT device monitor initialized")
-		}
-	}
+	deviceMonitor := mqtt.NewDeviceMonitor(ctx, cfg.MQTT)
 
 	return &Container{
 		Config:                            cfg,
 		FeatureFlagRepo:                   featureFlagRepo,
-		VideoRepository:                   videoRepo,
 		EvaluateFeatureFlagBooleanUseCase: evaluateFFBooleanUseCase,
 		EvaluateFeatureFlagStringUseCase:  evaluateFFStringUseCase,
 		GetSystemInfoUseCase:              getSystemInfoUseCase,

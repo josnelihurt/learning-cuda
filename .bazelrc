@@ -1,8 +1,10 @@
 # CUDA settings
 # Note: --enable_workspace is no longer needed in Bazel 7.0+
 # WORKSPACE support is automatic when WORKSPACE.bazel exists
-build --repo_env=HERMETIC_CUDA_VERSION="12.4.0"
+build --repo_env=HERMETIC_CUDA_VERSION="12.9.1"
 build --repo_env=RULES_PYTHON_ENABLE_PYSTAR="1"
+
+# TensorRT is always enabled — requires libnvinfer-dev + libnvonnxparsers-dev installed
 
 # Build settings
 build --cxxopt=-std=c++23

@@ -1,10 +1,23 @@
 # Archived Backlog Documentation
 
-This directory contains historical backlog planning documents that were used during the initial phases of the CUDA Learning Platform project.
+This directory contains frozen snapshots of the original backlog planning documents from the early phases of the CUDA Learning Platform project.
+
+## Relationship to `docs/backlog/`
+
+The four files in this directory are archived, read-only copies. The corresponding **active** versions live in `docs/backlog/`, which also contains additional planning documents that were created after the initial backlog migration. The full set of backlog files is:
+
+| File | `docs/archive/` | `docs/backlog/` |
+|------|:---:|:---:|
+| `infrastructure.md` | frozen copy | active |
+| `kernels.md` | frozen copy | active |
+| `neural-networks.md` | frozen copy | active |
+| `video-streaming.md` | frozen copy | active |
+| `webrtc-session-lifecycle-hardening.md` | -- | active |
+| `webrtc-trickle-ice-inline.md` | -- | active |
 
 ## Purpose
 
-These files document the project's evolution from markdown-based backlog management to structured GitHub Issues tracking. They are preserved as a historical record to show:
+These archived files document the project's evolution from markdown-based backlog management to structured GitHub Issues tracking. They are preserved as a historical record to show:
 
 - How project scope was initially defined and organized
 - The learning journey and progression planning
@@ -13,7 +26,7 @@ These files document the project's evolution from markdown-based backlog managem
 
 ## Migration Status
 
-All pending backlog items have been migrated to [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) as part of the project's transition to structured issue tracking. The migration process:
+All pending backlog items from these files have been migrated to [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues) as part of the project's transition to structured issue tracking. The migration process:
 
 1. Analyzed ~330+ individual backlog items
 2. Applied automated backlog grooming to group related tasks
@@ -33,6 +46,23 @@ Each file includes:
 - Learning goals and progression notes
 - Original planning rationale
 
+## Broader Documentation Structure
+
+The `docs/` directory contains additional documentation outside this archive:
+
+```
+docs/
+  archive/                              # This directory (frozen historical backlog)
+  backlog/                              # Active backlog planning documents
+    webrtc-session-lifecycle-hardening.md
+    webrtc-trickle-ice-inline.md
+    infrastructure.md, kernels.md, neural-networks.md, video-streaming.md
+  runbooks/                             # Operational runbooks
+    accelerator-mtls.md                 # mTLS certificate setup and rotation
+  ci-workflows.md                       # CI/CD pipeline documentation
+  testing-and-coverage.md               # Testing strategy and coverage
+```
+
 ## Current Project Management
 
 **Active backlog**: See [GitHub Issues](https://github.com/josnelihurt-code/learning-cuda/issues)
@@ -41,4 +71,4 @@ All new tasks, features, and planning should be managed through GitHub Issues wi
 
 ## Notes
 
-These files are **read-only** and maintained for historical reference only. They are not actively maintained or updated. For current project status and planning, refer to GitHub Issues.
+These files are **read-only** and maintained for historical reference only. They are not actively maintained or updated. For current project status and planning, refer to GitHub Issues or the active copies in `docs/backlog/`.

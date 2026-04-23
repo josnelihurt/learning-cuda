@@ -8,12 +8,11 @@ import (
 
 	"github.com/jrb/cuda-learning/src/go_api/pkg/config"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/domain"
-	"github.com/rs/zerolog/log"
+	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/logger"
 )
 
 type DeviceMonitor struct {
-	client        *Client
-	config        config.MQTTConfig
+	link          *mqttLink
 	status        *domain.DeviceStatus
 	mu            sync.RWMutex
 	subscribers   []func(*domain.DeviceStatus)
@@ -24,22 +23,17 @@ type DeviceMonitor struct {
 	startedMu     sync.RWMutex
 }
 
-func NewDeviceMonitor(ctx context.Context, cfg config.MQTTConfig) (*DeviceMonitor, error) {
-	client, err := NewClient(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create MQTT client: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-
+// NewDeviceMonitor always returns a monitor backed by an mqttLink. The link may
+// have no live MQTT session; connection details stay inside mqttLink.
+func NewDeviceMonitor(ctx context.Context, cfg config.MQTTConfig) *DeviceMonitor {
+	baseCtx, cancel := context.WithCancel(ctx)
 	return &DeviceMonitor{
-		client:      client,
-		config:      cfg,
+		link:        newMQTTLink(cfg),
 		status:      domain.NewDeviceStatus(),
 		subscribers: make([]func(*domain.DeviceStatus), 0),
-		ctx:         ctx,
+		ctx:         baseCtx,
 		cancel:      cancel,
-	}, nil
+	}
 }
 
 func (dm *DeviceMonitor) Start(ctx context.Context) error {
@@ -53,53 +47,68 @@ func (dm *DeviceMonitor) Start(ctx context.Context) error {
 
 	dm.ctx, dm.cancel = context.WithCancel(ctx)
 
+	if !dm.link.connected() {
+		logger.Global().Warn().Msg("MQTT device monitor: no connection; skipping subscriptions")
+		return nil
+	}
+
 	sensorChan := make(chan SensorData, 10)
 	info1Chan := make(chan Info1Data, 10)
 	info2Chan := make(chan Info2Data, 10)
 	lwtChan := make(chan string, 10)
 
-	if err := dm.client.SubscribeToSensorWithRaw(func(data SensorData) error {
+	if err := dm.link.subscribeSensorWithRaw(func(data SensorData) error {
 		select {
 		case sensorChan <- data:
 		default:
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to subscribe to sensor: %w", err)
+		logger.Global().Warn().Err(err).Msg("MQTT: subscribe to SENSOR failed; device monitor disabled")
+		dm.link.disconnect()
+		return nil
 	}
 
-	if err := dm.client.SubscribeToInfo1(func(data Info1Data) error {
+	if err := dm.link.subscribeInfo1(func(data Info1Data) error {
 		select {
 		case info1Chan <- data:
 		default:
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to subscribe to INFO1: %w", err)
+		logger.Global().Warn().Err(err).Msg("MQTT: subscribe to INFO1 failed; device monitor disabled")
+		dm.link.disconnect()
+		return nil
 	}
 
-	if err := dm.client.SubscribeToInfo2(func(data Info2Data) error {
+	if err := dm.link.subscribeInfo2(func(data Info2Data) error {
 		select {
 		case info2Chan <- data:
 		default:
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to subscribe to INFO2: %w", err)
+		logger.Global().Warn().Err(err).Msg("MQTT: subscribe to INFO2 failed; device monitor disabled")
+		dm.link.disconnect()
+		return nil
 	}
 
-	if err := dm.client.SubscribeToLWT(func(status string) error {
+	if err := dm.link.subscribeLWT(func(status string) error {
 		select {
 		case lwtChan <- status:
 		default:
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to subscribe to LWT: %w", err)
+		logger.Global().Warn().Err(err).Msg("MQTT: subscribe to LWT failed; device monitor disabled")
+		dm.link.disconnect()
+		return nil
 	}
 
-	if err := dm.client.RestartDevice(); err != nil {
-		return fmt.Errorf("failed to send restart command: %w", err)
+	if err := dm.link.restartDevice(); err != nil {
+		logger.Global().Warn().Err(err).Msg("MQTT: restart command failed; device monitor disabled")
+		dm.link.disconnect()
+		return nil
 	}
 
 	time.Sleep(3 * time.Second)
@@ -180,13 +189,7 @@ func (dm *DeviceMonitor) notify(status *domain.DeviceStatus) {
 }
 
 func (dm *DeviceMonitor) PowerOn() error {
-	log.Info().Msg("Powering on Jetson Nano on MQTT")
-	return dm.client.PublishPowerCommand(true)
-}
-
-func (dm *DeviceMonitor) PowerOff() error {
-	log.Info().Msg("Powering off Jetson Nano on MQTT")
-	return dm.client.PublishPowerCommand(false)
+	return dm.link.publishPower(true)
 }
 
 func (dm *DeviceMonitor) Subscribe(callback func(*domain.DeviceStatus)) func() {
@@ -216,6 +219,6 @@ func (dm *DeviceMonitor) Stop() error {
 	dm.startedMu.Unlock()
 
 	dm.cancel()
-	dm.client.Disconnect()
+	dm.link.disconnect()
 	return nil
 }

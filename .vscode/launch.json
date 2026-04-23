@@ -21,8 +21,25 @@
             "type": "go",
             "request": "attach",
             "mode": "local",
-            "processId": 193466,
+            "processId": 168351,
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Attach to C++ Accelerator",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceFolder}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client",
+            "processId": 168362,
+            "MIMode": "gdb",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Debug Front-end",
+            "url": "https://localhost:3000",
+            "webRoot": "${workspaceFolder}/src/front-end",
+            "sourceMaps": true
         }
     ]
 }

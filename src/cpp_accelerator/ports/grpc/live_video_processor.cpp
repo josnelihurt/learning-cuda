@@ -143,6 +143,7 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
                                            const rtc::FrameInfo& frame_info,
                                            const cuda_learning::ProcessImageRequest& state,
                                            std::vector<EncodedAccessUnit>* encoded_units,
+                                           cuda_learning::DetectionFrame* detection_frame,
                                            std::string* error_message) {
   if (encoded_units == nullptr) {
     if (error_message != nullptr) {
@@ -235,6 +236,16 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
                                    error_message)) {
         av_frame_unref(decoded_frame_);
         return false;
+      }
+
+      if (detection_frame != nullptr && processing_response.detections_size() > 0) {
+        detection_frame->Clear();
+        detection_frame->set_frame_id(static_cast<uint64_t>(next_pts_));
+        detection_frame->set_image_width(decoded_frame_->width);
+        detection_frame->set_image_height(decoded_frame_->height);
+        for (const auto& d : processing_response.detections()) {
+          *detection_frame->add_detections() = d;
+        }
       }
     }
 
@@ -527,6 +538,39 @@ bool LiveVideoProcessor::ResolveGenericSelections(cuda_learning::ProcessImageReq
           if (parameter_id == "separable") {
             blur_params.set_separable(ParseBool(*value));
             has_blur_params = true;
+          }
+        }
+        continue;
+      }
+
+      if (filter_id == "model_inference") {
+        filters.push_back(cuda_learning::FILTER_TYPE_MODEL_INFERENCE);
+        auto* model_params = request->mutable_model_params();
+        if (model_params->model_id().empty()) {
+          model_params->set_model_id("yolov10n");
+        }
+        if (model_params->confidence_threshold() <= 0.0F) {
+          model_params->set_confidence_threshold(0.5F);
+        }
+        for (const auto& parameter : selection.parameters()) {
+          const auto value = FirstGenericValue(parameter);
+          if (!value.has_value()) {
+            continue;
+          }
+          const std::string parameter_id = NormalizeFilterId(parameter.parameter_id());
+          if (parameter_id == "model_id") {
+            if (!value->empty()) {
+              model_params->set_model_id(*value);
+            }
+          } else if (parameter_id == "confidence_threshold") {
+            try {
+              const float parsed = std::stof(*value);
+              if (parsed > 0.0F) {
+                model_params->set_confidence_threshold(parsed);
+              }
+            } catch (const std::exception&) {
+              spdlog::warn("Ignoring invalid model confidence_threshold: {}", *value);
+            }
           }
         }
         continue;

@@ -25,24 +25,37 @@ The frontend follows Clean Architecture principles with clear separation between
 
 ```mermaid
 graph TB
-    subgraph "UI Components Layer"
-        AppRoot[app-root]
-        FilterPanel[filter-panel]
-        VideoGrid[video-grid]
-        CameraPreview[camera-preview]
-        StatsPanel[stats-panel]
-        SourceDrawer[source-drawer]
-        ToolsDropdown[tools-dropdown]
+    subgraph "Presentation Layer"
+        AppRoot[App Root]
+        FilterPanel[FilterPanel]
+        VideoGrid[VideoGrid]
+        VideoGridHost[VideoGridHost]
+        VideoCanvas[VideoCanvas]
+        VideoStreamer[VideoStreamer]
+        VideoSourceCard[VideoSourceCard]
+        CameraPreview[CameraPreview]
+        StatsPanel[StatsPanel]
+        SourceDrawer[SourceDrawer]
+        ToolsDropdown[ToolsDropdown]
+        DetectionColors[Detection Colors]
     end
-    
+
     subgraph "Application Services Layer"
         ConfigService[ConfigService]
         ProcessorCaps[ProcessorCapabilitiesService]
+        DIContainer[DI Container]
     end
 
     subgraph "Infrastructure Layer"
         subgraph "Transport"
             WebRTCTransport[WebRTCFrameTransport]
+            DataChannelFraming[DataChannelFraming]
+        end
+
+        subgraph "Connection"
+            GRPCConnection[gRPC Connection]
+            WebRTCService[WebRTC Service]
+            WebRTCManage[WebRTC Manage]
         end
 
         subgraph "Data Services"
@@ -78,18 +91,25 @@ graph TB
     AppRoot --> CameraPreview
     AppRoot --> StatsPanel
     AppRoot --> SourceDrawer
+    VideoGrid --> VideoGridHost
+    VideoGridHost --> VideoCanvas
+    VideoGridHost --> VideoStreamer
+    VideoGridHost --> VideoSourceCard
 
     FilterPanel --> ProcessorCaps
     CameraPreview --> WebRTCTransport
-    VideoGrid --> VideoService
-    
+    VideoStreamer --> WebRTCTransport
+    VideoStreamer --> DataChannelFraming
+    VideoCanvas --> DetectionColors
+
     ProcessorCaps --> GRPCServer
     WebRTCTransport --> GRPCServer
-    
+    WebRTCTransport --> WebRTCService
+
     VideoService --> GoServer
     FileService --> GoServer
     InputSourceService --> GoServer
-    
+
     ConfigService --> GoServer
     FeatureFlags --> GoServer
     SystemInfo --> GoServer
@@ -121,12 +141,35 @@ graph TB
 - Provides parameter controls (select, range, number, checkbox, text)
 - Updates filter configuration in real-time
 
-**`video-grid`** (`components/video/video-grid.ts`):
+**`video-grid`** (`components/video/VideoGrid.tsx`):
 - Displays video sources in a grid layout
-- Handles video selection and playback
-- Manages video source cards
+- Hosts VideoGridHost for rendering individual sources
 
-**`camera-preview`** (`components/video/camera-preview.ts`):
+**`video-grid-host`** (`components/video/VideoGridHost.tsx`):
+- Manages the video grid layout and source lifecycle
+- Renders VideoCanvas and VideoStreamer components per source
+- Handles source selection and removal
+
+**`video-canvas`** (`components/video/VideoCanvas.tsx`):
+- Renders processed video frames and detection overlays on an HTML Canvas
+- Draws bounding boxes using detection-colors palette
+- Handles canvas resizing and aspect ratio
+
+**`video-streamer`** (`components/video/VideoStreamer.tsx`):
+- Manages WebRTC-based video streaming sessions
+- Sends frames via WebRTCFrameTransport
+- Receives detection results via DataChannelFraming
+
+**`video-source-card`** (`components/video/VideoSourceCard.tsx`):
+- Card component for individual video sources
+- Shows source preview, status, and controls
+- CSS Modules styling (VideoSourceCard.module.css)
+
+**`detection-colors.ts`** (`components/video/detection-colors.ts`):
+- Color palette for rendering detection bounding boxes
+- Maps detection class labels to distinct colors
+
+**`camera-preview`** (`components/video/CameraPreview.tsx`):
 - Captures frames from webcam using MediaDevices API
 - Sends frames to backend via transport layer
 - Displays processed frames in real-time
@@ -190,6 +233,15 @@ graph TB
 - Uses WebRTC data channels for low-latency frame transmission
 - Handles WebRTC signaling through Connect-RPC
 - Connection lifecycle management and reconnection handling
+
+**`data-channel-framing.ts`**:
+- Binary framing protocol for structured data over WebRTC data channels
+- Encodes/decodes detection results and frame metadata
+- Mirrors the C++ DataChannelFraming protocol for cross-language compatibility
+- Tested in `data-channel-framing.test.ts`
+
+**`transport-types.ts`**:
+- Shared type definitions for the transport layer
 
 #### Data Services (`infrastructure/data/`)
 
@@ -267,7 +319,7 @@ Domain interfaces define contracts without implementation details:
 - **`IFileService`**: File operations
 - **`IInputSourceService`**: Input source management
 - **`IToolsService`**: Tools and external services management
-- **`IWebRTCService`**: WebRTC signaling and peer connection management
+- **`IWebRTCService`**: WebRTC signaling and peer connection management (includes SDP exchange, ICE candidates, session lifecycle)
 - **`ITelemetryService`**: Observability
 - **`ILogger`**: Logging interface
 
@@ -456,31 +508,43 @@ npm run test:e2e:dev  # Development mode
 ```
 front-end/
 ├── src/
-│   ├── react/               # React application
-│   │   ├── components/     # React components
-│   │   │   ├── app/        # Core app components
-│   │   │   ├── filters/    # Filter components
-│   │   │   ├── health/     # Health monitoring
-│   │   │   ├── image/      # Image processing
-│   │   │   ├── video/      # Video components
-│   │   │   ├── files/      # File management
-│   │   │   ├── settings/   # Settings panel
-│   │   │   └── sidebar/    # Sidebar components
-│   │   ├── hooks/          # React hooks (useWebRTCStream, useImageProcessing, useFilters, etc.)
-│   │   ├── context/        # React context providers (dashboard-state, service, toast)
-│   │   ├── providers/      # Service providers (service-provider.tsx)
-│   │   ├── infrastructure/ # React infrastructure
-│   │   └── main.tsx        # React entry point
-│   ├── services/            # Shared services
-│   ├── gen/                 # Generated protobuf code
-│   └── domain/              # Shared domain layer
-├── public/                  # Static assets
-│   └── static/             # CSS, images, fonts
+│   ├── application/          # Application layer
+│   │   ├── di/              # Dependency injection container
+│   │   └── services/        # Application services (ConfigService, ProcessorCapabilitiesService)
+│   ├── domain/               # Domain layer
+│   │   ├── interfaces/      # Contracts (IFrameTransportService, IWebRTCService, etc.)
+│   │   └── value-objects/   # Type-safe domain models
+│   ├── infrastructure/       # Infrastructure layer
+│   │   ├── connection/      # gRPC connection, WebRTC service & management
+│   │   ├── data/            # VideoService, FileService, InputSourceService
+│   │   ├── external/        # FeatureFlags, SystemInfo, ToolsService, HealthMonitor
+│   │   ├── grpc/            # gRPC client utilities
+│   │   ├── observability/   # TelemetryService, OTelLogger
+│   │   └── transport/       # WebRTCFrameTransport, DataChannelFraming
+│   ├── presentation/         # Presentation layer (React)
+│   │   ├── components/      # React components
+│   │   │   ├── app/         # Core app components (AppRoot, FilterPanel, StatsPanel)
+│   │   │   ├── camera/      # Camera preview
+│   │   │   ├── files/       # File management
+│   │   │   ├── filters/     # Filter selection UI
+│   │   │   ├── health/      # Health monitoring
+│   │   │   ├── image/       # Image processing
+│   │   │   ├── settings/    # Settings panel
+│   │   │   ├── sidebar/     # Sidebar components
+│   │   │   └── video/       # VideoGrid, VideoCanvas, VideoStreamer, VideoSourceCard, etc.
+│   │   ├── context/         # React context providers (dashboard-state, service, toast)
+│   │   ├── hooks/           # Custom hooks (useWebRTCStream, useFilters, useConfig, etc.)
+│   │   ├── providers/       # Service providers (app-services, grpc-clients)
+│   │   └── test-utils/      # Test utilities and helpers
+│   ├── services/             # Shared services
+│   └── gen/                  # Generated protobuf code
+├── public/                   # Static assets
+│   └── static/              # CSS, images, fonts
 ├── tests/
-│   └── e2e/                # E2E tests (Playwright)
-├── index.html               # Main entry point
-├── vite.config.ts           # Vite configuration
-├── Dockerfile               # Production build with Nginx
+│   └── e2e/                 # E2E tests (Playwright)
+├── index.html                # Main entry point
+├── vite.config.ts            # Vite configuration
+├── Dockerfile                # Production build with Nginx
 └── package.json
 ```
 

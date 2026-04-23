@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #pragma GCC diagnostic push
@@ -11,6 +12,7 @@
 #pragma GCC diagnostic pop
 
 #include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
+#include "src/cpp_accelerator/infrastructure/cuda/i_yolo_detector.h"
 #include "processor_api.h"
 
 namespace jrb::ports::shared_lib {
@@ -34,6 +36,8 @@ private:
                     cuda_learning::ProcessImageResponse* response);
 
   std::string component_name_;
+  std::unordered_map<std::string, std::shared_ptr<jrb::infrastructure::cuda::IYoloDetector>>
+      detector_cache_;
 };
 
 }  // namespace jrb::ports::shared_lib

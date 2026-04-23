@@ -2,8 +2,6 @@
 
 namespace jrb::infrastructure::cuda {
 
-constexpr float SQRT_2PI = 2.506628274631000242F;
-
 enum class BorderMode : int { CLAMP = 0, REFLECT = 1, WRAP = 2 };
 
 __device__ int ClampX(int x, int width, BorderMode mode) {

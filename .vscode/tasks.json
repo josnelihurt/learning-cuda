@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "log: accelerator-client",
+        "type": "shell",
+        "command": "tail",
+        "args": ["-f", "/tmp/cuda-learning/logs/accelerator-client.log"],
+        "presentation": {
+          "panel": "new",
+          "reveal": "always"
+        }
+      },
+      {
+        "label": "log: cppaccelerator",
+        "type": "shell",
+        "command": "tail",
+        "args": ["-f", "/tmp/cppaccelerator.log"],
+        "presentation": {
+          "panel": "new",
+          "reveal": "always"
+        }
+      },
+      {
+        "label": "log: goserver",
+        "type": "shell",
+        "command": "tail",
+        "args": ["-f", "/tmp/cuda-learning/logs/goserver.log"],
+        "presentation": {
+          "panel": "new",
+          "reveal": "always"
+        }
+      },
+      {
+        "label": "open all logs",
+        "dependsOn": [
+          "log: accelerator-client",
+          "log: cppaccelerator",
+          "log: goserver"
+        ],
+        "dependsOrder": "parallel"
+      }
+    ]
+  }

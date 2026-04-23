@@ -4,8 +4,15 @@ ARG TARGETARCH=amd64
 ARG PROTO_VERSION=2.0.0
 ARG CUDA_VERSION=12.5.1
 ARG UBUNTU_VERSION=24.04
+ARG YOLO_MODEL_VERSION=0.1.0
+ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
+
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
+
+# Pull pre-built ONNX model artifact from GHCR instead of generating inline.
+# The yolo-model-gen image is a scratch image containing just /models/yolov10n.onnx.
+FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model-gen
 
 FROM bazel-base AS bazel-deps
 
@@ -45,6 +52,10 @@ WORKDIR /build
 COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
+
+RUN mkdir -p /build/data/models
+# Copy ONNX model - TensorRT engine will be generated at runtime (lazy generation)
+COPY --from=yolo-model-gen /models/yolov10n.onnx /build/data/models/yolov10n.onnx
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     NPROC=$(nproc) && \
@@ -176,6 +187,8 @@ RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
       exit 1; \
     fi
 
+ARG ENABLE_TENSORRT=false
+
 FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS cpp-accelerator
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -190,6 +203,16 @@ RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
         libavutil58 \
         libswscale7 \
     && rm -rf /var/lib/apt/lists/*
+
+# Install TensorRT runtime libraries when ENABLE_TENSORRT=true
+# Required for YOLO inference with the TRT-enabled binary (built with --config=trt)
+ARG ENABLE_TENSORRT
+RUN if [ "$ENABLE_TENSORRT" = "true" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            libnvinfer10 \
+            libnvonnxparsers10 \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
 
 WORKDIR /opt/cuda/grpc
 

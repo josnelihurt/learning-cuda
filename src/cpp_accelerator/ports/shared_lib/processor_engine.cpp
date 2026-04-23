@@ -1,5 +1,6 @@
 #include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
+#include <chrono>
 #include <cstring>
 #include <string>
 #include <utility>
@@ -19,6 +20,8 @@
 #include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/blur_processor.h"
 #include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
+#include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
+#include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
 
 namespace jrb::ports::shared_lib {
 
@@ -82,6 +85,35 @@ bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
     response->set_code(0);
     response->set_message("CUDA context and telemetry initialized successfully");
     spdlog::info("Initialization successful (Telemetry)");
+
+    auto& model_manager = jrb::infrastructure::cuda::ModelManager::GetInstance();
+    jrb::infrastructure::cuda::ModelRegistry registry;
+    registry.RegisterModel(
+        {"yolov10n", "YOLO v10 Nano", "data/models/yolov10n.onnx", "Fastest YOLO v10 model"});
+    model_manager.Initialize(registry);
+    spdlog::info("Model manager initialized with {} models",
+                 model_manager.GetAvailableModels().size());
+
+    // Pre-load all TRT engines at startup to avoid long latency on the first request.
+    // Engine build from ONNX takes ~60-90s on x86 / ~120s on Jetson on first run;
+    // subsequent starts load the cached .engine file in <1s.
+    auto available_models = model_manager.GetAvailableModels();
+    spdlog::info("[Startup] Pre-loading {} TRT detector(s)...", available_models.size());
+    for (const auto& model_id : available_models) {
+      std::string cache_key = model_id + "@" + std::to_string(0.5f);
+      auto t0 = std::chrono::steady_clock::now();
+      auto detector = model_manager.GetDetector(model_id, 0.5f);
+      auto elapsed =
+          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - t0)
+              .count();
+      if (detector) {
+        detector_cache_[cache_key] = std::move(detector);
+        spdlog::info("[Startup] TRT engine ready for '{}' ({}s)", model_id, elapsed);
+      } else {
+        spdlog::error("[Startup] Failed to load TRT engine for '{}' after {}s", model_id, elapsed);
+      }
+    }
+    spdlog::info("[Startup] All detectors loaded — ready to accept connections");
   } catch (const std::exception& e) {
     spdlog::error("Initialization failed: {}", e.what());
     response->set_code(2);
@@ -169,6 +201,24 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   separable_param->set_type("checkbox");
   separable_param->set_default_value("true");
 
+  auto* model_filter = caps->add_filters();
+  model_filter->set_id("model_inference");
+  model_filter->set_name("Model Inference");
+  model_filter->add_supported_accelerators(cuda_learning::ACCELERATOR_TYPE_CUDA);
+
+  auto* model_param = model_filter->add_parameters();
+  model_param->set_id("model_id");
+  model_param->set_name("Model");
+  model_param->set_type("select");
+  model_param->add_options("yolov10n");
+  model_param->set_default_value("yolov10n");
+
+  auto* threshold_param = model_filter->add_parameters();
+  threshold_param->set_id("confidence_threshold");
+  threshold_param->set_name("Confidence Threshold");
+  threshold_param->set_type("number");
+  threshold_param->set_default_value("0.45");
+
   return true;
 }
 
@@ -216,6 +266,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
 
   try {
     jrb::application::pipeline::FilterPipeline pipeline;
+    jrb::infrastructure::cuda::IYoloDetector* yolo_detector = nullptr;
 
     for (int i = 0; i < request.filters_size(); i++) {
       const auto filter = request.filters(i);
@@ -262,12 +313,41 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
               kernel_size, sigma, border_mode, separable));
           scoped_span.AddEvent("Added CPU blur filter to pipeline");
         }
+      } else if (filter == cuda_learning::FILTER_TYPE_MODEL_INFERENCE) {
+        std::string model_id = "yolov10n";
+        float confidence = 0.5f;
+
+        if (request.has_model_params()) {
+          if (!request.model_params().model_id().empty()) {
+            model_id = request.model_params().model_id();
+          }
+          confidence = request.model_params().confidence_threshold() > 0
+                           ? request.model_params().confidence_threshold()
+                           : 0.5f;
+        }
+
+        std::string cache_key = model_id + "@" + std::to_string(confidence);
+        auto cache_it = detector_cache_.find(cache_key);
+        if (cache_it == detector_cache_.end()) {
+          auto new_detector = jrb::infrastructure::cuda::ModelManager::GetInstance().GetDetector(
+              model_id, confidence);
+          if (!new_detector) {
+            spdlog::error("Failed to get detector for model: {}", model_id);
+          } else {
+            detector_cache_[cache_key] = std::move(new_detector);
+            cache_it = detector_cache_.find(cache_key);
+          }
+        }
+        if (cache_it != detector_cache_.end()) {
+          yolo_detector = cache_it->second.get();
+          scoped_span.AddEvent("Using cached YOLO model inference filter");
+        }
       } else {
         spdlog::warn("Unsupported filter type: {}", filter);
       }
     }
 
-    if (pipeline.GetFilterCount() == 0) {
+    if (pipeline.GetFilterCount() == 0 && yolo_detector == nullptr) {
       spdlog::error("No valid filters to apply");
       response->set_code(5);
       response->set_message("No valid filters to apply");
@@ -290,13 +370,27 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
     jrb::domain::interfaces::ImageBufferMut output_buffer(output_data.data(), request.width(),
                                                           request.height(), output_channels);
 
-    bool success = pipeline.Apply(input_buffer, output_buffer);
-    if (!success) {
-      spdlog::error("Filter pipeline processing failed");
-      scoped_span.RecordError("Filter pipeline processing failed");
-      response->set_code(7);
-      response->set_message("Filter pipeline processing failed");
-      return false;
+    if (pipeline.GetFilterCount() > 0) {
+      bool success = pipeline.Apply(input_buffer, output_buffer);
+      if (!success) {
+        spdlog::error("Filter pipeline processing failed");
+        scoped_span.RecordError("Filter pipeline processing failed");
+        response->set_code(7);
+        response->set_message("Filter pipeline processing failed");
+        return false;
+      }
+    }
+
+    if (yolo_detector != nullptr) {
+      // Run detection on the original RGB input for best accuracy.
+      // output_buffer is used as the passthrough target; use output_buffer.channels to avoid
+      // a size mismatch when a channel-reducing filter (e.g. grayscale) ran before YOLO.
+      jrb::domain::interfaces::FilterContext det_context(input_buffer.data, output_buffer.data,
+                                                         input_buffer.width, input_buffer.height,
+                                                         input_buffer.channels);
+      det_context.output = jrb::domain::interfaces::ImageBufferMut(
+          output_buffer.data, output_buffer.width, output_buffer.height, output_buffer.channels);
+      yolo_detector->Apply(det_context);
     }
 
     response->set_code(0);
@@ -305,6 +399,28 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
     response->set_width(output_buffer.width);
     response->set_height(output_buffer.height);
     response->set_channels(output_buffer.channels);
+
+    // Populate detections if a detector was used
+    if (yolo_detector != nullptr) {
+      const auto& detections = yolo_detector->GetDetections();
+      spdlog::info(
+          "YOLO: {} detection(s) for {}x{} image (confidence threshold {})", detections.size(),
+          request.width(), request.height(),
+          request.has_model_params() ? request.model_params().confidence_threshold() : 0.5f);
+      for (const auto& det : detections) {
+        spdlog::info("  → {} ({:.0f}%) at [{:.0f},{:.0f} {}x{}]", det.class_name,
+                     det.confidence * 100.0f, det.x, det.y, det.width, det.height);
+        auto* detection_msg = response->add_detections();
+        detection_msg->set_x(det.x);
+        detection_msg->set_y(det.y);
+        detection_msg->set_width(det.width);
+        detection_msg->set_height(det.height);
+        detection_msg->set_class_id(det.class_id);
+        detection_msg->set_class_name(det.class_name);
+        detection_msg->set_confidence(det.confidence);
+      }
+      scoped_span.SetAttribute("detections.count", static_cast<int64_t>(detections.size()));
+    }
 
     scoped_span.SetAttribute("result.width", static_cast<int64_t>(output_buffer.width));
     scoped_span.SetAttribute("result.height", static_cast<int64_t>(output_buffer.height));

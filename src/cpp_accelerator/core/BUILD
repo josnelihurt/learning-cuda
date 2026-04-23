@@ -41,6 +41,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "signal_handler",
+    srcs = ["signal_handler.cpp"],
+    hdrs = ["signal_handler.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@spdlog",
+    ],
+)
+
 cc_test(
     name = "logger_test",
     srcs = ["logger_test.cpp"],

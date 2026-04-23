@@ -456,7 +456,6 @@ src/cpp_accelerator/
   ports/
     grpc/              # gRPC service, data channel framing, live video processor
     shared_lib/        # Shared library exports
-    yolo_test/         # YOLO validation example
   core/                # Logger, Telemetry, Result type
 
 src/go_api/

@@ -21,10 +21,23 @@ genrule(
     cmd = "VERSION=$$(cat $(location //:src/cpp_accelerator/VERSION) | tr -d '[:space:]'); echo '#pragma once' > $@; echo '#define LIBRARY_VERSION \"'$$VERSION'\"' >> $@",
 )
 
+genrule(
+    name = "git_hash_private",
+    outs = ["git_hash_private.h"],
+    cmd = "HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown'); echo '#pragma once' > $@; echo '#define LIBRARY_GIT_HASH \"'$$HASH'\"' >> $@",
+)
+
+cc_library(
+    name = "git_hash",
+    hdrs = [":git_hash_private"],
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "library_version",
     hdrs = [
         "library_version.h",
+        ":git_hash_private",
         ":library_version_private",
     ],
     visibility = ["//visibility:public"],

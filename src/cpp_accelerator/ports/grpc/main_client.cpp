@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
   spdlog::info("========================================");
   spdlog::info("CUDA Accelerator Control Client Starting");
   spdlog::info("========================================");
-  spdlog::info("Version:      {}", LIBRARY_VERSION_STR);
+  spdlog::info("Version:      {} (git: {})", LIBRARY_VERSION_STR, LIBRARY_GIT_HASH_STR);
   spdlog::info("Control addr: {}", absl::GetFlag(FLAGS_control_addr));
   spdlog::info("Device ID:    {}", absl::GetFlag(FLAGS_device_id));
   spdlog::info("CUDA device:  {}", absl::GetFlag(FLAGS_cuda_device_id));

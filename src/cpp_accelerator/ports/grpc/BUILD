@@ -98,6 +98,7 @@ cc_binary(
         ":processor_engine_adapter_lib",
         ":webrtc_manager_lib",
         "//src/cpp_accelerator/core:signal_handler",
+        "//src/cpp_accelerator/ports/shared_lib:library_version",
         "//src/cpp_accelerator/ports/shared_lib:processor_engine",
         "//proto:image_processor_service_cc_proto",
         "@com_github_grpc_grpc//:grpc++",

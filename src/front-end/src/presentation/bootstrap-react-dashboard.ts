@@ -70,6 +70,17 @@ async function runBootstrap(): Promise<void> {
 
   logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging(), undefined, observabilityEnabled);
 
+  const buildVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+  const buildBranch = typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'unknown';
+  const buildTime = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : new Date().toISOString();
+
+  logger.info('Frontend starting', {
+    version: buildVersion,
+    git_commit: buildVersion,
+    branch: buildBranch,
+    build_time: buildTime,
+  });
+
   try {
     await systemInfoService.initialize();
     const systemInfo = await systemInfoService.getSystemInfo();

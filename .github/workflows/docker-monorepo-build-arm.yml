@@ -113,7 +113,8 @@ jobs:
           echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
           docker pull "${AMD64_IMAGE}"
           # Create container from scratch image and copy .onnx file
-          CONTAINER_ID=$(docker create "${AMD64_IMAGE}")
+          # Use placeholder command since scratch images have no default
+          CONTAINER_ID=$(docker create "${AMD64_IMAGE}" /bin/true)
           docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
           docker rm "${CONTAINER_ID}"
 
@@ -185,7 +186,8 @@ jobs:
           echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
           docker pull "${AMD64_IMAGE}"
           # Create container from scratch image and copy .onnx file
-          CONTAINER_ID=$(docker create "${AMD64_IMAGE}")
+          # Use placeholder command since scratch images have no default
+          CONTAINER_ID=$(docker create "${AMD64_IMAGE}" /bin/true)
           docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
           docker rm "${CONTAINER_ID}"
 

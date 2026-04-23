@@ -145,11 +145,7 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   caps->set_library_version(LIBRARY_VERSION_STR);
   caps->set_supports_streaming(false);
   caps->set_build_date(__DATE__);
-#ifdef BUILD_COMMIT
-  caps->set_build_commit(BUILD_COMMIT);
-#else
-  caps->set_build_commit("unknown");
-#endif
+  caps->set_build_commit(LIBRARY_GIT_HASH_STR);
 
   auto* grayscale_filter = caps->add_filters();
   grayscale_filter->set_id("grayscale");

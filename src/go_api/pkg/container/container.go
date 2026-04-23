@@ -76,6 +76,13 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	buildInfoRepo := build.NewBuildInfoRepository(buildInfo)
 	versionRepo := version.NewVersionRepository()
 
+	log.Info().
+		Str("go_version", versionRepo.GetGoVersion()).
+		Str("git_commit", buildInfo.CommitHash).
+		Str("git_branch", buildInfo.Branch).
+		Str("build_time", buildInfo.BuildTime).
+		Msg("Go API starting")
+
 	registry := processor.NewRegistry(log)
 
 	controlServer, err := processor.NewControlServer(cfg.Processor, registry)

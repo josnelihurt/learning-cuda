@@ -111,11 +111,14 @@ jobs:
           AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
 
           echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
-          # Pull x86 image and extract .onnx using docker cp
-          # Note: docker cp from image requires the image ID, not name:tag
+          # Pull x86 image and extract .onnx using a temporary container
           docker pull "${AMD64_IMAGE}"
-          IMAGE_ID=$(docker inspect "${AMD64_IMAGE}" --format '{{.Id}}')
-          docker cp "${IMAGE_ID}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
+          # Create a temporary container (works even with scratch images)
+          CONTAINER_ID=$(docker create "${AMD64_IMAGE}" "")
+          # Copy the ONNX file from the container
+          docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
+          # Remove the temporary container
+          docker rm "${CONTAINER_ID}"
 
           # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
           docker build \
@@ -183,11 +186,14 @@ jobs:
           AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
 
           echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
-          # Pull x86 image and extract .onnx using docker cp
-          # Note: docker cp from image requires the image ID, not name:tag
+          # Pull x86 image and extract .onnx using a temporary container
           docker pull "${AMD64_IMAGE}"
-          IMAGE_ID=$(docker inspect "${AMD64_IMAGE}" --format '{{.Id}}')
-          docker cp "${IMAGE_ID}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
+          # Create a temporary container (works even with scratch images)
+          CONTAINER_ID=$(docker create "${AMD64_IMAGE}" "")
+          # Copy the ONNX file from the container
+          docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
+          # Remove the temporary container
+          docker rm "${CONTAINER_ID}"
 
           # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
           docker build \

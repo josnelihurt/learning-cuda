@@ -32,3 +32,12 @@ RUN python /work/export_yolo_to_onnx.py --model "${YOLO_MODEL}" --output /models
 FROM scratch AS artifact
 
 COPY --from=generate /models/ /models/
+
+# ---------- Stage 4: artifact_from_prebuilt (for ARM64 CI, uses pre-generated .onnx) ----------
+# This stage allows building the artifact image using a pre-generated .onnx file
+# instead of running Python/ultralytics. Used when ONNX model is generated on x86.
+FROM scratch AS artifact_from_prebuilt
+
+ARG ONNX_FILE=yolov10n.onnx
+
+COPY ${ONNX_FILE} /models/

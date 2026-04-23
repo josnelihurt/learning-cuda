@@ -117,24 +117,17 @@ jobs:
           docker cp temp-yolo-extract:/models/yolov10n.onnx /tmp/yolov10n.onnx
           docker rm temp-yolo-extract
 
-          # Build ARM64 yolo-model-gen artifact using the extracted .onnx
-          cat > Dockerfile.arm-yolo-model <<'EOF'
-          FROM scratch
-          COPY yolov10n.onnx /models/
-          EOF
-
-          # Build the ARM64 artifact image (local registry)
+          # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
           docker build \
             --platform linux/arm64 \
-            -f Dockerfile.arm-yolo-model \
+            --build-arg "ONNX_FILE=/tmp/yolov10n.onnx" \
+            --target artifact_from_prebuilt \
+            -f src/cpp_accelerator/yolo-model-gen/Dockerfile \
             -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64 \
             -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64 \
-            /tmp
+            .
 
-          # Cleanup
-          rm -f Dockerfile.arm-yolo-model
-
-          echo "Built ARM64 yolo-model-gen artifact locally using x86 ONNX model"
+          echo "Built ARM64 yolo-model-gen artifact using x86 ONNX model"
 
       - name: Build cpp-accelerator image locally
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
@@ -196,23 +189,15 @@ jobs:
           docker cp temp-yolo-extract:/models/yolov10n.onnx /tmp/yolov10n.onnx
           docker rm temp-yolo-extract
 
-          # Build ARM64 yolo-model-gen artifact using the extracted .onnx
-          # Create a temporary Dockerfile to use the pre-built .onnx
-          cat > Dockerfile.arm-yolo-model <<'EOF'
-          FROM scratch
-          COPY yolov10n.onnx /models/
-          EOF
-
-          # Build the ARM64 artifact image
+          # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
           docker build \
             --platform linux/arm64 \
-            -f Dockerfile.arm-yolo-model \
+            --build-arg "ONNX_FILE=/tmp/yolov10n.onnx" \
+            --target artifact_from_prebuilt \
+            -f src/cpp_accelerator/yolo-model-gen/Dockerfile \
             -t ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64 \
             -t ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64 \
-            /tmp
-
-          # Cleanup
-          rm -f Dockerfile.arm-yolo-model
+            .
 
       - name: Push yolo-model-gen image (ARM64)
         if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'

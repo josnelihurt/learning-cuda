@@ -29,6 +29,7 @@ services:
       - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvinfer.so.10:/usr/lib/aarch64-linux-gnu/libnvinfer.so.10:ro
       - /usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:ro
+      - /usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:/usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:ro
       - ${ACCELERATOR_MODELS_DIR:-./models}/yolov10n.onnx:/opt/cuda/grpc/data/models/yolov10n.onnx:ro
 

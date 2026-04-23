@@ -17,7 +17,7 @@ services:
       - OTEL_LOGS_ENDPOINT=https://otel-cuda-demo.josnelihurt.me/v1/logs
       - OTEL_ENVIRONMENT=production
       - WEBRTC_PUBLIC_IP=xb19042.gldns.com
-      - WEBRTC_PUBLIC_PORT=60062
+      - WEBRTC_PUBLIC_PORT=10000
 
     command:
       - accelerator_control_client

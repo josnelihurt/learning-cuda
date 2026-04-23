@@ -269,6 +269,7 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     // This allows clients behind NAT/firewall to connect using the Jetson's public endpoint
     const char* public_ip_env = std::getenv("WEBRTC_PUBLIC_IP");
     const char* public_port_env = std::getenv("WEBRTC_PUBLIC_PORT");
+    const char* public_tcp_port_env = std::getenv("WEBRTC_PUBLIC_TCP_PORT");
     std::string manual_candidate_sdp;
     if (public_ip_env != nullptr && public_port_env != nullptr) {
       try {
@@ -280,6 +281,16 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
         std::ostringstream candidate_sdp;
         candidate_sdp << "a=candidate:1 1 UDP 2130706431 " << public_ip << " " << public_port
                       << " typ host\r\n";
+
+        // Add TCP fallback candidate if configured (for clients behind firewalls that block UDP)
+        if (public_tcp_port_env != nullptr) {
+          const std::string public_tcp_port = public_tcp_port_env;
+          candidate_sdp << "a=candidate:2 1 TCP 2130706430 " << public_ip << " " << public_tcp_port
+                        << " typ host tcptype passive\r\n";
+          spdlog::info("[WebRTC:{}] Will inject TCP ICE candidate for firewall fallback: {}:{}",
+                       session_id, public_ip, public_tcp_port);
+        }
+
         manual_candidate_sdp = candidate_sdp.str();
 
         spdlog::info("[WebRTC:{}] Will inject manual ICE candidate in SDP: {}:{}",

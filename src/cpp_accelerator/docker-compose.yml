@@ -6,6 +6,7 @@ services:
     runtime: nvidia
     ports:
       - "60061:60061/tcp"  # gRPC control
+      - "60060:60060/tcp"  # WebRTC TCP fallback for clients behind UDP-blocking firewalls
       - "10000-10199:10000-10199/udp"  # WebRTC ICE candidates
       - "60062:60062/udp"    # WebRTC fallback UDP
 
@@ -18,6 +19,7 @@ services:
       - OTEL_ENVIRONMENT=production
       - WEBRTC_PUBLIC_IP=xb19042.gldns.com
       - WEBRTC_PUBLIC_PORT=10000
+      - WEBRTC_PUBLIC_TCP_PORT=60060
 
     command:
       - accelerator_control_client

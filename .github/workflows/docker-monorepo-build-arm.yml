@@ -111,11 +111,9 @@ jobs:
           AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
 
           echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
-          # Pull x86 image and extract .onnx
+          # Pull x86 image and extract .onnx using docker cp (works with scratch images)
           docker pull "${AMD64_IMAGE}"
-          docker create --name temp-yolo-extract "${AMD64_IMAGE}"
-          docker cp temp-yolo-extract:/models/yolov10n.onnx /tmp/yolov10n.onnx
-          docker rm temp-yolo-extract
+          docker cp "${AMD64_IMAGE}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
 
           # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
           docker build \
@@ -183,11 +181,9 @@ jobs:
           AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
 
           echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
-          # Pull x86 image and extract .onnx
+          # Pull x86 image and extract .onnx using docker cp (works with scratch images)
           docker pull "${AMD64_IMAGE}"
-          docker create --name temp-yolo-extract "${AMD64_IMAGE}"
-          docker cp temp-yolo-extract:/models/yolov10n.onnx /tmp/yolov10n.onnx
-          docker rm temp-yolo-extract
+          docker cp "${AMD64_IMAGE}:/models/yolov10n.onnx" /tmp/yolov10n.onnx
 
           # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
           docker build \

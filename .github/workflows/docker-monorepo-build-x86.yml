@@ -39,6 +39,7 @@ jobs:
     outputs:
       app: ${{ steps.decide.outputs.app }}
       web_frontend: ${{ steps.decide.outputs.web_frontend }}
+      yolo_model: ${{ steps.decide.outputs.yolo_model }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -71,6 +72,9 @@ jobs:
               - 'scripts/docker/build-local.sh'
               - 'scripts/docker/push-tagged-images.sh'
               - '.github/workflows/docker-monorepo-build-x86.yml'
+            yolo_model:
+              - 'src/cpp_accelerator/yolo-model-gen/**'
+              - 'scripts/models/export_yolo_to_onnx.py'
 
       - name: Decide build scope
         id: decide
@@ -80,6 +84,7 @@ jobs:
           LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
           FILTER_APP: ${{ steps.filter.outputs.app }}
           FILTER_WEB_FRONTEND: ${{ steps.filter.outputs.web_frontend }}
+          FILTER_YOLO_MODEL: ${{ steps.filter.outputs.yolo_model }}
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
@@ -87,9 +92,11 @@ jobs:
              || [ "${LABEL_FORCE}" = "true" ]; then
             echo "app=true" >> "$GITHUB_OUTPUT"
             echo "web_frontend=true" >> "$GITHUB_OUTPUT"
+            echo "yolo_model=true" >> "$GITHUB_OUTPUT"
           else
             echo "app=${FILTER_APP:-false}" >> "$GITHUB_OUTPUT"
             echo "web_frontend=${FILTER_WEB_FRONTEND:-false}" >> "$GITHUB_OUTPUT"
+            echo "yolo_model=${FILTER_YOLO_MODEL:-false}" >> "$GITHUB_OUTPUT"
           fi
 
   build_app:
@@ -240,11 +247,76 @@ jobs:
         if: needs.detect-changes.outputs.web_frontend != 'true'
         run: echo "No paths relevant to web-frontend changed; skipping web-frontend build and push."
 
+  build_yolo_model:
+    name: Build yolo-model-gen image (PRs only)
+    if: github.event_name == 'pull_request'
+    needs: detect-changes
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build yolo-model-gen image locally
+        if: needs.detect-changes.outputs.yolo_model == 'true'
+        env:
+          REGISTRY: local
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
+        run: |
+          chmod +x scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh --stage yolo-tools --stage yolo-model
+
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.yolo_model != 'true'
+        run: echo "No paths relevant to yolo-model-gen changed; skipping build."
+
+  push_yolo_model:
+    name: Build and push yolo-model-gen image
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    needs: detect-changes
+    runs-on: ["self-hosted", "Linux", "X64"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: needs.detect-changes.outputs.yolo_model == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push yolo-model-gen image
+        if: needs.detect-changes.outputs.yolo_model == 'true'
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
+        run: |
+          chmod +x scripts/docker/build-local.sh
+          ./scripts/docker/build-local.sh --stage yolo-tools --stage yolo-model
+
+      - name: Push yolo-model-gen image
+        if: needs.detect-changes.outputs.yolo_model == 'true'
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: amd64
+          LATEST_ALIASES: yolo-model-gen
+        run: |
+          chmod +x scripts/docker/push-tagged-images.sh
+
+      - name: No relevant changes
+        if: needs.detect-changes.outputs.yolo_model != 'true'
+        run: echo "No paths relevant to yolo-model-gen changed; skipping build and push."
+
   deploy_prod:
     name: Deploy production to Cloud VM
     needs:
       - push_app
       - push_web_frontend
+      - push_yolo_model
     runs-on: ["self-hosted"]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     env:

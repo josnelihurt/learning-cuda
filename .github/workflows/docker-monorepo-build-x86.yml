@@ -443,6 +443,12 @@ jobs:
           cd "${COMPOSE_WORKDIR}"
           export APP_IMAGE CUDA_WEB_FRONTEND_IMAGE
 
+          # Stop and remove existing containers if they exist outside of compose
+          docker ps -q --filter "name=cuda-go-server" | xargs -r docker stop
+          docker ps -q --filter "name=cuda-web-frontend" | xargs -r docker stop
+          docker ps -aq --filter "name=cuda-go-server" | xargs -r docker rm
+          docker ps -aq --filter "name=cuda-web-frontend" | xargs -r docker rm
+
           docker compose up --pull always --force-recreate -d \
             learning-cuda-go-api learning-cuda-frontend
 

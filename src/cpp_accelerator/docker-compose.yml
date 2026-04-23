@@ -7,7 +7,6 @@ services:
     ports:
       - "60060:60060/tcp"  # WebRTC TCP fallback for clients behind UDP-blocking firewalls
       - "10000-10199:10000-10199/udp"  # WebRTC ICE candidates
-      - "60062:60062/udp"    # WebRTC fallback UDP
 
     environment:
       - NVIDIA_VISIBLE_DEVICES=all

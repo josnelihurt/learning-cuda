@@ -219,6 +219,9 @@ WORKDIR /opt/cuda/grpc
 COPY --from=grpc-artifacts /artifacts/bin/accelerator_control_client ./bin/accelerator_control_client
 COPY --from=grpc-artifacts /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
 
+# Copy YOLO model files for inference
+COPY --from=cpp-built /build/data/models /opt/cuda/grpc/data/models
+
 # Copy VERSION file for GetVersionInfo endpoint
 COPY src/cpp_accelerator/VERSION ./src/cpp_accelerator/VERSION
 

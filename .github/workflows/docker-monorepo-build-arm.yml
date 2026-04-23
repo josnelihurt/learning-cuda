@@ -97,15 +97,44 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build yolo-model-gen image locally
+      - name: Build yolo-model-gen image locally (PR)
         if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
-          REGISTRY: local
+          REGISTRY: ghcr.io
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh --stage yolo-tools --stage yolo-model
+
+          # Get the amd64 yolo-model-gen version from x86
+          YOLO_VERSION=$(cat src/cpp_accelerator/yolo-model-gen/VERSION)
+          AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
+
+          echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
+          # Pull x86 image and extract .onnx
+          docker pull "${AMD64_IMAGE}"
+          docker create --name temp-yolo-extract "${AMD64_IMAGE}"
+          docker cp temp-yolo-extract:/models/yolov10n.onnx /tmp/yolov10n.onnx
+          docker rm temp-yolo-extract
+
+          # Build ARM64 yolo-model-gen artifact using the extracted .onnx
+          cat > Dockerfile.arm-yolo-model <<'EOF'
+          FROM scratch
+          COPY yolov10n.onnx /models/
+          EOF
+
+          # Build the ARM64 artifact image (local registry)
+          docker build \
+            --platform linux/arm64 \
+            -f Dockerfile.arm-yolo-model \
+            -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64 \
+            -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64 \
+            /tmp
+
+          # Cleanup
+          rm -f Dockerfile.arm-yolo-model
+
+          echo "Built ARM64 yolo-model-gen artifact locally using x86 ONNX model"
 
       - name: Build cpp-accelerator image locally
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
@@ -147,7 +176,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push yolo-model-gen image
+      - name: Build and push yolo-model-gen image (ARM64)
         if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
@@ -155,7 +184,46 @@ jobs:
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh --stage yolo-tools --stage yolo-model
+
+          # Get the amd64 yolo-model-gen version from x86
+          YOLO_VERSION=$(cat src/cpp_accelerator/yolo-model-gen/VERSION)
+          AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
+
+          echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
+          # Pull x86 image and extract .onnx
+          docker pull "${AMD64_IMAGE}"
+          docker create --name temp-yolo-extract "${AMD64_IMAGE}"
+          docker cp temp-yolo-extract:/models/yolov10n.onnx /tmp/yolov10n.onnx
+          docker rm temp-yolo-extract
+
+          # Build ARM64 yolo-model-gen artifact using the extracted .onnx
+          # Create a temporary Dockerfile to use the pre-built .onnx
+          cat > Dockerfile.arm-yolo-model <<'EOF'
+          FROM scratch
+          COPY yolov10n.onnx /models/
+          EOF
+
+          # Build the ARM64 artifact image
+          docker build \
+            --platform linux/arm64 \
+            -f Dockerfile.arm-yolo-model \
+            -t ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64 \
+            -t ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64 \
+            /tmp
+
+          # Cleanup
+          rm -f Dockerfile.arm-yolo-model
+
+      - name: Push yolo-model-gen image (ARM64)
+        if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
+          ARCH: arm64
+        run: |
+          YOLO_VERSION=$(cat src/cpp_accelerator/yolo-model-gen/VERSION)
+          docker push ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64
+          docker push ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64
 
       - name: Build cpp-accelerator image
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'

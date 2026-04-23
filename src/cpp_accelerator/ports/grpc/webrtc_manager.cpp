@@ -265,6 +265,33 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     session->live_filter_state.add_filters(cuda_learning::FILTER_TYPE_NONE);
     session->live_filter_state.set_api_version("1.0");
 
+    // Prepare manual ICE candidate data for SDP modification if configured (before callbacks)
+    // This allows clients behind NAT/firewall to connect using the Jetson's public endpoint
+    const char* public_ip_env = std::getenv("WEBRTC_PUBLIC_IP");
+    const char* public_port_env = std::getenv("WEBRTC_PUBLIC_PORT");
+    std::string manual_candidate_sdp;
+    if (public_ip_env != nullptr && public_port_env != nullptr) {
+      try {
+        const std::string public_ip = public_ip_env;
+        const std::string public_port = public_port_env;
+
+        // SDP candidate format: candidate:foundation component-id transport priority connection-address port typ candidate-type
+        // Example: candidate:1 1 UDP 2130706431 73.71.7.90 60062 typ host
+        std::ostringstream candidate_sdp;
+        candidate_sdp << "a=candidate:1 1 UDP 2130706431 " << public_ip << " " << public_port
+                      << " typ host\r\n";
+        manual_candidate_sdp = candidate_sdp.str();
+
+        spdlog::info("[WebRTC:{}] Will inject manual ICE candidate in SDP: {}:{}",
+                     session_id, public_ip, public_port);
+      } catch (const std::exception& e) {
+        spdlog::warn("[WebRTC:{}] Failed to prepare manual ICE candidate: {}", session_id, e.what());
+      }
+    } else {
+      spdlog::debug("[WebRTC:{}] WEBRTC_PUBLIC_IP or WEBRTC_PUBLIC_PORT not set, skipping manual ICE candidate",
+                    session_id);
+    }
+
     session->peer_connection->onStateChange(
         [session_id, session](rtc::PeerConnection::State state) {
           std::string state_str;
@@ -362,12 +389,38 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     auto answer_promise = std::make_shared<std::promise<std::string>>();
     std::shared_future<std::string> answer_future = answer_promise->get_future();
 
+    // Capture manual_candidate_sdp for the callback by moving it into a shared_ptr
+    auto manual_candidate_ptr = std::make_shared<std::string>(std::move(manual_candidate_sdp));
+
     session->peer_connection->onLocalDescription(
-        [session_id, answer_ptr, answer_promise](rtc::Description description) {
+        [session_id, answer_ptr, answer_promise, manual_candidate_ptr](rtc::Description description) {
           spdlog::info("[WebRTC:{}] Local description created (type: {})", session_id,
                        description.typeString());
           if (description.type() == rtc::Description::Type::Answer) {
             std::string sdp = description.generateSdp();
+
+            // Inject manual ICE candidate into SDP if configured
+            if (!manual_candidate_ptr->empty()) {
+              spdlog::info("[WebRTC:{}] Injecting manual ICE candidate into SDP", session_id);
+              // Find the media section (m=video or m=application) and add candidate after it
+              size_t media_pos = sdp.find("m=");
+              if (media_pos != std::string::npos) {
+                // Find the end of the media block (next m= or end of string)
+                size_t next_media = sdp.find("\r\nm=", media_pos + 2);
+                if (next_media == std::string::npos) {
+                  // Last media section, append at end
+                  next_media = sdp.size();
+                }
+                // Insert candidate before the next media section or at end
+                sdp.insert(next_media, *manual_candidate_ptr);
+                spdlog::info("[WebRTC:{}] Manual ICE candidate injected (SDP length: {} -> {})",
+                             session_id, description.generateSdp().length(), sdp.length());
+              } else {
+                spdlog::warn("[WebRTC:{}] Could not find media section in SDP, candidate not injected",
+                             session_id);
+              }
+            }
+
             if (answer_ptr != nullptr && answer_ptr->empty()) {
               *answer_ptr = sdp;
             }

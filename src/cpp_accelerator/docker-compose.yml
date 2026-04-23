@@ -4,6 +4,10 @@ services:
     container_name: cuda-accelerator-client
     restart: unless-stopped
     runtime: nvidia
+    ports:
+      - "60061:60061/tcp"  # gRPC control
+      - "10000-10199:10000-10199/udp"  # WebRTC ICE candidates
+      - "60062:60062/udp"    # WebRTC fallback UDP
 
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
@@ -12,6 +16,8 @@ services:
       - OTEL_LOGS_ENABLED=false
       - OTEL_LOGS_ENDPOINT=https://otel-cuda-demo.josnelihurt.me/v1/logs
       - OTEL_ENVIRONMENT=production
+      - WEBRTC_PUBLIC_IP=xb19042.gldns.com
+      - WEBRTC_PUBLIC_PORT=60062
 
     command:
       - accelerator_control_client

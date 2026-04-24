@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { useServiceContext } from './context/service-context';
-import { renderWithService } from './test-utils/render-with-service';
-import type { GrpcClients } from './context/service-context';
+import { useServiceContext } from '@/presentation/context/service-context';
+import { renderWithService } from '@/presentation/test-utils/render-with-service';
+import type { GrpcClients } from '@/presentation/context/service-context';
 
-function Consumer() {
+function Consumer(): React.ReactNode {
   useServiceContext();
   return <span>has-clients</span>;
 }
@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe('ServiceContext / useServiceContext', () => {
   it('throws when used outside provider', () => {
-    function Bad() {
+    function Bad(): React.ReactNode {
       useServiceContext();
       return null;
     }

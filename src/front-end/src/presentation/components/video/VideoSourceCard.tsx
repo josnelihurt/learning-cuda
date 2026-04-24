@@ -1,6 +1,6 @@
 import { type ReactNode, type ReactElement } from 'react';
 import type { Detection } from '@/gen/image_processor_service_pb';
-import { colorForClassId } from './detection-colors';
+import { colorForClassId } from '@/presentation/utils/detection-colors';
 import styles from './VideoSourceCard.module.css';
 
 type VideoSourceCardProps = {

@@ -4,7 +4,7 @@ import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
 import { AcceleratorConfig, FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { frameResponseToDataUrl, rasterizeImageToRgb } from '@/presentation/utils/image-utils';
-import type { GridSource } from '@/presentation/components/video/grid-source';
+import type { GridSource } from '@/presentation/utils/grid-source';
 
 export interface FilterApplicationOptions {
   source: GridSource;

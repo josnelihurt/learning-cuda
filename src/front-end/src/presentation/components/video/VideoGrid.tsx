@@ -1,7 +1,7 @@
 import { type ReactElement } from 'react';
 import { CameraPreview } from './CameraPreview';
 import { VideoSourceCard } from './VideoSourceCard';
-import type { GridSourceView } from '@/presentation/components/video/grid-source';
+import type { GridSourceView } from '@/presentation/utils/grid-source';
 import styles from './VideoGrid.module.css';
 
 type CameraFramePayload = {

@@ -19,7 +19,7 @@ import { AddSourceFab } from '@/presentation/components/video/AddSourceFab';
 import { ImageSelectorModal } from '@/presentation/components/video/ImageSelectorModal';
 import { AcceleratorStatusFab } from '@/presentation/components/video/AcceleratorStatusFab';
 import { StatsPanel as ReactStatsPanel } from '@/presentation/components/app/StatsPanel';
-import { filtersToFilterData, GridSourceActionType, type GridSource } from '@/presentation/components/video/grid-source';
+import { filtersToFilterData, GridSourceActionType, type GridSource } from '@/presentation/utils/grid-source';
 
 const MAX_SOURCES = 9;
 

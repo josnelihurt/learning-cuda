@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import { ToastProvider } from './context/toast-context';
-import { useToast } from './hooks/useToast';
+import { ToastProvider } from '@/presentation/context/toast-context';
+import { useToast } from '@/presentation/hooks/useToast';
 
 describe('useToast / ToastProvider', () => {
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe('useToast / ToastProvider', () => {
   });
 
   it('invokes toast-container.success when useToast().success runs', async () => {
-    function Consumer() {
+    function Consumer(): React.ReactNode {
       const toast = useToast();
       useEffect(() => {
         toast.success('t');

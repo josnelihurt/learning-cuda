@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { Dispatch, RefObject } from 'react';
-import type { GridSource, GridSourceAction } from '@/presentation/components/video/grid-source';
-import { GridSourceActionType } from '@/presentation/components/video/grid-source';
+import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
+import { GridSourceActionType } from '@/presentation/utils/grid-source';
 
 function gridSourceReducer(state: GridSource[], action: GridSourceAction): GridSource[] {
   switch (action.type) {

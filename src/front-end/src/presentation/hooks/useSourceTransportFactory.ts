@@ -4,9 +4,9 @@ import type { InputSource } from '@/gen/config_service_pb';
 import type { IStatsDisplay, ICameraPreview, IToastDisplay } from '@/infrastructure/transport/transport-types';
 import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
-import type { GridSource, GridSourceAction } from '@/presentation/components/video/grid-source';
-import { GridSourceActionType } from '@/presentation/components/video/grid-source';
-import { filtersToFilterData } from '@/presentation/components/video/grid-source';
+import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
+import { GridSourceActionType } from '@/presentation/utils/grid-source';
+import { filtersToFilterData } from '@/presentation/utils/grid-source';
 import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 
 type SourceTransportFactoryOptions = {

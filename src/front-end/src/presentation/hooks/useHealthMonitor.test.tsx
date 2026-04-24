@@ -5,11 +5,11 @@ import {
   AcceleratorHealthStatus,
   CheckAcceleratorHealthResponse,
 } from '@/gen/remote_management_service_pb';
-import { useHealthMonitor } from './hooks/useHealthMonitor';
-import { renderWithService } from './test-utils/render-with-service';
-import type { GrpcClients } from './context/service-context';
+import { useHealthMonitor } from '@/presentation/hooks/useHealthMonitor';
+import { renderWithService } from '@/presentation/test-utils/render-with-service';
+import type { GrpcClients } from '@/presentation/context/service-context';
 
-function setVisibility(state: DocumentVisibilityState) {
+function setVisibility(state: DocumentVisibilityState): void {
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
     value: state,
@@ -47,7 +47,7 @@ describe('useHealthMonitor', () => {
 
     const healthyFlags: boolean[] = [];
 
-    function Probe() {
+    function Probe(): React.ReactNode {
       const { isHealthy } = useHealthMonitor({ pollIntervalMs: 5000 });
       useEffect(() => {
         healthyFlags.push(isHealthy);
@@ -95,7 +95,7 @@ describe('useHealthMonitor', () => {
       })
     );
 
-    function Probe() {
+    function Probe(): React.ReactNode {
       useHealthMonitor({ pollIntervalMs: 1000 });
       return null;
     }

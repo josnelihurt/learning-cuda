@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { act } from 'react';
 import { ConnectError, Code } from '@connectrpc/connect';
 import { ListFiltersResponse } from '@/gen/image_processor_service_pb';
-import { useAsyncGRPC } from './hooks/useAsyncGRPC';
-import { renderWithService } from './test-utils/render-with-service';
-import type { GrpcClients } from './context/service-context';
+import { useAsyncGRPC } from '@/presentation/hooks/useAsyncGRPC';
+import { renderWithService } from '@/presentation/test-utils/render-with-service';
+import type { GrpcClients } from '@/presentation/context/service-context';
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -16,7 +16,7 @@ describe('useAsyncGRPC', () => {
     const listFilters = vi.fn().mockResolvedValue(new ListFiltersResponse({}));
     const snapshots: { loading: boolean; data?: ListFiltersResponse }[] = [];
 
-    function Probe() {
+    function Probe(): React.ReactNode {
       const { data, loading } = useAsyncGRPC(
         async (clients, { signal }) =>
           clients.imageProcessorClient.listFilters({}, { signal }),
@@ -54,7 +54,7 @@ describe('useAsyncGRPC', () => {
       .mockRejectedValue(new ConnectError('rpc failed', Code.Unavailable));
     const errors: { message: string; code?: string }[] = [];
 
-    function Probe() {
+    function Probe(): React.ReactNode {
       const { error, loading } = useAsyncGRPC(
         async (clients, { signal }) =>
           clients.imageProcessorClient.listFilters({}, { signal }),
@@ -89,7 +89,7 @@ describe('useAsyncGRPC', () => {
     const listFilters = vi.fn().mockResolvedValue(new ListFiltersResponse({}));
     let refetch: (() => void) | undefined;
 
-    function Probe() {
+    function Probe(): React.ReactNode {
       const grpc = useAsyncGRPC(
         async (clients, { signal }) =>
           clients.imageProcessorClient.listFilters({}, { signal }),

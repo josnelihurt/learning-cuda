@@ -6,7 +6,7 @@ import { defineConfig, loadEnv } from 'vite';
 import type { Connect, Plugin } from 'vite';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
-import { createReadStream, existsSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import react from '@vitejs/plugin-react';
 
@@ -42,12 +42,23 @@ function prettyFrontendRoutesPlugin(): Plugin {
 
 function gitVersionPlugin() {
   let version = 'dev';
+  let versionNumber = 'dev';
   let branch = 'unknown';
   let buildTime = new Date().toISOString();
 
   return {
     name: 'git-version',
     config() {
+      // Read VERSION file for version number (vite.config.ts is in src/front-end/)
+      try {
+        const versionPath = join(__dirname, 'VERSION');
+        if (existsSync(versionPath)) {
+          versionNumber = readFileSync(versionPath, 'utf-8').trim();
+        }
+      } catch {
+        console.warn('VERSION file not found, using fallback version number');
+      }
+
       // Check environment variables first (for Docker builds)
       if (process.env.VITE_COMMIT_HASH) {
         version = process.env.VITE_COMMIT_HASH;
@@ -72,6 +83,7 @@ function gitVersionPlugin() {
       return {
         define: {
           __APP_VERSION__: JSON.stringify(version),
+          __APP_VERSION_NUMBER__: JSON.stringify(versionNumber),
           __APP_BRANCH__: JSON.stringify(branch),
           __BUILD_TIME__: JSON.stringify(buildTime),
         },

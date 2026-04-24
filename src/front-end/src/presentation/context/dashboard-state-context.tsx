@@ -19,10 +19,12 @@ export type DashboardState = {
   selectedResolution: string;
   activeFilters: ActiveFilterState[];
   processorFilterEpoch: number;
+  isWebRTCReady: boolean;
   setSelectedSource: (number: number, name: string) => void;
   setAccelerator: (a: AcceleratorChoice) => void;
   setResolution: (r: string) => void;
   setActiveFilters: (f: ActiveFilterState[]) => void;
+  setWebRTCReady: (ready: boolean) => void;
 };
 
 const DashboardStateContext = createContext<DashboardState | null>(null);
@@ -43,6 +45,7 @@ export function DashboardStateProvider({ children }: { children: ReactNode }) {
   const [selectedResolution, setSelectedResolution] = useState('original');
   const [activeFilters, setActiveFiltersState] = useState<ActiveFilterState[]>([]);
   const [processorFilterEpoch, setProcessorFilterEpoch] = useState(0);
+  const [isWebRTCReady, setIsWebRTCReady] = useState(false);
 
   useEffect(() => {
     if (!ready) {
@@ -75,6 +78,10 @@ export function DashboardStateProvider({ children }: { children: ReactNode }) {
     setActiveFiltersState(f);
   }, []);
 
+  const setWebRTCReady = useCallback((ready: boolean) => {
+    setIsWebRTCReady(ready);
+  }, []);
+
   const value = useMemo(
     () => ({
       selectedSourceNumber,
@@ -83,10 +90,12 @@ export function DashboardStateProvider({ children }: { children: ReactNode }) {
       selectedResolution,
       activeFilters,
       processorFilterEpoch,
+      isWebRTCReady,
       setSelectedSource,
       setAccelerator,
       setResolution,
       setActiveFilters,
+      setWebRTCReady,
     }),
     [
       selectedSourceNumber,
@@ -95,10 +104,12 @@ export function DashboardStateProvider({ children }: { children: ReactNode }) {
       selectedResolution,
       activeFilters,
       processorFilterEpoch,
+      isWebRTCReady,
       setSelectedSource,
       setAccelerator,
       setResolution,
       setActiveFilters,
+      setWebRTCReady,
     ]
   );
 

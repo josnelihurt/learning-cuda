@@ -45,6 +45,7 @@ type GridSource = {
   detections: Detection[];
   detectionImageWidth: number;
   detectionImageHeight: number;
+  connected: boolean;
 };
 
 const MAX_SOURCES = 9;
@@ -164,6 +165,7 @@ export function VideoGridHost() {
     setSelectedSource,
     setActiveFilters,
     setResolution,
+    setWebRTCReady,
   } = useDashboardState();
 
   useEffect(() => {
@@ -173,6 +175,11 @@ export function VideoGridHost() {
   useEffect(() => {
     selectedSourceIdRef.current = selectedSourceId;
   }, [selectedSourceId]);
+
+  useEffect(() => {
+    const selectedSource = sources.find((s) => s.id === selectedSourceId);
+    setWebRTCReady(selectedSource?.connected ?? false);
+  }, [sources, selectedSourceId, setWebRTCReady]);
 
   const statsManager = useMemo(
     () =>
@@ -302,6 +309,7 @@ export function VideoGridHost() {
           ...current,
           sessionId: session.getId(),
           sessionMode: session.getMode(),
+          connected: true,
         }));
         const currentSource = sourcesRef.current.find((item) => item.id === sourceId) ?? source;
         const currentFilters = currentSource.filters.length
@@ -477,6 +485,7 @@ export function VideoGridHost() {
         detections: [],
         detectionImageWidth: 0,
         detectionImageHeight: 0,
+        connected: false,
       };
 
       setSources((current) => [...current, source]);
@@ -488,12 +497,22 @@ export function VideoGridHost() {
       if (inputSource.type === 'video') {
         const tryStartVideo = () => {
           if (transport.isConnected()) {
+            updateSource(uniqueId, (s) => ({ ...s, connected: true }));
             transport.sendStartVideo(inputSource.id, mapFiltersToValueObjects(source.filters), 'gpu');
             return;
           }
           setTimeout(tryStartVideo, 100);
         };
         setTimeout(tryStartVideo, 100);
+      } else if (transport) {
+        const waitForConnect = () => {
+          if (transport.isConnected()) {
+            updateSource(uniqueId, (s) => ({ ...s, connected: true }));
+            return;
+          }
+          setTimeout(waitForConnect, 100);
+        };
+        setTimeout(waitForConnect, 100);
       }
     },
     [emitSelectionState, mapFiltersToValueObjects, statsManager, toastManager, updateSource]

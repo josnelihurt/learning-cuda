@@ -158,6 +158,9 @@ bool WebRTCManager::Initialize() {
     config_->portRangeBegin = 10000;
     config_->portRangeEnd = 10199;
 
+    // Enable TCP ICE candidates for firewall fallback (requires specific ports)
+    config_->enableIceTcp = true;
+
     // The library default advertises ~256 KiB as the SCTP max message size.
     // Our ProcessImageRequest payloads for full-resolution frames (e.g. 512x512
     // RGB = ~768 KiB, plus protobuf overhead) routinely exceed that, and Chrome
@@ -171,6 +174,7 @@ bool WebRTCManager::Initialize() {
     spdlog::info("  - STUN Server: stun.l.google.com:19302");
     spdlog::info("  - UDP Port Range: {}-{} ({} ports)", config_->portRangeBegin,
                  config_->portRangeEnd, config_->portRangeEnd - config_->portRangeBegin + 1);
+    spdlog::info("  - TCP ICE: enabled for firewall fallback");
     spdlog::info("  - Data channel max message size: {} bytes", kMaxDataChannelMessageBytes);
     spdlog::info("  - TURN Server: Not configured");
     spdlog::info("  - Session Cleanup: Enabled (30s timeout)");

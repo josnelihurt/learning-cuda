@@ -37,13 +37,13 @@ func TestListInputsUseCase_Execute(t *testing.T) {
 				assert.Equal(t, "Lena", result[0].DisplayName)
 				assert.Equal(t, "static", result[0].Type)
 				assert.Equal(t, "/data/static_images/lena.png", result[0].ImagePath)
-				assert.True(t, result[0].IsDefault)
+				assert.False(t, result[0].IsDefault)
 
 				assert.Equal(t, "webcam", result[1].ID)
 				assert.Equal(t, "Camera", result[1].DisplayName)
 				assert.Equal(t, "camera", result[1].Type)
 				assert.Empty(t, result[1].ImagePath)
-				assert.False(t, result[1].IsDefault)
+				assert.True(t, result[1].IsDefault)
 			},
 		},
 		{

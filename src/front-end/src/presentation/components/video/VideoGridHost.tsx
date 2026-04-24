@@ -157,22 +157,29 @@ export function VideoGridHost() {
   );
 
   const mapFiltersToGenericSelections = useCallback(
-    (filters: ActiveFilterState[]): GenericFilterSelection[] =>
-      filters
-        .filter((filter) => filter.id !== 'none')
-        .map((filter) => {
-          const selection = new GenericFilterSelection({
-            filterId: filter.id,
-            parameters: Object.entries(filter.parameters).map(
-              ([parameterId, value]) =>
-                new GenericFilterParameterSelection({
-                  parameterId,
-                  values: [value],
-                })
-            ),
-          });
-          return selection;
-        }),
+    (filters: ActiveFilterState[]): GenericFilterSelection[] => {
+      // If filters are empty or only contain 'none', send explicit 'none' filter to clear backend filters
+      const activeFilters = filters.filter((filter) => filter.id !== 'none');
+      if (activeFilters.length === 0) {
+        return [new GenericFilterSelection({
+          filterId: 'none',
+          parameters: [],
+        })];
+      }
+      return activeFilters.map((filter) => {
+        const selection = new GenericFilterSelection({
+          filterId: filter.id,
+          parameters: Object.entries(filter.parameters).map(
+            ([parameterId, value]) =>
+              new GenericFilterParameterSelection({
+                parameterId,
+                values: [value],
+              })
+          ),
+        });
+        return selection;
+      });
+    },
     []
   );
 
@@ -521,6 +528,16 @@ export function VideoGridHost() {
         return;
       }
       const videoId = selectedSource.videoId || selectedSource.name;
+      const hasModelInference = normalizedFilters.some((f) => f.id === 'model_inference');
+      // Clear detections if model inference is disabled before restarting video
+      if (!hasModelInference) {
+        updateSource(selectedSource.id, (source) => ({
+          ...source,
+          detections: [],
+          detectionImageWidth: 0,
+          detectionImageHeight: 0,
+        }));
+      }
       selectedSource.transport.sendStopVideo(videoId);
       setTimeout(() => {
         const freshSource = sourcesRef.current.find((s) => s.id === selectedSourceId);
@@ -544,6 +561,16 @@ export function VideoGridHost() {
       return;
     }
     if (selectedSource.type === 'camera') {
+      const hasModelInference = normalizedFilters.some((f) => f.id === 'model_inference');
+      // Clear detections if model inference is disabled
+      if (!hasModelInference) {
+        updateSource(selectedSource.id, (source) => ({
+          ...source,
+          detections: [],
+          detectionImageWidth: 0,
+          detectionImageHeight: 0,
+        }));
+      }
       if (selectedSource.sessionId && webrtcService.isDataChannelOpen(selectedSource.sessionId)) {
         sendCameraControlRequest(
           selectedSource.sessionId,

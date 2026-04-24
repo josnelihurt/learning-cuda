@@ -241,7 +241,8 @@ export function VideoGridHost() {
           connected: true,
         }));
         const currentSource = sourcesRef.current.find((item) => item.id === sourceId) ?? source;
-        const currentFilters = currentSource.filters.length
+        // Use selected source filters which should be synced with activeFilters from the main effect
+        const currentFilters = currentSource.filters.length > 0
           ? currentSource.filters
           : [{ id: 'none', parameters: {} }];
         sendCameraControlRequest(
@@ -407,9 +408,9 @@ export function VideoGridHost() {
         remoteStream: null,
         sessionId: null,
         sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
-        filters: [{ id: 'none', parameters: {} }],
-        resolution: 'original',
-        accelerator: 'gpu',
+        filters: activeFilters.length > 0 ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } })) : [{ id: 'none', parameters: {} }],
+        resolution: selectedResolution || 'original',
+        accelerator: selectedAccelerator || 'gpu',
         videoId: inputSource.type === 'video' ? inputSource.id : undefined,
         detections: [],
         detectionImageWidth: 0,
@@ -571,14 +572,26 @@ export function VideoGridHost() {
           detectionImageHeight: 0,
         }));
       }
-      if (selectedSource.sessionId && webrtcService.isDataChannelOpen(selectedSource.sessionId)) {
-        sendCameraControlRequest(
-          selectedSource.sessionId,
-          selectedSource.id,
-          normalizedFilters,
-          selectedAccelerator
-        );
+      if (!selectedSource.sessionId) {
+        logger.warn('Camera filter update skipped - no sessionId', {
+          'source.id': selectedSource.id,
+          'source.name': selectedSource.name,
+        });
+        return;
       }
+      if (!webrtcService.isDataChannelOpen(selectedSource.sessionId)) {
+        logger.warn('Camera filter update skipped - data channel not open', {
+          'source.id': selectedSource.id,
+          'source.sessionId': selectedSource.sessionId,
+        });
+        return;
+      }
+      sendCameraControlRequest(
+        selectedSource.sessionId,
+        selectedSource.id,
+        normalizedFilters,
+        selectedAccelerator
+      );
       return;
     }
 

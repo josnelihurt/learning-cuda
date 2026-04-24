@@ -1,6 +1,6 @@
 {
   "name": "cuda-image-processor-web",
-  "version": "3.0.2",
+  "version": "3.0.5",
   "description": "Frontend for CUDA Image Processor with React",
   "type": "module",
   "scripts": {

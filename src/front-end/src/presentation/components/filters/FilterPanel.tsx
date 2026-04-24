@@ -267,7 +267,7 @@ function renderParameterControl(
     case 2: return <RangeParameter key={param.id} filter={filter} param={param} onChange={onChange} />;
     case 3: return <NumberParameter key={param.id} filter={filter} param={param} onChange={onChange} onError={onError} />;
     case 4: return <CheckboxParameter key={param.id} filter={filter} param={param} onChange={onChange} />;
-    default: return null;
+    default: return <></>;
   }
 }
 
@@ -296,7 +296,7 @@ export function FilterPanel({
   // draggedIndexRef allows handleDrop to read the current index synchronously
   // without a stale closure, since useReducer state updates are async.
   const draggedIndexRef = useRef<number | null>(null);
-  const toastTimeoutRef = useRef<NodeJS.Timeout>();
+  const toastTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   // Track filter definition IDs — only re-initialize when backend sends new filter definitions,
   // not on every re-render triggered by activeFilters updates (avoids circular reset).
   const filterIdsKeyRef = useRef<string>('');
@@ -334,11 +334,6 @@ export function FilterPanel({
     dispatch({ type: 'INIT', payload: initialFilterStates });
   }, [filters]);
 
-  useEffect(() => {
-    if (localFilters.length === 0) return;
-    onFiltersChange(getActiveFilters(localFilters));
-  }, [localFilters, onFiltersChange]);
-
   const { error: showError } = useToast();
 
   const debouncedError = useCallback(
@@ -352,6 +347,11 @@ export function FilterPanel({
   const handleParameterChange = useCallback((filterId: string, paramId: string, value: string) => {
     dispatch({ type: 'SET_PARAMETER', filterId, paramId, value });
   }, []);
+
+  useEffect(() => {
+    if (localFilters.length === 0) return;
+    onFiltersChange(getActiveFilters(localFilters));
+  }, [localFilters, onFiltersChange]);
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     draggedIndexRef.current = index;

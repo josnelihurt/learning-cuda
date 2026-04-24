@@ -1,19 +1,10 @@
 import { useCallback, useRef } from 'react';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
-import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
 import { AcceleratorConfig, FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { frameResponseToDataUrl, rasterizeImageToRgb } from '@/presentation/utils/image-utils';
-
-export interface GridSource {
-  id: string;
-  type: string;
-  videoId?: string;
-  sessionId: string | null;
-  originalImageSrc: string;
-  transport: WebRTCFrameTransportService | null;
-}
+import type { GridSource } from '@/presentation/components/video/grid-source';
 
 export interface FilterApplicationOptions {
   source: GridSource;
@@ -27,7 +18,7 @@ export type FilterApplicationResult =
   | { status: 'success' }
   | { status: 'error'; message: string };
 
-export function useFilterApplication(toastManager: IToastDisplay) {
+export function useFilterApplication(toastManager: IToastDisplay): { applyStaticFilters: (options: FilterApplicationOptions) => Promise<FilterApplicationResult>; applyVideoFilters: (options: FilterApplicationOptions) => Promise<FilterApplicationResult> } {
   const pendingUpdateRef = useRef<{ sourceId: string; filters: ActiveFilterState[] } | null>(null);
 
   const mapFiltersToValueObjects = useCallback((filters: ActiveFilterState[]): FilterData[] => {

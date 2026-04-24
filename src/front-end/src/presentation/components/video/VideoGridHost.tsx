@@ -241,8 +241,9 @@ export function VideoGridHost() {
           connected: true,
         }));
         const currentSource = sourcesRef.current.find((item) => item.id === sourceId) ?? source;
-        const currentFilters = currentSource.filters.length
-          ? currentSource.filters
+        // Use activeFilters from context instead of source.filters to ensure we use current global filter state
+        const currentFilters = activeFilters.length > 0
+          ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } }))
           : [{ id: 'none', parameters: {} }];
         sendCameraControlRequest(
           session.getId(),
@@ -284,7 +285,7 @@ export function VideoGridHost() {
         cameraSessionSourceIdsRef.current.delete(sourceId);
       }
     },
-    [sendCameraControlRequest, toastManager, updateSource]
+    [sendCameraControlRequest, toastManager, updateSource, activeFilters]
   );
 
   const emitSelectionState = useCallback(
@@ -571,14 +572,26 @@ export function VideoGridHost() {
           detectionImageHeight: 0,
         }));
       }
-      if (selectedSource.sessionId && webrtcService.isDataChannelOpen(selectedSource.sessionId)) {
-        sendCameraControlRequest(
-          selectedSource.sessionId,
-          selectedSource.id,
-          normalizedFilters,
-          selectedAccelerator
-        );
+      if (!selectedSource.sessionId) {
+        logger.warn('Camera filter update skipped - no sessionId', {
+          'source.id': selectedSource.id,
+          'source.name': selectedSource.name,
+        });
+        return;
       }
+      if (!webrtcService.isDataChannelOpen(selectedSource.sessionId)) {
+        logger.warn('Camera filter update skipped - data channel not open', {
+          'source.id': selectedSource.id,
+          'source.sessionId': selectedSource.sessionId,
+        });
+        return;
+      }
+      sendCameraControlRequest(
+        selectedSource.sessionId,
+        selectedSource.id,
+        normalizedFilters,
+        selectedAccelerator
+      );
       return;
     }
 

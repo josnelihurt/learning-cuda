@@ -571,5 +571,12 @@ The current architecture provides a solid foundation, but the vision extends to 
 
 This vision transforms the platform from a CUDA learning project into a comprehensive multi-accelerator processing platform that explores the full spectrum of GPU and accelerator technologies available today.
 
-### Generate docker 
+### Generate Protobuf Code
+
+```bash
+# Using the convenience script
+./scripts/build/protos.sh
+
+# Or manually with Docker
 docker run --rm -v $(pwd):/workspace -u $(id -u):$(id -g) cuda-learning-bufgen:latest generate
+```

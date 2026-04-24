@@ -142,13 +142,26 @@ graph TB
 - Updates filter configuration in real-time
 
 **`video-grid`** (`components/video/VideoGrid.tsx`):
-- Displays video sources in a grid layout
-- Hosts VideoGridHost for rendering individual sources
+- Displays video sources in a responsive grid layout
+- Manages source selection and state via useGridSources hook
+- Coordinates with VideoGridHost for rendering individual sources
 
 **`video-grid-host`** (`components/video/VideoGridHost.tsx`):
-- Manages the video grid layout and source lifecycle
-- Renders VideoCanvas and VideoStreamer components per source
-- Handles source selection and removal
+- Manages individual video source rendering and lifecycle
+- Coordinates VideoCanvas, VideoStreamer, and VideoSourceCard components
+- Handles source-specific connections, filters, and detections
+- Integrates with useFilterApplication and useProcessingStats hooks
+
+**`grid-source.ts`** (`components/video/grid-source.ts`):
+- TypeScript type definitions for grid sources
+- Defines GridSource interface with source state (connected, filters, detections, etc.)
+- Exports GridSourceAction types for useReducer state management
+
+**`useGridSources.ts`** (`components/video/useGridSources.ts`):
+- Custom hook for managing multiple video sources in the grid
+- Provides reducer-based state management for source operations
+- Handles source addition, removal, selection, and state updates
+- Manages connection state, remote streams, and filter synchronization
 
 **`video-canvas`** (`components/video/VideoCanvas.tsx`):
 - Renders processed video frames and detection overlays on an HTML Canvas
@@ -339,32 +352,22 @@ Type-safe domain models:
 
 The React dashboard uses custom hooks and context providers for state management, replacing the previous UIService approach.
 
-**Custom Hooks** (`react/hooks/`):
+**Custom Hooks** (`presentation/hooks/`):
 
 - **`useWebRTCStream.ts`**: Manages WebRTC connections for real-time video streaming
   - Establishes WebRTC peer connections
   - Handles video frame processing
   - Manages connection state and quality metrics
 
-- **`useImageProcessing.ts`**: Orchestrates image processing operations
-  - Processes images via Connect-RPC
-  - Manages filter configuration
-  - Tracks processing metrics
-
-- **`useFilters.ts`**: Filter management and selection
-  - Loads available filters from backend
-  - Manages filter order and parameters
-  - Handles drag-and-drop reordering
-
 - **`useConfig.ts`**: Configuration management
   - Fetches stream configuration
   - Manages feature flags
   - Handles system settings
 
-- **`useHealthMonitor.ts`**: System health monitoring
-  - Tracks accelerator availability
-  - Monitors system resources
-  - Provides health status updates
+- **`useFilters.ts`**: Filter management and selection
+  - Loads available filters from backend
+  - Manages filter order and parameters
+  - Handles drag-and-drop reordering
 
 - **`useAsyncGRPC.ts`**: Async gRPC operation management
   - Handles async gRPC calls with proper error handling
@@ -385,6 +388,41 @@ The React dashboard uses custom hooks and context providers for state management
   - Displays success/error messages
   - Manages notification queue
   - Provides notification API
+
+- **`useHealthMonitor.ts`**: System health monitoring
+  - Tracks accelerator availability
+  - Monitors system resources
+  - Provides health status updates
+
+- **`useCameraTransport.ts`**: Camera transport management
+  - Manages webcam transport selection and initialization
+  - Handles camera frame transport for real-time processing
+  - Integrates with WebRTC and Connect-RPC transports
+
+- **`useFilterApplication.ts`**: Filter application logic
+  - Manages filter application to video sources
+  - Handles filter synchronization across sources
+  - Tracks processing statistics and metrics
+
+- **`useProcessingStats.ts`**: Processing statistics tracking
+  - Tracks FPS and processing time metrics
+  - Provides performance analytics for filters
+  - Manages statistics display and persistence
+
+- **`useSourceFilterSync.ts`**: Source-filter synchronization
+  - Synchronizes filter state across multiple video sources
+  - Manages per-source filter configuration
+  - Handles filter order and parameter updates
+
+- **`useSourceTransportFactory.ts`**: Transport factory for video sources
+  - Creates appropriate transport for each source type
+  - Manages transport lifecycle and cleanup
+  - Handles transport-specific configuration
+
+- **`useVideoFilterManager.ts`**: Video filter management
+  - Manages filter pipeline for video sources
+  - Handles filter chain execution
+  - Coordinates filter operations with video playback
 
 **Context Providers** (`react/context/`):
 
@@ -493,15 +531,15 @@ npm run test:e2e:dev  # Development mode
 
 ## Tech Stack
 
-- **React 19**: Modern React application with hooks and context
-- **TypeScript**: Type-safe JavaScript
-- **Vite**: Build tool and dev server with MPA support
-- **Vitest**: Unit testing framework
-- **Playwright**: E2E testing
-- **Connect-RPC**: gRPC-Web client library for service calls and WebRTC signaling
-- **WebRTC**: Real-time peer-to-peer frame streaming
-- **OpenTelemetry**: Distributed tracing
-- **Shepherd.js**: Guided tour library
+- **React 19**: Modern React application with hooks, context, and concurrent rendering
+- **TypeScript**: Type-safe JavaScript with strict mode enabled
+- **Vite**: Fast build tool and dev server with hot module replacement
+- **Vitest**: Unit testing framework with native ESM support
+- **Playwright**: E2E testing framework with cross-browser support
+- **Connect-RPC**: Type-safe RPC framework with gRPC-Web and HTTP/JSON support
+- **WebRTC**: Real-time peer-to-peer frame streaming with data channels
+- **OpenTelemetry**: Distributed tracing and observability integration
+- **CSS Modules**: Scoped CSS with automatic class name generation
 
 ## Directory Structure
 
@@ -531,9 +569,9 @@ front-end/
 │   │   │   ├── image/       # Image processing
 │   │   │   ├── settings/    # Settings panel
 │   │   │   ├── sidebar/     # Sidebar components
-│   │   │   └── video/       # VideoGrid, VideoCanvas, VideoStreamer, VideoSourceCard, etc.
+│   │   │   └── video/       # VideoGrid, VideoGridHost, VideoCanvas, VideoStreamer, VideoSourceCard, useGridSources, grid-source
 │   │   ├── context/         # React context providers (dashboard-state, service, toast)
-│   │   ├── hooks/           # Custom hooks (useWebRTCStream, useFilters, useConfig, etc.)
+│   │   ├── hooks/           # Custom hooks (useWebRTCStream, useFilters, useConfig, useCameraTransport, useFilterApplication, useProcessingStats, useSourceFilterSync, useSourceTransportFactory, useVideoFilterManager, etc.)
 │   │   ├── providers/       # Service providers (app-services, grpc-clients)
 │   │   └── test-utils/      # Test utilities and helpers
 │   ├── services/             # Shared services

@@ -152,16 +152,9 @@ webserver/
 ├── cmd/server/          # Main entry point (main.go)
 ├── pkg/
 │   ├── application/     # Use cases (business logic)
-│   │   ├── process_image_use_case.go
-│   │   ├── processor_capabilities_use_case.go
-│   │   ├── evaluate_feature_flag_use_case.go
-│   │   ├── get_system_info_use_case.go
-│   │   ├── list_available_images_use_case.go
-│   │   ├── upload_image_use_case.go
-│   │   ├── list_videos_use_case.go
-│   │   ├── upload_video_use_case.go
-│   │   ├── stream_video_use_case.go
-│   │   └── list_inputs_use_case.go
+│   │   ├── flags/       # Feature flag use cases
+│   │   ├── media/       # Media use cases (image, video)
+│   │   └── platform/    # Platform use cases (system)
 │   ├── domain/          # Domain models and interfaces
 │   │   ├── image.go
 │   │   ├── processor.go
@@ -181,11 +174,10 @@ webserver/
 │   │   │   ├── session.go
 │   │   │   ├── signaling_adapter.go
 │   │   │   └── grpc_repository.go
-│   │   ├── featureflags/# Goff integration (YAML-based)
+│   │   ├── featureflags/ # Goff integration (YAML-based)
 │   │   ├── filesystem/  # File repositories
 │   │   ├── video/       # Video repositories
 │   │   ├── webrtc/      # WebRTC peer management
-│   │   ├── mqtt/        # MQTT device monitoring
 │   │   ├── http/        # HTTP utilities
 │   │   ├── image/       # Image codec
 │   │   ├── logger/      # Structured logging
@@ -237,15 +229,26 @@ Static `/data/` assets are served by the Go server in both development and produ
 ### Application Layer
 
 **Use Cases** (`pkg/application/`):
-- `ProcessImageUseCase`: Orchestrates image processing business logic
-- `ProcessorCapabilitiesUseCase`: Queries available filters and accelerators
-- `EvaluateFeatureFlagUseCase`: Evaluates feature flags from Goff YAML configuration
-- `GetSystemInfoUseCase`: Retrieves system information and build details
-- `ListAvailableImagesUseCase`: Lists available static images
-- `UploadImageUseCase`: Handles image uploads
-- `ListVideosUseCase` / `UploadVideoUseCase`: Video management
-- `StreamVideoUseCase`: Streams video frames via WebRTC for real-time processing, manages WebRTC peer connections
-- `ListInputsUseCase`: Lists available input sources
+
+**Flags** (`pkg/application/flags/`):
+- `EvaluateFeatureFlagBoolUseCase`: Evaluates boolean feature flags from Goff YAML configuration
+- `EvaluateFeatureFlagStringUseCase`: Evaluates string variant feature flags from Goff YAML configuration
+
+**Media** (`pkg/application/media/`):
+- `image/`: Image management use cases
+  - `ListAvailableImagesUseCase`: Lists available static images
+  - `UploadImageUseCase`: Handles image uploads
+- `video/`: Video management use cases
+  - `ListVideosUseCase`: Lists available videos
+  - `UploadVideoUseCase`: Handles video uploads
+  - `ListInputsUseCase`: Lists available input sources
+  - `StartVideoPlaybackUseCase`: Starts video playback with filters
+  - `StopVideoPlaybackUseCase`: Stops video playback sessions
+
+**Platform** (`pkg/application/platform/`):
+- `system/`: System-level use cases
+  - `GetSystemInfoUseCase`: Retrieves system information and build details
+  - `ProcessorCapabilitiesUseCase`: Queries available filters and accelerators
 
 All use cases follow the same pattern: they receive domain models, orchestrate business logic, and return domain models or errors.
 

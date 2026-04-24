@@ -60,9 +60,6 @@ jobs:
               - 'buf.lock'
               - 'buf.gen.yaml'
               - 'buf.gen.backend.yaml'
-              - 'scripts/docker/build-local.sh'
-              - 'scripts/docker/push-tagged-images.sh'
-              - '.github/workflows/docker-monorepo-build-x86.yml'
             web_frontend:
               - 'proto/**'
               - 'src/front-end/**'
@@ -71,7 +68,6 @@ jobs:
               - 'buf.gen.yaml'
               - 'scripts/docker/build-local.sh'
               - 'scripts/docker/push-tagged-images.sh'
-              - '.github/workflows/docker-monorepo-build-x86.yml'
             yolo_model:
               - 'src/cpp_accelerator/yolo-model-gen/Dockerfile'
               - 'src/cpp_accelerator/yolo-model-gen/VERSION'

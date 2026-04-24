@@ -72,9 +72,7 @@ jobs:
               - 'buf.lock'
               - 'buf.gen.yaml'
               - 'buf.gen.backend.yaml'
-              - 'scripts/docker/build-local.sh'
               - 'scripts/docker/push-tagged-images.sh'
-              - '.github/workflows/docker-monorepo-build-arm.yml'
 
       - name: Decide build scope
         id: decide

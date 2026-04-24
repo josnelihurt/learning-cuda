@@ -33,6 +33,7 @@ permissions:
 # ONNX comes from the amd64 yolo-model-gen image on GHCR (Dockerfile.build).
 # Force a full PR stage chain with label: ci:full-build.
 # workflow_dispatch always forces full detect scope (cpp_accelerator) and full build_and_push chain.
+# build_and_push uses the same stage resolver as PR; cpp-accelerator is appended only when cpp-builder is built.
 jobs:
   detect-changes:
     name: Detect changed paths
@@ -43,7 +44,6 @@ jobs:
       arm_bazel_base: ${{ steps.decide.outputs.arm_bazel_base }}
       arm_cpp_deps: ${{ steps.decide.outputs.arm_cpp_deps }}
       arm_cpp_app: ${{ steps.decide.outputs.arm_cpp_app }}
-      arm_workflow: ${{ steps.decide.outputs.arm_workflow }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -84,11 +84,6 @@ jobs:
               - 'src/cpp_accelerator/yolo-model-gen/Dockerfile'
               - 'src/cpp_accelerator/yolo-model-gen/VERSION'
               - 'scripts/models/export_yolo_to_onnx.py'
-            arm_workflow:
-              - 'scripts/docker/build-local.sh'
-              - 'scripts/docker/pr-arm-resolve-stages.sh'
-              - 'scripts/docker/push-tagged-images.sh'
-              - '.github/workflows/docker-monorepo-build-arm.yml'
 
       - name: Decide build scope
         id: decide
@@ -100,7 +95,6 @@ jobs:
           FILTER_ARM_BAZEL_BASE: ${{ steps.filter.outputs.arm_bazel_base }}
           FILTER_ARM_CPP_DEPS: ${{ steps.filter.outputs.arm_cpp_deps }}
           FILTER_ARM_CPP_APP: ${{ steps.filter.outputs.arm_cpp_app }}
-          FILTER_ARM_WORKFLOW: ${{ steps.filter.outputs.arm_workflow }}
         run: |
           set -euo pipefail
           out() { printf '%s\n' "$1" >> "$GITHUB_OUTPUT"; }
@@ -112,7 +106,6 @@ jobs:
             out "arm_bazel_base=true"
             out "arm_cpp_deps=true"
             out "arm_cpp_app=true"
-            out "arm_workflow=true"
             out "cpp_accelerator=true"
             exit 0
           fi
@@ -121,14 +114,12 @@ jobs:
           ab="${FILTER_ARM_BAZEL_BASE:-false}"
           ad="${FILTER_ARM_CPP_DEPS:-false}"
           aa="${FILTER_ARM_CPP_APP:-false}"
-          aw="${FILTER_ARM_WORKFLOW:-false}"
           out "arm_proto=${ap}"
           out "arm_bazel_base=${ab}"
           out "arm_cpp_deps=${ad}"
           out "arm_cpp_app=${aa}"
-          out "arm_workflow=${aw}"
           if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] \
-             || [ "${aa}" = "true" ] || [ "${aw}" = "true" ]; then
+             || [ "${aa}" = "true" ]; then
             out "cpp_accelerator=true"
           else
             out "cpp_accelerator=false"
@@ -154,7 +145,6 @@ jobs:
           ARM_BAZEL_BASE: ${{ needs.detect-changes.outputs.arm_bazel_base }}
           ARM_CPP_DEPS: ${{ needs.detect-changes.outputs.arm_cpp_deps }}
           ARM_CPP_APP: ${{ needs.detect-changes.outputs.arm_cpp_app }}
-          ARM_WORKFLOW: ${{ needs.detect-changes.outputs.arm_workflow }}
         run: |
           chmod +x scripts/docker/pr-arm-resolve-stages.sh
           ./scripts/docker/pr-arm-resolve-stages.sh
@@ -181,23 +171,23 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build cpp-builder and cpp-accelerator images
+        id: arm_cpp_images
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
+          APPEND_CPP_ACCELERATOR: "true"
+          ARM_PROTO: ${{ needs.detect-changes.outputs.arm_proto }}
+          ARM_BAZEL_BASE: ${{ needs.detect-changes.outputs.arm_bazel_base }}
+          ARM_CPP_DEPS: ${{ needs.detect-changes.outputs.arm_cpp_deps }}
+          ARM_CPP_APP: ${{ needs.detect-changes.outputs.arm_cpp_app }}
         run: |
-          chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh \
-            --stage proto-tools \
-            --stage bazel-base \
-            --stage cpp-dependencies \
-            --stage proto \
-            --stage cpp-builder \
-            --stage cpp-accelerator
+          chmod +x scripts/docker/pr-arm-resolve-stages.sh
+          ./scripts/docker/pr-arm-resolve-stages.sh
 
       - name: Push cpp-accelerator image
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
+        if: needs.detect-changes.outputs.cpp_accelerator == 'true' && steps.arm_cpp_images.outputs.built_cpp_accelerator == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}

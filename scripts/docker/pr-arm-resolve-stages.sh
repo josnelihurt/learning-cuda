@@ -31,11 +31,6 @@ else
   if [[ "${ARM_CPP_APP:-false}" == "true" ]]; then
     WANT[cpp-builder]=1
   fi
-  if [[ "${ARM_WORKFLOW:-false}" == "true" ]]; then
-    for s in "${ORDER[@]}"; do
-      WANT["$s"]=1
-    done
-  fi
 fi
 
 args=()
@@ -46,6 +41,16 @@ done
 if [[ ${#args[@]} -eq 0 ]]; then
   echo "pr-arm-resolve-stages: no stages selected" >&2
   exit 1
+fi
+
+built_cpp_accelerator=false
+if [[ "${APPEND_CPP_ACCELERATOR:-false}" == "true" ]] && [[ -n "${WANT[cpp-builder]:-}" ]]; then
+  args+=(--stage cpp-accelerator)
+  built_cpp_accelerator=true
+fi
+
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  echo "built_cpp_accelerator=${built_cpp_accelerator}" >> "${GITHUB_OUTPUT}"
 fi
 
 chmod +x "${ROOT}/scripts/docker/build-local.sh"

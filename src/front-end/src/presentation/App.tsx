@@ -8,7 +8,7 @@ import { GrpcStatusModal } from './components/app/GrpcStatusModal';
 import { AppTour } from './components/app/AppTour';
 import { InformationBanner } from './components/app/InformationBanner';
 
-function MainContent() {
+function MainContent(): React.ReactNode {
   const { ready } = useAppServices();
 
   return (
@@ -24,11 +24,11 @@ function MainContent() {
   );
 }
 
-export function App() {
+export function App(): React.ReactNode {
   const [isFeatureFlagsOpen, setIsFeatureFlagsOpen] = useState(false);
 
   useEffect(() => {
-    const clearStorage = () => {
+    const clearStorage = (): void => {
       localStorage.clear();
       alert('LocalStorage cleared!');
     };

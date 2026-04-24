@@ -39,22 +39,33 @@ interface FilterPanelState {
   dragOverIndex: number | null;
 }
 
+enum FilterActionType {
+  INIT = 'INIT',
+  TOGGLE_CARD = 'TOGGLE_CARD',
+  SET_ENABLED = 'SET_ENABLED',
+  SET_PARAMETER = 'SET_PARAMETER',
+  REORDER = 'REORDER',
+  DRAG_START = 'DRAG_START',
+  DRAG_ENTER = 'DRAG_ENTER',
+  DRAG_END = 'DRAG_END',
+}
+
 type FilterAction =
-  | { type: 'INIT'; payload: FilterState[] }
-  | { type: 'TOGGLE_CARD'; index: number }
-  | { type: 'SET_ENABLED'; index: number; enabled: boolean }
-  | { type: 'SET_PARAMETER'; filterId: string; paramId: string; value: string }
-  | { type: 'REORDER'; from: number; to: number }
-  | { type: 'DRAG_START'; index: number }
-  | { type: 'DRAG_ENTER'; index: number }
-  | { type: 'DRAG_END' };
+  | { type: FilterActionType.INIT; payload: FilterState[] }
+  | { type: FilterActionType.TOGGLE_CARD; index: number }
+  | { type: FilterActionType.SET_ENABLED; index: number; enabled: boolean }
+  | { type: FilterActionType.SET_PARAMETER; filterId: string; paramId: string; value: string }
+  | { type: FilterActionType.REORDER; from: number; to: number }
+  | { type: FilterActionType.DRAG_START; index: number }
+  | { type: FilterActionType.DRAG_ENTER; index: number }
+  | { type: FilterActionType.DRAG_END };
 
 function filterPanelReducer(state: FilterPanelState, action: FilterAction): FilterPanelState {
   switch (action.type) {
-    case 'INIT':
+    case FilterActionType.INIT:
       return { filters: action.payload, draggedIndex: null, dragOverIndex: null };
 
-    case 'TOGGLE_CARD': {
+    case FilterActionType.TOGGLE_CARD: {
       const filters = [...state.filters];
       const filter = filters[action.index];
       if (!filter) return state;
@@ -63,7 +74,7 @@ function filterPanelReducer(state: FilterPanelState, action: FilterAction): Filt
       return { ...state, filters };
     }
 
-    case 'SET_ENABLED': {
+    case FilterActionType.SET_ENABLED: {
       const filters = [...state.filters];
       const filter = filters[action.index];
       if (!filter) return state;
@@ -71,7 +82,7 @@ function filterPanelReducer(state: FilterPanelState, action: FilterAction): Filt
       return { ...state, filters };
     }
 
-    case 'SET_PARAMETER': {
+    case FilterActionType.SET_PARAMETER: {
       const filters = state.filters.map((f) =>
         f.id === action.filterId
           ? { ...f, parameterValues: { ...f.parameterValues, [action.paramId]: action.value } }
@@ -80,20 +91,20 @@ function filterPanelReducer(state: FilterPanelState, action: FilterAction): Filt
       return { ...state, filters };
     }
 
-    case 'REORDER': {
+    case FilterActionType.REORDER: {
       const filters = [...state.filters];
       const [moved] = filters.splice(action.from, 1);
       filters.splice(action.to, 0, moved);
       return { ...state, filters, draggedIndex: null, dragOverIndex: null };
     }
 
-    case 'DRAG_START':
+    case FilterActionType.DRAG_START:
       return { ...state, draggedIndex: action.index };
 
-    case 'DRAG_ENTER':
+    case FilterActionType.DRAG_ENTER:
       return { ...state, dragOverIndex: action.index };
 
-    case 'DRAG_END':
+    case FilterActionType.DRAG_END:
       return { ...state, draggedIndex: null, dragOverIndex: null };
 
     default:
@@ -331,7 +342,7 @@ export function FilterPanel({
       });
     }
 
-    dispatch({ type: 'INIT', payload: initialFilterStates });
+    dispatch({ type: FilterActionType.INIT, payload: initialFilterStates });
   }, [filters]);
 
   const { error: showError } = useToast();
@@ -345,7 +356,7 @@ export function FilterPanel({
   );
 
   const handleParameterChange = useCallback((filterId: string, paramId: string, value: string) => {
-    dispatch({ type: 'SET_PARAMETER', filterId, paramId, value });
+    dispatch({ type: FilterActionType.SET_PARAMETER, filterId, paramId, value });
   }, []);
 
   useEffect(() => {
@@ -355,7 +366,7 @@ export function FilterPanel({
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     draggedIndexRef.current = index;
-    dispatch({ type: 'DRAG_START', index });
+    dispatch({ type: FilterActionType.DRAG_START, index });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
     e.dataTransfer.setDragImage(e.currentTarget as HTMLElement, 20, 20);
@@ -363,7 +374,7 @@ export function FilterPanel({
 
   const handleDragEnd = useCallback(() => {
     draggedIndexRef.current = null;
-    dispatch({ type: 'DRAG_END' });
+    dispatch({ type: FilterActionType.DRAG_END });
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -373,12 +384,12 @@ export function FilterPanel({
 
   const handleDragEnter = useCallback((e: React.DragEvent, index: number) => {
     e.preventDefault();
-    dispatch({ type: 'DRAG_ENTER', index });
+    dispatch({ type: FilterActionType.DRAG_ENTER, index });
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      dispatch({ type: 'DRAG_END' });
+      dispatch({ type: FilterActionType.DRAG_END });
     }
   }, []);
 
@@ -387,10 +398,10 @@ export function FilterPanel({
     const from = draggedIndexRef.current;
     draggedIndexRef.current = null;
     if (from === null || from === to) {
-      dispatch({ type: 'DRAG_END' });
+      dispatch({ type: FilterActionType.DRAG_END });
       return;
     }
-    dispatch({ type: 'REORDER', from, to });
+    dispatch({ type: FilterActionType.REORDER, from, to });
   }, []);
 
   if (localFilters.length === 0) {
@@ -421,7 +432,7 @@ export function FilterPanel({
             data-filter-name={filter.name}
             data-filter-id={filter.id}
           >
-            <div className={styles.filterHeader} onClick={() => dispatch({ type: 'TOGGLE_CARD', index })}>
+            <div className={styles.filterHeader} onClick={() => dispatch({ type: FilterActionType.TOGGLE_CARD, index })}>
               <div className={styles.dragHandleContainer} onClick={(e) => e.stopPropagation()}>
                 <span className={styles.dragHandle}>⋮⋮</span>
               </div>
@@ -429,7 +440,7 @@ export function FilterPanel({
                 <input
                   type="checkbox"
                   checked={filter.enabled}
-                  onChange={(e) => dispatch({ type: 'SET_ENABLED', index, enabled: e.target.checked })}
+                  onChange={(e) => dispatch({ type: FilterActionType.SET_ENABLED, index, enabled: e.target.checked })}
                   onClick={(e) => e.stopPropagation()}
                   draggable={false}
                   data-testid={`filter-checkbox-${filter.id}`}

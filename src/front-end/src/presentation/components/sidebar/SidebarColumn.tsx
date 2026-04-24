@@ -6,15 +6,20 @@ import styles from './SidebarColumn.module.css';
 
 type SidebarColumnState = { expanded: boolean };
 
-type SidebarColumnAction = { type: 'EXPAND' } | { type: 'COLLAPSE' };
+enum SidebarActionType {
+  EXPAND = 'EXPAND',
+  COLLAPSE = 'COLLAPSE',
+}
+
+type SidebarColumnAction = { type: SidebarActionType.EXPAND } | { type: SidebarActionType.COLLAPSE };
 
 const INITIAL_SIDEBAR_STATE: SidebarColumnState = { expanded: true };
 
 function sidebarColumnReducer(state: SidebarColumnState, action: SidebarColumnAction): SidebarColumnState {
   switch (action.type) {
-    case 'EXPAND':
+    case SidebarActionType.EXPAND:
       return { expanded: true };
-    case 'COLLAPSE':
+    case SidebarActionType.COLLAPSE:
       return { expanded: false };
     default:
       return state;
@@ -49,7 +54,7 @@ export function SidebarColumn(): ReactElement {
           data-testid="sidebar-column-collapse"
           aria-label="Collapse sidebar"
           aria-expanded
-          onClick={() => dispatch({ type: 'COLLAPSE' })}
+          onClick={() => dispatch({ type: SidebarActionType.COLLAPSE })}
         >
           <span className={styles.chevronLeft} aria-hidden />
         </button>
@@ -60,7 +65,7 @@ export function SidebarColumn(): ReactElement {
           data-testid="sidebar-column-expand"
           aria-label="Expand sidebar"
           aria-expanded={false}
-          onClick={() => dispatch({ type: 'EXPAND' })}
+          onClick={() => dispatch({ type: SidebarActionType.EXPAND })}
         >
           <span className={styles.chevronRight} aria-hidden />
         </button>

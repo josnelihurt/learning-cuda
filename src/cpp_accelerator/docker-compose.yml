@@ -30,6 +30,7 @@ services:
 
     volumes:
       - ${ACCELERATOR_SECRETS_DIR:-./secrets}:/secrets:ro
+      - ${ACCELERATOR_LOGS_DIR:-./logs}:/tmp:rw
       - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1:ro
       - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so:ro
       - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:ro

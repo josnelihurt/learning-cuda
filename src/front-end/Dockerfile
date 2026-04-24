@@ -1,6 +1,8 @@
 ARG BASE_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
+ARG COMMIT_HASH=dev
+ARG BRANCH=main
 
 FROM ${BASE_REGISTRY}/base:proto-tools-${BASE_TAG}-${TARGETARCH} AS proto-tools
 
@@ -26,6 +28,10 @@ COPY src/front-end/ ./src/front-end/
 RUN buf generate
 
 WORKDIR /build/src/front-end
+ARG COMMIT_HASH
+ARG BRANCH
+ENV VITE_COMMIT_HASH=${COMMIT_HASH}
+ENV VITE_BRANCH=${BRANCH}
 RUN npm run build
 
 FROM nginx:1.27-alpine

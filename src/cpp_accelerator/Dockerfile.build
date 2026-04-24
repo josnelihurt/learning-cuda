@@ -6,6 +6,7 @@ ARG CUDA_VERSION=12.5.1
 ARG UBUNTU_VERSION=24.04
 ARG YOLO_MODEL_VERSION=0.1.0
 ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
+ARG COMMIT_HASH=unknown
 
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
@@ -75,7 +76,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
-        bazel --batch build \
+        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
           --show_timestamps \
           --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
           --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
@@ -86,7 +87,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
-        bazel --batch build \
+        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
           --show_timestamps \
           --announce_rc \
           --verbose_failures \
@@ -114,6 +115,7 @@ FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS grpc-built
 
 ARG BAZEL_REMOTE_CACHE=""
 ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
+ARG COMMIT_HASH=unknown
 
 WORKDIR /build
 
@@ -143,7 +145,7 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
-        bazel --batch build \
+        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
           --show_timestamps \
           --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
           --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
@@ -154,7 +156,7 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
-        bazel --batch build \
+        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
           --show_timestamps \
           --announce_rc \
           --verbose_failures \

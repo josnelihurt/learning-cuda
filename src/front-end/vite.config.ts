@@ -48,11 +48,25 @@ function gitVersionPlugin() {
   return {
     name: 'git-version',
     config() {
-      try {
-        version = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
-        branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-      } catch {
-        console.warn('Git not available, using fallback version');
+      // Check environment variables first (for Docker builds)
+      if (process.env.VITE_COMMIT_HASH) {
+        version = process.env.VITE_COMMIT_HASH;
+      } else {
+        try {
+          version = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+        } catch {
+          console.warn('Git not available, using fallback version');
+        }
+      }
+
+      if (process.env.VITE_BRANCH) {
+        branch = process.env.VITE_BRANCH;
+      } else {
+        try {
+          branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+        } catch {
+          console.warn('Git not available, using fallback branch');
+        }
       }
 
       return {

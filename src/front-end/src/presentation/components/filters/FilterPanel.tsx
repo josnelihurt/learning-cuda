@@ -19,6 +19,7 @@ interface FilterPanelProps {
   initialActiveFilters?: ActiveFilterState[];
   /** When incremented, refetches filter definitions from the backend (processor service updates). */
   processorFilterEpoch?: number;
+  disabled?: boolean;
 }
 
 interface FilterState {
@@ -277,6 +278,7 @@ export function FilterPanel({
   onFiltersChange,
   initialActiveFilters,
   processorFilterEpoch,
+  disabled,
 }: FilterPanelProps): ReactElement {
   const { filters: availableFilters, refetch } = useFilters();
   const filters = propFilters ?? availableFilters;
@@ -396,7 +398,7 @@ export function FilterPanel({
   }
 
   return (
-    <div className={styles.controlSection}>
+    <div className={`${styles.controlSection}${disabled ? ` ${styles.disabled}` : ''}`}>
       <label className={styles.controlLabel}>
         Filters <span className={styles.hint}>(drag to reorder)</span>
       </label>

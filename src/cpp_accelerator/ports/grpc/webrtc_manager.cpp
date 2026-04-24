@@ -126,7 +126,7 @@ std::string StripRtpHeaderExtensions(const std::string& sdp) {
       continue;
     }
     result += line;
-    result += '\n';
+    result += "\r\n";
   }
   return result;
 }
@@ -947,6 +947,9 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     if (answer_ready && sdp_answer_str != nullptr && !sdp_answer_str->empty()) {
       spdlog::info("[WebRTC:{}] Session created successfully (answer length: {})", session_id,
                    sdp_answer_str->length());
+      // Log first 500 characters of SDP for diagnostics
+      spdlog::debug("[WebRTC:{}] SDP answer preview: {}", session_id,
+                    sdp_answer_str->substr(0, std::min(size_t(500), sdp_answer_str->length())));
       sessions_[session_id] = session;
       return true;
     }

@@ -17,13 +17,25 @@ async function loadTraceMap(mapUrl: string, fetchFn: typeof fetch): Promise<Trac
         }
         const json: unknown = await res.json();
         return new TraceMap(json as EncodedSourceMap, mapUrl);
-      } catch {
+      } catch (e) {
+        console.debug('Failed to load source map:', mapUrl, e);
         return null;
       }
     })();
     traceMapCache.set(mapUrl, pending);
   }
   return pending;
+}
+
+/** Prefer `src/...` tail when present so labels disambiguate same basenames. */
+export function sourcePathForLabel(source: string): string {
+  const norm = source.replace(/\\/g, '/');
+  const parts = norm.split('/').filter((p) => p.length > 0);
+  const srcIdx = parts.lastIndexOf('src');
+  if (srcIdx >= 0) {
+    return parts.slice(srcIdx).join('/');
+  }
+  return parts[parts.length - 1] || norm;
 }
 
 export async function resolveBundleSiteToSourceLabel(
@@ -40,6 +52,6 @@ export async function resolveBundleSiteToSourceLabel(
   if (pos.source == null || pos.line == null) {
     return undefined;
   }
-  const file = pos.source.split('/').pop() || pos.source;
-  return `${file}@${pos.line}`;
+  const path = sourcePathForLabel(pos.source);
+  return `${path}@${pos.line}`;
 }

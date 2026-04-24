@@ -28,16 +28,22 @@ permissions:
   id-token: write
 
 # Smart CI: build/push steps only run when paths relevant to cpp-accelerator change.
-# ONNX comes from the amd64 yolo-model-gen image on GHCR (Dockerfile.build); no arm64 yolo image build here.
-# Force a full rebuild with either:
-#   - PR label: ci:full-build
-#   - workflow_dispatch (manual runs always force a full rebuild)
+# PR builds resolve a minimal --stage chain (same runner keeps Docker layer cache).
+# Bazel third-party/proto pre-layer: intermediate:cpp-dependencies-* (docker-cpp-dependencies/Dockerfile).
+# ONNX comes from the amd64 yolo-model-gen image on GHCR (Dockerfile.build).
+# Force a full PR stage chain with label: ci:full-build.
+# workflow_dispatch always forces full detect scope (cpp_accelerator) and full build_and_push chain.
 jobs:
   detect-changes:
     name: Detect changed paths
     runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
       cpp_accelerator: ${{ steps.decide.outputs.cpp_accelerator }}
+      arm_proto: ${{ steps.decide.outputs.arm_proto }}
+      arm_bazel_base: ${{ steps.decide.outputs.arm_bazel_base }}
+      arm_cpp_deps: ${{ steps.decide.outputs.arm_cpp_deps }}
+      arm_cpp_app: ${{ steps.decide.outputs.arm_cpp_app }}
+      arm_workflow: ${{ steps.decide.outputs.arm_workflow }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,8 +54,25 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            cpp_accelerator:
+            arm_proto:
               - 'proto/**'
+              - 'proto/docker-build-base/**'
+              - 'buf.yaml'
+              - 'buf.lock'
+              - 'buf.gen.yaml'
+              - 'buf.gen.backend.yaml'
+            arm_bazel_base:
+              - 'src/cpp_accelerator/docker-build-base/**'
+            arm_cpp_deps:
+              - 'src/cpp_accelerator/docker-cpp-dependencies/**'
+              - 'bazel/**'
+              - 'third_party/**'
+              - 'MODULE.bazel'
+              - 'MODULE.bazel.lock'
+              - 'WORKSPACE.bazel'
+              - '.bazelrc'
+              - '.bazelversion'
+            arm_cpp_app:
               - 'src/cpp_accelerator/**/*.cpp'
               - 'src/cpp_accelerator/**/*.h'
               - 'src/cpp_accelerator/**/*.cu'
@@ -61,18 +84,11 @@ jobs:
               - 'src/cpp_accelerator/yolo-model-gen/Dockerfile'
               - 'src/cpp_accelerator/yolo-model-gen/VERSION'
               - 'scripts/models/export_yolo_to_onnx.py'
-              - 'bazel/**'
-              - 'third_party/**'
-              - 'MODULE.bazel'
-              - 'MODULE.bazel.lock'
-              - 'WORKSPACE.bazel'
-              - '.bazelrc'
-              - '.bazelversion'
-              - 'buf.yaml'
-              - 'buf.lock'
-              - 'buf.gen.yaml'
-              - 'buf.gen.backend.yaml'
+            arm_workflow:
+              - 'scripts/docker/build-local.sh'
+              - 'scripts/docker/pr-arm-resolve-stages.sh'
               - 'scripts/docker/push-tagged-images.sh'
+              - '.github/workflows/docker-monorepo-build-arm.yml'
 
       - name: Decide build scope
         id: decide
@@ -80,19 +96,46 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           FORCE_ALL: ${{ inputs.force_all }}
           LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
-          FILTER_CPP_ACCELERATOR: ${{ steps.filter.outputs.cpp_accelerator }}
+          FILTER_ARM_PROTO: ${{ steps.filter.outputs.arm_proto }}
+          FILTER_ARM_BAZEL_BASE: ${{ steps.filter.outputs.arm_bazel_base }}
+          FILTER_ARM_CPP_DEPS: ${{ steps.filter.outputs.arm_cpp_deps }}
+          FILTER_ARM_CPP_APP: ${{ steps.filter.outputs.arm_cpp_app }}
+          FILTER_ARM_WORKFLOW: ${{ steps.filter.outputs.arm_workflow }}
         run: |
           set -euo pipefail
+          out() { printf '%s\n' "$1" >> "$GITHUB_OUTPUT"; }
+
           if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
              || [ "${FORCE_ALL}" = "true" ] \
              || [ "${LABEL_FORCE}" = "true" ]; then
-            echo "cpp_accelerator=true" >> "$GITHUB_OUTPUT"
+            out "arm_proto=true"
+            out "arm_bazel_base=true"
+            out "arm_cpp_deps=true"
+            out "arm_cpp_app=true"
+            out "arm_workflow=true"
+            out "cpp_accelerator=true"
+            exit 0
+          fi
+
+          ap="${FILTER_ARM_PROTO:-false}"
+          ab="${FILTER_ARM_BAZEL_BASE:-false}"
+          ad="${FILTER_ARM_CPP_DEPS:-false}"
+          aa="${FILTER_ARM_CPP_APP:-false}"
+          aw="${FILTER_ARM_WORKFLOW:-false}"
+          out "arm_proto=${ap}"
+          out "arm_bazel_base=${ab}"
+          out "arm_cpp_deps=${ad}"
+          out "arm_cpp_app=${aa}"
+          out "arm_workflow=${aw}"
+          if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] \
+             || [ "${aa}" = "true" ] || [ "${aw}" = "true" ]; then
+            out "cpp_accelerator=true"
           else
-            echo "cpp_accelerator=${FILTER_CPP_ACCELERATOR:-false}" >> "$GITHUB_OUTPUT"
+            out "cpp_accelerator=false"
           fi
 
   build:
-    name: Build all images (PRs only)
+    name: Build cpp-builder (PRs only)
     if: github.event_name == 'pull_request'
     needs: detect-changes
     runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
@@ -100,27 +143,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build cpp-accelerator image locally
+      - name: Build cpp-builder image locally
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: local
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
+          PR_ARM_FULL: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
+          ARM_PROTO: ${{ needs.detect-changes.outputs.arm_proto }}
+          ARM_BAZEL_BASE: ${{ needs.detect-changes.outputs.arm_bazel_base }}
+          ARM_CPP_DEPS: ${{ needs.detect-changes.outputs.arm_cpp_deps }}
+          ARM_CPP_APP: ${{ needs.detect-changes.outputs.arm_cpp_app }}
+          ARM_WORKFLOW: ${{ needs.detect-changes.outputs.arm_workflow }}
         run: |
-          chmod +x scripts/docker/build-local.sh
-          # Jetson deployment only consumes cpp-accelerator. Skip go/app/web-frontend/runtime-base
-          # to cut ARM64 build time. Stages kept satisfy Dockerfile.build dependencies plus the
-          # cpp-built guard in build-local.sh::run_cpp_accelerator_image.
-          ./scripts/docker/build-local.sh \
-            --stage proto-tools \
-            --stage bazel-base \
-            --stage proto \
-            --stage cpp \
-            --stage cpp-accelerator
+          chmod +x scripts/docker/pr-arm-resolve-stages.sh
+          ./scripts/docker/pr-arm-resolve-stages.sh
 
       - name: No relevant changes
         if: needs.detect-changes.outputs.cpp_accelerator != 'true'
-        run: echo "No paths relevant to cpp-accelerator changed; skipping ARM build."
+        run: echo "No paths relevant to cpp-accelerator changed; skipping ARM cpp-builder build."
 
   build_and_push:
     name: Build and push all images
@@ -139,7 +180,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build cpp-accelerator image
+      - name: Build cpp-builder and cpp-accelerator images
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         env:
           REGISTRY: ${{ env.REGISTRY }}
@@ -150,8 +191,9 @@ jobs:
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage bazel-base \
+            --stage cpp-dependencies \
             --stage proto \
-            --stage cpp \
+            --stage cpp-builder \
             --stage cpp-accelerator
 
       - name: Push cpp-accelerator image

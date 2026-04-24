@@ -53,7 +53,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base yolo-tools yolo-model runtime-base integration-base proto cpp golang app cpp-accelerator web-frontend)
+ALL_STAGES=(proto-tools go-builder bazel-base cpp-dependencies yolo-tools yolo-model runtime-base integration-base proto cpp-builder golang app cpp-accelerator web-frontend)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -255,6 +255,29 @@ run_bazel_base() {
   build_and_tag "${version_tag}" "${latest_tag}" "src/cpp_accelerator/docker-build-base/Dockerfile" "true"
 }
 
+run_cpp_dependencies() {
+  local version
+  version="$(read_version "src/cpp_accelerator/docker-cpp-dependencies/VERSION")"
+  local version_tag="${IMAGE_BASE}/intermediate:cpp-dependencies-${version}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/intermediate:cpp-dependencies-latest-${ARCH}"
+
+  local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
+  if ! docker image inspect "${bazel_base_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${bazel_base_image} not found. Build bazel-base first." >&2
+    exit 1
+  fi
+
+  print_stage_header "Building cpp-dependencies intermediate (${version})"
+  build_and_tag \
+    "${version_tag}" \
+    "${latest_tag}" \
+    "src/cpp_accelerator/docker-cpp-dependencies/Dockerfile" \
+    "true" \
+    "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
+    "--build-arg" "BASE_TAG=latest" \
+    "--build-arg" "TARGETARCH=${TARGETARCH}"
+}
+
 run_yolo_tools() {
   local version
   version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
@@ -323,14 +346,16 @@ run_cpp_built() {
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
   yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
-  local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
-  local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
+  local version_tag="${IMAGE_BASE}/intermediate:cpp-builder-${cpp_version}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/intermediate:cpp-builder-latest-${ARCH}"
 
-  local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
+  local cpp_deps_version
+  cpp_deps_version="$(read_version "src/cpp_accelerator/docker-cpp-dependencies/VERSION")"
+  local cpp_deps_image="${IMAGE_BASE}/intermediate:cpp-dependencies-${cpp_deps_version}-${ARCH}"
   local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-latest-${ARCH}"
 
-  if ! docker image inspect "${bazel_base_image}" >/dev/null 2>&1; then
-    echo "Error: Base image ${bazel_base_image} not found. Build bazel-base first." >&2
+  if ! docker image inspect "${cpp_deps_image}" >/dev/null 2>&1; then
+    echo "Error: Image ${cpp_deps_image} not found. Build cpp-dependencies first." >&2
     exit 1
   fi
 
@@ -347,10 +372,12 @@ run_cpp_built() {
   commit_hash="${commit_hash:-unknown}"
 
   local build_args=(
-    "--target" "artifacts"
+    "--target" "cpp-builder"
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
+    "--build-arg" "CPP_DEPS_REGISTRY=${IMAGE_BASE}"
+    "--build-arg" "CPP_DEPS_VERSION=${cpp_deps_version}"
     "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
     "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
     "--build-arg" "COMMIT_HASH=${commit_hash}"
@@ -363,7 +390,7 @@ run_cpp_built() {
     fi
   fi
 
-  print_stage_header "Building C++ intermediate (${cpp_version})"
+  print_stage_header "Building cpp-builder intermediate (${cpp_version})"
 
   local docker_build_args=()
   if [[ "${REGISTRY}" != "local" ]]; then
@@ -439,9 +466,11 @@ run_cpp_accelerator_image() {
   local proto_version
   local cpp_version
   local yolo_model_version
+  local cpp_deps_version
   proto_version="$(read_version "proto/VERSION")"
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
   yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
+  cpp_deps_version="$(read_version "src/cpp_accelerator/docker-cpp-dependencies/VERSION")"
 
   local app_tag="cpp-accelerator-${cpp_version}-proto${proto_version}"
   local version_tag="${IMAGE_BASE}/cpp-accelerator:${app_tag}-${ARCH}"
@@ -449,7 +478,7 @@ run_cpp_accelerator_image() {
 
   print_stage_header "Building cpp-accelerator image (${app_tag})"
 
-  local cpp_built_image="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
+  local cpp_builder_image="${IMAGE_BASE}/intermediate:cpp-builder-latest-${ARCH}"
   local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-${proto_version}-${ARCH}"
 
   if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
@@ -457,8 +486,8 @@ run_cpp_accelerator_image() {
     exit 1
   fi
 
-  if ! docker image inspect "${cpp_built_image}" >/dev/null 2>&1; then
-    echo "Error: Base image ${cpp_built_image} not found. Build cpp intermediate first." >&2
+  if ! docker image inspect "${cpp_builder_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${cpp_builder_image} not found. Run --stage cpp-builder first." >&2
     exit 1
   fi
 
@@ -474,6 +503,8 @@ run_cpp_accelerator_image() {
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "BASE_TAG=latest"
     "--build-arg" "PROTO_VERSION=${proto_version}"
+    "--build-arg" "CPP_DEPS_REGISTRY=${IMAGE_BASE}"
+    "--build-arg" "CPP_DEPS_VERSION=${cpp_deps_version}"
     "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
     "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
     "--build-arg" "COMMIT_HASH=${commit_hash}"
@@ -551,6 +582,9 @@ for stage in "${REQUESTED_STAGES[@]}"; do
     bazel-base)
       run_bazel_base
       ;;
+    cpp-dependencies)
+      run_cpp_dependencies
+      ;;
     yolo-tools)
       run_yolo_tools
       ;;
@@ -566,7 +600,7 @@ for stage in "${REQUESTED_STAGES[@]}"; do
     proto)
       run_proto_generated
       ;;
-    cpp)
+    cpp-builder)
       run_cpp_built
       ;;
     golang)

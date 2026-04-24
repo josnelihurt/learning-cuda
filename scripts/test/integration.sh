@@ -80,7 +80,7 @@ check_image_exists_any() {
 }
 
 PROTO_IMAGE="${BASE_REGISTRY}/intermediate:proto-generated-${DEFAULT_PROTO_VERSION}-${ARCH}"
-CPP_IMAGE="${BASE_REGISTRY}/intermediate:cpp-built-${DEFAULT_CPP_VERSION}-${ARCH}"
+CPP_IMAGE="${BASE_REGISTRY}/intermediate:cpp-builder-${DEFAULT_CPP_VERSION}-${ARCH}"
 GOLANG_IMAGE="${BASE_REGISTRY}/intermediate:golang-built-${DEFAULT_GOLANG_VERSION}-${ARCH}"
 
 if check_image_exists "$PROTO_IMAGE"; then
@@ -99,14 +99,14 @@ fi
 
 if check_image_exists "$CPP_IMAGE"; then
     export CPP_VERSION="$DEFAULT_CPP_VERSION"
-elif check_image_exists_any "cpp-built" "latest" "$ARCH"; then
+elif check_image_exists_any "cpp-builder" "latest" "$ARCH"; then
     echo "WARNING: Image $CPP_IMAGE not found, using 'latest' tag"
     export CPP_VERSION="latest"
-    if check_image_exists "local/intermediate:cpp-built-latest-${ARCH}"; then
+    if check_image_exists "local/intermediate:cpp-builder-latest-${ARCH}"; then
         export BASE_REGISTRY="localhost"
     fi
 else
-    echo "ERROR: No cpp-built image found (tried versioned and latest)"
+    echo "ERROR: No cpp-builder image found (tried versioned and latest)"
     exit 1
 fi
 

@@ -385,6 +385,9 @@ cpp_accelerator/
 ├── docker-build-base/   # Docker build infrastructure
 │   ├── Dockerfile       # Base image for Bazel builds
 │   └── Dockerfile.mock  # Mock image for testing
+├── docker-cpp-dependencies/    # Pre-built Bazel third-party/proto layer (intermediate:cpp-dependencies-*)
+│   ├── Dockerfile
+│   └── VERSION
 ├── Dockerfile.build     # Build image for gRPC server
 ├── Dockerfile.build.mock # Mock build image for testing
 └── VERSION              # Library version file

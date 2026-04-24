@@ -15,7 +15,7 @@
     "sourceType": "module",
     "project": "./tsconfig.json"
   },
-  "plugins": ["@typescript-eslint", "react", "react-hooks"],
+  "plugins": ["@typescript-eslint", "react", "react-hooks", "unicorn"],
   "settings": {
     "react": {
       "version": "detect"
@@ -24,7 +24,7 @@
   "rules": {
     "@typescript-eslint/no-explicit-any": "warn",
     "@typescript-eslint/explicit-function-return-type": [
-      "warn",
+      "error",
       {
         "allowExpressions": true,
         "allowTypedFunctionExpressions": true,
@@ -33,7 +33,7 @@
       }
     ],
     "@typescript-eslint/no-unused-vars": [
-      "warn",
+      "error",
       {
         "argsIgnorePattern": "^_",
         "varsIgnorePattern": "^_"
@@ -53,8 +53,62 @@
         ]
       }
     ],
-    "react/forbid-dom-props": ["error", { "forbid": ["style"] }]
+    "react/forbid-dom-props": ["error", { "forbid": ["style"] }],
+    "unicorn/filename-case": "off"
   },
+  "overrides": [
+    {
+      "files": ["src/gen/**/*"],
+      "rules": {
+        "unicorn/filename-case": "off"
+      }
+    },
+    {
+      "files": ["src/presentation/hooks/**/*.ts", "src/presentation/hooks/**/*.tsx"],
+      "rules": {
+        "unicorn/filename-case": "off"
+      }
+    },
+    {
+      "files": ["src/presentation/components/**/*.tsx"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "case": "pascalCase" }]
+      }
+    },
+    {
+      "files": ["src/presentation/App.tsx", "src/presentation/App.test.tsx"],
+      "rules": {
+        "unicorn/filename-case": ["error", { "case": "pascalCase" }]
+      }
+    },
+    {
+      "files": ["src/**/*.tsx"],
+      "excludedFiles": [
+        "src/gen/**",
+        "src/presentation/hooks/**",
+        "src/presentation/components/**",
+        "src/presentation/App.tsx",
+        "src/presentation/App.test.tsx",
+        "**/main.tsx"
+      ],
+      "rules": {
+        "unicorn/filename-case": ["error", { "case": "kebabCase" }]
+      }
+    },
+    {
+      "files": ["src/**/*.ts"],
+      "excludedFiles": ["src/gen/**", "src/presentation/hooks/**/*.ts"],
+      "rules": {
+        "unicorn/filename-case": [
+          "error",
+          {
+            "case": "kebabCase",
+            "ignore": ["^vite-env\\.d\\.ts$"]
+          }
+        ]
+      }
+    }
+  ],
   "ignorePatterns": [
     "node_modules",
     "static",
@@ -63,5 +117,3 @@
     "proto"
   ]
 }
-
-

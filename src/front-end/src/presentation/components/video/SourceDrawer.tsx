@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { ImageUpload } from '@/presentation/components/image/ImageUpload';
 import { VideoUpload } from './VideoUpload';
 import { VideoSelector } from './VideoSelector';
+import { ToastContext } from '@/presentation/context/toast-context';
+import { useContext } from 'react';
 
 type SourceDrawerProps = {
   isOpen: boolean;
@@ -21,6 +23,7 @@ export function SourceDrawer({
   onSelectSource,
   onSourcesChanged,
 }: SourceDrawerProps) {
+  const toast = useContext(ToastContext);
   const [activeTab, setActiveTab] = useState<'images' | 'videos'>('images');
   const [videoReloadKey, setVideoReloadKey] = useState(0);
   const filteredSources =
@@ -50,8 +53,14 @@ export function SourceDrawer({
             </button>
             <button
               type="button"
-              className={`tab ${activeTab === 'videos' ? 'active' : ''}`}
-              onClick={() => setActiveTab('videos')}
+              className="tab tab-disabled"
+              onClick={(event) => {
+                event.preventDefault();
+                toast?.warning(
+                  'Not available',
+                  'Not available in this version. Like and subscribe!'
+                );
+              }}
               data-testid="tab-videos"
             >
               Videos

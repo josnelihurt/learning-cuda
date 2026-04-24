@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { clearCallerSourceMapCache, resolveBundleSiteToSourceLabel } from './resolve-caller-source';
+import {
+  clearCallerSourceMapCache,
+  resolveBundleSiteToSourceLabel,
+  sourcePathForLabel,
+} from './resolve-caller-source';
 
 const minimalMap = {
   version: 3 as const,
@@ -11,6 +15,20 @@ const minimalMap = {
 
 afterEach(() => {
   clearCallerSourceMapCache();
+});
+
+describe('sourcePathForLabel', () => {
+  it('returns path from last src segment', () => {
+    expect(sourcePathForLabel('../../src/domain/example.ts')).toBe('src/domain/example.ts');
+  });
+
+  it('returns basename when src is absent', () => {
+    expect(sourcePathForLabel('example.ts')).toBe('example.ts');
+  });
+
+  it('normalizes backslashes', () => {
+    expect(sourcePathForLabel('..\\src\\foo\\bar.ts')).toBe('src/foo/bar.ts');
+  });
 });
 
 describe('resolveBundleSiteToSourceLabel', () => {
@@ -28,10 +46,11 @@ describe('resolveBundleSiteToSourceLabel', () => {
     );
 
     expect(fetchFn).toHaveBeenCalledWith('https://ex.com/assets/main-abc.js.map');
-    expect(label).toBe('example.ts@1');
+    expect(label).toBe('src/domain/example.ts@1');
   });
 
   it('returns undefined when fetch fails', async () => {
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
     const fetchFn = vi.fn().mockRejectedValue(new Error('network'));
 
     const label = await resolveBundleSiteToSourceLabel(

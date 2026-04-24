@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ImageData } from './ImageData';
+import { ImageData } from './image-data';
 
 describe('ImageData', () => {
   // Test data builders

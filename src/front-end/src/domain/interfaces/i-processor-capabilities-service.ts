@@ -1,6 +1,6 @@
 import type { FilterDefinition } from '@/gen/common_pb';
 import type { GenericFilterDefinition } from '@/gen/image_processor_service_pb';
-import type { Filter } from '@/domain/value-objects/FilterTypes';
+import type { Filter } from '@/domain/value-objects/filter-types';
 
 export interface IProcessorCapabilitiesService {
   initialize(): Promise<void>;

@@ -1,6 +1,6 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { telemetryService } from './telemetry-service';
-import type { ILogger } from '@/domain/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces/i-logger';
 import { parseCallerFromStack } from './caller-site';
 import { resolveBundleSiteToSourceLabel } from './resolve-caller-source';
 
@@ -21,7 +21,7 @@ type QueuedLogRecord = {
   _callerResolve?: { mapUrl: string; line: number; column: number };
 };
 
-class OtelLogger implements ILogger {
+export class OtelLogger implements ILogger {
   private consoleEnabled: boolean = true;
   private minLogLevel: SeverityNumber = SeverityNumber.INFO;
   private initialized = false;
@@ -166,14 +166,23 @@ class OtelLogger implements ILogger {
       stack && typeof window !== 'undefined'
         ? parseCallerFromStack(stack, window.location.origin)
         : undefined;
-    const consoleCaller = parsed?.label;
-
     if (!this.initialized || !this.shouldLog(severityNumber)) {
       return;
     }
 
     if (this.consoleEnabled) {
-      this.logToConsole(severityNumber, message, attributes, consoleCaller);
+      if (parsed?.kind === 'bundle') {
+        void resolveBundleSiteToSourceLabel(parsed.mapUrl, parsed.line, parsed.column)
+          .then((resolved) =>
+            this.logToConsole(severityNumber, message, attributes, resolved ?? parsed.label)
+          )
+          .catch((err) => {
+            console.warn('Failed to resolve log caller source map:', err);
+            this.logToConsole(severityNumber, message, attributes, parsed.label);
+          });
+      } else {
+        this.logToConsole(severityNumber, message, attributes, parsed?.label);
+      }
     }
 
     const traceHeaders = telemetryService.getTraceHeaders() || {};

@@ -5,8 +5,8 @@ import { telemetryService } from '@/infrastructure/observability/telemetry-servi
 import type {
   CreateWebRTCSessionOptions,
   IWebRTCService,
-} from '@/domain/interfaces/IWebRTCService';
-import { WebRTCSession } from '@/domain/value-objects/WebRTCSession';
+} from '@/domain/interfaces/i-webrtc-service';
+import { WebRTCSession } from '@/domain/value-objects/webrtc-session';
 import {
   CloseSessionRequest,
   PollEventsRequest,

@@ -32,10 +32,16 @@ type StatsPanelState = {
   connections: ConnectionSnapshot[];
 };
 
+enum StatsPanelActionType {
+  SET_CONNECTIONS = 'SET_CONNECTIONS',
+  COLLAPSE = 'COLLAPSE',
+  EXPAND = 'EXPAND',
+}
+
 type StatsPanelAction =
-  | { type: 'SET_CONNECTIONS'; payload: ConnectionSnapshot[] }
-  | { type: 'COLLAPSE' }
-  | { type: 'EXPAND' };
+  | { type: StatsPanelActionType.SET_CONNECTIONS; payload: ConnectionSnapshot[] }
+  | { type: StatsPanelActionType.COLLAPSE }
+  | { type: StatsPanelActionType.EXPAND };
 
 const INITIAL_CONNECTIONS: ConnectionSnapshot[] = [
   { label: 'Frames', state: 'disconnected', lastRequest: null, lastRequestTime: null },
@@ -50,11 +56,11 @@ const INITIAL_STATS_PANEL_STATE: StatsPanelState = {
 
 function statsPanelReducer(state: StatsPanelState, action: StatsPanelAction): StatsPanelState {
   switch (action.type) {
-    case 'SET_CONNECTIONS':
+    case StatsPanelActionType.SET_CONNECTIONS:
       return { ...state, connections: action.payload };
-    case 'COLLAPSE':
+    case StatsPanelActionType.COLLAPSE:
       return { ...state, expanded: false };
-    case 'EXPAND':
+    case StatsPanelActionType.EXPAND:
       return { ...state, expanded: true };
     default:
       return state;
@@ -133,7 +139,7 @@ export function StatsPanel({
       const webRtcStatus = webrtcService.getConnectionStatus();
 
       dispatch({
-        type: 'SET_CONNECTIONS',
+        type: StatsPanelActionType.SET_CONNECTIONS,
         payload: [
           {
             label: 'Frames',
@@ -170,7 +176,7 @@ export function StatsPanel({
         id={panelRegionId}
         data-testid="react-stats-panel"
         className={styles.panel}
-        onClick={() => dispatch({ type: 'COLLAPSE' })}
+        onClick={() => dispatch({ type: StatsPanelActionType.COLLAPSE })}
       >
         <div className={styles.left}>
           <strong>FPS: {fps}</strong>
@@ -205,7 +211,7 @@ export function StatsPanel({
       data-testid="react-stats-panel-peek"
       aria-label="Show stats panel"
       aria-expanded={false}
-      onClick={() => dispatch({ type: 'EXPAND' })}
+      onClick={() => dispatch({ type: StatsPanelActionType.EXPAND })}
     >
       <span className={styles.peekChevron} aria-hidden />
     </button>

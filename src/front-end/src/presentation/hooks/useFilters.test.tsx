@@ -5,9 +5,9 @@ import {
   GenericFilterDefinition,
   ListFiltersResponse,
 } from '@/gen/image_processor_service_pb';
-import { useFilters } from './hooks/useFilters';
-import { renderWithService } from './test-utils/render-with-service';
-import type { GrpcClients } from './context/service-context';
+import { useFilters } from '@/presentation/hooks/useFilters';
+import { renderWithService } from '@/presentation/test-utils/render-with-service';
+import type { GrpcClients } from '@/presentation/context/service-context';
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -28,7 +28,7 @@ describe('useFilters', () => {
     }[] = [];
     let refetchFn: (() => void) | undefined;
 
-    function Probe() {
+    function Probe(): React.ReactNode {
       const { filters, loading, refetch } = useFilters();
       refetchFn = refetch;
       useEffect(() => {

@@ -88,6 +88,16 @@
   border-bottom-color: var(--primary-color);
 }
 
+.react-source-drawer-host .tab.tab-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.react-source-drawer-host .tab.tab-disabled:hover {
+  opacity: 0.5;
+  background: none;
+}
+
 .react-source-drawer-host .source-list {
   display: flex;
   flex-direction: column;

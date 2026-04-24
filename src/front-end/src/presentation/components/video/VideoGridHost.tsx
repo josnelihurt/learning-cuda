@@ -1,85 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import type { StaticImage } from '@/gen/common_pb';
-import { AcceleratorType } from '@/gen/common_pb';
-import type { IStatsDisplay, IToastDisplay } from '@/infrastructure/transport/transport-types';
-import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
+import { webrtcService } from '@/infrastructure/connection/webrtc-service';
+import { logger } from '@/infrastructure/observability/otel-logger';
 import { useAppServices } from '@/presentation/providers/app-services-provider';
 import { useDashboardState } from '@/presentation/context/dashboard-state-context';
-import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
-import { webrtcService } from '@/infrastructure/connection/webrtc-service';
-import { AcceleratorConfig, FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
-import { logger } from '@/infrastructure/observability/otel-logger';
-import { VideoGrid } from './VideoGrid';
-import { SourceDrawer } from './SourceDrawer';
-import { AddSourceFab } from './AddSourceFab';
-import { ImageSelectorModal } from './ImageSelectorModal';
-import { AcceleratorStatusFab } from './AcceleratorStatusFab';
 import { useToast } from '@/presentation/hooks/useToast';
+import { useProcessingStats } from '@/presentation/hooks/useProcessingStats';
+import { useFilterApplication } from '@/presentation/hooks/useFilterApplication';
+import { useCameraTransport } from '@/presentation/hooks/useCameraTransport';
+import { useSourceTransportFactory } from '@/presentation/hooks/useSourceTransportFactory';
+import { useSourceFilterSync } from '@/presentation/hooks/useSourceFilterSync';
+import { useGridSources } from '@/presentation/hooks/useGridSources';
+import { VideoGrid } from '@/presentation/components/video/VideoGrid';
+import { SourceDrawer } from '@/presentation/components/video/SourceDrawer';
+import { AddSourceFab } from '@/presentation/components/video/AddSourceFab';
+import { ImageSelectorModal } from '@/presentation/components/video/ImageSelectorModal';
+import { AcceleratorStatusFab } from '@/presentation/components/video/AcceleratorStatusFab';
 import { StatsPanel as ReactStatsPanel } from '@/presentation/components/app/StatsPanel';
-import {
-  type Detection,
-  DetectionFrame,
-  GenericFilterParameterSelection,
-  GenericFilterSelection,
-  ProcessImageRequest,
-} from '@/gen/image_processor_service_pb';
-import { ChunkReassembler } from '@/infrastructure/transport/data-channel-framing';
-import { frameResponseToDataUrl, rasterizeImageToRgb } from '@/presentation/utils/image-utils';
-
-type GridSource = {
-  id: string;
-  number: number;
-  name: string;
-  type: string;
-  imagePath: string;
-  originalImageSrc: string;
-  currentImageSrc: string;
-  transport: WebRTCFrameTransportService | null;
-  remoteStream: MediaStream | null;
-  sessionId: string | null;
-  sessionMode: 'frame-processing' | 'camera-mediatrack';
-  filters: ActiveFilterState[];
-  resolution: string;
-  accelerator: 'gpu' | 'cpu';
-  videoId?: string;
-  detections: Detection[];
-  detectionImageWidth: number;
-  detectionImageHeight: number;
-  connected: boolean;
-};
+import { filtersToFilterData, GridSourceActionType, type GridSource } from '@/presentation/utils/grid-source';
 
 const MAX_SOURCES = 9;
 
-function toProtocolAccelerator(value: 'gpu' | 'cpu'): AcceleratorType {
-  return value === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
-}
-
-export function VideoGridHost() {
-  const [sources, setSources] = useState<GridSource[]>([]);
-  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
-  const [availableSources, setAvailableSources] = useState<InputSource[]>([]);
-  const [availableImages, setAvailableImages] = useState<StaticImage[]>([]);
-  const [fps, setFps] = useState('--');
-  const [time, setTime] = useState('--ms');
-  const [frames, setFrames] = useState(0);
-  const [cameraStatus, setCameraStatus] = useState('Inactive');
-  const [cameraStatusType, setCameraStatusType] = useState<'success' | 'error' | 'warning' | 'inactive'>(
-    'inactive'
-  );
-  const fpsHistoryRef = useRef<number[]>([]);
-  const processingTimesRef = useRef<number[]>([]);
-  const nextNumberRef = useRef(1);
-  const defaultSourceInitializedRef = useRef(false);
-  const cameraFrameTimeRef = useRef<Record<string, number>>({});
-  const cameraSessionSourceIdsRef = useRef<Set<string>>(new Set());
-  const pendingSourceNumberForImageChangeRef = useRef<number | null>(null);
-  const sourcesRef = useRef<GridSource[]>([]);
-  const selectedSourceIdRef = useRef<string | null>(null);
+export function VideoGridHost(): React.ReactNode {
   const { container, ready } = useAppServices();
-  const toast = useToast();
   const {
     activeFilters,
     selectedAccelerator,
@@ -89,210 +34,55 @@ export function VideoGridHost() {
     setResolution,
     setWebRTCReady,
   } = useDashboardState();
+  const toast = useToast();
 
-  useEffect(() => {
-    sourcesRef.current = sources;
-  }, [sources]);
-
-  useEffect(() => {
-    selectedSourceIdRef.current = selectedSourceId;
-  }, [selectedSourceId]);
-
-  useEffect(() => {
-    const selectedSource = sources.find((s) => s.id === selectedSourceId);
-    setWebRTCReady(selectedSource?.connected ?? false);
-  }, [sources, selectedSourceId, setWebRTCReady]);
-
-  const statsManager = useMemo(
-    () =>
-      ({
-        updateCameraStatus: (status: string, type: 'success' | 'error' | 'warning' | 'inactive') => {
-          setCameraStatus(status);
-          setCameraStatusType(type);
-        },
-        updateTransportStatus: () => undefined,
-        updateProcessingStats: (processingTime: number) => {
-          setFrames((current) => current + 1);
-          const instantFps = 1000 / processingTime;
-          fpsHistoryRef.current.push(instantFps);
-          if (fpsHistoryRef.current.length > 10) {
-            fpsHistoryRef.current.shift();
-          }
-          const avgFps =
-            fpsHistoryRef.current.reduce((sum, value) => sum + value, 0) / fpsHistoryRef.current.length;
-          setFps(avgFps.toFixed(1));
-
-          processingTimesRef.current.push(processingTime);
-          if (processingTimesRef.current.length > 10) {
-            processingTimesRef.current.shift();
-          }
-          const avgTime =
-            processingTimesRef.current.reduce((sum, value) => sum + value, 0) /
-            processingTimesRef.current.length;
-          setTime(`${avgTime.toFixed(0)}ms`);
-        },
-        setTransportService: () => undefined,
-      }) as Pick<
-        IStatsDisplay,
-        'updateCameraStatus' | 'updateTransportStatus' | 'updateProcessingStats' | 'setTransportService'
-      >,
-    []
-  );
-
-  const toastManager = useMemo(
-    () =>
-      ({
-        success: toast.success,
-        error: toast.error,
-        warning: toast.warning,
-        info: toast.info,
-      }) as IToastDisplay,
+  const toastManager = useMemo<IToastDisplay>(
+    () => ({
+      success: toast.success,
+      error: toast.error,
+      warning: toast.warning,
+      info: toast.info,
+    }),
     [toast.error, toast.info, toast.success, toast.warning]
   );
 
-  const mapFiltersToValueObjects = useCallback(
-    (filters: ActiveFilterState[]): FilterData[] =>
-      filters.map((filter) => new FilterData(filter.id, { ...filter.parameters })),
-    []
-  );
+  const { fps, time, frames, cameraStatus, cameraStatusType, statsManager } = useProcessingStats();
+  const { sources, selectedSourceId, sourcesRef, selectedSourceIdRef, nextNumberRef, dispatch, setSelectedSource: setSelectedSourceId, removeSource } =
+    useGridSources();
+  const { createCameraSession, sendCameraControlRequest } = useCameraTransport({
+    dispatch,
+    sourcesRef,
+    toastManager,
+  });
 
-  const mapFiltersToGenericSelections = useCallback(
-    (filters: ActiveFilterState[]): GenericFilterSelection[] => {
-      // If filters are empty or only contain 'none', send explicit 'none' filter to clear backend filters
-      const activeFilters = filters.filter((filter) => filter.id !== 'none');
-      if (activeFilters.length === 0) {
-        return [new GenericFilterSelection({
-          filterId: 'none',
-          parameters: [],
-        })];
-      }
-      return activeFilters.map((filter) => {
-        const selection = new GenericFilterSelection({
-          filterId: filter.id,
-          parameters: Object.entries(filter.parameters).map(
-            ([parameterId, value]) =>
-              new GenericFilterParameterSelection({
-                parameterId,
-                values: [value],
-              })
-          ),
-        });
-        return selection;
-      });
-    },
-    []
-  );
+  const activeFiltersRef = useRef(activeFilters);
+  const selectedResolutionRef = useRef(selectedResolution);
+  const selectedAcceleratorRef = useRef(selectedAccelerator);
+  activeFiltersRef.current = activeFilters;
+  selectedResolutionRef.current = selectedResolution;
+  selectedAcceleratorRef.current = selectedAccelerator;
 
-  const updateSource = useCallback((sourceId: string, updater: (source: GridSource) => GridSource) => {
-    setSources((current) => current.map((source) => (source.id === sourceId ? updater(source) : source)));
-  }, []);
+  const { buildSource } = useSourceTransportFactory({
+    nextNumberRef,
+    statsManager,
+    toastManager,
+    dispatch,
+    activeFiltersRef,
+    selectedResolutionRef,
+    selectedAcceleratorRef,
+  });
+  const { applyStaticFilters, applyVideoFilters } = useFilterApplication(toastManager);
 
-  const sendCameraControlRequest = useCallback(
-    (sessionId: string, sourceId: string, filters: ActiveFilterState[], accelerator: 'gpu' | 'cpu') => {
-      try {
-        webrtcService.sendControlRequest(
-          sessionId,
-          new ProcessImageRequest({
-            sessionId,
-            genericFilters: mapFiltersToGenericSelections(filters),
-            accelerator: toProtocolAccelerator(accelerator),
-            apiVersion: '1.0',
-          })
-        );
-      } catch (error) {
-        logger.error('Failed to send live camera filter update', {
-          'error.message': error instanceof Error ? error.message : String(error),
-          'source.id': sourceId,
-          'session.id': sessionId,
-        });
-      }
-    },
-    [mapFiltersToGenericSelections]
-  );
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
+  const [availableSources, setAvailableSources] = useState<InputSource[]>([]);
+  const [availableImages, setAvailableImages] = useState<StaticImage[]>([]);
+  const pendingImageChangeSourceIdRef = useRef<string | null>(null);
+  const defaultSourceInitializedRef = useRef(false);
 
-  const createCameraSession = useCallback(
-    async (sourceId: string, stream: MediaStream) => {
-      if (cameraSessionSourceIdsRef.current.has(sourceId)) {
-        return;
-      }
-      const source = sourcesRef.current.find((item) => item.id === sourceId);
-      if (!source || source.sessionId) {
-        return;
-      }
-
-      cameraSessionSourceIdsRef.current.add(sourceId);
-      try {
-        const session = await webrtcService.createSession(sourceId, {
-          mode: 'camera-mediatrack',
-          localStream: stream,
-          useDataChannel: true,
-          onRemoteStream: (remoteStream) => {
-            updateSource(sourceId, (current) => ({
-              ...current,
-              remoteStream,
-            }));
-          },
-        });
-
-        updateSource(sourceId, (current) => ({
-          ...current,
-          sessionId: session.getId(),
-          sessionMode: session.getMode(),
-          connected: true,
-        }));
-        const currentSource = sourcesRef.current.find((item) => item.id === sourceId) ?? source;
-        // Use selected source filters which should be synced with activeFilters from the main effect
-        const currentFilters = currentSource.filters.length > 0
-          ? currentSource.filters
-          : [{ id: 'none', parameters: {} }];
-        sendCameraControlRequest(
-          session.getId(),
-          sourceId,
-          currentFilters,
-          currentSource.accelerator
-        );
-
-        const detectionChannel = webrtcService.getDetectionDataChannel(session.getId());
-        if (detectionChannel) {
-          const reassembler = new ChunkReassembler();
-          detectionChannel.onmessage = (event: MessageEvent) => {
-            const payload = event.data as ArrayBuffer | Blob;
-            const bufferPromise =
-              payload instanceof Blob ? payload.arrayBuffer() : Promise.resolve(payload as ArrayBuffer);
-            void bufferPromise.then((buffer) => {
-              const assembled = reassembler.pushChunk(buffer);
-              if (assembled === null) return;
-              const frame = DetectionFrame.fromBinary(assembled);
-              updateSource(sourceId, (current) => ({
-                ...current,
-                detections: frame.detections,
-                detectionImageWidth: frame.imageWidth,
-                detectionImageHeight: frame.imageHeight,
-              }));
-            });
-          };
-        }
-      } catch (error) {
-        logger.error('Failed to create camera MediaTrack session', {
-          'error.message': error instanceof Error ? error.message : String(error),
-          'source.id': sourceId,
-        });
-        toastManager.warning(
-          'Camera transport unavailable',
-          'Live local preview is active, but the remote camera MediaTrack session could not be established.'
-        );
-      } finally {
-        cameraSessionSourceIdsRef.current.delete(sourceId);
-      }
-    },
-    [sendCameraControlRequest, toastManager, updateSource]
-  );
-
-  const emitSelectionState = useCallback(
-    (source: GridSource | null) => {
-      if (!source) {
-        return;
-      }
+  const syncSelectionToDashboard = useCallback(
+    (source: GridSource | null): void => {
+      if (!source) return;
       setSelectedSource(source.number, source.name);
       setActiveFilters(source.filters.map((f) => ({ id: f.id, parameters: { ...f.parameters } })));
       setResolution(source.resolution);
@@ -300,419 +90,103 @@ export function VideoGridHost() {
     [setActiveFilters, setResolution, setSelectedSource]
   );
 
-  const selectSourceById = useCallback(
-    (sourceId: string) => {
-      setSelectedSourceId(sourceId);
-      const source = sourcesRef.current.find((item) => item.id === sourceId) ?? null;
-      emitSelectionState(source);
-    },
-    [emitSelectionState]
-  );
+  useEffect(() => {
+    const selectedSource = sources.find((s) => s.id === selectedSourceId);
+    setWebRTCReady(selectedSource?.connected ?? false);
+  }, [sources, selectedSourceId, setWebRTCReady]);
 
-  const removeSourceById = useCallback((sourceId: string) => {
-    const source = sourcesRef.current.find((item) => item.id === sourceId);
-    if (!source) {
-      return;
-    }
-    source.transport?.disconnect();
-    if (source.sessionId) {
-      void webrtcService.closeSession(source.sessionId).catch((error) => {
-        logger.error('Failed to close camera MediaTrack session', {
-          'error.message': error instanceof Error ? error.message : String(error),
-          'source.id': sourceId,
-        });
-      });
-    }
-    setSources((current) => current.filter((item) => item.id !== sourceId));
-    if (selectedSourceIdRef.current === sourceId) {
-      const remaining = sourcesRef.current.filter((item) => item.id !== sourceId);
-      const nextSource = remaining[0] ?? null;
-      setSelectedSourceId(nextSource?.id ?? null);
-      emitSelectionState(nextSource);
-    }
-  }, [emitSelectionState]);
+  useSourceFilterSync({
+    ready,
+    selectedSourceId,
+    sourcesRef,
+    activeFilters,
+    selectedAccelerator,
+    selectedResolution,
+    dispatch,
+    sendCameraControlRequest,
+    applyStaticFilters,
+    applyVideoFilters,
+    toastManager,
+  });
 
-  const activeTransportService = useMemo(() => {
-    if (selectedSourceId) {
-      const selected = sources.find((source) => source.id === selectedSourceId);
-      if (selected?.transport) {
-        return selected.transport;
-      }
+  useEffect(() => {
+    if (!ready || defaultSourceInitializedRef.current) return;
+    const defaultSource = container.getInputSourceService().getDefaultSource();
+    if (defaultSource && sourcesRef.current.length === 0) {
+      defaultSourceInitializedRef.current = true;
+      const source = buildSource(defaultSource);
+      dispatch({ type: GridSourceActionType.ADD_SOURCE, payload: source });
+      setSelectedSourceId(source.id);
+      syncSelectionToDashboard(source);
     }
-    return sources.find((source) => source.transport)?.transport ?? null;
-  }, [selectedSourceId, sources]);
+  }, [buildSource, container, dispatch, ready, setSelectedSourceId, sourcesRef, syncSelectionToDashboard]);
 
   const addSource = useCallback(
-    (inputSource: InputSource) => {
+    (inputSource: InputSource): void => {
       if (sourcesRef.current.length >= MAX_SOURCES) {
         toast?.warning('Maximum Sources', `Cannot add more than ${MAX_SOURCES} sources`);
         return;
       }
-      const number = nextNumberRef.current;
-      nextNumberRef.current += 1;
-
-      const uniqueId = `${inputSource.id}-${number}`;
-      const sourceImagePath =
-        inputSource.type === 'video' ? inputSource.previewImagePath || '' : inputSource.imagePath;
-      const cameraManager = {
-        setProcessing: () => undefined,
-        getLastFrameTime: () =>
-          cameraFrameTimeRef.current[uniqueId] ?? performance.now(),
-      };
-      const transport =
-        inputSource.type === 'camera'
-          ? null
-          : new WebRTCFrameTransportService(
-            uniqueId,
-            statsManager as IStatsDisplay,
-            cameraManager as never,
-            toastManager as IToastDisplay
-          );
-      if (transport) {
-        transport.connect();
-        statsManager.setTransportService(transport);
-        transport.onFrameResult((data) => {
-          if (!data.imageData?.byteLength || data.width <= 0 || data.height <= 0) {
-            return;
-          }
-
-          updateSource(uniqueId, (source) => ({
-            ...source,
-            currentImageSrc: frameResponseToDataUrl(
-              data.imageData,
-              data.width,
-              data.height,
-              data.channels || 4
-            ),
-          }));
-        });
-        transport.onDetectionResult((frame) => {
-          updateSource(uniqueId, (source) => ({
-            ...source,
-            detections: frame.detections,
-            detectionImageWidth: frame.imageWidth,
-            detectionImageHeight: frame.imageHeight,
-          }));
-        });
-      }
-
-      const source: GridSource = {
-        id: uniqueId,
-        number,
-        name: inputSource.displayName,
-        type: inputSource.type,
-        imagePath: sourceImagePath,
-        originalImageSrc: sourceImagePath,
-        currentImageSrc: sourceImagePath,
-        transport,
-        remoteStream: null,
-        sessionId: null,
-        sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
-        filters: activeFilters.length > 0 ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } })) : [{ id: 'none', parameters: {} }],
-        resolution: selectedResolution || 'original',
-        accelerator: selectedAccelerator || 'gpu',
-        videoId: inputSource.type === 'video' ? inputSource.id : undefined,
-        detections: [],
-        detectionImageWidth: 0,
-        detectionImageHeight: 0,
-        connected: false,
-      };
-
-      setSources((current) => [...current, source]);
-      if (sourcesRef.current.length === 0) {
-        setSelectedSourceId(uniqueId);
-        emitSelectionState(source);
-      }
-
-      if (inputSource.type === 'video') {
-        const tryStartVideo = () => {
-          if (transport!.isConnected()) {
-            updateSource(uniqueId, (s) => ({ ...s, connected: true }));
-            transport!.sendStartVideo(inputSource.id, mapFiltersToValueObjects(source.filters), 'gpu');
-            return;
-          }
-          setTimeout(tryStartVideo, 100);
-        };
-        setTimeout(tryStartVideo, 100);
-      } else if (transport) {
-        const waitForConnect = () => {
-          if (transport!.isConnected()) {
-            updateSource(uniqueId, (s) => ({ ...s, connected: true }));
-            return;
-          }
-          setTimeout(waitForConnect, 100);
-        };
-        setTimeout(waitForConnect, 100);
+      const isFirst = sourcesRef.current.length === 0;
+      const source = buildSource(inputSource);
+      dispatch({ type: GridSourceActionType.ADD_SOURCE, payload: source });
+      if (isFirst) {
+        setSelectedSourceId(source.id);
+        syncSelectionToDashboard(source);
       }
     },
-    [emitSelectionState, mapFiltersToValueObjects, statsManager, toastManager, updateSource]
+    [buildSource, dispatch, setSelectedSourceId, sourcesRef, syncSelectionToDashboard, toast]
   );
 
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-    if (defaultSourceInitializedRef.current) {
-      return;
-    }
-    const input = container.getInputSourceService();
-    const defaultSource = input.getDefaultSource();
-    if (defaultSource && sourcesRef.current.length === 0) {
-      defaultSourceInitializedRef.current = true;
-      addSource(defaultSource);
-    }
-  }, [addSource, container, ready]);
-
-  const openDrawer = useCallback(() => {
-    const inputSourceService = container.getInputSourceService();
-    setAvailableSources(inputSourceService.getSources());
+  const openDrawer = useCallback((): void => {
+    setAvailableSources(container.getInputSourceService().getSources());
     setIsDrawerOpen(true);
   }, [container]);
 
-  const refreshDrawerSources = useCallback(() => {
-    const inputSourceService = container.getInputSourceService();
-    setAvailableSources(inputSourceService.getSources());
+  const refreshDrawerSources = useCallback((): void => {
+    setAvailableSources(container.getInputSourceService().getSources());
   }, [container]);
 
   const onSelectSourceFromDrawer = useCallback(
-    (source: InputSource) => {
+    (source: InputSource): void => {
       addSource(source);
       setIsDrawerOpen(false);
     },
     [addSource]
   );
 
-  const onSelectImage = useCallback((image: StaticImage) => {
-    const imagePath = image.path;
-    const sourceNumber = pendingSourceNumberForImageChangeRef.current;
-    if (sourceNumber !== null) {
-      setSources((current) =>
-        current.map((source) =>
-          source.number === sourceNumber
-            ? {
-              ...source,
-              imagePath,
-              originalImageSrc: imagePath,
-              currentImageSrc: imagePath,
-            }
-            : source
-        )
-      );
-    }
-    pendingSourceNumberForImageChangeRef.current = null;
-    setIsImageSelectorOpen(false);
-  }, []);
+  const onSelectImage = useCallback(
+    (image: StaticImage): void => {
+      const sourceId = pendingImageChangeSourceIdRef.current;
+      if (sourceId !== null) {
+        dispatch({
+          type: GridSourceActionType.UPDATE_SOURCE,
+          payload: {
+            sourceId,
+            updater: (s) => ({
+              ...s,
+              imagePath: image.path,
+              originalImageSrc: image.path,
+              currentImageSrc: image.path,
+            }),
+          },
+        });
+      }
+      pendingImageChangeSourceIdRef.current = null;
+      setIsImageSelectorOpen(false);
+    },
+    [dispatch]
+  );
+
+  const activeTransportService = useMemo(() => {
+    const selected = selectedSourceId
+      ? sources.find((s) => s.id === selectedSourceId)
+      : null;
+    return selected?.transport ?? sources.find((s) => s.transport)?.transport ?? null;
+  }, [selectedSourceId, sources]);
 
   useEffect(() => {
-    if (!ready || !selectedSourceId) {
-      return;
-    }
-    const selectedSource = sourcesRef.current.find((source) => source.id === selectedSourceId);
-    if (!selectedSource) {
-      return;
-    }
-    const normalizedFilters =
-      activeFilters.length > 0 ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } })) : [{ id: 'none', parameters: {} }];
-
-    updateSource(selectedSource.id, (source) => ({
-      ...source,
-      filters: normalizedFilters,
-      resolution: selectedResolution,
-      accelerator: selectedAccelerator,
-    }));
-
-    if (selectedSource.type === 'video') {
-      if (!selectedSource.transport || !selectedSource.transport.isConnected()) {
-        logger.error('Frame transport not connected for selected source', {
-          'source.id': selectedSource.id,
-        });
-        return;
-      }
-      const videoId = selectedSource.videoId || selectedSource.name;
-      const hasModelInference = normalizedFilters.some((f) => f.id === 'model_inference');
-      // Clear detections if model inference is disabled before restarting video
-      if (!hasModelInference) {
-        updateSource(selectedSource.id, (source) => ({
-          ...source,
-          detections: [],
-          detectionImageWidth: 0,
-          detectionImageHeight: 0,
-        }));
-      }
-      selectedSource.transport.sendStopVideo(videoId);
-      setTimeout(() => {
-        const freshSource = sourcesRef.current.find((s) => s.id === selectedSourceId);
-        if (freshSource?.transport?.isConnected()) {
-          freshSource.transport.sendStartVideo(
-            videoId,
-            mapFiltersToValueObjects(normalizedFilters),
-            selectedAccelerator
-          );
-        } else {
-          toastManager.error(
-            'Filter update failed',
-            'Could not restart video stream. Please try selecting the video again.'
-          );
-          logger.error('Video filter update failed - transport not ready', {
-            'source.id': selectedSourceId,
-            'video.id': videoId,
-          });
-        }
-      }, 200);
-      return;
-    }
-    if (selectedSource.type === 'camera') {
-      const hasModelInference = normalizedFilters.some((f) => f.id === 'model_inference');
-      // Clear detections if model inference is disabled
-      if (!hasModelInference) {
-        updateSource(selectedSource.id, (source) => ({
-          ...source,
-          detections: [],
-          detectionImageWidth: 0,
-          detectionImageHeight: 0,
-        }));
-      }
-      if (!selectedSource.sessionId) {
-        logger.warn('Camera filter update skipped - no sessionId', {
-          'source.id': selectedSource.id,
-          'source.name': selectedSource.name,
-        });
-        return;
-      }
-      if (!webrtcService.isDataChannelOpen(selectedSource.sessionId)) {
-        logger.warn('Camera filter update skipped - data channel not open', {
-          'source.id': selectedSource.id,
-          'source.sessionId': selectedSource.sessionId,
-        });
-        return;
-      }
-      sendCameraControlRequest(
-        selectedSource.sessionId,
-        selectedSource.id,
-        normalizedFilters,
-        selectedAccelerator
-      );
-      return;
-    }
-
-    const applyForStatic = async () => {
-      if (!selectedSource.transport) {
-        logger.error('Static source is missing a WebRTC transport', {
-          'source.id': selectedSource.id,
-        });
-        return;
-      }
-      try {
-        const originalImg = new Image();
-        originalImg.crossOrigin = 'anonymous';
-        await new Promise<void>((resolve, reject) => {
-          originalImg.onload = () => resolve();
-          originalImg.onerror = () => reject(new Error('Failed to load original image'));
-          originalImg.src = selectedSource.originalImageSrc;
-        });
-        const originalWidth = originalImg.naturalWidth || originalImg.width || 512;
-        const originalHeight = originalImg.naturalHeight || originalImg.height || 512;
-        const factor = selectedResolution === 'half' ? 2 : selectedResolution === 'quarter' ? 4 : 1;
-        const targetWidth = Math.floor(originalWidth / factor);
-        const targetHeight = Math.floor(originalHeight / factor);
-
-        const rasterized = await rasterizeImageToRgb(
-          selectedSource.originalImageSrc,
-          targetWidth,
-          targetHeight
-        );
-
-        if (normalizedFilters.length === 1 && normalizedFilters[0].id === 'none') {
-          updateSource(selectedSource.id, (source) => ({
-            ...source,
-            currentImageSrc: frameResponseToDataUrl(
-              rasterized,
-              targetWidth,
-              targetHeight,
-              3
-            ),
-            detections: [],
-            detectionImageWidth: 0,
-            detectionImageHeight: 0,
-          }));
-          return
-        }
-
-        const response = await selectedSource.transport.sendSingleImage(
-          rasterized,
-          targetWidth,
-          targetHeight,
-          3,
-          mapFiltersToValueObjects(normalizedFilters),
-          new AcceleratorConfig(selectedAccelerator),
-          new GrayscaleAlgorithm('bt601')
-        );
-
-        logger.info('Static image response', {
-          code: response.code,
-          width: response.width,
-          height: response.height,
-          channels: response.channels,
-          imageBytesLen: response.imageData?.byteLength ?? 0,
-          detectionCount: response.detections?.length ?? 0,
-          filters: normalizedFilters.map((f) => f.id),
-        });
-
-        if (
-          response.code === 0 &&
-          response.imageData?.byteLength &&
-          response.width > 0 &&
-          response.height > 0
-        ) {
-          updateSource(selectedSource.id, (source) => ({
-            ...source,
-            currentImageSrc: frameResponseToDataUrl(
-              response.imageData,
-              response.width,
-              response.height,
-              response.channels || 4
-            ),
-            detections: response.detections,
-            detectionImageWidth: response.width,
-            detectionImageHeight: response.height,
-          }));
-          return;
-        }
-
-        toastManager.error(
-          'Static image processing failed',
-          response.message || 'The image processor did not return a processed image.'
-        );
-      } catch (error) {
-        logger.error('Error applying static image filter', {
-          'error.message': error instanceof Error ? error.message : String(error),
-        });
-        toastManager.error(
-          'Static image processing failed',
-          error instanceof Error ? error.message : 'Unknown processing error'
-        );
-      }
-    };
-    void applyForStatic();
-  }, [
-    activeFilters,
-    mapFiltersToValueObjects,
-    ready,
-    selectedAccelerator,
-    selectedResolution,
-    selectedSourceId,
-    toastManager,
-    updateSource,
-    sendCameraControlRequest,
-  ]);
-
-  useEffect(() => {
-    // Only tear down sessions when the browser is actually unloading. React 18
-    // StrictMode re-runs effect cleanups during development remounts; running
-    // disconnect/closeSession there caused session churn (a new WebRTC session
-    // was spawned on the next send, leaving orphaned channels on the backend
-    // and triggering "Frame timed out" on the frontend).
-    const stopAllSources = () => {
+    const stopAllSources = (): void => {
       sourcesRef.current.forEach((source) => {
         source.transport?.disconnect();
         if (source.sessionId) {
@@ -724,7 +198,7 @@ export function VideoGridHost() {
     return () => {
       window.removeEventListener('beforeunload', stopAllSources);
     };
-  }, []);
+  }, [sourcesRef]);
 
   return (
     <>
@@ -742,12 +216,33 @@ export function VideoGridHost() {
           detectionImageHeight: source.detectionImageHeight,
         }))}
         selectedSourceId={selectedSourceId}
-        onSelectSource={selectSourceById}
-        onCloseSource={removeSourceById}
-        onChangeImageRequest={(_, sourceNumber) => {
-          pendingSourceNumberForImageChangeRef.current = sourceNumber;
-          const inputSourceService = container.getInputSourceService();
-          void inputSourceService
+        onSelectSource={(sourceId) => {
+          setSelectedSourceId(sourceId);
+          const source = sourcesRef.current.find((s) => s.id === sourceId) ?? null;
+          syncSelectionToDashboard(source);
+        }}
+        onCloseSource={(sourceId) => {
+          const source = sourcesRef.current.find((s) => s.id === sourceId);
+          const isSelected = sourceId === selectedSourceIdRef.current;
+          source?.transport?.disconnect();
+          if (source?.sessionId) {
+            void webrtcService.closeSession(source.sessionId).catch((error) => {
+              logger.error('Failed to close camera MediaTrack session', {
+                'error.message': error instanceof Error ? error.message : String(error),
+                'source.id': sourceId,
+              });
+            });
+          }
+          removeSource(sourceId);
+          if (isSelected) {
+            const remaining = sourcesRef.current.filter((s) => s.id !== sourceId);
+            syncSelectionToDashboard(remaining[0] ?? null);
+          }
+        }}
+        onChangeImageRequest={(sourceId) => {
+          pendingImageChangeSourceIdRef.current = sourceId;
+          void container
+            .getInputSourceService()
             .listAvailableImages()
             .then((images) => {
               setAvailableImages(images);
@@ -760,21 +255,18 @@ export function VideoGridHost() {
             });
         }}
         onCameraFrame={(sourceId, payload) => {
-          cameraFrameTimeRef.current[sourceId] = payload.timestamp;
-          const source = sourcesRef.current.find((item) => item.id === sourceId);
-          if (!source || source.sessionMode === 'camera-mediatrack') {
-            return;
-          }
-          if (!source?.transport?.isConnected()) {
-            return;
-          }
-          const filters = source.filters.length ? source.filters : [{ id: 'none', parameters: {} }];
-          source.transport.sendFrame(
+          const cameraSource = sourcesRef.current.find((item) => item.id === sourceId);
+          if (!cameraSource || cameraSource.sessionMode === 'camera-mediatrack') return;
+          if (!cameraSource.transport?.isConnected()) return;
+          const filters = cameraSource.filters.length
+            ? cameraSource.filters
+            : [{ id: 'none', parameters: {} }];
+          cameraSource.transport.sendFrame(
             `data:image/jpeg;base64,${payload.base64data}`,
             payload.width,
             payload.height,
-            mapFiltersToValueObjects(filters),
-            selectedAccelerator
+            filtersToFilterData(filters),
+            selectedAcceleratorRef.current
           );
         }}
         onCameraStreamReady={createCameraSession}

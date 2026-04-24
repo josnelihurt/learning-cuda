@@ -6,9 +6,9 @@ High-performance image processing library implementing Clean Architecture princi
 
 The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters using CUDA kernels. The architecture follows Clean Architecture patterns with clear separation between domain logic, application use cases, infrastructure implementations, and external adapters.
 
-**Version**: See `VERSION` file (currently 2.4.2)
+**Version**: See `VERSION` file (currently 3.3.3)
 
-**Note**: The library version (2.4.2) is separate from the C API version (2.1.0 defined in `processor_api.h`). The API version indicates the C interface contract, while the library version tracks overall library releases.
+**Note**: The library version (3.3.3) is separate from the C API version (2.1.0 defined in `processor_api.h`). The API version indicates the C interface contract, while the library version tracks overall library releases.
 
 **Features**:
 - GPU acceleration via CUDA kernels with CPU fallback
@@ -705,7 +705,7 @@ The library exposes a C API through `processor_api.h` for language-agnostic inte
 - `processor_init()` and `processor_cleanup()` are not thread-safe
 - `processor_process_image()` and `processor_get_capabilities()` can be called concurrently after successful initialization
 
-**API Version**: The C API version is defined as `PROCESSOR_API_VERSION "2.1.0"` in `processor_api.h`. This is separate from the library version (2.4.2) and indicates the C interface contract.
+**API Version**: The C API version is defined as `PROCESSOR_API_VERSION "2.1.0"` in `processor_api.h`. This is separate from the library version (3.3.3) and indicates the C interface contract.
 
 ## Adding New Filters
 

@@ -8,6 +8,7 @@ import { useToast } from '@/presentation/hooks/useToast';
 import styles from './NavbarControls.module.css';
 
 declare const __APP_VERSION__: string;
+declare const __APP_VERSION_NUMBER__: string;
 
 type NavbarControlsProps = {
   onOpenFeatureFlags: () => void;
@@ -42,6 +43,8 @@ export function VersionTooltip(): ReactElement {
     };
   }, []);
 
+  const buildVersion = typeof __APP_VERSION_NUMBER__ !== 'undefined' ? __APP_VERSION_NUMBER__ : 'dev';
+
   useEffect(() => {
     let cancelled = false;
     const loadSystemInfo = async () => {
@@ -53,6 +56,8 @@ export function VersionTooltip(): ReactElement {
         }
         const version = systemInfo.version;
         const fields: VersionField[] = [];
+        // Frontend version first
+        fields.push({ label: 'Frontend Version', value: buildVersion });
         if (version?.goVersion) fields.push({ label: 'Go Version', value: version.goVersion });
         if (version?.cppVersion) fields.push({ label: 'C++ Version', value: version.cppVersion });
         if (version?.protoVersion) fields.push({ label: 'Proto Version', value: version.protoVersion });
@@ -77,9 +82,7 @@ export function VersionTooltip(): ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [toast, transport]);
-
-  const buildVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+  }, [toast, transport, buildVersion]);
 
   return (
     <div className={styles.versionTooltip} data-testid="react-version-tooltip">
@@ -120,12 +123,7 @@ export function VersionTooltip(): ReactElement {
                 <span className={styles.versionLabel}>Environment:</span>
                 <span className={styles.versionValue}>{environment}</span>
               </div>
-              <div className={styles.versionRow}>
-                <span className={styles.versionLabel}>Frontend:</span>
-                <span className={styles.versionValue}>React app loaded</span>
-              </div>
             </div>
-            <div className={styles.buildInfo}>Build: {buildVersion}</div>
           </div>
         </div>
       ) : null}

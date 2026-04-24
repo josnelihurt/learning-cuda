@@ -324,20 +324,27 @@ run_cpp_built() {
   yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
   local version_tag="${IMAGE_BASE}/intermediate:cpp-built-${cpp_version}-${ARCH}"
   local latest_tag="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
-  
+
   local bazel_base_image="${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
   local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-latest-${ARCH}"
-  
+
   if ! docker image inspect "${bazel_base_image}" >/dev/null 2>&1; then
     echo "Error: Base image ${bazel_base_image} not found. Build bazel-base first." >&2
     exit 1
   fi
-  
+
   if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
     echo "Error: Base image ${proto_generated_image} not found. Build proto intermediate first." >&2
     exit 1
   fi
-  
+
+  # Get git info for build-time injection
+  local commit_hash="${COMMIT_HASH:-}"
+  if [[ -z "${commit_hash}" ]] && command -v git >/dev/null 2>&1; then
+    commit_hash="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+  fi
+  commit_hash="${commit_hash:-unknown}"
+
   local build_args=(
     "--target" "artifacts"
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}"
@@ -345,6 +352,7 @@ run_cpp_built() {
     "--build-arg" "PROTO_VERSION=${proto_version}"
     "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
     "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
+    "--build-arg" "COMMIT_HASH=${commit_hash}"
   )
 
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
@@ -355,13 +363,13 @@ run_cpp_built() {
   fi
 
   print_stage_header "Building C++ intermediate (${cpp_version})"
-  
+
   local docker_build_args=()
   if [[ "${REGISTRY}" != "local" ]]; then
     docker_build_args+=("--pull")
   fi
   docker_build_args+=("--no-cache")
-  
+
   docker build \
     "${docker_build_args[@]}" \
     --build-arg "TARGETARCH=${TARGETARCH}" \
@@ -370,7 +378,7 @@ run_cpp_built() {
     -t "${version_tag}" \
     -t "${latest_tag}" \
     "${REPO_ROOT}"
-  
+
   docker image inspect "${version_tag}" >/dev/null 2>&1
 
   if [[ "${REGISTRY}" != "local" ]]; then
@@ -442,16 +450,23 @@ run_cpp_accelerator_image() {
 
   local cpp_built_image="${IMAGE_BASE}/intermediate:cpp-built-latest-${ARCH}"
   local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-${proto_version}-${ARCH}"
-  
+
   if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
     echo "Error: Base image ${proto_generated_image} not found. Build proto intermediate first." >&2
     exit 1
   fi
-  
+
   if ! docker image inspect "${cpp_built_image}" >/dev/null 2>&1; then
     echo "Error: Base image ${cpp_built_image} not found. Build cpp intermediate first." >&2
     exit 1
   fi
+
+  # Get git info for build-time injection
+  local commit_hash="${COMMIT_HASH:-}"
+  if [[ -z "${commit_hash}" ]] && command -v git >/dev/null 2>&1; then
+    commit_hash="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+  fi
+  commit_hash="${commit_hash:-unknown}"
 
   local build_args=(
     "--target" "cpp-accelerator"
@@ -460,6 +475,7 @@ run_cpp_accelerator_image() {
     "--build-arg" "PROTO_VERSION=${proto_version}"
     "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
     "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
+    "--build-arg" "COMMIT_HASH=${commit_hash}"
   )
 
   if [[ -n "${BAZEL_REMOTE_CACHE:-}" ]]; then
@@ -497,13 +513,30 @@ run_web_frontend_image() {
     exit 1
   fi
 
+  # Get git info for build-time injection
+  local commit_hash="${COMMIT_HASH:-}"
+  local branch="${BRANCH:-}"
+
+  if [[ -z "${commit_hash}" ]] && command -v git >/dev/null 2>&1; then
+    commit_hash="$(git rev-parse --short HEAD 2>/dev/null || echo "dev")"
+  fi
+  if [[ -z "${branch}" ]] && command -v git >/dev/null 2>&1; then
+    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
+  fi
+
+  # Use default values if still empty
+  commit_hash="${commit_hash:-dev}"
+  branch="${branch:-main}"
+
   build_and_tag \
     "${version_tag}" \
     "${latest_tag}" \
     "src/front-end/Dockerfile" \
     "false" \
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
-    "--build-arg" "BASE_TAG=latest"
+    "--build-arg" "BASE_TAG=latest" \
+    "--build-arg" "COMMIT_HASH=${commit_hash}" \
+    "--build-arg" "BRANCH=${branch}"
 }
 
 for stage in "${REQUESTED_STAGES[@]}"; do

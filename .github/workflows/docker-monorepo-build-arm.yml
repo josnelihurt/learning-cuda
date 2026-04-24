@@ -247,7 +247,7 @@ jobs:
     name: Deploy production (Jetson Nano)
     needs:
       - build_and_push
-    runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
+    runs-on: ["self-hosted", "Linux", "ARM64"]
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Validate Jetson vars and secrets

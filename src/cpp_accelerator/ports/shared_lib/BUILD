@@ -24,7 +24,7 @@ genrule(
 genrule(
     name = "git_hash_private",
     outs = ["git_hash_private.h"],
-    cmd = "HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown'); echo '#pragma once' > $@; echo '#define LIBRARY_GIT_HASH \"'$$HASH'\"' >> $@",
+    cmd = "HASH=$$${LIBRARY_GIT_HASH:-$$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')}; echo '#pragma once' > $@; echo '#define LIBRARY_GIT_HASH \"'$$HASH'\"' >> $@",
 )
 
 cc_library(

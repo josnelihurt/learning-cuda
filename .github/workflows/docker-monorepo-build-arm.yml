@@ -28,6 +28,7 @@ permissions:
   id-token: write
 
 # Smart CI: build/push steps only run when paths relevant to cpp-accelerator change.
+# ONNX comes from the amd64 yolo-model-gen image on GHCR (Dockerfile.build); no arm64 yolo image build here.
 # Force a full rebuild with either:
 #   - PR label: ci:full-build
 #   - workflow_dispatch (manual runs always force a full rebuild)
@@ -37,7 +38,6 @@ jobs:
     runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
       cpp_accelerator: ${{ steps.decide.outputs.cpp_accelerator }}
-      yolo_model: ${{ steps.decide.outputs.yolo_model }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,10 +50,21 @@ jobs:
           filters: |
             cpp_accelerator:
               - 'proto/**'
-              - 'src/cpp_accelerator/**'
+              - 'src/cpp_accelerator/**/*.cpp'
+              - 'src/cpp_accelerator/**/*.h'
+              - 'src/cpp_accelerator/**/*.cu'
+              - 'src/cpp_accelerator/**/*.cuh'
+              - 'src/cpp_accelerator/**/BUILD'
+              - 'src/cpp_accelerator/**/Dockerfile*'
+              - 'src/cpp_accelerator/**/docker-compose.yml'
+              - 'src/cpp_accelerator/**/VERSION'
+              - 'src/cpp_accelerator/yolo-model-gen/Dockerfile'
+              - 'src/cpp_accelerator/yolo-model-gen/VERSION'
+              - 'scripts/models/export_yolo_to_onnx.py'
               - 'bazel/**'
               - 'third_party/**'
               - 'MODULE.bazel'
+              - 'MODULE.bazel.lock'
               - 'WORKSPACE.bazel'
               - '.bazelrc'
               - '.bazelversion'
@@ -61,12 +72,7 @@ jobs:
               - 'buf.lock'
               - 'buf.gen.yaml'
               - 'buf.gen.backend.yaml'
-              - 'scripts/docker/build-local.sh'
               - 'scripts/docker/push-tagged-images.sh'
-              - '.github/workflows/docker-monorepo-build-arm.yml'
-            yolo_model:
-              - 'src/cpp_accelerator/yolo-model-gen/**'
-              - 'scripts/models/export_yolo_to_onnx.py'
 
       - name: Decide build scope
         id: decide
@@ -75,17 +81,14 @@ jobs:
           FORCE_ALL: ${{ inputs.force_all }}
           LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
           FILTER_CPP_ACCELERATOR: ${{ steps.filter.outputs.cpp_accelerator }}
-          FILTER_YOLO_MODEL: ${{ steps.filter.outputs.yolo_model }}
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
              || [ "${FORCE_ALL}" = "true" ] \
              || [ "${LABEL_FORCE}" = "true" ]; then
             echo "cpp_accelerator=true" >> "$GITHUB_OUTPUT"
-            echo "yolo_model=true" >> "$GITHUB_OUTPUT"
           else
             echo "cpp_accelerator=${FILTER_CPP_ACCELERATOR:-false}" >> "$GITHUB_OUTPUT"
-            echo "yolo_model=${FILTER_YOLO_MODEL:-false}" >> "$GITHUB_OUTPUT"
           fi
 
   build:
@@ -96,39 +99,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Build yolo-model-gen image locally (PR)
-        if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
-        env:
-          REGISTRY: ghcr.io
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          chmod +x scripts/docker/build-local.sh
-
-          # Get the amd64 yolo-model-gen version from x86
-          YOLO_VERSION=$(cat src/cpp_accelerator/yolo-model-gen/VERSION)
-          AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
-
-          echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
-          docker pull "${AMD64_IMAGE}"
-          # Create container from scratch image and copy .onnx file
-          # Use placeholder command since scratch images have no default
-          CONTAINER_ID=$(docker create "${AMD64_IMAGE}" /bin/true)
-          docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" src/cpp_accelerator/yolo-model-gen/yolov10n.onnx
-          docker rm "${CONTAINER_ID}"
-
-          # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
-          docker build \
-            --platform linux/arm64 \
-            --build-arg "ONNX_FILE=yolov10n.onnx" \
-            --target artifact_from_prebuilt \
-            -f src/cpp_accelerator/yolo-model-gen/Dockerfile \
-            -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64 \
-            -t local/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64 \
-            src/cpp_accelerator/yolo-model-gen
-
-          echo "Built ARM64 yolo-model-gen artifact using x86 ONNX model"
 
       - name: Build cpp-accelerator image locally
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
@@ -141,7 +111,6 @@ jobs:
           # Jetson deployment only consumes cpp-accelerator. Skip go/app/web-frontend/runtime-base
           # to cut ARM64 build time. Stages kept satisfy Dockerfile.build dependencies plus the
           # cpp-built guard in build-local.sh::run_cpp_accelerator_image.
-          # Note: yolo-model-gen must be built first (above) as cpp-accelerator now depends on it.
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage bazel-base \
@@ -150,8 +119,8 @@ jobs:
             --stage cpp-accelerator
 
       - name: No relevant changes
-        if: needs.detect-changes.outputs.cpp_accelerator != 'true' && needs.detect-changes.outputs.yolo_model != 'true'
-        run: echo "No paths relevant to cpp-accelerator or yolo-model changed; skipping ARM build."
+        if: needs.detect-changes.outputs.cpp_accelerator != 'true'
+        run: echo "No paths relevant to cpp-accelerator changed; skipping ARM build."
 
   build_and_push:
     name: Build and push all images
@@ -163,54 +132,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true' || needs.detect-changes.outputs.yolo_model == 'true'
+        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push yolo-model-gen image (ARM64)
-        if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          chmod +x scripts/docker/build-local.sh
-
-          # Get the amd64 yolo-model-gen version from x86
-          YOLO_VERSION=$(cat src/cpp_accelerator/yolo-model-gen/VERSION)
-          AMD64_IMAGE="${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-amd64"
-
-          echo "Extracting ONNX model from x86 image: ${AMD64_IMAGE}"
-          docker pull "${AMD64_IMAGE}"
-          # Create container from scratch image and copy .onnx file
-          # Use placeholder command since scratch images have no default
-          CONTAINER_ID=$(docker create "${AMD64_IMAGE}" /bin/true)
-          docker cp "${CONTAINER_ID}:/models/yolov10n.onnx" src/cpp_accelerator/yolo-model-gen/yolov10n.onnx
-          docker rm "${CONTAINER_ID}"
-
-          # Build ARM64 yolo-model-gen artifact using the new artifact_from_prebuilt stage
-          docker build \
-            --platform linux/arm64 \
-            --build-arg "ONNX_FILE=yolov10n.onnx" \
-            --target artifact_from_prebuilt \
-            -f src/cpp_accelerator/yolo-model-gen/Dockerfile \
-            -t ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64 \
-            -t ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64 \
-            src/cpp_accelerator/yolo-model-gen
-
-      - name: Push yolo-model-gen image (ARM64)
-        if: needs.detect-changes.outputs.yolo_model == 'true' || needs.detect-changes.outputs.cpp_accelerator == 'true'
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          YOLO_VERSION=$(cat src/cpp_accelerator/yolo-model-gen/VERSION)
-          docker push ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:${YOLO_VERSION}-arm64
-          docker push ${REGISTRY}/${BASE_IMAGE_PREFIX}/yolo-model-gen:latest-arm64
 
       - name: Build cpp-accelerator image
         if: needs.detect-changes.outputs.cpp_accelerator == 'true'
@@ -220,7 +147,6 @@ jobs:
           ARCH: arm64
         run: |
           chmod +x scripts/docker/build-local.sh
-          # Note: yolo-model-gen is built in the previous step as cpp-accelerator depends on it.
           ./scripts/docker/build-local.sh \
             --stage proto-tools \
             --stage bazel-base \
@@ -240,8 +166,8 @@ jobs:
           ./scripts/docker/push-tagged-images.sh
 
       - name: No relevant changes
-        if: needs.detect-changes.outputs.cpp_accelerator != 'true' && needs.detect-changes.outputs.yolo_model != 'true'
-        run: echo "No paths relevant to cpp-accelerator or yolo-model changed; skipping ARM build and push."
+        if: needs.detect-changes.outputs.cpp_accelerator != 'true'
+        run: echo "No paths relevant to cpp-accelerator changed; skipping ARM build and push."
 
   deploy_prod:
     name: Deploy production (Jetson Nano)

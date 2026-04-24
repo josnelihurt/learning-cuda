@@ -156,8 +156,9 @@ cd "${REPO_ROOT}"
 
 IMAGE_BASE="${REGISTRY}/${BASE_IMAGE_PREFIX}"
 TARGETARCH="${ARCH}"
-# For local builds, use local registry for yolo-model-gen as well. For remote builds, default to GHCR.
-if [[ "${REGISTRY}" == "local" ]]; then
+# Dockerfile.build pulls the amd64 yolo-model-gen scratch for ONNX. On arm64 with REGISTRY=local,
+# default to GHCR so PR/local builds resolve the image x86 CI publishes; override with YOLO_MODEL_REGISTRY.
+if [[ "${REGISTRY}" == "local" && "${ARCH}" == "amd64" ]]; then
   YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-local/${BASE_IMAGE_PREFIX}}"
 else
   YOLO_MODEL_REGISTRY="${YOLO_MODEL_REGISTRY:-ghcr.io/${BASE_IMAGE_PREFIX}}"

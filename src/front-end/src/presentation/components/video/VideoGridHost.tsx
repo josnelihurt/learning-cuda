@@ -241,9 +241,9 @@ export function VideoGridHost() {
           connected: true,
         }));
         const currentSource = sourcesRef.current.find((item) => item.id === sourceId) ?? source;
-        // Use activeFilters from context instead of source.filters to ensure we use current global filter state
-        const currentFilters = activeFilters.length > 0
-          ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } }))
+        // Use selected source filters which should be synced with activeFilters from the main effect
+        const currentFilters = currentSource.filters.length > 0
+          ? currentSource.filters
           : [{ id: 'none', parameters: {} }];
         sendCameraControlRequest(
           session.getId(),
@@ -285,7 +285,7 @@ export function VideoGridHost() {
         cameraSessionSourceIdsRef.current.delete(sourceId);
       }
     },
-    [sendCameraControlRequest, toastManager, updateSource, activeFilters]
+    [sendCameraControlRequest, toastManager, updateSource]
   );
 
   const emitSelectionState = useCallback(

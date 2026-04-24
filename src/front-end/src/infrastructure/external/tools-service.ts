@@ -2,7 +2,7 @@ import { createPromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { ConfigService } from '@/gen/config_service_connect';
 import type { ToolCategory } from '@/gen/config_service_pb';
-import type { IToolsService } from '@/domain/interfaces/IToolsService';
+import type { IToolsService } from '@/domain/interfaces/i-tools-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
 
 class ToolsService implements IToolsService {

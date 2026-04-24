@@ -12,8 +12,8 @@ import {
   Filter,
   createFilterFromDefinition,
   createFilterFromGenericDefinition,
-} from '@/domain/value-objects/FilterTypes';
-import type { IProcessorCapabilitiesService } from '@/domain/interfaces/IProcessorCapabilitiesService';
+} from '@/domain/value-objects/filter-types';
+import type { IProcessorCapabilitiesService } from '@/domain/interfaces/i-processor-capabilities-service';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();

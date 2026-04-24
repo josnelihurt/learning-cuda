@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FilterData } from './FilterData';
+import { FilterData } from './filter-data';
 import { FilterType } from '@/gen/common_pb';
 
 describe('FilterData', () => {

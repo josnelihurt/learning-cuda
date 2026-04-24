@@ -364,7 +364,7 @@ The main application entry point that orchestrates the entire UI:
 
 ## Service Architecture
 
-### Dependency Injection Container (`application/di/Container.ts`)
+### Dependency Injection Container (`application/di/container.ts`)
 
 Singleton-based DI container providing centralized service access:
 - `getConfigService()`: Stream configuration management
@@ -749,7 +749,7 @@ The `ensureReactDashboardBootstrap()` function initializes all services on appli
 
 ## Dependency Injection
 
-**`application/di/Container.ts`**:
+**`application/di/container.ts`**:
 - Centralized dependency injection container
 - Singleton pattern for service instances
 - Factory methods for component-specific services
@@ -1025,7 +1025,7 @@ front-end/
 ├── src/
 │   ├── application/                # Application layer
 │   │   ├── di/                     # Dependency injection container
-│   │   │   ├── Container.ts        # Singleton DI container
+│   │   │   ├── container.ts        # Singleton DI container
 │   │   │   └── index.ts            # Barrel exports
 │   │   └── services/               # Application services
 │   │       ├── config-service.ts   # Stream configuration
@@ -1033,26 +1033,26 @@ front-end/
 │   │                                  # Filter capabilities
 │   ├── domain/                     # Domain layer
 │   │   ├── interfaces/             # Domain contracts
-│   │   │   ├── IConfigService.ts
-│   │   │   ├── IFileService.ts
-│   │   │   ├── IFrameTransportService.ts
-│   │   │   ├── IInputSourceService.ts
-│   │   │   ├── ILogger.ts
-│   │   │   ├── IProcessorCapabilitiesService.ts
-│   │   │   ├── ITelemetryService.ts
-│   │   │   ├── IToolsService.ts
-│   │   │   ├── IVideoService.ts
-│   │   │   └── IWebRTCService.ts
+│   │   │   ├── i-config-service.ts
+│   │   │   ├── i-file-service.ts
+│   │   │   ├── i-frame-transport-service.ts
+│   │   │   ├── i-input-source-service.ts
+│   │   │   ├── i-logger.ts
+│   │   │   ├── i-processor-capabilities-service.ts
+│   │   │   ├── i-telemetry-service.ts
+│   │   │   ├── i-tools-service.ts
+│   │   │   ├── i-video-service.ts
+│   │   │   └── i-webrtc-service.ts
 │   │   └── value-objects/          # Type-safe domain models
-│   │       ├── AcceleratorConfig.ts
-│   │       ├── ConnectionInfo.ts
-│   │       ├── ConnectionStatus.ts
-│   │       ├── FilterData.ts
-│   │       ├── FilterTypes.ts
-│   │       ├── GrayscaleAlgorithm.ts
-│   │       ├── ImageData.ts
-│   │       ├── Uuid.ts
-│   │       ├── WebRTCSession.ts
+│   │       ├── accelerator-config.ts
+│   │       ├── connection-info.ts
+│   │       ├── connection-status.ts
+│   │       ├── filter-data.ts
+│   │       ├── filter-types.ts
+│   │       ├── grayscale-algorithm.ts
+│   │       ├── image-data.ts
+│   │       ├── uuid.ts
+│   │       ├── webrtc-session.ts
 │   │       └── index.ts
 │   ├── infrastructure/             # Infrastructure layer
 │   │   ├── connection/             # gRPC/WebRTC connection

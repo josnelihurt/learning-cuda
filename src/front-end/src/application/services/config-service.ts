@@ -4,7 +4,7 @@ import { ConfigService as ConfigServiceClient } from '@/gen/config_service_conne
 import { StreamEndpoint } from '@/gen/config_service_pb';
 import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
-import type { IConfigService } from '@/domain/interfaces/IConfigService';
+import type { IConfigService } from '@/domain/interfaces/i-config-service';
 import { grpcConnectionService } from '@/infrastructure/connection/grpc-connection-service';
 import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 

@@ -1,4 +1,4 @@
-import { ConnectionStatus, ConnectionState } from './ConnectionStatus';
+import { ConnectionStatus, ConnectionState } from './connection-status';
 
 export type ConnectionType = 'transport' | 'grpc' | 'webrtc';
 

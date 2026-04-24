@@ -4,7 +4,7 @@ import { FileService } from '@/gen/file_service_connect';
 import { StaticVideo } from '@/gen/common_pb';
 import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
-import type { IVideoService } from '@/domain/interfaces/IVideoService';
+import type { IVideoService } from '@/domain/interfaces/i-video-service';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();

@@ -12,6 +12,21 @@ Nothing in this folder should contain business rules. Domain logic lives in `dom
 
 ---
 
+## File naming (project convention)
+
+| Kind | Pattern | Examples |
+|------|---------|----------|
+| React components under `components/` | PascalCase + `.tsx` | `VideoGrid.tsx`, `VideoGridHost.test.tsx` |
+| Root app shell | PascalCase + `.tsx` | `App.tsx`, `App.test.tsx` |
+| Context, providers, test-utils (non-component `.tsx`) | kebab-case + `.tsx` | `dashboard-state-context.tsx`, `render-with-service.tsx` |
+| Entry | `main.tsx` | (exception to PascalCase) |
+| Hooks under `hooks/` | `use` + descriptive name + `.ts` / `.tsx` | `useToast.ts`, `useAsyncGRPC.ts` (acronyms like GRPC/WebRTC stay uppercase; `unicorn/filename-case` is off under `hooks/` so strict camelCase does not force `useAsyncGrpc`) |
+| Utilities | kebab-case + `.ts` | `image-utils.ts`, `grid-source.ts` |
+
+Elsewhere under `src/`: domain interface files are kebab-case with an `i-` prefix (e.g. `i-config-service.ts`); value objects and other non-hook `.ts` modules use kebab-case. Generated code under `src/gen/` is excluded from filename-case linting.
+
+---
+
 ## Folder Tree (annotated)
 
 ```

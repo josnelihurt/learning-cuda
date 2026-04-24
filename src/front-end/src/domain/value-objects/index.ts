@@ -1,7 +1,7 @@
-export { ImageData } from './ImageData';
-export { FilterData } from './FilterData';
-export { AcceleratorConfig } from './AcceleratorConfig';
-export { GrayscaleAlgorithm } from './GrayscaleAlgorithm';
-export { WebRTCSession } from './WebRTCSession';
-export { ConnectionStatus } from './ConnectionStatus';
-export { ConnectionInfo } from './ConnectionInfo';
+export { ImageData } from './image-data';
+export { FilterData } from './filter-data';
+export { AcceleratorConfig } from './accelerator-config';
+export { GrayscaleAlgorithm } from './grayscale-algorithm';
+export { WebRTCSession } from './webrtc-session';
+export { ConnectionStatus } from './connection-status';
+export { ConnectionInfo } from './connection-info';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GrayscaleAlgorithm } from './GrayscaleAlgorithm';
+import { GrayscaleAlgorithm } from './grayscale-algorithm';
 import { GrayscaleType } from '@/gen/common_pb';
 
 describe('GrayscaleAlgorithm', () => {

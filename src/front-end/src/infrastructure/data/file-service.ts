@@ -4,7 +4,7 @@ import { FileService } from '@/gen/file_service_connect';
 import type { StaticImage } from '@/gen/config_service_pb';
 import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
-import type { IFileService } from '@/domain/interfaces/IFileService';
+import type { IFileService } from '@/domain/interfaces/i-file-service';
 
 class FileServiceClient implements IFileService {
   private client;

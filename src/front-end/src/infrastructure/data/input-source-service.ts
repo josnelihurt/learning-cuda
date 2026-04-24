@@ -6,7 +6,7 @@ import { InputSource } from '@/gen/config_service_pb';
 import { StaticImage, StaticVideo } from '@/gen/common_pb';
 import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
-import type { IInputSourceService } from '@/domain/interfaces/IInputSourceService';
+import type { IInputSourceService } from '@/domain/interfaces/i-input-source-service';
 
 const tracingInterceptor: Interceptor = (next) => async (req) => {
   const headers = telemetryService.getTraceHeaders();

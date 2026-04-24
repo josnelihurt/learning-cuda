@@ -1,12 +1,12 @@
-import type { IConfigService } from '@/domain/interfaces/IConfigService';
-import type { IVideoService } from '@/domain/interfaces/IVideoService';
-import type { IFileService } from '@/domain/interfaces/IFileService';
-import type { IInputSourceService } from '@/domain/interfaces/IInputSourceService';
-import type { IProcessorCapabilitiesService } from '@/domain/interfaces/IProcessorCapabilitiesService';
-import type { ITelemetryService } from '@/domain/interfaces/ITelemetryService';
-import type { ILogger } from '@/domain/interfaces/ILogger';
-import type { IToolsService } from '@/domain/interfaces/IToolsService';
-import type { IWebRTCService } from '@/domain/interfaces/IWebRTCService';
+import type { IConfigService } from '@/domain/interfaces/i-config-service';
+import type { IVideoService } from '@/domain/interfaces/i-video-service';
+import type { IFileService } from '@/domain/interfaces/i-file-service';
+import type { IInputSourceService } from '@/domain/interfaces/i-input-source-service';
+import type { IProcessorCapabilitiesService } from '@/domain/interfaces/i-processor-capabilities-service';
+import type { ITelemetryService } from '@/domain/interfaces/i-telemetry-service';
+import type { ILogger } from '@/domain/interfaces/i-logger';
+import type { IToolsService } from '@/domain/interfaces/i-tools-service';
+import type { IWebRTCService } from '@/domain/interfaces/i-webrtc-service';
 
 import { streamConfigService } from '@/application/services/config-service';
 import { processorCapabilitiesService } from '@/application/services/processor-capabilities-service';

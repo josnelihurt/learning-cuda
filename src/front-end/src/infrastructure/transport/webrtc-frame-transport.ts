@@ -1,6 +1,6 @@
 import { createPromiseClient, type PromiseClient } from '@connectrpc/connect';
 import { context, propagation } from '@opentelemetry/api';
-import type { IFrameTransportService } from '@/domain/interfaces/IFrameTransportService';
+import type { IFrameTransportService } from '@/domain/interfaces/i-frame-transport-service';
 import { AcceleratorConfig, FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
 import { ImageProcessorService } from '@/gen/image_processor_service_connect';
 import {

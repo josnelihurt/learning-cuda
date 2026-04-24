@@ -1,6 +1,6 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { telemetryService } from './telemetry-service';
-import type { ILogger } from '@/domain/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces/i-logger';
 import { parseCallerFromStack } from './caller-site';
 import { resolveBundleSiteToSourceLabel } from './resolve-caller-source';
 

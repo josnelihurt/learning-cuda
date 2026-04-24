@@ -1,4 +1,4 @@
-import { Uuid } from './Uuid';
+import { Uuid } from './uuid';
 
 export type WebRTCSessionMode = 'frame-processing' | 'video-playback' | 'camera-mediatrack';
 

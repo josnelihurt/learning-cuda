@@ -420,14 +420,14 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
               // Find the media section (m=video or m=application) and add candidate after it
               size_t media_pos = sdp.find("m=");
               if (media_pos != std::string::npos) {
-                // Find the end of the media block (next m= or end of string)
+                // Find the CRLF that terminates the line before the next m= block. Skip past
+                // that CRLF so the candidate becomes its own properly delimited line instead
+                // of being concatenated onto the previous attribute (which Chrome rejects as
+                // "Invalid SDP line").
                 size_t next_media = sdp.find("\r\nm=", media_pos + 2);
-                if (next_media == std::string::npos) {
-                  // Last media section, append at end
-                  next_media = sdp.size();
-                }
-                // Insert candidate before the next media section or at end
-                sdp.insert(next_media, *manual_candidate_ptr);
+                size_t insert_pos = (next_media == std::string::npos) ? sdp.size()
+                                                                      : next_media + 2;
+                sdp.insert(insert_pos, *manual_candidate_ptr);
                 spdlog::info("[WebRTC:{}] Manual ICE candidate injected (SDP length: {} -> {})",
                              session_id, description.generateSdp().length(), sdp.length());
               } else {

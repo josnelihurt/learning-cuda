@@ -47,14 +47,14 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context, _ ListInputsUseCaseInp
 			DisplayName: "Lena",
 			Type:        "static",
 			ImagePath:   "/data/static_images/lena.png",
-			IsDefault:   true,
+			IsDefault:   false,
 		},
 		{
 			ID:          "webcam",
 			DisplayName: "Camera",
 			Type:        "camera",
 			ImagePath:   "",
-			IsDefault:   false,
+			IsDefault:   true,
 		},
 	}
 

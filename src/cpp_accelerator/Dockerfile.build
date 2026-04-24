@@ -11,9 +11,9 @@ ARG COMMIT_HASH=unknown
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
 
-# Pull pre-built ONNX model artifact from GHCR instead of generating inline.
+# Pull pre-built ONNX from the amd64 scratch image (x86 CI publishes it). Same ONNX bytes for every arch.
 # The yolo-model-gen image is a scratch image containing just /models/yolov10n.onnx.
-FROM ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-${TARGETARCH} AS yolo-model-gen
+FROM --platform=linux/amd64 ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-amd64 AS yolo-model-gen
 
 FROM bazel-base AS bazel-deps
 

@@ -73,7 +73,8 @@ jobs:
               - 'scripts/docker/push-tagged-images.sh'
               - '.github/workflows/docker-monorepo-build-x86.yml'
             yolo_model:
-              - 'src/cpp_accelerator/yolo-model-gen/**'
+              - 'src/cpp_accelerator/yolo-model-gen/Dockerfile'
+              - 'src/cpp_accelerator/yolo-model-gen/VERSION'
               - 'scripts/models/export_yolo_to_onnx.py'
 
       - name: Decide build scope

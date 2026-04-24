@@ -684,14 +684,26 @@ export class WebRTCService implements IWebRTCService {
       throw new Error(`Missing SDP answer for session ${sessionId}`);
     }
 
-    await peerConnection.setRemoteDescription(
-      new RTCSessionDescription({
-        type: 'answer',
-        sdp: response.sdpAnswer,
-      })
-    );
+    logger.info(`[WebRTC:${sessionId}] Applying SDP answer`, {
+      'webrtc.sdp_length': response.sdpAnswer.length,
+      'webrtc.sdp_preview': response.sdpAnswer.substring(0, 500),
+    });
 
-    logger.info(`[WebRTC:${sessionId}] Remote description applied from StartSession response`);
+    try {
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription({
+          type: 'answer',
+          sdp: response.sdpAnswer,
+        })
+      );
+      logger.info(`[WebRTC:${sessionId}] Remote description applied from StartSession response`);
+    } catch (error) {
+      logger.error(`[WebRTC:${sessionId}] Failed to set remote description`, {
+        'error.message': error instanceof Error ? error.message : String(error),
+        'webrtc.sdp_full': response.sdpAnswer,
+      });
+      throw error;
+    }
   }
 
   private ensurePolling(sessionId: string): void {

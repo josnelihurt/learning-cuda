@@ -36,6 +36,7 @@ jobs:
       build_proto: ${{ steps.decide.outputs.build_proto }}
       build_bazel_base: ${{ steps.decide.outputs.build_bazel_base }}
       build_cpp_deps: ${{ steps.decide.outputs.build_cpp_deps }}
+      cpp_version_changed: ${{ steps.decide.outputs.cpp_version_changed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -64,6 +65,8 @@ jobs:
               - 'WORKSPACE.bazel'
               - '.bazelrc'
               - '.bazelversion'
+            arm_cpp_version:
+              - 'src/cpp_accelerator/VERSION'
             arm_cpp_app:
               - 'src/cpp_accelerator/**/*.cpp'
               - 'src/cpp_accelerator/**/*.h'
@@ -85,16 +88,19 @@ jobs:
           FILTER_ARM_BAZEL_BASE: ${{ steps.filter.outputs.arm_bazel_base }}
           FILTER_ARM_CPP_DEPS: ${{ steps.filter.outputs.arm_cpp_deps }}
           FILTER_ARM_CPP_APP: ${{ steps.filter.outputs.arm_cpp_app }}
+          FILTER_ARM_CPP_VERSION: ${{ steps.filter.outputs.arm_cpp_version }}
         run: |
           set -euo pipefail
           out() { printf '%s\n' "$1" >> "$GITHUB_OUTPUT"; }
 
-          # workflow_dispatch has no diff to filter against; treat as a full rebuild.
+          # workflow_dispatch has no diff to filter against; treat as a full rebuild
+          # and force a redeploy (manual trigger == operator wants the Jetson refreshed).
           if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
             out "build_proto=true"
             out "build_bazel_base=true"
             out "build_cpp_deps=true"
             out "cpp_touched=true"
+            out "cpp_version_changed=true"
             exit 0
           fi
 
@@ -102,6 +108,7 @@ jobs:
           ab="${FILTER_ARM_BAZEL_BASE:-false}"
           ad="${FILTER_ARM_CPP_DEPS:-false}"
           aa="${FILTER_ARM_CPP_APP:-false}"
+          av="${FILTER_ARM_CPP_VERSION:-false}"
 
           # bazel-base feeds cpp-dependencies, so a bazel-base change forces a deps rebuild too.
           if [ "${ab}" = "true" ]; then ad="true"; fi
@@ -109,6 +116,7 @@ jobs:
           out "build_proto=${ap}"
           out "build_bazel_base=${ab}"
           out "build_cpp_deps=${ad}"
+          out "cpp_version_changed=${av}"
           if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] || [ "${aa}" = "true" ]; then
             out "cpp_touched=true"
           else
@@ -176,9 +184,13 @@ jobs:
   deploy_prod:
     name: Deploy production (Jetson Nano)
     needs:
+      - detect-changes
       - build_and_push
     runs-on: ["self-hosted", "Linux", "ARM64"]
-    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+    # Only redeploy the Jetson when src/cpp_accelerator/VERSION actually bumped.
+    # A push that only touches deps/proto/app rebuilds the image but keeps the
+    # same versioned tag, so the running container is already the right code.
+    if: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && needs.detect-changes.outputs.cpp_version_changed == 'true' }}
     steps:
       - name: Validate Jetson vars and secrets
         env:

@@ -36,6 +36,7 @@ jobs:
       build_proto: ${{ steps.decide.outputs.build_proto }}
       build_bazel_base: ${{ steps.decide.outputs.build_bazel_base }}
       build_cpp_deps: ${{ steps.decide.outputs.build_cpp_deps }}
+      build_cuda_runtime: ${{ steps.decide.outputs.build_cuda_runtime }}
       cpp_version_changed: ${{ steps.decide.outputs.cpp_version_changed }}
     steps:
       - name: Checkout repository
@@ -65,6 +66,8 @@ jobs:
               - 'WORKSPACE.bazel'
               - '.bazelrc'
               - '.bazelversion'
+            arm_cuda_runtime:
+              - 'src/cpp_accelerator/docker-cuda-runtime/**'
             arm_cpp_version:
               - 'src/cpp_accelerator/VERSION'
             arm_cpp_app:
@@ -89,6 +92,7 @@ jobs:
           FILTER_ARM_CPP_DEPS: ${{ steps.filter.outputs.arm_cpp_deps }}
           FILTER_ARM_CPP_APP: ${{ steps.filter.outputs.arm_cpp_app }}
           FILTER_ARM_CPP_VERSION: ${{ steps.filter.outputs.arm_cpp_version }}
+          FILTER_ARM_CUDA_RUNTIME: ${{ steps.filter.outputs.arm_cuda_runtime }}
         run: |
           set -euo pipefail
           out() { printf '%s\n' "$1" >> "$GITHUB_OUTPUT"; }
@@ -99,6 +103,7 @@ jobs:
             out "build_proto=true"
             out "build_bazel_base=true"
             out "build_cpp_deps=true"
+            out "build_cuda_runtime=true"
             out "cpp_touched=true"
             out "cpp_version_changed=true"
             exit 0
@@ -109,6 +114,7 @@ jobs:
           ad="${FILTER_ARM_CPP_DEPS:-false}"
           aa="${FILTER_ARM_CPP_APP:-false}"
           av="${FILTER_ARM_CPP_VERSION:-false}"
+          ac="${FILTER_ARM_CUDA_RUNTIME:-false}"
 
           # bazel-base feeds cpp-dependencies, so a bazel-base change forces a deps rebuild too.
           if [ "${ab}" = "true" ]; then ad="true"; fi
@@ -116,8 +122,9 @@ jobs:
           out "build_proto=${ap}"
           out "build_bazel_base=${ab}"
           out "build_cpp_deps=${ad}"
+          out "build_cuda_runtime=${ac}"
           out "cpp_version_changed=${av}"
-          if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] || [ "${aa}" = "true" ]; then
+          if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] || [ "${aa}" = "true" ] || [ "${ac}" = "true" ]; then
             out "cpp_touched=true"
           else
             out "cpp_touched=false"
@@ -144,6 +151,7 @@ jobs:
           BUILD_PROTO: ${{ needs.detect-changes.outputs.build_proto == 'true' && '1' || '0' }}
           BUILD_BAZEL_BASE: ${{ needs.detect-changes.outputs.build_bazel_base == 'true' && '1' || '0' }}
           BUILD_CPP_DEPS: ${{ needs.detect-changes.outputs.build_cpp_deps == 'true' && '1' || '0' }}
+          BUILD_CUDA_RUNTIME: ${{ needs.detect-changes.outputs.build_cuda_runtime == 'true' && '1' || '0' }}
         run: |
           chmod +x scripts/ci/arm-build.sh
           ./scripts/ci/arm-build.sh
@@ -169,6 +177,7 @@ jobs:
           BUILD_PROTO: ${{ needs.detect-changes.outputs.build_proto == 'true' && '1' || '0' }}
           BUILD_BAZEL_BASE: ${{ needs.detect-changes.outputs.build_bazel_base == 'true' && '1' || '0' }}
           BUILD_CPP_DEPS: ${{ needs.detect-changes.outputs.build_cpp_deps == 'true' && '1' || '0' }}
+          BUILD_CUDA_RUNTIME: ${{ needs.detect-changes.outputs.build_cuda_runtime == 'true' && '1' || '0' }}
         run: |
           chmod +x scripts/ci/arm-build.sh
           ./scripts/ci/arm-build.sh

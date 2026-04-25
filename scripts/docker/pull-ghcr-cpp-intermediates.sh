@@ -17,6 +17,10 @@ deps_ver="$(tr -d '[:space:]' < "${ROOT}/src/cpp_accelerator/docker-cpp-dependen
 deps_versioned="${IMAGE_BASE}/intermediate:cpp-dependencies-${deps_ver}-${ARCH}"
 deps_latest="${IMAGE_BASE}/intermediate:cpp-dependencies-latest-${ARCH}"
 
+cuda_runtime_ver="$(tr -d '[:space:]' < "${ROOT}/src/cpp_accelerator/docker-cuda-runtime/VERSION")"
+cuda_runtime_versioned="${IMAGE_BASE}/base:cuda-runtime-${cuda_runtime_ver}-${ARCH}"
+cuda_runtime_latest="${IMAGE_BASE}/base:cuda-runtime-latest-${ARCH}"
+
 pull_if_missing() {
   local ref="$1"
   if docker image inspect "${ref}" >/dev/null 2>&1; then
@@ -46,4 +50,9 @@ fi
 if [[ "${PULL_CPP_DEPENDENCIES:-0}" == "1" ]]; then
   pull_if_missing "${deps_versioned}"
   ensure_local_alias "${deps_versioned}" "${deps_latest}"
+fi
+
+if [[ "${PULL_CUDA_RUNTIME:-0}" == "1" ]]; then
+  pull_if_missing "${cuda_runtime_versioned}"
+  ensure_local_alias "${cuda_runtime_versioned}" "${cuda_runtime_latest}"
 fi

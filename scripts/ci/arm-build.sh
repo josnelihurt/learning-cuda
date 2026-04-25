@@ -50,6 +50,12 @@ ARCH="${ARCH:-arm64}"
 # don't leak to GHCR.
 export BUILD_LOCAL_PUSH=0
 
+# Suppress build-local.sh's `docker build --pull`. Forced pulls fail when an
+# intermediate has been built locally but not yet pushed (e.g. a PR that bumps
+# proto/VERSION — the new versioned tag doesn't exist on GHCR yet). The
+# orchestrator already explicitly pulled what's needed.
+export BUILD_LOCAL_PULL=0
+
 BL=("${ROOT}/scripts/docker/build-local.sh"
     --registry "${REGISTRY}"
     --base-prefix "${BASE_IMAGE_PREFIX}"

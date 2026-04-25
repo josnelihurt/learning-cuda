@@ -189,10 +189,10 @@ build_and_tag() {
 
   local docker_build_args=()
   
-  if [[ "${REGISTRY}" != "local" ]]; then
+  if [[ "${REGISTRY}" != "local" && "${BUILD_LOCAL_PULL:-1}" != "0" ]]; then
     docker_build_args+=("--pull")
   fi
-  
+
   local filtered_build_args=()
   for arg in "${build_args[@]}"; do
     if [[ "${arg}" == "--no-cache" ]]; then
@@ -393,7 +393,7 @@ run_cpp_built() {
   print_stage_header "Building cpp-builder intermediate (${cpp_version})"
 
   local docker_build_args=()
-  if [[ "${REGISTRY}" != "local" ]]; then
+  if [[ "${REGISTRY}" != "local" && "${BUILD_LOCAL_PULL:-1}" != "0" ]]; then
     docker_build_args+=("--pull")
   fi
   docker_build_args+=("--no-cache")

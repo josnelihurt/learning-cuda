@@ -14,6 +14,7 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
+#include "src/cpp_accelerator/infrastructure/cuda/cuda_memory_pool.h"
 #include "src/cpp_accelerator/ports/grpc/data_channel_framing.h"
 #include "src/cpp_accelerator/ports/grpc/live_video_processor.h"
 
@@ -71,6 +72,7 @@ public:
     std::condition_variable candidates_cv;
     std::chrono::steady_clock::time_point created_at;
     std::chrono::steady_clock::time_point last_heartbeat;
+    std::unique_ptr<jrb::infrastructure::cuda::CudaMemoryPool> memory_pool;
   };
 
   std::shared_ptr<SessionState> GetSession(const std::string& session_id);

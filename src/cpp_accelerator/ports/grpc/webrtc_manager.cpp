@@ -268,6 +268,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     session->live_filter_state.set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);
     session->live_filter_state.add_filters(cuda_learning::FILTER_TYPE_NONE);
     session->live_filter_state.set_api_version("1.0");
+    session->memory_pool = std::make_unique<jrb::infrastructure::cuda::CudaMemoryPool>();
+    spdlog::info("[WebRTC:{}] Created dedicated CUDA memory pool for session", session_id);
 
     // Prepare manual ICE candidate data for SDP modification if configured (before callbacks)
     // This allows clients behind NAT/firewall to connect using the Jetson's public endpoint
@@ -1003,6 +1005,11 @@ bool WebRTCManager::CloseSession(const std::string& session_id, std::string* err
 
   try {
     std::lock_guard<std::mutex> lock(session->mutex);
+
+    if (session->memory_pool) {
+      session->memory_pool->Clear();
+      spdlog::info("[WebRTC:{}] CUDA memory pool cleared", session_id);
+    }
 
     if (session->data_channel) {
       session->data_channel->close();

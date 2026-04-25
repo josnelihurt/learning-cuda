@@ -151,6 +151,7 @@ jobs:
           BUILD_PROTO: ${{ needs.detect-changes.outputs.build_proto == 'true' && '1' || '0' }}
           BUILD_BAZEL_BASE: ${{ needs.detect-changes.outputs.build_bazel_base == 'true' && '1' || '0' }}
           BUILD_CPP_DEPS: ${{ needs.detect-changes.outputs.build_cpp_deps == 'true' && '1' || '0' }}
+          BUILD_CUDA_RUNTIME: ${{ needs.detect-changes.outputs.build_cuda_runtime == 'true' && '1' || '0' }}
         run: |
           chmod +x scripts/ci/arm-build.sh
           ./scripts/ci/arm-build.sh
@@ -176,6 +177,7 @@ jobs:
           BUILD_PROTO: ${{ needs.detect-changes.outputs.build_proto == 'true' && '1' || '0' }}
           BUILD_BAZEL_BASE: ${{ needs.detect-changes.outputs.build_bazel_base == 'true' && '1' || '0' }}
           BUILD_CPP_DEPS: ${{ needs.detect-changes.outputs.build_cpp_deps == 'true' && '1' || '0' }}
+          BUILD_CUDA_RUNTIME: ${{ needs.detect-changes.outputs.build_cuda_runtime == 'true' && '1' || '0' }}
         run: |
           chmod +x scripts/ci/arm-build.sh
           ./scripts/ci/arm-build.sh

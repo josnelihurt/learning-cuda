@@ -20,8 +20,7 @@ ABSL_FLAG(std::string, control_addr, "localhost:60062",
           "Address of the Go cloud control server (host:port).");
 ABSL_FLAG(std::string, device_id, "dev-accelerator",
           "Stable device identifier sent during registration.");
-ABSL_FLAG(std::string, display_name, "Dev Accelerator",
-          "Human-readable name shown in the UI.");
+ABSL_FLAG(std::string, display_name, "Dev Accelerator", "Human-readable name shown in the UI.");
 ABSL_FLAG(int, cuda_device_id, 0, "CUDA device ID to initialize on startup.");
 ABSL_FLAG(int, max_message_mb, 64, "Maximum gRPC message size in MiB.");
 ABSL_FLAG(std::string, client_cert, ".secrets/dev-accelerator-client.pem",
@@ -30,9 +29,9 @@ ABSL_FLAG(std::string, client_key, ".secrets/dev-accelerator-client-key.pem",
           "Path to client TLS private key (PEM).");
 ABSL_FLAG(std::string, ca_cert, ".secrets/accelerator-ca.pem",
           "Path to CA certificate used to verify the server (PEM).");
-ABSL_FLAG(int, max_reconnect_delay_s, 60,
-          "Maximum reconnect back-off in seconds.");
+ABSL_FLAG(int, max_reconnect_delay_s, 60, "Maximum reconnect back-off in seconds.");
 
+// This is the main entry point for the accelerator control client.
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
 
@@ -64,24 +63,22 @@ int main(int argc, char** argv) {
   }
 
   jrb::ports::grpc_service::AcceleratorControlClientConfig cfg;
-  cfg.control_addr          = absl::GetFlag(FLAGS_control_addr);
-  cfg.device_id             = absl::GetFlag(FLAGS_device_id);
-  cfg.display_name          = absl::GetFlag(FLAGS_display_name);
-  cfg.accelerator_version   = LIBRARY_VERSION_STR;
-  cfg.client_cert_file      = absl::GetFlag(FLAGS_client_cert);
-  cfg.client_key_file       = absl::GetFlag(FLAGS_client_key);
-  cfg.ca_cert_file          = absl::GetFlag(FLAGS_ca_cert);
+  cfg.control_addr = absl::GetFlag(FLAGS_control_addr);
+  cfg.device_id = absl::GetFlag(FLAGS_device_id);
+  cfg.display_name = absl::GetFlag(FLAGS_display_name);
+  cfg.accelerator_version = LIBRARY_VERSION_STR;
+  cfg.client_cert_file = absl::GetFlag(FLAGS_client_cert);
+  cfg.client_key_file = absl::GetFlag(FLAGS_client_key);
+  cfg.ca_cert_file = absl::GetFlag(FLAGS_ca_cert);
   cfg.max_reconnect_delay_s = absl::GetFlag(FLAGS_max_reconnect_delay_s);
 
   jrb::ports::grpc_service::AcceleratorControlClient client(cfg, adapter, webrtc_manager);
 
   auto& signal_handler = jrb::core::SignalHandler::GetInstance();
-  signal_handler.Initialize(
-    [&client]() {
-      spdlog::warn("Shutdown signal received — stopping accelerator client");
-      client.Stop();
-    }
-  );
+  signal_handler.Initialize([&client]() {
+    spdlog::warn("Shutdown signal received — stopping accelerator client");
+    client.Stop();
+  });
 
   client.Run();
 

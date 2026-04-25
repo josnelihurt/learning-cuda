@@ -8,11 +8,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      force_all:
-        description: Force full rebuild regardless of changed paths
-        type: boolean
-        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -27,22 +22,20 @@ permissions:
   packages: write
   id-token: write
 
-# Smart CI: cpp_accelerator gates work when paths under the arm_* filters change.
-# PR: explicit jobs per bucket; label ci:full-build sets arm_pr_full (single job, full chain). Parallel PR jobs
-# may use GHCR pulls for sibling images; same PR changing proto + app without a published proto image: add label.
-# Push: one build_and_push job with ordered build-local.sh steps (keeps deploy_prod.needs unchanged).
-# Bazel deps layer: intermediate:cpp-dependencies-* (docker-cpp-dependencies/Dockerfile). ONNX: amd64 yolo-model-gen on GHCR.
+# Decision logic lives in scripts/ci/arm-build.sh. detect-changes emits per-stage
+# build flags; arm_pr (PR) and build_and_push (merge/dispatch) call the same
+# orchestrator with --mode pr and --mode push respectively. cpp-accelerator
+# (the runtime image) is built only on merges; on PRs we stop after cpp-builder
+# since the runtime stage just COPYs from cpp-builder and validates nothing.
 jobs:
   detect-changes:
     name: Detect changed paths
     runs-on: ["self-hosted", "Linux", "ARM64"]
     outputs:
-      cpp_accelerator: ${{ steps.decide.outputs.cpp_accelerator }}
-      arm_pr_full: ${{ steps.decide.outputs.arm_pr_full }}
-      arm_proto: ${{ steps.decide.outputs.arm_proto }}
-      arm_bazel_base: ${{ steps.decide.outputs.arm_bazel_base }}
-      arm_cpp_deps: ${{ steps.decide.outputs.arm_cpp_deps }}
-      arm_cpp_app: ${{ steps.decide.outputs.arm_cpp_app }}
+      cpp_touched: ${{ steps.decide.outputs.cpp_touched }}
+      build_proto: ${{ steps.decide.outputs.build_proto }}
+      build_bazel_base: ${{ steps.decide.outputs.build_bazel_base }}
+      build_cpp_deps: ${{ steps.decide.outputs.build_cpp_deps }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -88,8 +81,6 @@ jobs:
         id: decide
         env:
           EVENT_NAME: ${{ github.event_name }}
-          FORCE_ALL: ${{ inputs.force_all }}
-          LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
           FILTER_ARM_PROTO: ${{ steps.filter.outputs.arm_proto }}
           FILTER_ARM_BAZEL_BASE: ${{ steps.filter.outputs.arm_bazel_base }}
           FILTER_ARM_CPP_DEPS: ${{ steps.filter.outputs.arm_cpp_deps }}
@@ -98,19 +89,12 @@ jobs:
           set -euo pipefail
           out() { printf '%s\n' "$1" >> "$GITHUB_OUTPUT"; }
 
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
-             || [ "${FORCE_ALL}" = "true" ] \
-             || [ "${LABEL_FORCE}" = "true" ]; then
-            if [ "${LABEL_FORCE}" = "true" ]; then
-              out "arm_pr_full=true"
-            else
-              out "arm_pr_full=false"
-            fi
-            out "arm_proto=true"
-            out "arm_bazel_base=true"
-            out "arm_cpp_deps=true"
-            out "arm_cpp_app=true"
-            out "cpp_accelerator=true"
+          # workflow_dispatch has no diff to filter against; treat as a full rebuild.
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            out "build_proto=true"
+            out "build_bazel_base=true"
+            out "build_cpp_deps=true"
+            out "cpp_touched=true"
             exit 0
           fi
 
@@ -118,29 +102,22 @@ jobs:
           ab="${FILTER_ARM_BAZEL_BASE:-false}"
           ad="${FILTER_ARM_CPP_DEPS:-false}"
           aa="${FILTER_ARM_CPP_APP:-false}"
-          out "arm_proto=${ap}"
-          out "arm_bazel_base=${ab}"
-          out "arm_cpp_deps=${ad}"
-          out "arm_cpp_app=${aa}"
-          out "arm_pr_full=false"
-          if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] \
-             || [ "${aa}" = "true" ]; then
-            out "cpp_accelerator=true"
+
+          # bazel-base feeds cpp-dependencies, so a bazel-base change forces a deps rebuild too.
+          if [ "${ab}" = "true" ]; then ad="true"; fi
+
+          out "build_proto=${ap}"
+          out "build_bazel_base=${ab}"
+          out "build_cpp_deps=${ad}"
+          if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] || [ "${aa}" = "true" ]; then
+            out "cpp_touched=true"
           else
-            out "cpp_accelerator=false"
+            out "cpp_touched=false"
           fi
 
-  arm_pr_notice_skip:
-    name: ARM PR (no cpp-accelerator paths)
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.cpp_accelerator != 'true'
-    needs: detect-changes
-    runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
-    steps:
-      - run: echo "No paths relevant to cpp-accelerator changed; skipping ARM PR image builds."
-
-  arm_pr_full:
-    name: ARM PR full chain (ci:full-build)
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.cpp_accelerator == 'true' && needs.detect-changes.outputs.arm_pr_full == 'true'
+  arm_pr:
+    name: ARM PR build (no runtime, no push)
+    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.cpp_touched == 'true'
     needs: detect-changes
     runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
     steps:
@@ -150,218 +127,51 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build proto through cpp-builder on GHCR tags
+      - name: Run ARM CI orchestrator (PR mode)
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
+          MODE: pr
+          BUILD_PROTO: ${{ needs.detect-changes.outputs.build_proto == 'true' && '1' || '0' }}
+          BUILD_BAZEL_BASE: ${{ needs.detect-changes.outputs.build_bazel_base == 'true' && '1' || '0' }}
+          BUILD_CPP_DEPS: ${{ needs.detect-changes.outputs.build_cpp_deps == 'true' && '1' || '0' }}
         run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage proto-tools \
-            --stage bazel-base \
-            --stage cpp-dependencies \
-            --stage proto \
-            --stage cpp-builder
-
-  arm_pr_proto:
-    name: ARM PR proto chain + cpp-builder
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.cpp_accelerator == 'true' && needs.detect-changes.outputs.arm_pr_full != 'true' && needs.detect-changes.outputs.arm_proto == 'true'
-    needs: detect-changes
-    runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Proto stages then cpp-builder
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh scripts/docker/pull-ghcr-cpp-intermediates.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage proto-tools \
-            --stage proto
-          PULL_PROTO_LATEST=0 PULL_CPP_DEPENDENCIES=1 \
-            ./scripts/docker/pull-ghcr-cpp-intermediates.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage cpp-builder
-
-  arm_pr_bazel_base:
-    name: ARM PR docker-build-base + downstream
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.cpp_accelerator == 'true' && needs.detect-changes.outputs.arm_pr_full != 'true' && needs.detect-changes.outputs.arm_bazel_base == 'true' && needs.detect-changes.outputs.arm_cpp_deps != 'true'
-    needs: detect-changes
-    runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Bazel-base through cpp-builder
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh scripts/docker/pull-ghcr-cpp-intermediates.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage bazel-base \
-            --stage cpp-dependencies
-          PULL_PROTO_LATEST=1 PULL_CPP_DEPENDENCIES=0 \
-            ./scripts/docker/pull-ghcr-cpp-intermediates.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage cpp-builder
-
-  arm_pr_cpp_dependencies:
-    name: ARM PR cpp-dependencies + cpp-builder
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.cpp_accelerator == 'true' && needs.detect-changes.outputs.arm_pr_full != 'true' && needs.detect-changes.outputs.arm_cpp_deps == 'true'
-    needs: detect-changes
-    runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Deps stages then cpp-builder
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh scripts/docker/pull-ghcr-cpp-intermediates.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage bazel-base \
-            --stage cpp-dependencies
-          PULL_PROTO_LATEST=1 PULL_CPP_DEPENDENCIES=0 \
-            ./scripts/docker/pull-ghcr-cpp-intermediates.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage cpp-builder
-
-  arm_pr_cpp_builder:
-    name: ARM PR cpp-builder (app-only)
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.cpp_accelerator == 'true' && needs.detect-changes.outputs.arm_pr_full != 'true' && needs.detect-changes.outputs.arm_cpp_app == 'true' && needs.detect-changes.outputs.arm_proto != 'true' && needs.detect-changes.outputs.arm_cpp_deps != 'true' && needs.detect-changes.outputs.arm_bazel_base != 'true'
-    needs: detect-changes
-    runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Pull intermediates from GHCR then cpp-builder
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh scripts/docker/pull-ghcr-cpp-intermediates.sh
-          PULL_PROTO_LATEST=1 PULL_CPP_DEPENDENCIES=1 \
-            ./scripts/docker/pull-ghcr-cpp-intermediates.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage cpp-builder
+          chmod +x scripts/ci/arm-build.sh
+          ./scripts/ci/arm-build.sh
 
   build_and_push:
-    name: Build and push all images
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    name: Build and push cpp-accelerator
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.detect-changes.outputs.cpp_touched == 'true' }}
     needs: detect-changes
     runs-on: ["self-hosted", "Linux", "ARM64", "dev"]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build conditional intermediate layers
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
+      - name: Run ARM CI orchestrator (push mode)
         env:
           REGISTRY: ${{ env.REGISTRY }}
           BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
           ARCH: arm64
-          ARM_PROTO: ${{ needs.detect-changes.outputs.arm_proto }}
-          ARM_BAZEL_BASE: ${{ needs.detect-changes.outputs.arm_bazel_base }}
-          ARM_CPP_DEPS: ${{ needs.detect-changes.outputs.arm_cpp_deps }}
+          MODE: push
+          BUILD_PROTO: ${{ needs.detect-changes.outputs.build_proto == 'true' && '1' || '0' }}
+          BUILD_BAZEL_BASE: ${{ needs.detect-changes.outputs.build_bazel_base == 'true' && '1' || '0' }}
+          BUILD_CPP_DEPS: ${{ needs.detect-changes.outputs.build_cpp_deps == 'true' && '1' || '0' }}
         run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh
-          BL=(./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64)
-          if [[ "${ARM_PROTO}" == "true" ]]; then
-            "${BL[@]}" --stage proto-tools --stage proto
-          fi
-          if [[ "${ARM_CPP_DEPS}" == "true" ]]; then
-            "${BL[@]}" --stage bazel-base --stage cpp-dependencies
-          elif [[ "${ARM_BAZEL_BASE}" == "true" ]]; then
-            "${BL[@]}" --stage bazel-base
-          fi
+          chmod +x scripts/ci/arm-build.sh
+          ./scripts/ci/arm-build.sh
 
-      - name: Pull missing intermediates from GHCR
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          set -euo pipefail
-          chmod +x scripts/docker/pull-ghcr-cpp-intermediates.sh
-          PULL_PROTO_LATEST=1 PULL_CPP_DEPENDENCIES=1 ./scripts/docker/pull-ghcr-cpp-intermediates.sh
-
-      - name: Build cpp-builder intermediate
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage cpp-builder
-
-      - name: Build cpp-accelerator runtime image
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-        run: |
-          set -euo pipefail
-          chmod +x scripts/docker/build-local.sh
-          ./scripts/docker/build-local.sh --registry "${REGISTRY}" --base-prefix "${BASE_IMAGE_PREFIX}" --arch arm64 \
-            --stage cpp-accelerator
-
-      - name: Push cpp-accelerator image
-        if: needs.detect-changes.outputs.cpp_accelerator == 'true'
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          BASE_IMAGE_PREFIX: ${{ env.BASE_IMAGE_PREFIX }}
-          ARCH: arm64
-          LATEST_ALIASES: cpp-accelerator
-        run: |
-          chmod +x scripts/docker/push-tagged-images.sh
-          ./scripts/docker/push-tagged-images.sh
-
-      - name: No relevant changes
-        if: needs.detect-changes.outputs.cpp_accelerator != 'true'
-        run: echo "No paths relevant to cpp-accelerator changed; skipping ARM build and push."
+  arm_skip_notice:
+    name: No cpp-accelerator paths changed
+    if: needs.detect-changes.outputs.cpp_touched != 'true'
+    needs: detect-changes
+    runs-on: ["self-hosted", "Linux", "ARM64"]
+    steps:
+      - run: echo "No paths relevant to cpp-accelerator changed; skipping ARM build."
 
   deploy_prod:
     name: Deploy production (Jetson Nano)

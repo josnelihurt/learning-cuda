@@ -24,6 +24,9 @@ export type GridSource = {
   detections: Detection[];
   detectionImageWidth: number;
   detectionImageHeight: number;
+  fps: number;
+  displayWidth: number;
+  displayHeight: number;
   connected: boolean;
 };
 
@@ -32,12 +35,16 @@ export type GridSourceView = {
   number: number;
   name: string;
   type: string;
+  resolution?: string;
   imageSrc: string;
   remoteStream?: MediaStream | null;
   filters?: ActiveFilterState[];
   detections?: Detection[];
   detectionImageWidth?: number;
   detectionImageHeight?: number;
+  fps?: number;
+  displayWidth?: number;
+  displayHeight?: number;
 };
 
 export enum GridSourceActionType {
@@ -49,6 +56,8 @@ export enum GridSourceActionType {
   SET_SESSION = 'SET_SESSION',
   SET_CURRENT_IMAGE = 'SET_CURRENT_IMAGE',
   SET_DETECTIONS = 'SET_DETECTIONS',
+  SET_SOURCE_FPS = 'SET_SOURCE_FPS',
+  SET_SOURCE_RESOLUTION = 'SET_SOURCE_RESOLUTION',
   SYNC_FILTERS = 'SYNC_FILTERS',
 }
 
@@ -61,6 +70,8 @@ export type GridSourceAction =
   | { type: GridSourceActionType.SET_SESSION; payload: { sourceId: string; sessionId: string; sessionMode: GridSourceSessionMode } }
   | { type: GridSourceActionType.SET_CURRENT_IMAGE; payload: { sourceId: string; currentImageSrc: string } }
   | { type: GridSourceActionType.SET_DETECTIONS; payload: { sourceId: string; detections: Detection[]; width: number; height: number } }
+  | { type: GridSourceActionType.SET_SOURCE_FPS; payload: { sourceId: string; fps: number } }
+  | { type: GridSourceActionType.SET_SOURCE_RESOLUTION; payload: { sourceId: string; width: number; height: number } }
   | { type: GridSourceActionType.SYNC_FILTERS; payload: { sourceId: string; filters: ActiveFilterState[]; resolution: string; accelerator: 'gpu' | 'cpu' } };
 
 export function filtersToFilterData(filters: ActiveFilterState[]): FilterData[] {
@@ -71,4 +82,8 @@ export function normalizeFilters(filters: ActiveFilterState[]): ActiveFilterStat
   return filters.length > 0
     ? filters.map((f) => ({ id: f.id, parameters: { ...f.parameters } }))
     : [{ id: 'none', parameters: {} }];
+}
+
+export function hasModelInferenceFilter(filters: ActiveFilterState[]): boolean {
+  return filters.some((filter) => filter.id === 'model_inference');
 }

@@ -4,6 +4,7 @@
 #include <cstring>
 #include <string>
 #include <utility>
+#include <algorithm>
 
 #include "src/cpp_accelerator/ports/shared_lib/library_version.h"
 
@@ -375,17 +376,27 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
         response->set_message("Filter pipeline processing failed");
         return false;
       }
+    } else if (yolo_detector != nullptr) {
+      // Model inference only: keep original frame visible while detections are produced.
+      const size_t input_size =
+          static_cast<size_t>(input_buffer.width) * input_buffer.height * input_buffer.channels;
+      const size_t output_size =
+          static_cast<size_t>(output_buffer.width) * output_buffer.height * output_buffer.channels;
+      const size_t copy_size = std::min(input_size, output_size);
+      std::memcpy(output_buffer.data, input_buffer.data, copy_size);
     }
 
     if (yolo_detector != nullptr) {
-      // Run detection on the original RGB input for best accuracy.
-      // output_buffer is used as the passthrough target; use output_buffer.channels to avoid
-      // a size mismatch when a channel-reducing filter (e.g. grayscale) ran before YOLO.
-      jrb::domain::interfaces::FilterContext det_context(input_buffer.data, output_buffer.data,
-                                                         input_buffer.width, input_buffer.height,
-                                                         input_buffer.channels);
-      det_context.output = jrb::domain::interfaces::ImageBufferMut(
-          output_buffer.data, output_buffer.width, output_buffer.height, output_buffer.channels);
+      // Keep detector input on original RGB for accuracy, but never let YOLO's passthrough write
+      // override the already-processed pipeline output.
+      std::vector<unsigned char> detector_passthrough(
+          static_cast<size_t>(input_buffer.width) * input_buffer.height * input_buffer.channels);
+      jrb::domain::interfaces::ImageBufferMut detector_output(
+          detector_passthrough.data(), input_buffer.width, input_buffer.height, input_buffer.channels);
+      jrb::domain::interfaces::FilterContext det_context(
+          input_buffer.data, detector_output.data, input_buffer.width, input_buffer.height,
+          input_buffer.channels);
+      det_context.output = detector_output;
       yolo_detector->Apply(det_context);
     }
 

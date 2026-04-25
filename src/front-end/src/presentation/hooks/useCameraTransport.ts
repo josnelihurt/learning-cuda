@@ -4,6 +4,7 @@ import type { ActiveFilterState } from '@/presentation/components/filters/Filter
 import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
+import { hasModelInferenceFilter } from '@/presentation/utils/grid-source';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { ChunkReassembler } from '@/infrastructure/transport/data-channel-framing';
@@ -135,6 +136,22 @@ export function useCameraTransport({
               const assembled = reassembler.pushChunk(buffer);
               if (assembled === null) return;
               const frame = DetectionFrame.fromBinary(assembled);
+              const activeSource = sourcesRef.current.find((item) => item.id === sourceId);
+              const shouldShowDetections = activeSource
+                ? hasModelInferenceFilter(activeSource.filters)
+                : false;
+              if (!shouldShowDetections) {
+                dispatch({
+                  type: GridSourceActionType.SET_DETECTIONS,
+                  payload: {
+                    sourceId,
+                    detections: [],
+                    width: 0,
+                    height: 0,
+                  },
+                });
+                return;
+              }
               dispatch({
                 type: GridSourceActionType.SET_DETECTIONS,
                 payload: {

@@ -17,7 +17,29 @@ type VideoSourceCardProps = {
   detections?: Detection[];
   detectionImageWidth?: number;
   detectionImageHeight?: number;
+  fps?: number;
+  displayWidth?: number;
+  displayHeight?: number;
 };
+
+function canShowFpsBadge(sourceType: string): boolean {
+  return sourceType === 'video' || sourceType === 'camera';
+}
+
+function formatFps(fps: number): string {
+  return `${fps.toFixed(1)} FPS`;
+}
+
+function formatResolution(width?: number, height?: number): string {
+  if ((width ?? 0) > 0 && (height ?? 0) > 0) {
+    return `${width}x${height}`;
+  }
+  return '--';
+}
+
+function formatBadgeLabel(fps: number, width?: number, height?: number): string {
+  return `${formatFps(fps)} | ${formatResolution(width, height)}`;
+}
 
 export function VideoSourceCard({
   sourceId,
@@ -33,6 +55,9 @@ export function VideoSourceCard({
   detections,
   detectionImageWidth,
   detectionImageHeight,
+  fps = 0,
+  displayWidth,
+  displayHeight,
 }: VideoSourceCardProps): ReactElement {
   const cardClassName = isSelected ? `${styles.card} ${styles.selected}` : styles.card;
   const shouldRenderProcessedImage = Boolean(imageSrc);
@@ -51,6 +76,11 @@ export function VideoSourceCard({
         data-source-id={sourceId}
       >
         <div className={styles.sourceNumber}>{sourceNumber}</div>
+        {canShowFpsBadge(sourceType) ? (
+          <div className={styles.fpsBadge} data-testid={`source-fps-${sourceNumber}`}>
+            {formatBadgeLabel(fps, displayWidth, displayHeight)}
+          </div>
+        ) : null}
         {sourceType === 'static' ? (
           <button
             className={styles.changeImageBtn}

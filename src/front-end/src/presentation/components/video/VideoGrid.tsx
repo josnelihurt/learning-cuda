@@ -11,6 +11,30 @@ type CameraFramePayload = {
   timestamp: number;
 };
 
+type CameraDimensions = {
+  width?: number;
+  height?: number;
+};
+
+function getCameraDimensionsForResolution(
+  resolution: string | undefined,
+  currentWidth: number | undefined,
+  currentHeight: number | undefined
+): CameraDimensions {
+  if (resolution === 'original') {
+    return {};
+  }
+
+  const baseWidth = (currentWidth ?? 0) > 0 ? currentWidth! : 1280;
+  const baseHeight = (currentHeight ?? 0) > 0 ? currentHeight! : 720;
+  const scale = resolution === 'quarter' ? 0.25 : 0.5;
+
+  return {
+    width: Math.max(160, Math.round(baseWidth * scale)),
+    height: Math.max(120, Math.round(baseHeight * scale)),
+  };
+}
+
 type VideoGridProps = {
   sources: GridSourceView[];
   selectedSourceId: string | null;
@@ -21,6 +45,8 @@ type VideoGridProps = {
   onCameraStreamReady: (sourceId: string, stream: MediaStream) => void;
   onCameraStatus: (status: string, type: 'success' | 'error' | 'warning' | 'inactive') => void;
   onCameraError: (title: string, message: string) => void;
+  onSourceFpsUpdate: (sourceId: string, fps: number) => void;
+  onSourceResolutionUpdate: (sourceId: string, width: number, height: number) => void;
 };
 
 function getGridClass(count: number): string {
@@ -41,6 +67,8 @@ export function VideoGrid({
   onCameraStreamReady,
   onCameraStatus,
   onCameraError,
+  onSourceFpsUpdate,
+  onSourceResolutionUpdate,
 }: VideoGridProps): ReactElement {
   return (
     <div className={styles.shell}>
@@ -49,33 +77,51 @@ export function VideoGrid({
         className={`${styles.grid} ${getGridClass(sources.length)}`}
       >
         {sources.map((source) => (
-          <VideoSourceCard
-            key={source.id}
-            sourceId={source.id}
-            sourceNumber={source.number}
-            sourceName={source.name}
-            sourceType={source.type}
-            imageSrc={source.imageSrc}
-            isSelected={selectedSourceId === source.id}
-            onSelect={onSelectSource}
-            onClose={onCloseSource}
-            onChangeImage={onChangeImageRequest}
-            detections={source.detections}
-            detectionImageWidth={source.detectionImageWidth}
-            detectionImageHeight={source.detectionImageHeight}
-          >
-            {source.type === 'camera' ? (
-              <CameraPreview
-                captureFrames={false}
-                remoteStream={source.remoteStream ?? null}
-                activeFilters={source.filters ?? []}
-                onFrameCaptured={(payload) => onCameraFrame(source.id, payload)}
-                onStreamReady={(stream) => onCameraStreamReady(source.id, stream)}
-                onCameraStatus={onCameraStatus}
-                onCameraError={onCameraError}
-              />
-            ) : null}
-          </VideoSourceCard>
+          (() => {
+            const cameraDimensions = getCameraDimensionsForResolution(
+              source.resolution,
+              source.displayWidth,
+              source.displayHeight
+            );
+            return (
+              <VideoSourceCard
+                key={source.id}
+                sourceId={source.id}
+                sourceNumber={source.number}
+                sourceName={source.name}
+                sourceType={source.type}
+                imageSrc={source.imageSrc}
+                isSelected={selectedSourceId === source.id}
+                onSelect={onSelectSource}
+                onClose={onCloseSource}
+                onChangeImage={onChangeImageRequest}
+                detections={source.detections}
+                detectionImageWidth={source.detectionImageWidth}
+                detectionImageHeight={source.detectionImageHeight}
+                fps={source.fps}
+                displayWidth={source.displayWidth}
+                displayHeight={source.displayHeight}
+              >
+                {source.type === 'camera' ? (
+                  <CameraPreview
+                    width={cameraDimensions.width}
+                    height={cameraDimensions.height}
+                    captureFrames={false}
+                    remoteStream={source.remoteStream ?? null}
+                    activeFilters={source.filters ?? []}
+                    onFrameCaptured={(payload) => onCameraFrame(source.id, payload)}
+                    onStreamReady={(stream) => onCameraStreamReady(source.id, stream)}
+                    onCameraStatus={onCameraStatus}
+                    onCameraError={onCameraError}
+                    onFpsUpdate={(fps) => onSourceFpsUpdate(source.id, fps)}
+                    onResolutionUpdate={(width, height) =>
+                      onSourceResolutionUpdate(source.id, width, height)
+                    }
+                  />
+                ) : null}
+              </VideoSourceCard>
+            );
+          })()
         ))}
       </div>
     </div>

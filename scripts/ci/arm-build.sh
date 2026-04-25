@@ -45,6 +45,11 @@ REGISTRY="${REGISTRY:-ghcr.io}"
 BASE_IMAGE_PREFIX="${BASE_IMAGE_PREFIX:-josnelihurt-code/learning-cuda}"
 ARCH="${ARCH:-arm64}"
 
+# Suppress build-local.sh's per-stage auto-push. We want this script to own
+# every push decision so cpp-builder (and any merely-rebuilt PR intermediates)
+# don't leak to GHCR.
+export BUILD_LOCAL_PUSH=0
+
 BL=("${ROOT}/scripts/docker/build-local.sh"
     --registry "${REGISTRY}"
     --base-prefix "${BASE_IMAGE_PREFIX}"

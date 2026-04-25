@@ -217,7 +217,7 @@ build_and_tag() {
 
   docker image inspect "${tag}" >/dev/null 2>&1
 
-  if [[ "${should_push}" == "true" && "${REGISTRY}" != "local" ]]; then
+  if [[ "${should_push}" == "true" && "${REGISTRY}" != "local" && "${BUILD_LOCAL_PUSH:-1}" != "0" ]]; then
     echo "Pushing ${tag}..."
     docker push "${tag}"
     echo "Pushing ${latest_tag}..."
@@ -409,7 +409,7 @@ run_cpp_built() {
 
   docker image inspect "${version_tag}" >/dev/null 2>&1
 
-  if [[ "${REGISTRY}" != "local" ]]; then
+  if [[ "${REGISTRY}" != "local" && "${BUILD_LOCAL_PUSH:-1}" != "0" ]]; then
     echo "Pushing ${version_tag}..."
     docker push "${version_tag}"
     echo "Pushing ${latest_tag}..."

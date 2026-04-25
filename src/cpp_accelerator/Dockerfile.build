@@ -2,14 +2,16 @@ ARG BASE_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
 ARG PROTO_VERSION=2.0.0
-ARG CUDA_VERSION=12.5.1
-ARG UBUNTU_VERSION=24.04
 ARG YOLO_MODEL_VERSION=0.1.0
 ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG COMMIT_HASH=unknown
 # Pre-built Bazel fetch + third-party/proto libs (see src/cpp_accelerator/docker-cpp-dependencies/).
 ARG CPP_DEPS_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG CPP_DEPS_VERSION=1.0.0
+# Pre-built CUDA runtime base with ffmpeg/libav* installed (see src/cpp_accelerator/docker-cuda-runtime/).
+# Caching this layer avoids re-running apt-get on every cpp-accelerator build.
+ARG CUDA_RUNTIME_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
+ARG CUDA_RUNTIME_VERSION=1.0.0
 
 # Pull pre-built ONNX from the amd64 scratch image (x86 CI publishes it). Same ONNX bytes for every arch.
 FROM --platform=linux/amd64 ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-amd64 AS yolo-model-gen
@@ -83,22 +85,9 @@ RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
     cp "/artifacts/lib/libcuda_processor_v${VERSION}.so" /artifacts/lib/libcuda_processor.so && \
     cp -L bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client /artifacts/bin/accelerator_control_client
 
-FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS cpp-accelerator
+FROM ${CUDA_RUNTIME_REGISTRY}/base:cuda-runtime-${CUDA_RUNTIME_VERSION}-${TARGETARCH} AS cpp-accelerator
 
 ARG ENABLE_TENSORRT=false
-
-ENV DEBIAN_FRONTEND=noninteractive \
-    NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility
-
-RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
-    apt-get install -y --no-install-recommends \
-        ca-certificates \
-        ffmpeg \
-        libavcodec60 \
-        libavutil58 \
-        libswscale7 \
-    && rm -rf /var/lib/apt/lists/*
 
 # Install TensorRT runtime libraries when ENABLE_TENSORRT=true
 # Required for YOLO inference with the TRT-enabled binary (built with --config=trt)

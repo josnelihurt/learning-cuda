@@ -53,7 +53,7 @@ read_version() {
   tr -d '[:space:]' < "${REPO_ROOT}/${path}"
 }
 
-ALL_STAGES=(proto-tools go-builder bazel-base cpp-dependencies yolo-tools yolo-model runtime-base integration-base proto cpp-builder golang app cpp-accelerator web-frontend)
+ALL_STAGES=(proto-tools go-builder bazel-base cpp-dependencies cuda-runtime yolo-tools yolo-model runtime-base integration-base proto cpp-builder golang app cpp-accelerator web-frontend)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -278,6 +278,17 @@ run_cpp_dependencies() {
     "--build-arg" "TARGETARCH=${TARGETARCH}"
 }
 
+run_cuda_runtime() {
+  local version
+  version="$(read_version "src/cpp_accelerator/docker-cuda-runtime/VERSION")"
+  local version_tag="${IMAGE_BASE}/base:cuda-runtime-${version}-${ARCH}"
+  local latest_tag="${IMAGE_BASE}/base:cuda-runtime-latest-${ARCH}"
+
+  print_stage_header "Building cuda-runtime base (${version})"
+  build_and_tag "${version_tag}" "${latest_tag}" \
+    "src/cpp_accelerator/docker-cuda-runtime/Dockerfile" "true"
+}
+
 run_yolo_tools() {
   local version
   version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
@@ -471,6 +482,8 @@ run_cpp_accelerator_image() {
   cpp_version="$(read_version "src/cpp_accelerator/VERSION")"
   yolo_model_version="$(read_version "src/cpp_accelerator/yolo-model-gen/VERSION")"
   cpp_deps_version="$(read_version "src/cpp_accelerator/docker-cpp-dependencies/VERSION")"
+  local cuda_runtime_version
+  cuda_runtime_version="$(read_version "src/cpp_accelerator/docker-cuda-runtime/VERSION")"
 
   local app_tag="cpp-accelerator-${cpp_version}-proto${proto_version}"
   local version_tag="${IMAGE_BASE}/cpp-accelerator:${app_tag}-${ARCH}"
@@ -480,6 +493,7 @@ run_cpp_accelerator_image() {
 
   local cpp_builder_image="${IMAGE_BASE}/intermediate:cpp-builder-latest-${ARCH}"
   local proto_generated_image="${IMAGE_BASE}/intermediate:proto-generated-${proto_version}-${ARCH}"
+  local cuda_runtime_image="${IMAGE_BASE}/base:cuda-runtime-${cuda_runtime_version}-${ARCH}"
 
   if ! docker image inspect "${proto_generated_image}" >/dev/null 2>&1; then
     echo "Error: Base image ${proto_generated_image} not found. Build proto intermediate first." >&2
@@ -488,6 +502,11 @@ run_cpp_accelerator_image() {
 
   if ! docker image inspect "${cpp_builder_image}" >/dev/null 2>&1; then
     echo "Error: Base image ${cpp_builder_image} not found. Run --stage cpp-builder first." >&2
+    exit 1
+  fi
+
+  if ! docker image inspect "${cuda_runtime_image}" >/dev/null 2>&1; then
+    echo "Error: Base image ${cuda_runtime_image} not found. Run --stage cuda-runtime first (or pull from GHCR)." >&2
     exit 1
   fi
 
@@ -505,6 +524,8 @@ run_cpp_accelerator_image() {
     "--build-arg" "PROTO_VERSION=${proto_version}"
     "--build-arg" "CPP_DEPS_REGISTRY=${IMAGE_BASE}"
     "--build-arg" "CPP_DEPS_VERSION=${cpp_deps_version}"
+    "--build-arg" "CUDA_RUNTIME_REGISTRY=${IMAGE_BASE}"
+    "--build-arg" "CUDA_RUNTIME_VERSION=${cuda_runtime_version}"
     "--build-arg" "YOLO_MODEL_REGISTRY=${YOLO_MODEL_REGISTRY}"
     "--build-arg" "YOLO_MODEL_VERSION=${yolo_model_version}"
     "--build-arg" "COMMIT_HASH=${commit_hash}"
@@ -584,6 +605,9 @@ for stage in "${REQUESTED_STAGES[@]}"; do
       ;;
     cpp-dependencies)
       run_cpp_dependencies
+      ;;
+    cuda-runtime)
+      run_cuda_runtime
       ;;
     yolo-tools)
       run_yolo_tools

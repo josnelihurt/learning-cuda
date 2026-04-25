@@ -9,13 +9,14 @@
 #
 # Usage:
 #   MODE=pr|push  (or --mode <pr|push>)
-#   BUILD_PROTO=0|1       proto/ or buf* changed
-#   BUILD_BAZEL_BASE=0|1  src/cpp_accelerator/docker-build-base/** changed
-#   BUILD_CPP_DEPS=0|1    bazel/, third_party/, MODULE.bazel*, .bazelrc, docker-cpp-dependencies/** changed
-#                         (BUILD_BAZEL_BASE=1 implies BUILD_CPP_DEPS=1; the workflow already applies this)
+#   BUILD_PROTO=0|1         proto/ or buf* changed
+#   BUILD_BAZEL_BASE=0|1    src/cpp_accelerator/docker-build-base/** changed
+#   BUILD_CPP_DEPS=0|1      bazel/, third_party/, MODULE.bazel*, .bazelrc, docker-cpp-dependencies/** changed
+#                           (BUILD_BAZEL_BASE=1 implies BUILD_CPP_DEPS=1; the workflow already applies this)
+#   BUILD_CUDA_RUNTIME=0|1  src/cpp_accelerator/docker-cuda-runtime/** changed
 #
 # The script always builds cpp-builder (it depends on workspace HEAD).
-# In --mode push it also builds cpp-accelerator and runs push-tagged-images.sh.
+# In --mode push it also builds cpp-accelerator and pushes only what was rebuilt.
 
 set -euo pipefail
 
@@ -40,6 +41,7 @@ fi
 BUILD_PROTO="${BUILD_PROTO:-0}"
 BUILD_BAZEL_BASE="${BUILD_BAZEL_BASE:-0}"
 BUILD_CPP_DEPS="${BUILD_CPP_DEPS:-0}"
+BUILD_CUDA_RUNTIME="${BUILD_CUDA_RUNTIME:-0}"
 
 REGISTRY="${REGISTRY:-ghcr.io}"
 BASE_IMAGE_PREFIX="${BASE_IMAGE_PREFIX:-josnelihurt-code/learning-cuda}"
@@ -65,7 +67,7 @@ chmod +x "${ROOT}/scripts/docker/build-local.sh" \
          "${ROOT}/scripts/docker/pull-ghcr-cpp-intermediates.sh"
 
 echo "=== arm-build.sh: MODE=${MODE} ARCH=${ARCH}"
-echo "    BUILD_PROTO=${BUILD_PROTO} BUILD_BAZEL_BASE=${BUILD_BAZEL_BASE} BUILD_CPP_DEPS=${BUILD_CPP_DEPS}"
+echo "    BUILD_PROTO=${BUILD_PROTO} BUILD_BAZEL_BASE=${BUILD_BAZEL_BASE} BUILD_CPP_DEPS=${BUILD_CPP_DEPS} BUILD_CUDA_RUNTIME=${BUILD_CUDA_RUNTIME}"
 
 # 1. Build the intermediates whose inputs changed. The order matches the
 #    Dockerfile.build dependency chain.
@@ -82,14 +84,22 @@ elif [[ "${BUILD_BAZEL_BASE}" == "1" ]]; then
   "${BL[@]}" --stage bazel-base --stage cpp-dependencies
 fi
 
+if [[ "${BUILD_CUDA_RUNTIME}" == "1" ]]; then
+  "${BL[@]}" --stage cuda-runtime
+fi
+
 # 2. Pull whatever we did NOT rebuild from GHCR. The pull script no-ops if the
 #    image is already present locally.
 PULL_PROTO_LATEST=0
 PULL_CPP_DEPENDENCIES=0
+PULL_CUDA_RUNTIME=0
 [[ "${BUILD_PROTO}" == "1" ]] || PULL_PROTO_LATEST=1
 [[ "${BUILD_CPP_DEPS}" == "1" || "${BUILD_BAZEL_BASE}" == "1" ]] || PULL_CPP_DEPENDENCIES=1
+[[ "${BUILD_CUDA_RUNTIME}" == "1" ]] || PULL_CUDA_RUNTIME=1
 
-PULL_PROTO_LATEST="${PULL_PROTO_LATEST}" PULL_CPP_DEPENDENCIES="${PULL_CPP_DEPENDENCIES}" \
+PULL_PROTO_LATEST="${PULL_PROTO_LATEST}" \
+  PULL_CPP_DEPENDENCIES="${PULL_CPP_DEPENDENCIES}" \
+  PULL_CUDA_RUNTIME="${PULL_CUDA_RUNTIME}" \
   "${ROOT}/scripts/docker/pull-ghcr-cpp-intermediates.sh"
 
 # 3. Always build cpp-builder. It compiles the C++ from the workspace HEAD,
@@ -149,6 +159,12 @@ if [[ "${BUILD_CPP_DEPS}" == "1" || "${BUILD_BAZEL_BASE}" == "1" ]]; then
   deps_version="$(read_version src/cpp_accelerator/docker-cpp-dependencies/VERSION)"
   push_ref "${IMAGE_BASE}/intermediate:cpp-dependencies-${deps_version}-${ARCH}"
   push_ref "${IMAGE_BASE}/intermediate:cpp-dependencies-latest-${ARCH}"
+fi
+
+if [[ "${BUILD_CUDA_RUNTIME}" == "1" ]]; then
+  cuda_runtime_version="$(read_version src/cpp_accelerator/docker-cuda-runtime/VERSION)"
+  push_ref "${IMAGE_BASE}/base:cuda-runtime-${cuda_runtime_version}-${ARCH}"
+  push_ref "${IMAGE_BASE}/base:cuda-runtime-latest-${ARCH}"
 fi
 
 echo "=== arm-build.sh: push mode complete."

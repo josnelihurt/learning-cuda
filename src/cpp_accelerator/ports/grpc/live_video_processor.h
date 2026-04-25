@@ -27,7 +27,8 @@ struct EncodedAccessUnit {
 
 class LiveVideoProcessor {
  public:
-  explicit LiveVideoProcessor(jrb::ports::shared_lib::ProcessorEngine* engine);
+  explicit LiveVideoProcessor(jrb::ports::shared_lib::ProcessorEngine* engine,
+                              void* cuda_memory_pool = nullptr);
   ~LiveVideoProcessor();
 
   bool UpdateFilterState(const cuda_learning::ProcessImageRequest& request,
@@ -62,6 +63,7 @@ class LiveVideoProcessor {
                        std::string* error_message);
 
   jrb::ports::shared_lib::ProcessorEngine* engine_;
+  void* cuda_memory_pool_;
   AVCodecContext* decoder_context_;
   AVCodecContext* encoder_context_;
   SwsContext* decode_to_rgb_context_;

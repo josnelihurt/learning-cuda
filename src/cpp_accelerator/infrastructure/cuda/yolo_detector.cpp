@@ -243,7 +243,7 @@ private:
       throw std::runtime_error("Failed to build TensorRT engine");
     }
 
-    spdlog::info("Successfully built TensorRT engine from ONNX");
+    spdlog::info("[TRT] Successfully built TensorRT engine from ONNX");
     context_ = engine_->createExecutionContext();
     if (!context_) {
       throw std::runtime_error("Failed to create execution context");
@@ -251,6 +251,8 @@ private:
 
     PrepareBuffers();
     SaveEngine(engine_path, plan);
+
+    spdlog::info("[TRT] *** Engine build complete and cached — future startups will be fast ***");
   }
 
   void PrepareBuffers() {

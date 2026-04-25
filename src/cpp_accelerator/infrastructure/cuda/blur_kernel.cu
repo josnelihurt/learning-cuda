@@ -147,49 +147,56 @@ __global__ void ApplyVerticalBlurKernel(const unsigned char* input, unsigned cha
 }
 
 static void cleanup_memory_pooled(unsigned char* d_input, unsigned char* d_output, unsigned char* d_temp,
-                                   float* d_kernel, std::size_t data_size, std::size_t kernel_size) {
-  auto& pool = GetThreadLocalMemoryPool();
+                                   float* d_kernel, std::size_t data_size, std::size_t kernel_size,
+                                   CudaMemoryPool* pool = nullptr) {
+  if (!pool) {
+    pool = &GetThreadLocalMemoryPool();
+  }
   if (d_input != nullptr)
-    pool.Deallocate(d_input, data_size);
+    pool->Deallocate(d_input, data_size);
   if (d_output != nullptr)
-    pool.Deallocate(d_output, data_size);
+    pool->Deallocate(d_output, data_size);
   if (d_temp != nullptr)
-    pool.Deallocate(d_temp, data_size);
+    pool->Deallocate(d_temp, data_size);
   if (d_kernel != nullptr)
-    pool.Deallocate(d_kernel, kernel_size * sizeof(float));
+    pool->Deallocate(d_kernel, kernel_size * sizeof(float));
 }
 
 static cudaError_t allocate_memory_pooled(int width, int height, int channels, int kernel_size,
                                          unsigned char** d_input, unsigned char** d_output,
-                                         unsigned char** d_temp, float** d_kernel) {
+                                         unsigned char** d_temp, float** d_kernel,
+                                         CudaMemoryPool* pool = nullptr) {
+  if (!pool) {
+    pool = &GetThreadLocalMemoryPool();
+  }
+  
   size_t data_size = static_cast<size_t>(width) * height * channels;
-  auto& pool = GetThreadLocalMemoryPool();
 
-  *d_input = static_cast<unsigned char*>(pool.Allocate(data_size));
+  *d_input = static_cast<unsigned char*>(pool->Allocate(data_size));
   if (*d_input == nullptr)
     return cudaErrorMemoryAllocation;
 
-  *d_output = static_cast<unsigned char*>(pool.Allocate(data_size));
+  *d_output = static_cast<unsigned char*>(pool->Allocate(data_size));
   if (*d_output == nullptr) {
-    pool.Deallocate(*d_input, data_size);
+    pool->Deallocate(*d_input, data_size);
     return cudaErrorMemoryAllocation;
   }
 
   if (d_temp != nullptr) {
-    *d_temp = static_cast<unsigned char*>(pool.Allocate(data_size));
+    *d_temp = static_cast<unsigned char*>(pool->Allocate(data_size));
     if (*d_temp == nullptr) {
-      pool.Deallocate(*d_input, data_size);
-      pool.Deallocate(*d_output, data_size);
+      pool->Deallocate(*d_input, data_size);
+      pool->Deallocate(*d_output, data_size);
       return cudaErrorMemoryAllocation;
     }
   }
 
-  *d_kernel = static_cast<float*>(pool.Allocate(kernel_size * sizeof(float)));
+  *d_kernel = static_cast<float*>(pool->Allocate(kernel_size * sizeof(float)));
   if (*d_kernel == nullptr) {
-    pool.Deallocate(*d_input, data_size);
-    pool.Deallocate(*d_output, data_size);
+    pool->Deallocate(*d_input, data_size);
+    pool->Deallocate(*d_output, data_size);
     if (d_temp != nullptr) {
-      pool.Deallocate(*d_temp, data_size);
+      pool->Deallocate(*d_temp, data_size);
     }
     return cudaErrorMemoryAllocation;
   }
@@ -201,7 +208,7 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_horizontal(const unsigned cha
                                                               unsigned char* output, int width,
                                                               int height, int channels,
                                                               const float* kernel, int kernel_size,
-                                                              int border_mode) {
+                                                              int border_mode, void* pool = nullptr) {
   unsigned char* d_input = nullptr;
   unsigned char* d_output = nullptr;
   float* d_kernel = nullptr;
@@ -209,19 +216,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_horizontal(const unsigned cha
   size_t data_size = static_cast<size_t>(width) * height * channels;
 
   cudaError_t error = allocate_memory_pooled(width, height, channels, kernel_size, &d_input, &d_output,
-                                             nullptr, &d_kernel);
+                                             nullptr, &d_kernel, static_cast<CudaMemoryPool*>(pool));
   if (error != cudaSuccess)
     return error;
 
   error = cudaMemcpy(d_input, input, data_size, cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size, 
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(d_kernel, kernel, kernel_size * sizeof(float), cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
@@ -233,18 +242,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_horizontal(const unsigned cha
 
   error = cudaDeviceSynchronize();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaGetLastError();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(output, d_output, data_size, cudaMemcpyDeviceToHost);
-  cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+  cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                       static_cast<CudaMemoryPool*>(pool));
   return error;
 }
 
@@ -252,7 +264,7 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_vertical(const unsigned char*
                                                             unsigned char* output, int width,
                                                             int height, int channels,
                                                             const float* kernel, int kernel_size,
-                                                            int border_mode) {
+                                                            int border_mode, void* pool = nullptr) {
   unsigned char* d_input = nullptr;
   unsigned char* d_output = nullptr;
   float* d_kernel = nullptr;
@@ -260,19 +272,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_vertical(const unsigned char*
   size_t data_size = static_cast<size_t>(width) * height * channels;
 
   cudaError_t error = allocate_memory_pooled(width, height, channels, kernel_size, &d_input, &d_output,
-                                             nullptr, &d_kernel);
+                                             nullptr, &d_kernel, static_cast<CudaMemoryPool*>(pool));
   if (error != cudaSuccess)
     return error;
 
   error = cudaMemcpy(d_input, input, data_size, cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(d_kernel, kernel, kernel_size * sizeof(float), cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
@@ -285,18 +299,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_vertical(const unsigned char*
 
   error = cudaDeviceSynchronize();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaGetLastError();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(output, d_output, data_size, cudaMemcpyDeviceToHost);
-  cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+  cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                       static_cast<CudaMemoryPool*>(pool));
   return error;
 }
 
@@ -304,7 +321,7 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_non_separable(const unsigned cha
                                                               unsigned char* output, int width,
                                                               int height, int channels,
                                                               const float* kernel, int kernel_size,
-                                                              int border_mode) {
+                                                              int border_mode, void* pool = nullptr) {
   unsigned char* d_input = nullptr;
   unsigned char* d_output = nullptr;
   float* d_kernel = nullptr;
@@ -312,19 +329,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_non_separable(const unsigned cha
   size_t data_size = static_cast<size_t>(width) * height * channels;
 
   cudaError_t error = allocate_memory_pooled(width, height, channels, kernel_size, &d_input, &d_output,
-                                             nullptr, &d_kernel);
+                                             nullptr, &d_kernel, static_cast<CudaMemoryPool*>(pool));
   if (error != cudaSuccess)
     return error;
 
   error = cudaMemcpy(d_input, input, data_size, cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(d_kernel, kernel, kernel_size * sizeof(float), cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
@@ -337,18 +356,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_non_separable(const unsigned cha
 
   error = cudaDeviceSynchronize();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaGetLastError();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(output, d_output, data_size, cudaMemcpyDeviceToHost);
-  cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size);
+  cleanup_memory_pooled(d_input, d_output, nullptr, d_kernel, data_size, kernel_size,
+                       static_cast<CudaMemoryPool*>(pool));
   return error;
 }
 
@@ -356,7 +378,7 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_separable(const unsigned char* i
                                                           unsigned char* output, int width,
                                                           int height, int channels,
                                                           const float* kernel, int kernel_size,
-                                                          int border_mode) {
+                                                          int border_mode, void* pool = nullptr) {
   unsigned char* d_input = nullptr;
   unsigned char* d_output = nullptr;
   unsigned char* d_temp = nullptr;
@@ -365,19 +387,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_separable(const unsigned char* i
   size_t data_size = static_cast<size_t>(width) * height * channels;
 
   cudaError_t error = allocate_memory_pooled(width, height, channels, kernel_size, &d_input, &d_output,
-                                             &d_temp, &d_kernel);
+                                             &d_temp, &d_kernel, static_cast<CudaMemoryPool*>(pool));
   if (error != cudaSuccess)
     return error;
 
   error = cudaMemcpy(d_input, input, data_size, cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(d_kernel, kernel, kernel_size * sizeof(float), cudaMemcpyHostToDevice);
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
@@ -390,13 +414,15 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_separable(const unsigned char* i
 
   error = cudaDeviceSynchronize();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaGetLastError();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
@@ -408,18 +434,21 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_separable(const unsigned char* i
 
   error = cudaDeviceSynchronize();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaGetLastError();
   if (error != cudaSuccess) {
-    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size);
+    cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size,
+                         static_cast<CudaMemoryPool*>(pool));
     return error;
   }
 
   error = cudaMemcpy(output, d_output, data_size, cudaMemcpyDeviceToHost);
-  cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size);
+  cleanup_memory_pooled(d_input, d_output, d_temp, d_kernel, data_size, kernel_size,
+                       static_cast<CudaMemoryPool*>(pool));
   return error;
 }
 

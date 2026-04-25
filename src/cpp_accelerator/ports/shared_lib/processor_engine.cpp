@@ -367,7 +367,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
                                                           request.height(), output_channels);
 
     if (pipeline.GetFilterCount() > 0) {
-      bool success = pipeline.Apply(input_buffer, output_buffer);
+      bool success = pipeline.Apply(input_buffer, output_buffer, memory_pool_);
       if (!success) {
         spdlog::error("Filter pipeline processing failed");
         scoped_span.RecordError("Filter pipeline processing failed");

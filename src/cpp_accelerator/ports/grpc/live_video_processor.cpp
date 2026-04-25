@@ -91,8 +91,10 @@ bool IsFilterNone(const cuda_learning::FilterType filter) {
 
 }  // namespace
 
-LiveVideoProcessor::LiveVideoProcessor(jrb::ports::shared_lib::ProcessorEngine* engine)
+LiveVideoProcessor::LiveVideoProcessor(jrb::ports::shared_lib::ProcessorEngine* engine,
+                                       void* cuda_memory_pool)
     : engine_(engine),
+      cuda_memory_pool_(cuda_memory_pool),
       decoder_context_(nullptr),
       encoder_context_(nullptr),
       decode_to_rgb_context_(nullptr),

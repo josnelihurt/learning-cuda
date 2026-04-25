@@ -98,11 +98,13 @@ bool CudaGaussianBlurFilter::Apply(FilterContext& context) {
   if (separable_) {
     error = cuda_apply_gaussian_blur_separable(
         context.input.data, context.output.data, context.input.width, context.input.height,
-        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_));
+        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_),
+        context.memory_pool);
   } else {
     error = cuda_apply_gaussian_blur_non_separable(
         context.input.data, context.output.data, context.input.width, context.input.height,
-        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_));
+        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_),
+        context.memory_pool);
   }
 
   if (error != cudaSuccess) {

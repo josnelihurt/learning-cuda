@@ -16,7 +16,7 @@ public:
 
   void AddFilter(std::unique_ptr<jrb::domain::interfaces::IFilter> filter);
   bool Apply(const jrb::domain::interfaces::ImageBuffer& input,
-             jrb::domain::interfaces::ImageBufferMut& output);
+             jrb::domain::interfaces::ImageBufferMut& output, void* memory_pool = nullptr);
 
   size_t GetFilterCount() const;
   void Clear();

@@ -7,56 +7,28 @@ ARG UBUNTU_VERSION=24.04
 ARG YOLO_MODEL_VERSION=0.1.0
 ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG COMMIT_HASH=unknown
-
-
-FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS bazel-base
+# Pre-built Bazel fetch + third-party/proto libs (see src/cpp_accelerator/docker-cpp-dependencies/).
+ARG CPP_DEPS_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
+ARG CPP_DEPS_VERSION=1.0.0
 
 # Pull pre-built ONNX from the amd64 scratch image (x86 CI publishes it). Same ONNX bytes for every arch.
-# The yolo-model-gen image is a scratch image containing just /models/yolov10n.onnx.
 FROM --platform=linux/amd64 ${YOLO_MODEL_REGISTRY}/yolo-model-gen:${YOLO_MODEL_VERSION}-amd64 AS yolo-model-gen
 
-FROM bazel-base AS bazel-deps
-
-WORKDIR /build
-
-COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
-COPY .bazelrc .bazeliskrc ./
-COPY bazel/ ./bazel/
-COPY proto/ ./proto/
-COPY third_party/ ./third_party/
-COPY buf.yaml buf.lock buf.gen.yaml ./
-
-ENV USE_BAZEL_VERSION=8.4.2
-RUN bazel --batch fetch //...
-
-RUN bazel --batch build \
-    --show_timestamps \
-    --announce_rc \
-    @spdlog//:spdlog \
-    @com_google_protobuf//:protobuf \
-    //proto:common_cc_proto \
-    //proto:image_processor_service_cc_proto \
-    //proto:config_service_cc_proto \
-    //third_party/stb:stb_image \
-    //third_party/stb:stb_image_write \
-    || echo "External deps build completed"
+FROM ${CPP_DEPS_REGISTRY}/intermediate:cpp-dependencies-${CPP_DEPS_VERSION}-${TARGETARCH} AS bazel-deps
 
 FROM ${BASE_REGISTRY}/intermediate:proto-generated-${PROTO_VERSION}-${TARGETARCH} AS proto-generated-ref
 
-FROM bazel-deps AS cpp-built
+FROM bazel-deps AS cpp-builder
 
 ARG BAZEL_REMOTE_CACHE=""
 ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
+ARG COMMIT_HASH=unknown
 
 WORKDIR /build
 
 COPY src/cpp_accelerator/ ./src/cpp_accelerator/
 
 COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
-
-RUN mkdir -p /build/data/models
-# Copy ONNX model - TensorRT engine will be generated at runtime (lazy generation)
-COPY --from=yolo-model-gen /models/yolov10n.onnx /build/data/models/yolov10n.onnx
 
 RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     NPROC=$(nproc) && \
@@ -83,7 +55,8 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
           --local_cpu_resources=$(($NPROC - 1)) \
           --experimental_repository_cache_hardlinks \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
+          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so \
+          //src/cpp_accelerator/ports/grpc:accelerator_control_client 2>&1 | tee /tmp/bazel-build.log && \
         echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
     else \
         echo "Building AMD64 with verbose output" && \
@@ -99,99 +72,20 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
           --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
           --linkopt="-Wl,--verbose" \
           --linkopt="-Wl,--stats" \
-          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so 2>&1 | tee /tmp/bazel-build.log && \
-        echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
-    fi
-
-RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
-    mkdir -p /artifacts/lib && \
-    cp -L bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so /artifacts/lib/libcuda_processor_v${VERSION}.so
-
-FROM scratch AS artifacts
-
-COPY --from=cpp-built /artifacts/ /artifacts/
-
-FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH} AS grpc-built
-
-ARG BAZEL_REMOTE_CACHE=""
-ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
-ARG COMMIT_HASH=unknown
-
-WORKDIR /build
-
-COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
-COPY .bazelrc .bazeliskrc ./
-COPY bazel/ ./bazel/
-COPY proto/ ./proto/
-COPY third_party/ ./third_party/
-COPY src/cpp_accelerator/ ./src/cpp_accelerator/
-
-COPY --from=proto-generated-ref /workspace/proto/gen/ ./proto/gen/
-
-ENV USE_BAZEL_VERSION=8.4.2
-RUN bazel --batch fetch //src/cpp_accelerator/ports/grpc:accelerator_control_client
-
-RUN echo "Detected TARGETARCH: $TARGETARCH" && \
-    NPROC=$(nproc) && \
-    MEM_GB=$(free -g | awk '/^Mem:/{print $2}') && \
-    echo "Available CPUs: $NPROC, RAM: ${MEM_GB}GB" && \
-    CACHE_FLAGS="" && \
-    if [ -n "${BAZEL_REMOTE_CACHE}" ]; then \
-        echo "Using remote Bazel cache at ${BAZEL_REMOTE_CACHE}"; \
-        CACHE_FLAGS="${CACHE_FLAGS} --remote_cache=${BAZEL_REMOTE_CACHE}"; \
-        if [ "${BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS}" = "true" ]; then \
-            CACHE_FLAGS="${CACHE_FLAGS} --remote_upload_local_results"; \
-        fi; \
-    fi && \
-    if [ "$TARGETARCH" = "arm64" ]; then \
-        echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
-        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
-          --show_timestamps \
-          --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
-          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
-          --local_cpu_resources=$(($NPROC - 1)) \
-          --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //src/cpp_accelerator/ports/grpc:accelerator_control_client 2>&1 | tee /tmp/bazel-build.log && \
-        echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
-    else \
-        echo "Building AMD64 with verbose output" && \
-        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
-          --show_timestamps \
-          --announce_rc \
-          --verbose_failures \
-          --subcommands \
-          --jobs=$NPROC \
-          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
-          --local_cpu_resources=$(($NPROC - 1)) \
-          --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
+          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so \
           //src/cpp_accelerator/ports/grpc:accelerator_control_client 2>&1 | tee /tmp/bazel-build.log && \
         echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
     fi
-
-RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
-    mkdir -p /artifacts/bin && \
-    cp -L bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client /artifacts/bin/accelerator_control_client
-
-FROM grpc-built AS grpc-artifacts
-
-COPY --from=cpp-built /artifacts/lib/ /artifacts/lib/
 
 RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
-    if [ -f "/artifacts/lib/libcuda_processor_v${VERSION}.so" ]; then \
-      cp /artifacts/lib/libcuda_processor_v${VERSION}.so /artifacts/lib/libcuda_processor.so; \
-    elif [ -f "/artifacts/lib/libcuda_processor.so" ]; then \
-      echo "libcuda_processor.so already exists"; \
-    else \
-      echo "Error: libcuda_processor library not found. Available files:"; \
-      ls -la /artifacts/lib/ || true; \
-      exit 1; \
-    fi
-
-ARG ENABLE_TENSORRT=false
+    mkdir -p /artifacts/lib /artifacts/bin && \
+    cp -L bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so "/artifacts/lib/libcuda_processor_v${VERSION}.so" && \
+    cp "/artifacts/lib/libcuda_processor_v${VERSION}.so" /artifacts/lib/libcuda_processor.so && \
+    cp -L bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client /artifacts/bin/accelerator_control_client
 
 FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} AS cpp-accelerator
+
+ARG ENABLE_TENSORRT=false
 
 ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_VISIBLE_DEVICES=all \
@@ -208,7 +102,6 @@ RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
 
 # Install TensorRT runtime libraries when ENABLE_TENSORRT=true
 # Required for YOLO inference with the TRT-enabled binary (built with --config=trt)
-ARG ENABLE_TENSORRT
 RUN if [ "$ENABLE_TENSORRT" = "true" ]; then \
         apt-get update && apt-get install -y --no-install-recommends \
             libnvinfer10 \
@@ -218,11 +111,12 @@ RUN if [ "$ENABLE_TENSORRT" = "true" ]; then \
 
 WORKDIR /opt/cuda/grpc
 
-COPY --from=grpc-artifacts /artifacts/bin/accelerator_control_client ./bin/accelerator_control_client
-COPY --from=grpc-artifacts /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
+COPY --from=cpp-builder /artifacts/bin/accelerator_control_client ./bin/accelerator_control_client
+COPY --from=cpp-builder /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
 
-# Copy YOLO model files for inference
-COPY --from=cpp-built /build/data/models /opt/cuda/grpc/data/models
+# ONNX at runtime only (TensorRT engine generated lazily at run).
+RUN mkdir -p /opt/cuda/grpc/data/models
+COPY --from=yolo-model-gen /models/yolov10n.onnx /opt/cuda/grpc/data/models/yolov10n.onnx
 
 # Copy VERSION file for GetVersionInfo endpoint
 COPY src/cpp_accelerator/VERSION ./src/cpp_accelerator/VERSION

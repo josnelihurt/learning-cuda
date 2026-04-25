@@ -20,7 +20,7 @@ ARG UBUNTU_VARIANT=jammy
 # resolve CPP/test artifacts.
 #################################################################################
 
-FROM ${BASE_REGISTRY}/intermediate:cpp-built-${CPP_VERSION}-${TARGETARCH} AS cpp-built-ref
+FROM ${BASE_REGISTRY}/intermediate:cpp-builder-${CPP_VERSION}-${TARGETARCH} AS cpp-builder-ref
 FROM ${BASE_REGISTRY}/intermediate:golang-built-${GOLANG_VERSION}-${TARGETARCH} AS golang-built-ref
 
 #################################################################################
@@ -40,7 +40,7 @@ RUN go mod download
 COPY . .
 
 COPY --from=golang-built-ref /artifacts/bin/server /workspace/bin/server
-COPY --from=cpp-built-ref /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
+COPY --from=cpp-builder-ref /artifacts/lib/ /workspace/.ignore/lib/cuda_learning/
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000

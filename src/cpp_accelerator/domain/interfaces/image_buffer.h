@@ -33,10 +33,12 @@ struct ImageBufferMut {
 struct FilterContext {
   ImageBuffer input;
   ImageBufferMut output;
+  void* memory_pool = nullptr;
 
   FilterContext(const unsigned char* input_data, unsigned char* output_data, int width, int height,
-                int channels)
-      : input(input_data, width, height, channels), output(output_data, width, height, channels) {}
+                int channels, void* pool = nullptr)
+      : input(input_data, width, height, channels), output(output_data, width, height, channels),
+        memory_pool(pool) {}
 };
 
 }  // namespace jrb::domain::interfaces

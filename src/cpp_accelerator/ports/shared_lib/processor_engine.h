@@ -29,6 +29,8 @@ public:
 
   bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response);
 
+  void SetMemoryPool(void* pool) { memory_pool_ = pool; }
+
 private:
   jrb::domain::interfaces::GrayscaleAlgorithm ProtoToAlgorithm(
       cuda_learning::GrayscaleType type) const;
@@ -36,6 +38,7 @@ private:
                     cuda_learning::ProcessImageResponse* response);
 
   std::string component_name_;
+  void* memory_pool_ = nullptr;
   std::unordered_map<std::string, std::shared_ptr<jrb::infrastructure::cuda::IYoloDetector>>
       detector_cache_;
 };

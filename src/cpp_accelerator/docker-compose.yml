@@ -1,6 +1,6 @@
 services:
   accelerator-client:
-    image: ${ACCELERATOR_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/cpp-accelerator:latest-arm64}
+    image: "${ACCELERATOR_IMAGE:?ACCELERATOR_IMAGE is not set, provide versioned tag cpp-accelerator-X.Y.Z-protoA.B.C-arm64}"
     container_name: cuda-accelerator-client
     restart: unless-stopped
     runtime: nvidia

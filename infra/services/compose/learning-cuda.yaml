@@ -1,6 +1,6 @@
 services: 
   learning-cuda-go-api:
-    image: ${APP_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/app:latest-amd64}
+    image: "${APP_IMAGE:?APP_IMAGE is not set, provide versioned tag app:X.Y.Z-amd64}"
     container_name: cuda-go-server
     restart: unless-stopped
 
@@ -21,7 +21,7 @@ services:
       public-wan:
 
   learning-cuda-frontend: 
-    image: ${CUDA_WEB_FRONTEND_IMAGE:-ghcr.io/josnelihurt-code/learning-cuda/web-frontend:latest-amd64}
+    image: "${CUDA_WEB_FRONTEND_IMAGE:?CUDA_WEB_FRONTEND_IMAGE is not set, provide versioned tag web-frontend:fe-X.Y.Z-protoA.B.C-amd64}"
     container_name: cuda-web-frontend
     restart: unless-stopped
     volumes:

@@ -32,7 +32,7 @@ void FilterPipeline::Clear() {
   filters_.clear();
 }
 
-bool FilterPipeline::Apply(const ImageBuffer& input, ImageBufferMut& output) {
+bool FilterPipeline::Apply(const ImageBuffer& input, ImageBufferMut& output, void* memory_pool) {
   if (filters_.empty()) {
     return false;
   }
@@ -73,7 +73,7 @@ bool FilterPipeline::Apply(const ImageBuffer& input, ImageBufferMut& output) {
 
     int output_channels = is_last ? output.channels : next_channels;
     FilterContext context(current_input, output_ptr, current_width, current_height,
-                          current_channels);
+                          current_channels, memory_pool);
 
     jrb::domain::interfaces::ImageBufferMut output_buffer_mut(output_ptr, current_width,
                                                               current_height, output_channels);

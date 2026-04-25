@@ -13,6 +13,7 @@ import { useCameraTransport } from '@/presentation/hooks/useCameraTransport';
 import { useSourceTransportFactory } from '@/presentation/hooks/useSourceTransportFactory';
 import { useSourceFilterSync } from '@/presentation/hooks/useSourceFilterSync';
 import { useGridSources } from '@/presentation/hooks/useGridSources';
+import { useLatest } from '@/presentation/hooks/useLatest';
 import { VideoGrid } from '@/presentation/components/video/VideoGrid';
 import { SourceDrawer } from '@/presentation/components/video/SourceDrawer';
 import { AddSourceFab } from '@/presentation/components/video/AddSourceFab';
@@ -49,20 +50,29 @@ export function VideoGridHost(): React.ReactNode {
   const { fps, time, frames, cameraStatus, cameraStatusType, statsManager } = useProcessingStats();
   const { sources, selectedSourceId, sourcesRef, selectedSourceIdRef, nextNumberRef, dispatch, setSelectedSource: setSelectedSourceId, removeSource } =
     useGridSources();
-  const { createCameraSession, sendCameraControlRequest } = useCameraTransport({
+  const { createCameraSession, replaceCameraStream, sendCameraControlRequest } = useCameraTransport({
     dispatch,
     sourcesRef,
     toastManager,
   });
 
-  const activeFiltersRef = useRef(activeFilters);
-  const selectedResolutionRef = useRef(selectedResolution);
-  const selectedAcceleratorRef = useRef(selectedAccelerator);
-  activeFiltersRef.current = activeFilters;
-  selectedResolutionRef.current = selectedResolution;
-  selectedAcceleratorRef.current = selectedAccelerator;
+  const onCameraStreamReady = useCallback(
+    (sourceId: string, stream: MediaStream): void => {
+      const source = sourcesRef.current.find((item) => item.id === sourceId);
+      if (source?.sessionId) {
+        void replaceCameraStream(sourceId, stream);
+      } else {
+        void createCameraSession(sourceId, stream);
+      }
+    },
+    [createCameraSession, replaceCameraStream, sourcesRef]
+  );
 
-  const { buildSource } = useSourceTransportFactory({
+  const activeFiltersRef = useLatest(activeFilters);
+  const selectedResolutionRef = useLatest(selectedResolution);
+  const selectedAcceleratorRef = useLatest(selectedAccelerator);
+
+  const { buildSource, clearSourceMetrics } = useSourceTransportFactory({
     nextNumberRef,
     statsManager,
     toastManager,
@@ -70,6 +80,7 @@ export function VideoGridHost(): React.ReactNode {
     activeFiltersRef,
     selectedResolutionRef,
     selectedAcceleratorRef,
+    sourcesRef,
   });
   const { applyStaticFilters, applyVideoFilters } = useFilterApplication(toastManager);
 
@@ -208,12 +219,16 @@ export function VideoGridHost(): React.ReactNode {
           number: source.number,
           name: source.name,
           type: source.type,
+          resolution: source.resolution,
           imageSrc: source.currentImageSrc || source.imagePath,
           remoteStream: source.remoteStream,
           filters: source.filters,
           detections: source.detections,
           detectionImageWidth: source.detectionImageWidth,
           detectionImageHeight: source.detectionImageHeight,
+          fps: source.fps,
+          displayWidth: source.displayWidth,
+          displayHeight: source.displayHeight,
         }))}
         selectedSourceId={selectedSourceId}
         onSelectSource={(sourceId) => {
@@ -225,6 +240,7 @@ export function VideoGridHost(): React.ReactNode {
           const source = sourcesRef.current.find((s) => s.id === sourceId);
           const isSelected = sourceId === selectedSourceIdRef.current;
           source?.transport?.disconnect();
+          clearSourceMetrics(sourceId);
           if (source?.sessionId) {
             void webrtcService.closeSession(source.sessionId).catch((error) => {
               logger.error('Failed to close camera MediaTrack session', {
@@ -269,9 +285,28 @@ export function VideoGridHost(): React.ReactNode {
             selectedAcceleratorRef.current
           );
         }}
-        onCameraStreamReady={createCameraSession}
+        onCameraStreamReady={onCameraStreamReady}
         onCameraStatus={(status, type) => statsManager.updateCameraStatus(status, type)}
         onCameraError={(title, message) => toastManager.error(title, message)}
+        onSourceFpsUpdate={(sourceId, fps) => {
+          dispatch({
+            type: GridSourceActionType.SET_SOURCE_FPS,
+            payload: {
+              sourceId,
+              fps,
+            },
+          });
+        }}
+        onSourceResolutionUpdate={(sourceId, width, height) => {
+          dispatch({
+            type: GridSourceActionType.SET_SOURCE_RESOLUTION,
+            payload: {
+              sourceId,
+              width,
+              height,
+            },
+          });
+        }}
         data-testid="video-grid-host"
       />
       <AddSourceFab onClick={openDrawer} />

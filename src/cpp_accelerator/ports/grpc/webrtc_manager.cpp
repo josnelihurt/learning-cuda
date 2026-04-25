@@ -264,11 +264,13 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     session->created_at = std::chrono::steady_clock::now();
     session->last_heartbeat = std::chrono::steady_clock::now();
     session->peer_connection = std::make_shared<rtc::PeerConnection>(*config_);
-    session->live_video_processor = std::make_unique<LiveVideoProcessor>(engine_.get());
+    session->live_video_processor = std::make_unique<LiveVideoProcessor>(
+        engine_.get(), session->memory_pool.get());
     session->live_filter_state.set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);
     session->live_filter_state.add_filters(cuda_learning::FILTER_TYPE_NONE);
     session->live_filter_state.set_api_version("1.0");
     session->memory_pool = std::make_unique<jrb::infrastructure::cuda::CudaMemoryPool>();
+    engine_->SetMemoryPool(session->memory_pool.get());
     spdlog::info("[WebRTC:{}] Created dedicated CUDA memory pool for session", session_id);
 
     // Prepare manual ICE candidate data for SDP modification if configured (before callbacks)

@@ -50,4 +50,84 @@ describe('VideoSourceCard', () => {
     rerender(<VideoSourceCard {...baseProps} sourceType="camera" />);
     expect(screen.queryByTestId('change-image-button')).not.toBeInTheDocument();
   });
+
+  it('shows fps badge for video source', () => {
+    render(
+      <VideoSourceCard
+        sourceId="video-1"
+        sourceNumber={2}
+        sourceName="Sample video"
+        sourceType="video"
+        imageSrc="/video-preview.png"
+        fps={23.456}
+        displayWidth={1280}
+        displayHeight={720}
+        isSelected={false}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onChangeImage={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('source-fps-2')).toHaveTextContent('23.5 FPS | 1280x720');
+  });
+
+  it('shows fps badge for camera source', () => {
+    render(
+      <VideoSourceCard
+        sourceId="camera-1"
+        sourceNumber={3}
+        sourceName="Camera"
+        sourceType="camera"
+        imageSrc=""
+        fps={30}
+        displayWidth={640}
+        displayHeight={480}
+        isSelected={false}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onChangeImage={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('source-fps-3')).toHaveTextContent('30.0 FPS | 640x480');
+  });
+
+  it('shows resolution fallback when unavailable', () => {
+    render(
+      <VideoSourceCard
+        sourceId="video-2"
+        sourceNumber={5}
+        sourceName="Sample video fallback"
+        sourceType="video"
+        imageSrc="/video-preview.png"
+        fps={12}
+        isSelected={false}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onChangeImage={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('source-fps-5')).toHaveTextContent('12.0 FPS | --');
+  });
+
+  it('does not show fps badge for static source', () => {
+    render(
+      <VideoSourceCard
+        sourceId="static-1"
+        sourceNumber={4}
+        sourceName="Static"
+        sourceType="static"
+        imageSrc="/img.png"
+        fps={30}
+        isSelected={false}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onChangeImage={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('source-fps-4')).not.toBeInTheDocument();
+  });
 });

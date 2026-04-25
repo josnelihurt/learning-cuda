@@ -347,8 +347,6 @@ jobs:
       COMPOSE_WORKDIR: /home/jrb/infra/services/vultur1
       CUDA_CONFIG_SUBDIR: cuda-learning
       CUDA_DATA_SUBDIR: learning-cuda
-      APP_IMAGE: ghcr.io/josnelihurt-code/learning-cuda/app:latest-amd64
-      CUDA_WEB_FRONTEND_IMAGE: ghcr.io/josnelihurt-code/learning-cuda/web-frontend:latest-amd64
       CLOUD_VM_SSH_PORT: "22"
     steps:
       - name: Validate Cloud VM secrets and vars
@@ -448,10 +446,26 @@ jobs:
             "${stage_dir}/ca.pem" \
             "${REMOTE}:${REMOTE_SECRETS_DIR}/"
 
+      - name: Compute versioned image tags
+        id: tags
+        run: |
+          set -euo pipefail
+          proto_version=$(tr -d '[:space:]' < proto/VERSION)
+          go_version=$(tr -d '[:space:]' < src/go_api/VERSION)
+          fe_version=$(tr -d '[:space:]' < src/front-end/VERSION)
+          app_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/app:${go_version}-amd64"
+          fe_image="${REGISTRY}/${BASE_IMAGE_PREFIX}/web-frontend:fe-${fe_version}-proto${proto_version}-amd64"
+          echo "app_image=${app_image}" >> "$GITHUB_OUTPUT"
+          echo "fe_image=${fe_image}" >> "$GITHUB_OUTPUT"
+          echo "Deploying APP_IMAGE=${app_image}"
+          echo "Deploying CUDA_WEB_FRONTEND_IMAGE=${fe_image}"
+
       - name: Pull and restart services on Cloud VM
         env:
           CLOUD_VM_HOST: ${{ secrets.CLOUD_VM_HOST }}
           CLOUD_VM_USER: ${{ secrets.CLOUD_VM_USER }}
+          APP_IMAGE: ${{ steps.tags.outputs.app_image }}
+          CUDA_WEB_FRONTEND_IMAGE: ${{ steps.tags.outputs.fe_image }}
         run: |
           set -euo pipefail
           SSH_OPTS="-i ~/.ssh/cloud_vm_key -p ${CLOUD_VM_SSH_PORT} -o StrictHostKeyChecking=yes"

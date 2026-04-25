@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
+import { useLatest } from '@/presentation/hooks/useLatest';
 import styles from './CameraPreview.module.css';
 
 type FrameCapturedPayload = {
@@ -21,11 +22,13 @@ type CameraPreviewProps = {
   onStreamReady?: (stream: MediaStream) => void;
   onCameraStatus: (status: string, type: 'success' | 'error' | 'warning' | 'inactive') => void;
   onCameraError: (title: string, message: string) => void;
+  onFpsUpdate?: (fps: number) => void;
+  onResolutionUpdate?: (width: number, height: number) => void;
 };
 
 export function CameraPreview({
-  width = 640,
-  height = 480,
+  width,
+  height,
   fps = 15,
   quality = 0.7,
   captureFrames = true,
@@ -35,31 +38,23 @@ export function CameraPreview({
   onStreamReady,
   onCameraStatus,
   onCameraError,
+  onFpsUpdate,
+  onResolutionUpdate,
 }: CameraPreviewProps): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<number | null>(null);
-  const onFrameCapturedRef = useRef(onFrameCaptured);
-  const onStreamReadyRef = useRef(onStreamReady);
-  const onCameraStatusRef = useRef(onCameraStatus);
-  const onCameraErrorRef = useRef(onCameraError);
-
-  useEffect(() => {
-    onFrameCapturedRef.current = onFrameCaptured;
-  }, [onFrameCaptured]);
-
-  useEffect(() => {
-    onCameraStatusRef.current = onCameraStatus;
-  }, [onCameraStatus]);
-
-  useEffect(() => {
-    onStreamReadyRef.current = onStreamReady;
-  }, [onStreamReady]);
-
-  useEffect(() => {
-    onCameraErrorRef.current = onCameraError;
-  }, [onCameraError]);
+  const onFrameCapturedRef = useLatest(onFrameCaptured);
+  const onStreamReadyRef = useLatest(onStreamReady);
+  const onCameraStatusRef = useLatest(onCameraStatus);
+  const onCameraErrorRef = useLatest(onCameraError);
+  const onFpsUpdateRef = useLatest(onFpsUpdate);
+  const onResolutionUpdateRef = useLatest(onResolutionUpdate);
+  const displayFrameTimesRef = useRef<number[]>([]);
+  const lastFpsEmitAtRef = useRef(0);
+  const initialWidthRef = useRef<number | undefined>(width);
+  const initialHeightRef = useRef<number | undefined>(height);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -106,6 +101,16 @@ export function CameraPreview({
       if (!cancelled && isPlayable) {
         video.srcObject = remoteStream;
         void video.play().catch(() => undefined);
+        const measuredWidth = probe.videoWidth || video.videoWidth;
+        const measuredHeight = probe.videoHeight || video.videoHeight;
+        if (measuredWidth > 0 && measuredHeight > 0) {
+          onResolutionUpdateRef.current?.(measuredWidth, measuredHeight);
+        } else {
+          const trackSettings = remoteStream.getVideoTracks()[0]?.getSettings();
+          if ((trackSettings?.width ?? 0) > 0 && (trackSettings?.height ?? 0) > 0) {
+            onResolutionUpdateRef.current?.(trackSettings!.width!, trackSettings!.height!);
+          }
+        }
       }
     };
 
@@ -127,8 +132,14 @@ export function CameraPreview({
           throw new Error('Camera API not available. Use HTTPS.');
         }
 
+        const initialWidth = initialWidthRef.current;
+        const initialHeight = initialHeightRef.current;
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+          video: {
+            facingMode: 'user',
+            ...(typeof initialWidth === 'number' ? { width: { ideal: initialWidth } } : {}),
+            ...(typeof initialHeight === 'number' ? { height: { ideal: initialHeight } } : {}),
+          },
         });
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
@@ -148,9 +159,20 @@ export function CameraPreview({
         });
         await video.play();
         onStreamReadyRef.current?.(stream);
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          onResolutionUpdateRef.current?.(video.videoWidth, video.videoHeight);
+        } else {
+          const trackSettings = stream.getVideoTracks()[0]?.getSettings();
+          onResolutionUpdateRef.current?.(
+            trackSettings?.width ?? initialWidth ?? 0,
+            trackSettings?.height ?? initialHeight ?? 0
+          );
+        }
 
-        canvas.width = width;
-        canvas.height = height;
+        const captureWidth = initialWidth ?? video.videoWidth;
+        const captureHeight = initialHeight ?? video.videoHeight;
+        canvas.width = captureWidth;
+        canvas.height = captureHeight;
         onCameraStatusRef.current('Active', 'success');
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -164,10 +186,12 @@ export function CameraPreview({
               return;
             }
             const timestamp = performance.now();
-            ctx.drawImage(video, 0, 0, width, height);
+            const frameWidth = initialWidth ?? video.videoWidth;
+            const frameHeight = initialHeight ?? video.videoHeight;
+            ctx.drawImage(video, 0, 0, frameWidth, frameHeight);
             const dataUrl = canvas.toDataURL('image/jpeg', quality);
             const base64data = dataUrl.split(',')[1] ?? '';
-            onFrameCapturedRef.current({ base64data, width, height, timestamp });
+            onFrameCapturedRef.current({ base64data, width: frameWidth, height: frameHeight, timestamp });
           }, 1000 / fps);
         }
       } catch (error) {
@@ -193,7 +217,104 @@ export function CameraPreview({
       }
       onCameraStatusRef.current('Inactive', 'inactive');
     };
-  }, [captureFrames, fps, height, quality, width]);
+  }, [captureFrames, fps, quality]);
+
+  useEffect(() => {
+    const stream = streamRef.current;
+    if (!stream) {
+      return;
+    }
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) {
+      return;
+    }
+    const constraints: MediaTrackConstraints = {
+      ...(typeof width === 'number' ? { width: { ideal: width } } : {}),
+      ...(typeof height === 'number' ? { height: { ideal: height } } : {}),
+    };
+    if (Object.keys(constraints).length === 0) {
+      return;
+    }
+    videoTrack
+      .applyConstraints(constraints)
+      .then(() => {
+        const settings = videoTrack.getSettings();
+        if ((settings.width ?? 0) > 0 && (settings.height ?? 0) > 0) {
+          onResolutionUpdateRef.current?.(settings.width!, settings.height!);
+        }
+      })
+      .catch(() => {
+        // applyConstraints can fail if the camera doesn't support the exact size — keep current resolution.
+      });
+  }, [width, height, onResolutionUpdateRef]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    let cancelled = false;
+    let rafId: number | null = null;
+
+    const emitFps = (now: number): void => {
+      const frameTimes = displayFrameTimesRef.current;
+      frameTimes.push(now);
+      const cutoff = now - 1000;
+      while (frameTimes.length > 0 && frameTimes[0] < cutoff) {
+        frameTimes.shift();
+      }
+
+      const lastEmitAt = lastFpsEmitAtRef.current;
+      if (now - lastEmitAt < 200 || frameTimes.length < 2) {
+        return;
+      }
+      const durationMs = Math.max(1, frameTimes[frameTimes.length - 1] - frameTimes[0]);
+      const currentFps = ((frameTimes.length - 1) * 1000) / durationMs;
+      lastFpsEmitAtRef.current = now;
+      onFpsUpdateRef.current?.(currentFps);
+    };
+
+    const scheduleRafLoop = (): void => {
+      let lastVideoTime = -1;
+      const tick = (): void => {
+        if (cancelled) {
+          return;
+        }
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.currentTime !== lastVideoTime) {
+          lastVideoTime = video.currentTime;
+          emitFps(performance.now());
+        }
+        rafId = window.requestAnimationFrame(tick);
+      };
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+      const withVideoFrames = video as HTMLVideoElement & {
+        requestVideoFrameCallback: (callback: (now: DOMHighResTimeStamp) => void) => number;
+      };
+      const onVideoFrame = (now: DOMHighResTimeStamp): void => {
+        if (cancelled) {
+          return;
+        }
+        emitFps(now);
+        withVideoFrames.requestVideoFrameCallback(onVideoFrame);
+      };
+      withVideoFrames.requestVideoFrameCallback(onVideoFrame);
+    } else {
+      scheduleRafLoop();
+    }
+
+    return () => {
+      cancelled = true;
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      displayFrameTimesRef.current = [];
+      lastFpsEmitAtRef.current = 0;
+    };
+  }, []);
 
   return (
     <>

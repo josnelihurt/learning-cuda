@@ -816,6 +816,31 @@ export class WebRTCService implements IWebRTCService {
     return this.peerConnections.get(sessionId) ?? null;
   }
 
+  async replaceLocalVideoTrack(sessionId: string, track: MediaStreamTrack | null): Promise<boolean> {
+    const peerConnection = this.peerConnections.get(sessionId);
+    if (!peerConnection) {
+      logger.warn(`[WebRTC:${sessionId}] replaceLocalVideoTrack: no peer connection`);
+      return false;
+    }
+    const sender = peerConnection.getSenders().find((s) => s.track?.kind === 'video' || (!s.track && track?.kind === 'video'));
+    if (!sender) {
+      logger.warn(`[WebRTC:${sessionId}] replaceLocalVideoTrack: no video sender`);
+      return false;
+    }
+    try {
+      await sender.replaceTrack(track);
+      logger.info(`[WebRTC:${sessionId}] Replaced local video track`, {
+        'webrtc.has_track': String(track !== null),
+      });
+      return true;
+    } catch (error) {
+      logger.error(`[WebRTC:${sessionId}] Failed to replace local video track`, {
+        'error.message': error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
   async waitForTransportReady(sessionId: string, timeoutMs = 10_000): Promise<RTCDataChannel> {
     const started = Date.now();
     await this.waitForDataChannelOpen(sessionId, timeoutMs);

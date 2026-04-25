@@ -40,6 +40,20 @@ function gridSourceReducer(state: GridSource[], action: GridSourceAction): GridS
             }
           : s
       );
+    case GridSourceActionType.SET_SOURCE_FPS:
+      return state.map((s) =>
+        s.id === action.payload.sourceId ? { ...s, fps: action.payload.fps } : s
+      );
+    case GridSourceActionType.SET_SOURCE_RESOLUTION:
+      return state.map((s) =>
+        s.id === action.payload.sourceId
+          ? {
+              ...s,
+              displayWidth: action.payload.width,
+              displayHeight: action.payload.height,
+            }
+          : s
+      );
     case GridSourceActionType.SYNC_FILTERS:
       return state.map((s) =>
         s.id === action.payload.sourceId

@@ -51,8 +51,7 @@ BL=("${ROOT}/scripts/docker/build-local.sh"
     --arch "${ARCH}")
 
 chmod +x "${ROOT}/scripts/docker/build-local.sh" \
-         "${ROOT}/scripts/docker/pull-ghcr-cpp-intermediates.sh" \
-         "${ROOT}/scripts/docker/push-tagged-images.sh"
+         "${ROOT}/scripts/docker/pull-ghcr-cpp-intermediates.sh"
 
 echo "=== arm-build.sh: MODE=${MODE} ARCH=${ARCH}"
 echo "    BUILD_PROTO=${BUILD_PROTO} BUILD_BAZEL_BASE=${BUILD_BAZEL_BASE} BUILD_CPP_DEPS=${BUILD_CPP_DEPS}"
@@ -92,13 +91,53 @@ if [[ "${MODE}" == "pr" ]]; then
 fi
 
 # 4. Push mode: build the runtime image (just COPYs from cpp-builder) and push
-#    everything tagged under our prefix. push-tagged-images.sh bulk-pushes any
-#    locally tagged image, so newly built intermediates land on GHCR with both
-#    versioned and latest-${ARCH} tags. Pulled images get re-pushed too, which
-#    is a content-identical no-op.
+#    only the images we actually want to publish. We avoid push-tagged-images.sh
+#    here because its bulk-push would also publish cpp-builder and re-publish
+#    pulled intermediates — both wasteful.
 "${BL[@]}" --stage cpp-accelerator
 
-LATEST_ALIASES="cpp-accelerator" \
-  "${ROOT}/scripts/docker/push-tagged-images.sh"
+read_version() {
+  local path="$1"
+  if [[ ! -f "${ROOT}/${path}" ]]; then
+    echo "Version file '${path}' not found" >&2; exit 1
+  fi
+  tr -d '[:space:]' < "${ROOT}/${path}"
+}
+
+IMAGE_BASE="${REGISTRY}/${BASE_IMAGE_PREFIX}"
+
+push_ref() {
+  local ref="$1"
+  if ! docker image inspect "${ref}" >/dev/null 2>&1; then
+    echo "ERROR: expected image ${ref} not present locally" >&2
+    exit 1
+  fi
+  echo "Pushing ${ref}..."
+  docker push "${ref}"
+}
+
+# Always: cpp-accelerator runtime image (versioned + latest alias).
+proto_version="$(read_version proto/VERSION)"
+cpp_version="$(read_version src/cpp_accelerator/VERSION)"
+push_ref "${IMAGE_BASE}/cpp-accelerator:cpp-accelerator-${cpp_version}-proto${proto_version}-${ARCH}"
+push_ref "${IMAGE_BASE}/cpp-accelerator:latest-${ARCH}"
+
+# Conditionally: intermediates we just rebuilt. Pulled images are NOT re-pushed.
+if [[ "${BUILD_PROTO}" == "1" ]]; then
+  push_ref "${IMAGE_BASE}/intermediate:proto-generated-${proto_version}-${ARCH}"
+  push_ref "${IMAGE_BASE}/intermediate:proto-generated-latest-${ARCH}"
+fi
+
+if [[ "${BUILD_BAZEL_BASE}" == "1" ]]; then
+  bazel_base_version="$(read_version src/cpp_accelerator/docker-build-base/VERSION)"
+  push_ref "${IMAGE_BASE}/base:bazel-base-${bazel_base_version}-${ARCH}"
+  push_ref "${IMAGE_BASE}/base:bazel-base-latest-${ARCH}"
+fi
+
+if [[ "${BUILD_CPP_DEPS}" == "1" || "${BUILD_BAZEL_BASE}" == "1" ]]; then
+  deps_version="$(read_version src/cpp_accelerator/docker-cpp-dependencies/VERSION)"
+  push_ref "${IMAGE_BASE}/intermediate:cpp-dependencies-${deps_version}-${ARCH}"
+  push_ref "${IMAGE_BASE}/intermediate:cpp-dependencies-latest-${ARCH}"
+fi
 
 echo "=== arm-build.sh: push mode complete."

@@ -89,15 +89,6 @@ FROM ${CUDA_RUNTIME_REGISTRY}/base:cuda-runtime-${CUDA_RUNTIME_VERSION}-${TARGET
 
 ARG ENABLE_TENSORRT=false
 
-# Install TensorRT runtime libraries when ENABLE_TENSORRT=true
-# Required for YOLO inference with the TRT-enabled binary (built with --config=trt)
-RUN if [ "$ENABLE_TENSORRT" = "true" ]; then \
-        apt-get update && apt-get install -y --no-install-recommends \
-            libnvinfer10 \
-            libnvonnxparsers10 \
-        && rm -rf /var/lib/apt/lists/*; \
-    fi
-
 WORKDIR /opt/cuda/grpc
 
 COPY --from=cpp-builder /artifacts/bin/accelerator_control_client ./bin/accelerator_control_client

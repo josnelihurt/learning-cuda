@@ -50,11 +50,23 @@ export function VideoGridHost(): React.ReactNode {
   const { fps, time, frames, cameraStatus, cameraStatusType, statsManager } = useProcessingStats();
   const { sources, selectedSourceId, sourcesRef, selectedSourceIdRef, nextNumberRef, dispatch, setSelectedSource: setSelectedSourceId, removeSource } =
     useGridSources();
-  const { createCameraSession, sendCameraControlRequest } = useCameraTransport({
+  const { createCameraSession, replaceCameraStream, sendCameraControlRequest } = useCameraTransport({
     dispatch,
     sourcesRef,
     toastManager,
   });
+
+  const onCameraStreamReady = useCallback(
+    (sourceId: string, stream: MediaStream): void => {
+      const source = sourcesRef.current.find((item) => item.id === sourceId);
+      if (source?.sessionId) {
+        void replaceCameraStream(sourceId, stream);
+      } else {
+        void createCameraSession(sourceId, stream);
+      }
+    },
+    [createCameraSession, replaceCameraStream, sourcesRef]
+  );
 
   const activeFiltersRef = useLatest(activeFilters);
   const selectedResolutionRef = useLatest(selectedResolution);
@@ -273,7 +285,7 @@ export function VideoGridHost(): React.ReactNode {
             selectedAcceleratorRef.current
           );
         }}
-        onCameraStreamReady={createCameraSession}
+        onCameraStreamReady={onCameraStreamReady}
         onCameraStatus={(status, type) => statsManager.updateCameraStatus(status, type)}
         onCameraError={(title, message) => toastManager.error(title, message)}
         onSourceFpsUpdate={(sourceId, fps) => {

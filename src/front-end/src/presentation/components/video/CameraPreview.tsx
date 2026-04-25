@@ -53,6 +53,8 @@ export function CameraPreview({
   const onResolutionUpdateRef = useLatest(onResolutionUpdate);
   const displayFrameTimesRef = useRef<number[]>([]);
   const lastFpsEmitAtRef = useRef(0);
+  const initialWidthRef = useRef<number | undefined>(width);
+  const initialHeightRef = useRef<number | undefined>(height);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -130,11 +132,13 @@ export function CameraPreview({
           throw new Error('Camera API not available. Use HTTPS.');
         }
 
+        const initialWidth = initialWidthRef.current;
+        const initialHeight = initialHeightRef.current;
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: 'user',
-            ...(typeof width === 'number' ? { width: { ideal: width } } : {}),
-            ...(typeof height === 'number' ? { height: { ideal: height } } : {}),
+            ...(typeof initialWidth === 'number' ? { width: { ideal: initialWidth } } : {}),
+            ...(typeof initialHeight === 'number' ? { height: { ideal: initialHeight } } : {}),
           },
         });
         if (cancelled) {
@@ -160,13 +164,13 @@ export function CameraPreview({
         } else {
           const trackSettings = stream.getVideoTracks()[0]?.getSettings();
           onResolutionUpdateRef.current?.(
-            trackSettings?.width ?? width ?? 0,
-            trackSettings?.height ?? height ?? 0
+            trackSettings?.width ?? initialWidth ?? 0,
+            trackSettings?.height ?? initialHeight ?? 0
           );
         }
 
-        const captureWidth = width ?? video.videoWidth;
-        const captureHeight = height ?? video.videoHeight;
+        const captureWidth = initialWidth ?? video.videoWidth;
+        const captureHeight = initialHeight ?? video.videoHeight;
         canvas.width = captureWidth;
         canvas.height = captureHeight;
         onCameraStatusRef.current('Active', 'success');
@@ -182,8 +186,8 @@ export function CameraPreview({
               return;
             }
             const timestamp = performance.now();
-            const frameWidth = width ?? video.videoWidth;
-            const frameHeight = height ?? video.videoHeight;
+            const frameWidth = initialWidth ?? video.videoWidth;
+            const frameHeight = initialHeight ?? video.videoHeight;
             ctx.drawImage(video, 0, 0, frameWidth, frameHeight);
             const dataUrl = canvas.toDataURL('image/jpeg', quality);
             const base64data = dataUrl.split(',')[1] ?? '';
@@ -213,7 +217,36 @@ export function CameraPreview({
       }
       onCameraStatusRef.current('Inactive', 'inactive');
     };
-  }, [captureFrames, fps, height, quality, width]);
+  }, [captureFrames, fps, quality]);
+
+  useEffect(() => {
+    const stream = streamRef.current;
+    if (!stream) {
+      return;
+    }
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) {
+      return;
+    }
+    const constraints: MediaTrackConstraints = {
+      ...(typeof width === 'number' ? { width: { ideal: width } } : {}),
+      ...(typeof height === 'number' ? { height: { ideal: height } } : {}),
+    };
+    if (Object.keys(constraints).length === 0) {
+      return;
+    }
+    videoTrack
+      .applyConstraints(constraints)
+      .then(() => {
+        const settings = videoTrack.getSettings();
+        if ((settings.width ?? 0) > 0 && (settings.height ?? 0) > 0) {
+          onResolutionUpdateRef.current?.(settings.width!, settings.height!);
+        }
+      })
+      .catch(() => {
+        // applyConstraints can fail if the camera doesn't support the exact size — keep current resolution.
+      });
+  }, [width, height, onResolutionUpdateRef]);
 
   useEffect(() => {
     const video = videoRef.current;

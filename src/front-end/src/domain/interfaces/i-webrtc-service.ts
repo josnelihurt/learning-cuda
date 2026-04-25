@@ -19,6 +19,7 @@ export interface IWebRTCService {
   createSession(sourceId: string, options?: CreateWebRTCSessionOptions): Promise<WebRTCSession>;
   getDataChannel(sessionId: string): RTCDataChannel | null;
   getPeerConnection(sessionId: string): RTCPeerConnection | null;
+  replaceLocalVideoTrack(sessionId: string, track: MediaStreamTrack | null): Promise<boolean>;
   waitForTransportReady(sessionId: string, timeoutMs?: number): Promise<RTCDataChannel>;
   sendControlRequest(sessionId: string, request: ProcessImageRequest): void;
   closeSession(sessionId: string): Promise<void>;

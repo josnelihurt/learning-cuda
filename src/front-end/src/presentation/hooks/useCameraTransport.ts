@@ -45,6 +45,7 @@ type CameraTransportOptions = {
 
 type CameraTransportResult = {
   createCameraSession: (sourceId: string, stream: MediaStream) => Promise<void>;
+  replaceCameraStream: (sourceId: string, stream: MediaStream) => Promise<void>;
   sendCameraControlRequest: (
     sessionId: string,
     sourceId: string,
@@ -180,5 +181,29 @@ export function useCameraTransport({
     [dispatch, sendCameraControlRequest, sourcesRef, toastManager]
   );
 
-  return { createCameraSession, sendCameraControlRequest };
+  const replaceCameraStream = useCallback(
+    async (sourceId: string, stream: MediaStream): Promise<void> => {
+      const source = sourcesRef.current.find((item) => item.id === sourceId);
+      if (!source?.sessionId) {
+        return;
+      }
+      const videoTrack = stream.getVideoTracks()[0] ?? null;
+      if (!videoTrack) {
+        logger.warn('replaceCameraStream: stream has no video track', {
+          'source.id': sourceId,
+        });
+        return;
+      }
+      const ok = await webrtcService.replaceLocalVideoTrack(source.sessionId, videoTrack);
+      if (!ok) {
+        logger.error('replaceCameraStream: failed to replace track', {
+          'source.id': sourceId,
+          'session.id': source.sessionId,
+        });
+      }
+    },
+    [sourcesRef]
+  );
+
+  return { createCameraSession, replaceCameraStream, sendCameraControlRequest };
 }

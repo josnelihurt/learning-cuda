@@ -9,6 +9,19 @@ config_setting(
     ],
 )
 
+# CUDA memory pool for reusing GPU buffers between frames
+cuda_library(
+    name = "cuda_memory_pool",
+    srcs = ["cuda_memory_pool.cpp"],
+    hdrs = ["cuda_memory_pool.h"],
+    copts = [
+        "--expt-relaxed-constexpr",
+        "-Xcompiler=-Wno-error",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
 # Pure CUDA kernels without spdlog dependencies
 cuda_library(
     name = "cuda_kernels",
@@ -27,7 +40,9 @@ cuda_library(
         "-Xcompiler=-Wno-error",
     ],
     visibility = ["//visibility:public"],
-    deps = [],
+    deps = [
+        ":cuda_memory_pool",
+    ],
 )
 
 # C++ wrappers that handle spdlog and telemetry

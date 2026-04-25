@@ -40,6 +40,9 @@ jobs:
       app: ${{ steps.decide.outputs.app }}
       web_frontend: ${{ steps.decide.outputs.web_frontend }}
       yolo_model: ${{ steps.decide.outputs.yolo_model }}
+      app_version_changed: ${{ steps.decide.outputs.app_version_changed }}
+      web_frontend_version_changed: ${{ steps.decide.outputs.web_frontend_version_changed }}
+      deployable: ${{ steps.decide.outputs.deployable }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,6 +63,8 @@ jobs:
               - 'buf.lock'
               - 'buf.gen.yaml'
               - 'buf.gen.backend.yaml'
+            app_version:
+              - 'src/go_api/VERSION'
             web_frontend:
               - 'proto/**'
               - 'src/front-end/**'
@@ -68,6 +73,8 @@ jobs:
               - 'buf.gen.yaml'
               - 'scripts/docker/build-local.sh'
               - 'scripts/docker/push-tagged-images.sh'
+            web_frontend_version:
+              - 'src/front-end/VERSION'
             yolo_model:
               - 'src/cpp_accelerator/yolo-model-gen/Dockerfile'
               - 'src/cpp_accelerator/yolo-model-gen/VERSION'
@@ -80,20 +87,35 @@ jobs:
           FORCE_ALL: ${{ inputs.force_all }}
           LABEL_FORCE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full-build') }}
           FILTER_APP: ${{ steps.filter.outputs.app }}
+          FILTER_APP_VERSION: ${{ steps.filter.outputs.app_version }}
           FILTER_WEB_FRONTEND: ${{ steps.filter.outputs.web_frontend }}
+          FILTER_WEB_FRONTEND_VERSION: ${{ steps.filter.outputs.web_frontend_version }}
           FILTER_YOLO_MODEL: ${{ steps.filter.outputs.yolo_model }}
         run: |
           set -euo pipefail
+          out() { printf '%s\n' "$1" >> "$GITHUB_OUTPUT"; }
+
           if [ "${EVENT_NAME}" = "workflow_dispatch" ] \
              || [ "${FORCE_ALL}" = "true" ] \
              || [ "${LABEL_FORCE}" = "true" ]; then
-            echo "app=true" >> "$GITHUB_OUTPUT"
-            echo "web_frontend=true" >> "$GITHUB_OUTPUT"
-            echo "yolo_model=true" >> "$GITHUB_OUTPUT"
+            out "app=true"
+            out "web_frontend=true"
+            out "yolo_model=true"
+            out "app_version_changed=true"
+            out "web_frontend_version_changed=true"
+            out "deployable=true"
           else
-            echo "app=${FILTER_APP:-false}" >> "$GITHUB_OUTPUT"
-            echo "web_frontend=${FILTER_WEB_FRONTEND:-false}" >> "$GITHUB_OUTPUT"
-            echo "yolo_model=${FILTER_YOLO_MODEL:-false}" >> "$GITHUB_OUTPUT"
+            out "app=${FILTER_APP:-false}"
+            out "web_frontend=${FILTER_WEB_FRONTEND:-false}"
+            out "yolo_model=${FILTER_YOLO_MODEL:-false}"
+            out "app_version_changed=${FILTER_APP_VERSION:-false}"
+            out "web_frontend_version_changed=${FILTER_WEB_FRONTEND_VERSION:-false}"
+            # Deployable if either app or web-frontend VERSION changed
+            if [ "${FILTER_APP_VERSION:-false}" = "true" ] || [ "${FILTER_WEB_FRONTEND_VERSION:-false}" = "true" ]; then
+              out "deployable=true"
+            else
+              out "deployable=false"
+            fi
           fi
 
   build_app:
@@ -311,11 +333,14 @@ jobs:
   deploy_prod:
     name: Deploy production to Cloud VM
     needs:
+      - detect-changes
       - push_app
       - push_web_frontend
       - push_yolo_model
     runs-on: ["self-hosted"]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # Only redeploy when src/go_api/VERSION or src/front-end/VERSION actually bumped.
+    # workflow_dispatch allows manual trigger; push to main requires VERSION change.
+    if: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && needs.detect-changes.outputs.deployable == 'true' }}
     env:
       INFRA_DIRECTORY: /home/jrb/infra
       COMPOSE_DIRECTORY: /home/jrb/infra/services/compose

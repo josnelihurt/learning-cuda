@@ -58,8 +58,9 @@ done <<< "${images_to_push}"
 
 # The bulk loop above can still miss publishing latest-${ARCH} to GHCR (e.g. only the versioned
 # tag was tagged locally, or tooling listed one ref per image). Always publish canonical aliases.
+# Note: app and web-frontend have repair logic that creates latest-${ARCH} from versioned tags.
 echo ""
-echo "Publishing latest-${ARCH} aliases for app, cpp-accelerator, web-frontend..."
+echo "Publishing latest-${ARCH} aliases for LATEST_ALIASES..."
 
 failed_aliases=()
 
@@ -73,22 +74,47 @@ publish_latest_alias() {
     return 0
   fi
 
-  if [[ "${name}" == "web-frontend" ]]; then
-    local versioned
-    versioned="$(printf '%s\n' "${all_local_images}" \
-      | rg "^${IMAGE_PREFIX}/web-frontend:fe-" \
-      | sort -Vr \
-      | head -1 \
-      || true)"
-    if [[ -n "${versioned}" ]]; then
-      echo "Repairing missing ${latest_ref} from ${versioned}"
-      docker tag "${versioned}" "${latest_ref}"
-      docker push "${latest_ref}"
-      return 0
-    fi
+  # Repair logic: create latest-${ARCH} from the highest versioned tag if missing
+  local versioned=""
+  case "${name}" in
+    web-frontend)
+      versioned="$(printf '%s\n' "${all_local_images}" \
+        | rg "^${IMAGE_PREFIX}/web-frontend:fe-" \
+        | sort -Vr \
+        | head -1 \
+        || true)"
+      ;;
+    app)
+      versioned="$(printf '%s\n' "${all_local_images}" \
+        | rg "^${IMAGE_PREFIX}/app:[0-9]+\.[0-9]+\.[0-9]+-${ARCH}" \
+        | sort -Vr \
+        | head -1 \
+        || true)"
+      ;;
+    cpp-accelerator)
+      versioned="$(printf '%s\n' "${all_local_images}" \
+        | rg "^${IMAGE_PREFIX}/cpp-accelerator:cpp-accelerator-[0-9]+\.[0-9]+\.[0-9]+-" \
+        | sort -Vr \
+        | head -1 \
+        || true)"
+      ;;
+    yolo-model-gen)
+      versioned="$(printf '%s\n' "${all_local_images}" \
+        | rg "^${IMAGE_PREFIX}/yolo-model-gen:[0-9]+\.[0-9]+\.[0-9]+-${ARCH}" \
+        | sort -Vr \
+        | head -1 \
+        || true)"
+      ;;
+  esac
+
+  if [[ -n "${versioned}" ]]; then
+    echo "Repairing missing ${latest_ref} from ${versioned}"
+    docker tag "${versioned}" "${latest_ref}"
+    docker push "${latest_ref}"
+    return 0
   fi
 
-  echo "ERROR: could not publish ${latest_ref} (no local image or fe-* tag to repair from)" >&2
+  echo "ERROR: could not publish ${latest_ref} (no local image or versioned tag to repair from)" >&2
   failed_aliases+=("${latest_ref}")
   return 1
 }

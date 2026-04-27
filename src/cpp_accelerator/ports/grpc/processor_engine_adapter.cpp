@@ -6,7 +6,7 @@
 namespace jrb::ports::grpc_service {
 
 ProcessorEngineAdapter::ProcessorEngineAdapter(
-    std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine)
+    std::shared_ptr<jrb::application::engine::ProcessorEngine> engine)
     : engine_(std::move(engine)) {}
 
 bool ProcessorEngineAdapter::ProcessImage(const cuda_learning::ProcessImageRequest& request,

@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/application/engine/processor_engine.h"
 
 #include <algorithm>
 #include <chrono>
@@ -23,7 +23,7 @@
 #include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
-namespace jrb::ports::shared_lib {
+namespace jrb::application::engine {
 
 using jrb::domain::interfaces::GrayscaleAlgorithm;
 
@@ -443,4 +443,4 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
   }
 }
 
-}  // namespace jrb::ports::shared_lib
+}  // namespace jrb::application::engine

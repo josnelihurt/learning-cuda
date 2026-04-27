@@ -26,7 +26,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//proto:image_processor_service_cc_proto",
-        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
+        "//src/cpp_accelerator/application/engine:engine",
         "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
         "@spdlog",
     ],
@@ -53,7 +53,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":processor_engine_contract",
-        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
+        "//src/cpp_accelerator/application/engine:engine",
     ],
 )
 
@@ -66,7 +66,7 @@ cc_library(
         ":data_channel_framing_lib",
         ":live_video_processor_lib",
         "//proto:image_processor_service_cc_proto",
-        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
+        "//src/cpp_accelerator/application/engine:engine",
         "@spdlog",
         "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
     ],
@@ -99,7 +99,7 @@ cc_binary(
         ":webrtc_manager_lib",
         "//src/cpp_accelerator/core:signal_handler",
         "//src/cpp_accelerator/core:version",
-        "//src/cpp_accelerator/ports/shared_lib:processor_engine",
+        "//src/cpp_accelerator/application/engine:engine",
         "//proto:image_processor_service_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@spdlog",

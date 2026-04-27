@@ -1,14 +1,13 @@
-
 cc_library(
-    name = "processor_engine",
+    name = "engine",
     srcs = ["processor_engine.cpp"],
     hdrs = ["processor_engine.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src/cpp_accelerator/core:version",
         "//src/cpp_accelerator/application/pipeline:filter_pipeline",
         "//src/cpp_accelerator/core:logger",
         "//src/cpp_accelerator/core:telemetry",
+        "//src/cpp_accelerator/core:version",
         "//src/cpp_accelerator/domain/interfaces",
         "//src/cpp_accelerator/infrastructure/cpu:blur_filter",
         "//src/cpp_accelerator/infrastructure/cpu:grayscale_filter",
@@ -21,5 +20,3 @@ cc_library(
         "@spdlog",
     ],
 )
-
-

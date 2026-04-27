@@ -2,14 +2,14 @@
 
 #include <memory>
 
+#include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/ports/grpc/processor_engine_provider.h"
-#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 namespace jrb::ports::grpc_service {
 
 class ProcessorEngineAdapter : public ProcessorEngineProvider {
 public:
-  explicit ProcessorEngineAdapter(std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine);
+  explicit ProcessorEngineAdapter(std::shared_ptr<jrb::application::engine::ProcessorEngine> engine);
   ~ProcessorEngineAdapter() override = default;
 
   bool ProcessImage(const cuda_learning::ProcessImageRequest& request,
@@ -19,10 +19,10 @@ public:
 
   bool GetVersionInfo(cuda_learning::GetVersionInfoResponse* response) override;
 
-  std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> underlying() const { return engine_; }
+  std::shared_ptr<jrb::application::engine::ProcessorEngine> underlying() const { return engine_; }
 
 private:
-  std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine_;
+  std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
 };
 
 }  // namespace jrb::ports::grpc_service

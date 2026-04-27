@@ -18,7 +18,7 @@
 #include "src/cpp_accelerator/ports/grpc/data_channel_framing.h"
 #include "src/cpp_accelerator/ports/grpc/live_video_processor.h"
 
-namespace jrb::ports::shared_lib {
+namespace jrb::application::engine {
 class ProcessorEngine;
 }
 
@@ -26,7 +26,7 @@ namespace jrb::ports::grpc_service {
 
 class WebRTCManager : public std::enable_shared_from_this<WebRTCManager> {
 public:
-  explicit WebRTCManager(std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine = nullptr);
+  explicit WebRTCManager(std::shared_ptr<jrb::application::engine::ProcessorEngine> engine = nullptr);
   virtual ~WebRTCManager();
 
   bool Initialize();
@@ -84,7 +84,7 @@ public:
                               const std::shared_ptr<rtc::DataChannel>& data_channel);
   void UnregisterSessionChannel(const std::string& session_id);
 
-  std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine_;
+  std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;
   std::mutex sessions_mutex_;

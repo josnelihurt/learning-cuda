@@ -42,7 +42,7 @@ cuda_learning::GenericFilterParameterType ConvertParamType(const std::string& ty
   return cuda_learning::GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED;
 }
 
-void PopulateGetVersionResponse(jrb::ports::shared_lib::ProcessorEngine* engine,
+void PopulateGetVersionResponse(jrb::application::engine::ProcessorEngine* engine,
                                 cuda_learning::GetVersionInfoResponse* response) {
   if (response == nullptr) return;
   if (engine == nullptr) {
@@ -79,7 +79,7 @@ void PopulateGetVersionResponse(jrb::ports::shared_lib::ProcessorEngine* engine,
   response->set_message("OK");
 }
 
-void PopulateListFiltersResponse(jrb::ports::shared_lib::ProcessorEngine* engine,
+void PopulateListFiltersResponse(jrb::application::engine::ProcessorEngine* engine,
                                  const cuda_learning::ListFiltersRequest& req,
                                  cuda_learning::ListFiltersResponse* resp) {
   resp->set_api_version(req.api_version());
@@ -221,7 +221,7 @@ std::string StripRtpHeaderExtensions(const std::string& sdp) {
 
 }  // namespace
 
-WebRTCManager::WebRTCManager(std::shared_ptr<jrb::ports::shared_lib::ProcessorEngine> engine)
+WebRTCManager::WebRTCManager(std::shared_ptr<jrb::application::engine::ProcessorEngine> engine)
     : engine_(std::move(engine)), initialized_(false), cleanup_running_(false) {
   rtc::InitLogger(rtc::LogLevel::Info);
 }

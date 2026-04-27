@@ -9,12 +9,12 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 
+#include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/core/signal_handler.h"
+#include "src/cpp_accelerator/core/version.h"
 #include "src/cpp_accelerator/ports/grpc/accelerator_control_client.h"
 #include "src/cpp_accelerator/ports/grpc/processor_engine_adapter.h"
 #include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
-#include "src/cpp_accelerator/core/version.h"
-#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 ABSL_FLAG(std::string, control_addr, "localhost:60062",
           "Address of the Go cloud control server (host:port).");
@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
   spdlog::info("CUDA device:  {}", absl::GetFlag(FLAGS_cuda_device_id));
   spdlog::info("========================================");
 
-  auto engine = std::make_shared<jrb::ports::shared_lib::ProcessorEngine>("accelerator-client");
+  auto engine = std::make_shared<jrb::application::engine::ProcessorEngine>("accelerator-client");
 
   cuda_learning::InitRequest init_req;
   init_req.set_cuda_device_id(absl::GetFlag(FLAGS_cuda_device_id));

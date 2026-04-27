@@ -32,6 +32,7 @@ cc_library(
         "//proto:accelerator_control_grpc",
         "//proto:image_processor_service_cc_proto",
         "//proto:common_cc_proto",
+        "//src/cpp_accelerator/ports:i_control_port",
         "@com_github_grpc_grpc//:grpc++",
         "@spdlog",
     ],

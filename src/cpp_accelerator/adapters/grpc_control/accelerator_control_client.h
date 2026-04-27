@@ -16,6 +16,7 @@
 #include "proto/_virtual_imports/accelerator_control_proto/accelerator_control.grpc.pb.h"
 #include "src/cpp_accelerator/adapters/grpc_control/processor_engine_provider.h"
 #include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
+#include "src/cpp_accelerator/ports/control/i_control_port.h"
 
 namespace jrb::adapters::grpc_control {
 
@@ -41,7 +42,7 @@ struct AcceleratorControlClientConfig {
 // server to the local engine and WebRTCManager for the lifetime of the process.
 //
 // Run() blocks until Stop() is called or a fatal error occurs.
-class AcceleratorControlClient {
+class AcceleratorControlClient : public jrb::ports::control::IControlPort {
  public:
   AcceleratorControlClient(AcceleratorControlClientConfig config,
                            std::shared_ptr<ProcessorEngineProvider> engine,

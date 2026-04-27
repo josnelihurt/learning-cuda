@@ -17,6 +17,7 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/memory/cuda_memory_pool.h"
 #include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 #include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
+#include "src/cpp_accelerator/ports/media/i_media_session.h"
 
 namespace jrb::application::engine {
 class ProcessorEngine;
@@ -24,7 +25,8 @@ class ProcessorEngine;
 
 namespace jrb::adapters::webrtc {
 
-class WebRTCManager : public std::enable_shared_from_this<WebRTCManager> {
+class WebRTCManager : public std::enable_shared_from_this<WebRTCManager>,
+                      public jrb::ports::media::IMediaSession {
 public:
   explicit WebRTCManager(std::shared_ptr<jrb::application::engine::ProcessorEngine> engine = nullptr);
   virtual ~WebRTCManager();

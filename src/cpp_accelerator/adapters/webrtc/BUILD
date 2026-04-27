@@ -48,6 +48,7 @@ cc_library(
         "//proto:image_processor_service_cc_proto",
         "//src/cpp_accelerator/application/engine:engine",
         "//src/cpp_accelerator/adapters/compute/cuda/memory:cuda_memory_pool",
+        "//src/cpp_accelerator/ports:i_media_session",
         "@spdlog",
         "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
     ],

@@ -28,11 +28,11 @@ cc_test(
     ],
     deps = [
         ":filter_pipeline",
-        "//src/cpp_accelerator/infrastructure/cpu:blur_filter",
-        "//src/cpp_accelerator/infrastructure/cpu:grayscale_filter",
+        "//src/cpp_accelerator/adapters/compute/cpu:blur_filter",
+        "//src/cpp_accelerator/adapters/compute/cpu:grayscale_filter",
         "//src/cpp_accelerator/domain/interfaces",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",
-        "//src/cpp_accelerator/infrastructure/image:image_adapters",
+        "//src/cpp_accelerator/adapters/image_io:image_adapters",
         "@googletest//:gtest_main",
     ],
 )

@@ -17,3 +17,13 @@ cc_library(
     deps = [":interfaces"],
 )
 
+cc_library(
+    name = "i_yolo_detector",
+    hdrs = ["i_yolo_detector.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//src/cpp_accelerator/domain/models:detection",
+    ],
+)
+

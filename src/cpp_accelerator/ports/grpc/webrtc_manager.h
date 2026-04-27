@@ -14,7 +14,7 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
-#include "src/cpp_accelerator/infrastructure/cuda/cuda_memory_pool.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/memory/cuda_memory_pool.h"
 #include "src/cpp_accelerator/ports/grpc/data_channel_framing.h"
 #include "src/cpp_accelerator/ports/grpc/live_video_processor.h"
 

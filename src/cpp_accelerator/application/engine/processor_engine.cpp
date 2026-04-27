@@ -17,12 +17,12 @@
 #include "src/cpp_accelerator/core/logger.h"
 #include "src/cpp_accelerator/core/telemetry.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "src/cpp_accelerator/infrastructure/cpu/blur_filter.h"
-#include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
-#include "src/cpp_accelerator/infrastructure/cuda/blur_processor.h"
-#include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
-#include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
-#include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
+#include "src/cpp_accelerator/adapters/compute/cpu/blur_filter.h"
+#include "src/cpp_accelerator/adapters/compute/cpu/grayscale_filter.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/filters/blur_processor.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/filters/grayscale_filter.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/tensorrt/model_manager.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/tensorrt/model_registry.h"
 namespace jrb::application::engine {
 
 using jrb::domain::interfaces::GrayscaleAlgorithm;

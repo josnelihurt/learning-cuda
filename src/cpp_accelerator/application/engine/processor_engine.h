@@ -12,7 +12,7 @@
 #pragma GCC diagnostic pop
 
 #include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
-#include "src/cpp_accelerator/infrastructure/cuda/i_yolo_detector.h"
+#include "src/cpp_accelerator/domain/interfaces/i_yolo_detector.h"
 
 namespace jrb::application::engine {
 

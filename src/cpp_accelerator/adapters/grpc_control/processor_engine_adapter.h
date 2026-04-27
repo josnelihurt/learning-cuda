@@ -3,9 +3,9 @@
 #include <memory>
 
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
-#include "src/cpp_accelerator/ports/grpc/processor_engine_provider.h"
+#include "src/cpp_accelerator/adapters/grpc_control/processor_engine_provider.h"
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::grpc_control {
 
 class ProcessorEngineAdapter : public ProcessorEngineProvider {
 public:
@@ -25,4 +25,4 @@ private:
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
 };
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::grpc_control

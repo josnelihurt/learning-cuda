@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/ports/grpc/data_channel_framing.h"
+#include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 
 #include <algorithm>
 #include <cstring>
@@ -7,7 +7,7 @@
 
 #include <spdlog/spdlog.h>
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::webrtc {
 
 namespace {
 
@@ -222,4 +222,4 @@ std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(
   return result;
 }
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::webrtc

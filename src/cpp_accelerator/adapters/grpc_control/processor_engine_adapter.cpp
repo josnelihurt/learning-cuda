@@ -1,9 +1,9 @@
-#include "src/cpp_accelerator/ports/grpc/processor_engine_adapter.h"
+#include "src/cpp_accelerator/adapters/grpc_control/processor_engine_adapter.h"
 
 #include <fstream>
 #include <string>
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::grpc_control {
 
 ProcessorEngineAdapter::ProcessorEngineAdapter(
     std::shared_ptr<jrb::application::engine::ProcessorEngine> engine)
@@ -69,4 +69,4 @@ bool ProcessorEngineAdapter::GetVersionInfo(cuda_learning::GetVersionInfoRespons
   return true;
 }
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::grpc_control

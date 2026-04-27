@@ -14,10 +14,10 @@
 
 #include "proto/_virtual_imports/accelerator_control_proto/accelerator_control.pb.h"
 #include "proto/_virtual_imports/accelerator_control_proto/accelerator_control.grpc.pb.h"
-#include "src/cpp_accelerator/ports/grpc/processor_engine_provider.h"
-#include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
+#include "src/cpp_accelerator/adapters/grpc_control/processor_engine_provider.h"
+#include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::grpc_control {
 
 struct AcceleratorControlClientConfig {
   // Remote address of the Go cloud control server, e.g. "my-server.example.com:60062"
@@ -45,7 +45,7 @@ class AcceleratorControlClient {
  public:
   AcceleratorControlClient(AcceleratorControlClientConfig config,
                            std::shared_ptr<ProcessorEngineProvider> engine,
-                           std::shared_ptr<WebRTCManager> webrtc_manager);
+                           std::shared_ptr<jrb::adapters::webrtc::WebRTCManager> webrtc_manager);
   ~AcceleratorControlClient();
 
   // Blocks, reconnecting on transient failure. Returns when Stop() is called.
@@ -78,7 +78,7 @@ class AcceleratorControlClient {
 
   AcceleratorControlClientConfig config_;
   std::shared_ptr<ProcessorEngineProvider> engine_;
-  std::shared_ptr<WebRTCManager> webrtc_manager_;
+  std::shared_ptr<jrb::adapters::webrtc::WebRTCManager> webrtc_manager_;
 
   std::atomic<bool> stop_requested_{false};
 
@@ -95,4 +95,4 @@ class AcceleratorControlClient {
   std::vector<std::string> active_session_ids_;
 };
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::grpc_control

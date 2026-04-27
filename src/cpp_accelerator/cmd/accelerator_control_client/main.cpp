@@ -12,9 +12,9 @@
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/core/signal_handler.h"
 #include "src/cpp_accelerator/core/version.h"
-#include "src/cpp_accelerator/ports/grpc/accelerator_control_client.h"
-#include "src/cpp_accelerator/ports/grpc/processor_engine_adapter.h"
-#include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
+#include "src/cpp_accelerator/adapters/grpc_control/accelerator_control_client.h"
+#include "src/cpp_accelerator/adapters/grpc_control/processor_engine_adapter.h"
+#include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 
 ABSL_FLAG(std::string, control_addr, "localhost:60062",
           "Address of the Go cloud control server (host:port).");
@@ -54,15 +54,15 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  auto adapter = std::make_shared<jrb::ports::grpc_service::ProcessorEngineAdapter>(engine);
-  auto webrtc_manager = std::make_shared<jrb::ports::grpc_service::WebRTCManager>(engine);
+  auto adapter = std::make_shared<jrb::adapters::grpc_control::ProcessorEngineAdapter>(engine);
+  auto webrtc_manager = std::make_shared<jrb::adapters::webrtc::WebRTCManager>(engine);
   if (!webrtc_manager->Initialize()) {
     spdlog::warn("WebRTCManager failed to initialize — signaling will be unavailable");
   } else {
     spdlog::info("WebRTCManager ready");
   }
 
-  jrb::ports::grpc_service::AcceleratorControlClientConfig cfg;
+  jrb::adapters::grpc_control::AcceleratorControlClientConfig cfg;
   cfg.control_addr = absl::GetFlag(FLAGS_control_addr);
   cfg.device_id = absl::GetFlag(FLAGS_device_id);
   cfg.display_name = absl::GetFlag(FLAGS_display_name);
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
   cfg.ca_cert_file = absl::GetFlag(FLAGS_ca_cert);
   cfg.max_reconnect_delay_s = absl::GetFlag(FLAGS_max_reconnect_delay_s);
 
-  jrb::ports::grpc_service::AcceleratorControlClient client(cfg, adapter, webrtc_manager);
+  jrb::adapters::grpc_control::AcceleratorControlClient client(cfg, adapter, webrtc_manager);
 
   auto& signal_handler = jrb::core::SignalHandler::GetInstance();
   signal_handler.Initialize([&client]() {

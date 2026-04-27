@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::webrtc {
 
 // Envelope constants — must match the TypeScript implementation exactly.
 inline constexpr uint32_t kChunkPayloadMax = 65519;   // 65536 - 17 (header size)
@@ -50,4 +50,4 @@ class ChunkReassembler {
   std::vector<uint32_t> in_flight_order_;  // oldest-first insertion order
 };
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::webrtc

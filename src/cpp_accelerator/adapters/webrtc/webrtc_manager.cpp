@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
+#include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 
 #include <cctype>
 #include <chrono>
@@ -21,9 +21,9 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
-#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/application/engine/processor_engine.h"
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::webrtc {
 
 namespace {
 
@@ -1483,4 +1483,4 @@ void WebRTCManager::UnregisterSessionChannel(const std::string& session_id) {
   session_channels_.erase(session_id);
 }
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::webrtc

@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/ports/grpc/accelerator_control_client.h"
+#include "src/cpp_accelerator/adapters/grpc_control/accelerator_control_client.h"
 
 #include <chrono>
 #include <fstream>
@@ -18,7 +18,7 @@
 #include "proto/_virtual_imports/common_proto/common.pb.h"
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::grpc_control {
 
 namespace {
 
@@ -57,7 +57,7 @@ std::string NewCommandId() {
 AcceleratorControlClient::AcceleratorControlClient(
     AcceleratorControlClientConfig config,
     std::shared_ptr<ProcessorEngineProvider> engine,
-    std::shared_ptr<WebRTCManager> webrtc_manager)
+    std::shared_ptr<jrb::adapters::webrtc::WebRTCManager> webrtc_manager)
     : config_(std::move(config)),
       engine_(std::move(engine)),
       webrtc_manager_(std::move(webrtc_manager)) {}
@@ -385,4 +385,4 @@ cuda_learning::AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage
   return msg;
 }
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::grpc_control

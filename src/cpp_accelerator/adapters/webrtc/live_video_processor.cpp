@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/ports/grpc/live_video_processor.h"
+#include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -20,9 +20,9 @@ extern "C" {
 
 #include <spdlog/spdlog.h>
 
-#include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
+#include "src/cpp_accelerator/application/engine/processor_engine.h"
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::webrtc {
 
 namespace {
 
@@ -91,7 +91,7 @@ bool IsFilterNone(const cuda_learning::FilterType filter) {
 
 }  // namespace
 
-LiveVideoProcessor::LiveVideoProcessor(jrb::ports::shared_lib::ProcessorEngine* engine,
+LiveVideoProcessor::LiveVideoProcessor(jrb::application::engine::ProcessorEngine* engine,
                                        void* cuda_memory_pool)
     : engine_(engine),
       cuda_memory_pool_(cuda_memory_pool),
@@ -812,4 +812,4 @@ bool LiveVideoProcessor::EncodeRgbBuffer(const std::vector<uint8_t>& rgb_buffer,
   }
 }
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::webrtc

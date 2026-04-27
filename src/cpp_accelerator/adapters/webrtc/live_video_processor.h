@@ -9,7 +9,7 @@
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 
-namespace jrb::ports::shared_lib {
+namespace jrb::application::engine {
 class ProcessorEngine;
 }
 
@@ -18,7 +18,7 @@ struct AVFrame;
 struct AVPacket;
 struct SwsContext;
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::webrtc {
 
 struct EncodedAccessUnit {
   rtc::binary data;
@@ -27,7 +27,7 @@ struct EncodedAccessUnit {
 
 class LiveVideoProcessor {
  public:
-  explicit LiveVideoProcessor(jrb::ports::shared_lib::ProcessorEngine* engine,
+  explicit LiveVideoProcessor(jrb::application::engine::ProcessorEngine* engine,
                               void* cuda_memory_pool = nullptr);
   ~LiveVideoProcessor();
 
@@ -62,7 +62,7 @@ class LiveVideoProcessor {
                        std::vector<EncodedAccessUnit>* encoded_units,
                        std::string* error_message);
 
-  jrb::ports::shared_lib::ProcessorEngine* engine_;
+  jrb::application::engine::ProcessorEngine* engine_;
   void* cuda_memory_pool_;
   AVCodecContext* decoder_context_;
   AVCodecContext* encoder_context_;
@@ -80,4 +80,4 @@ class LiveVideoProcessor {
   int64_t next_pts_;
 };
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::webrtc

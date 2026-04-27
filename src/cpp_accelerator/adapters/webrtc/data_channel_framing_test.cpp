@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/ports/grpc/data_channel_framing.h"
+#include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 
 #include <chrono>
 #include <cstddef>
@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace jrb::ports::grpc_service;
+using namespace jrb::adapters::webrtc;
 
 namespace {
 

@@ -7,7 +7,7 @@
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 
-namespace jrb::ports::grpc_service {
+namespace jrb::adapters::grpc_control {
 
 class ProcessorEngineProvider {
 public:
@@ -21,4 +21,4 @@ public:
   virtual bool GetVersionInfo(cuda_learning::GetVersionInfoResponse* response) = 0;
 };
 
-}  // namespace jrb::ports::grpc_service
+}  // namespace jrb::adapters::grpc_control

@@ -1,12 +1,3 @@
-cc_library(
-    name = "image_buffer_adapter",
-    srcs = ["image_buffer_adapter.cpp"],
-    hdrs = ["image_buffer_adapter.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//src/cpp_accelerator/domain/interfaces",
-    ],
-)
 
 cc_library(
     name = "processor_api",
@@ -67,23 +58,4 @@ cc_library(
     ],
 )
 
-cc_binary(
-    name = "libcuda_processor.so",
-    srcs = [
-        "cuda_processor_impl.cpp",
-        "processor_api.h",
-    ],
-    linkshared = True,
-    visibility = ["//visibility:public"],
-    deps = [
-        ":image_buffer_adapter",
-        ":library_version",
-        ":processor_engine",
-        "//src/cpp_accelerator/core:logger",
-        "//src/cpp_accelerator/core:telemetry",
-        "//proto:common_cc_proto",
-        "//proto:image_processor_service_cc_proto",
-        "@spdlog",
-    ],
-)
 

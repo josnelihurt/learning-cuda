@@ -24,7 +24,6 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,30 +40,6 @@ extern "C" {
  * Used for compile-time version checks
  */
 #define PROCESSOR_API_VERNUM 0x020100
-
-/**
- * @brief Version information structure
- */
-typedef struct {
-  int major; /**< Major version number (breaking changes) */
-  int minor; /**< Minor version number (backward-compatible features) */
-  int patch; /**< Patch version number (backward-compatible fixes) */
-} processor_version_t;
-
-/**
- * @brief Get the API version of the loaded library
- *
- * This function retrieves the version information from the library at runtime.
- * Use this to verify compatibility between the loader and the loaded library.
- * The version follows semantic versioning: major version must match for compatibility.
- *
- * @return Version structure populated with major, minor, and patch numbers
- *
- * @note This function is always safe to call and never fails.
- * @see PROCESSOR_API_VERSION for compile-time version string
- * @see PROCESSOR_API_VERNUM for compile-time version number
- */
-processor_version_t processor_api_version(void);
 
 #ifdef __cplusplus
 }

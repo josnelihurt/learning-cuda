@@ -6,9 +6,9 @@ High-performance image processing library implementing Clean Architecture princi
 
 The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters using CUDA kernels. The architecture follows Clean Architecture patterns with clear separation between domain logic, application use cases, infrastructure implementations, and external adapters.
 
-**Version**: See `VERSION` file (currently 4.0.1)
+**Version**: See `VERSION` file (currently 4.0.2)
 
-**Note**: The library version (4.0.1) is separate from the C API version (2.1.0 defined in `processor_api.h`). The API version indicates the C interface contract, while the library version tracks overall library releases.
+**Note**: The library version (4.0.2) is separate from the C API version (2.1.0 defined in `processor_api.h`). The API version indicates the C interface contract, while the library version tracks overall library releases.
 
 **Features**:
 - GPU acceleration via CUDA kernels with CPU fallback
@@ -26,7 +26,7 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 
 ### Component Overview
 
-The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream for all communication. All processing requests are received from the Go server through the AcceleratorControlService protocol, which converges at the `ProcessorEngine` to orchestrate image processing through the filter pipeline.
+The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream used exclusively for registration, WebRTC signaling, and keepalives. All image processing occurs over **WebRTC peer connections** established through that signaling. The Go server negotiates WebRTC sessions; once connected, video frames flow over RTP media tracks while still-image processing, detection results, and control requests flow over dedicated data channels. All processing converges at the `ProcessorEngine` which orchestrates image processing through the filter pipeline.
 
 ```mermaid
 graph TB
@@ -37,8 +37,14 @@ graph TB
 
     subgraph "Accelerator Control Client (C++)"
         AccelClient[AcceleratorControlClient<br/>Outbound mTLS]
+        BidiStream[Bidi Stream<br/>Signaling + Keepalive]
+    end
+
+    subgraph "WebRTC Sessions"
         WebRTCMgr[WebRTCManager]
-        BidiStream[Bidi Stream<br/>Multiplexed Messages]
+        LiveVP[LiveVideoProcessor<br/>H264 decode/encode]
+        DataChannels[Data Channels<br/>control / detections / stats]
+        MediaTracks[Media Tracks<br/>inbound/outbound H264 RTP]
     end
 
     subgraph "C++ Core Processing"
@@ -61,10 +67,14 @@ graph TB
 
     GoServer --> Registry
 
-    AccelClient -->|mTLS bidi| GoServer
+    AccelClient -->|mTLS signaling| GoServer
     AccelClient --> BidiStream
     AccelClient --> WebRTCMgr
-    AccelClient --> ProcessorEngine
+
+    WebRTCMgr --> LiveVP
+    WebRTCMgr --> DataChannels
+    WebRTCMgr --> MediaTracks
+    LiveVP --> ProcessorEngine
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -171,49 +181,99 @@ sequenceDiagram
 
     loop Reconnect with backoff
         Client->>Client: Read/Dispatch loop
-        Note over Client: ProcessImage, ListFilters,<br/>GetVersionInfo, SignalingMessage
+        Note over Client: SignalingMessage, Keepalive
     end
 ```
 
-### Processing Flow
+### Processing Flows
+
+The gRPC bidi stream carries only **signaling** and **keepalive** messages. All image processing flows through WebRTC peer connections after session establishment.
+
+#### Live Video Processing (WebRTC Media Track)
+
+The primary path for real-time video. Go sends H.264 video via RTP; C++ decodes, processes, re-encodes, and sends processed video back on an outbound track.
 
 ```mermaid
 sequenceDiagram
-    participant GoServer as Go Server<br/>AcceleratorControlService
+    participant Browser as Browser (via Go)
+    participant Go as Go Server
     participant Client as AcceleratorControlClient
-    participant Provider as ProcessorEngineProvider
+    participant WRTC as WebRTCManager
+    participant LVP as LiveVideoProcessor
     participant Engine as ProcessorEngine
-    participant Pipeline as FilterPipeline
     participant Filter as Filter (CUDA/CPU)
 
-    GoServer->>Client: ProcessImageRequest (via bidi stream)
-    Client->>Client: Extract command_id, payload
+    Note over Go,Client: 1. Signaling via gRPC bidi stream
+    Go->>Client: SignalingMessage(StartSession, SDP offer)
+    Client->>WRTC: CreateSession(session_id, sdp_offer)
+    WRTC-->>Client: SDP answer + ICE candidates
+    Client->>Go: SignalingMessage(SDP answer + local candidates)
+    Go->>Client: SignalingMessage(remote ICE candidates)
+    Client->>WRTC: HandleRemoteCandidate(...)
+    Note over Browser,WRTC: WebRTC peer connection established
 
-    Client->>Provider: ProcessImage(request, response)
-    Provider->>Engine: ProcessImage(request, response)
+    Note over Browser,WRTC: 2. Video frames via RTP (not gRPC)
+    Browser->>WRTC: H.264 RTP video frames (inbound track)
+    WRTC->>LVP: ProcessAccessUnit(H264 AU)
+    LVP->>LVP: FFmpeg decode → RGB
+    LVP->>Engine: ProcessImage(RGB request)
+    Engine->>Filter: Apply filters (CUDA/CPU)
+    Filter-->>Engine: Processed image
+    Engine-->>LVP: ProcessImageResponse
+    LVP->>LVP: RGB → FFmpeg encode → H.264 NALUs
+    WRTC->>WRTC: Send framed detections on "detections" data channel
+    WRTC->>WRTC: Send ProcessingStatsFrame on "cpp-processor-stats" channel
+    WRTC->>Browser: H.264 RTP processed video (outbound track)
+```
 
-    Engine->>Engine: Parse ProcessImageRequest
-    Note over Engine: Extract filters, accelerator, image data
+#### Still Image Processing (WebRTC Data Channel)
 
-    Engine->>Pipeline: Create FilterPipeline
-    Engine->>Pipeline: Add filters based on request
+For individual frame processing requests sent as protobuf over the default data channel.
 
-    alt GPU Accelerator
-        Pipeline->>Filter: Apply CUDA filters
-        Filter->>Filter: CUDA kernel processing
-        Filter-->>Pipeline: Success
-    else CPU Accelerator
-        Pipeline->>Filter: Apply CPU filters
-        Filter->>Filter: Sequential processing
-        Filter-->>Pipeline: Success
+```mermaid
+sequenceDiagram
+    participant Peer as Remote Peer (via Go)
+    participant WRTC as WebRTCManager
+    participant Engine as ProcessorEngine
+    participant Filter as Filter (CUDA/CPU)
+
+    Peer->>WRTC: ProcessImageRequest (framed binary on data channel)
+    WRTC->>WRTC: Reassemble chunks via ChunkReassembler
+    WRTC->>WRTC: Parse ProcessImageRequest protobuf
+
+    alt Control update (no image data)
+        WRTC->>WRTC: UpdateFilterState on LiveVideoProcessor
+    else Full image
+        WRTC->>Engine: ProcessImage(request, response)
+        Engine->>Filter: Apply filters (CUDA/CPU)
+        Filter-->>Engine: Processed image
+        Engine-->>WRTC: ProcessImageResponse
+        WRTC->>Peer: ProcessImageResponse (framed binary on data channel)
+        WRTC->>Peer: ProcessingStatsFrame (on "cpp-processor-stats" channel)
+        opt Detections found
+            WRTC->>Peer: DetectionFrame (on "detections" channel)
+        end
     end
+```
 
-    Pipeline-->>Engine: Processed image data
-    Engine->>Engine: Build ProcessImageResponse
-    Engine-->>Provider: response populated
-    Provider-->>Client: response populated
-    Client->>Client: Wrap in AcceleratorMessage with command_id
-    Client-->>GoServer: ProcessImageResponse (via bidi stream)
+#### Control Requests (WebRTC Data Channel)
+
+Filter discovery and version queries are handled on a dedicated "control" data channel.
+
+```mermaid
+sequenceDiagram
+    participant Peer as Remote Peer (via Go)
+    participant WRTC as WebRTCManager
+    participant Engine as ProcessorEngine
+
+    Peer->>WRTC: ControlRequest(kListFilters) on "control" channel
+    WRTC->>Engine: GetCapabilities()
+    Engine-->>WRTC: filter definitions
+    WRTC->>Peer: ControlResponse(ListFiltersResponse)
+
+    Peer->>WRTC: ControlRequest(kGetVersion) on "control" channel
+    WRTC->>WRTC: Read VERSION file + engine capabilities
+    WRTC->>Peer: ControlResponse(GetVersionInfoResponse)
 ```
 
 ## Directory Structure
@@ -278,8 +338,6 @@ cpp_accelerator/
 │   └── shared_lib/             # Shared library exports (C API)
 │       ├── processor_api.h                    # C API header
 │       ├── processor_engine.h/cpp             # Processor engine shared lib wrapper
-│       ├── cuda_processor_impl.cpp            # C API implementation
-│       ├── image_buffer_adapter.h/cpp         # Image buffer adapter
 │       ├── library_version.h                  # Library version constants
 │       └── blur_e2e_test.cpp                  # End-to-end blur test
 ├── core/                       # Core utilities
@@ -321,32 +379,28 @@ cpp_accelerator/
 
 The library provides an outbound gRPC client (`AcceleratorControlClient`) that connects to a Go cloud server via mTLS. The client implements the `AcceleratorControlService` protocol buffer interface with a single multiplexed bidirectional stream.
 
-**Multiplexed Message Types**:
+**Multiplexed Message Types** (gRPC bidi stream):
 
-The client sends and receives messages through the `AcceleratorMessage` envelope with `oneof payload`:
+The client sends and receives messages through the `AcceleratorMessage` envelope with `oneof payload`. The gRPC stream carries only signaling and registration; actual processing uses WebRTC.
 
 - **Register** (C++ → Go): First message sent on connection
-  - Contains `device_id`, `display_name`, `version`, `capabilities`, `labels`
+  - Contains `device_id`, `display_name`, `accelerator_version`, `capabilities`
   - Go server responds with `RegisterAck` (accepted/rejected, assigned `session_id`)
 
-- **ProcessImageRequest** (Go → C++): Image processing command
-  - Contains image data, filter configuration, accelerator selection
-  - Client responds with `ProcessImageResponse` with processed image data
-
-- **ListFiltersRequest** (Go → C++): Capability discovery
-  - Client responds with `ListFiltersResponse` containing filter definitions
-
-- **GetVersionInfoRequest** (Go → C++): Version query
-  - Client responds with `GetVersionInfoResponse` with library version details
-
-- **SignalingMessage** (bidirectional): WebRTC signaling
-  - SDP offers/answers, ICE candidates tunneled through the bidi stream
+- **SignalingMessage** (bidirectional): WebRTC session negotiation
+  - `StartSession`: Go sends SDP offer, C++ responds with SDP answer
+  - `IceCandidate`: Bidirectional ICE candidate exchange
+  - `CloseSession`: Session teardown
 
 - **Keepalive** (bidirectional): Liveness check
   - No reply expected; used to detect dead connections
 
-- **ErrorReport** (bidirectional): Error signaling
-  - Optional `fatal` flag indicates connection should close
+**WebRTC Data Channel Message Types** (after peer connection established):
+
+- **ProcessImageRequest**: Image processing and live filter control updates (default data channel)
+- **ControlRequest**: `ListFilters` and `GetVersion` queries ("control" data channel)
+- **DetectionFrame**: Detection results from YOLO inference ("detections" data channel)
+- **ProcessingStatsFrame**: Per-frame timing metrics ("cpp-processor-stats" data channel)
 
 **Architecture**:
 
@@ -361,21 +415,32 @@ Each message carries a `command_id` (UUID v7) for request/response correlation a
 
 ### WebRTC Real-time Video Processing
 
-The library provides WebRTC-based real-time video streaming capabilities through WebRTCManager. WebRTC signaling messages are tunneled through the AcceleratorControlClient's multiplexed bidi stream.
+The library provides WebRTC-based real-time video streaming capabilities through WebRTCManager. WebRTC signaling messages are tunneled through the AcceleratorControlClient's gRPC bidi stream; after session establishment, all data flows over the peer connection.
 
 **Components**:
 
-- **WebRTCManager** (`ports/grpc/webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, and session lifecycle
-- **DataChannelFraming** (`ports/grpc/data_channel_framing.h/cpp`): Binary framing protocol for structured data transport over WebRTC data channels
-- **LiveVideoProcessor** (`ports/grpc/live_video_processor.h/cpp`): Real-time video frame processing pipeline integrating with WebRTC data channels
+- **WebRTCManager** (`ports/grpc/webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, session lifecycle, and per-session CUDA memory pools
+- **LiveVideoProcessor** (`ports/grpc/live_video_processor.h/cpp`): Real-time video frame processing pipeline — FFmpeg H.264 decode → RGB → ProcessorEngine → RGB → FFmpeg H.264 encode
+- **DataChannelFraming** (`ports/grpc/data_channel_framing.h/cpp`): Binary chunking/reassembly protocol for large protobuf messages over SCTP data channels
+
+**WebRTC Channels per Session**:
+
+| Channel | Direction | Purpose |
+|---|---|---|
+| Inbound video track | Peer → C++ | H.264 RTP live camera frames |
+| Outbound video track | C++ → Peer | H.264 RTP processed video |
+| Default data channel | Bidirectional | `ProcessImageRequest`/`Response` for still images + live filter state updates |
+| `control` | Bidirectional | `ListFilters`, `GetVersion` queries |
+| `detections` | C++ → Peer | `DetectionFrame` with YOLO bounding boxes |
+| `cpp-processor-stats` | C++ → Peer | `ProcessingStatsFrame` with per-frame timing metrics |
 
 **Signaling Flow**:
 
-1. Go server sends `SignalingMessage` to C++ client via the bidi stream
-2. AcceleratorControlClient dispatches signaling to WebRTCManager
-3. WebRTCManager processes SDP offers/answers and ICE candidates
-4. C++ client responds with `SignalingMessage` via the bidi stream
-5. Direct WebRTC data channel established for video frame transport
+1. Go server sends `SignalingMessage(StartSession)` with SDP offer via gRPC bidi stream
+2. AcceleratorControlClient dispatches to WebRTCManager
+3. WebRTCManager creates PeerConnection, sets up track/channel handlers, generates SDP answer
+4. ICE candidates exchanged via `SignalingMessage(IceCandidate)` through the bidi stream
+5. Direct WebRTC peer connection established — all subsequent data flows over RTP/data channels
 
 ### YOLO Object Detection
 
@@ -400,11 +465,11 @@ The `BufferPool` class provides efficient memory management for image processing
 
 ### Processor Engine
 
-The `ProcessorEngine` is the core orchestration component that coordinates image processing operations. It bridges the external API interfaces (C API and gRPC) and the internal processing pipeline.
+The `ProcessorEngine` is the core orchestration component that coordinates image processing operations. It bridges the gRPC service interface and the internal processing pipeline.
 
 **Responsibilities**: Initialization and telemetry setup, filter orchestration via `FilterPipeline`, algorithm selection from protocol buffer enums, and response building.
 
-**Integration Points**: Used by `ports/shared_lib` for C API implementation, and by `ports/grpc` via `ProcessorEngineAdapter` for the gRPC service.
+**Integration Points**: Used by `ports/grpc` via `ProcessorEngineAdapter` for the gRPC service.
 
 ### Domain Interfaces
 
@@ -428,21 +493,9 @@ All code in `cpp_accelerator/` compiles without warnings when `-Werror` is enabl
 
 ## C API Reference
 
-The library exposes a C API through `processor_api.h` for language-agnostic integration. All data exchange uses Protocol Buffer serialization.
+The library exposes a C API through `processor_api.h` for language-agnostic integration. All data exchange uses Protocol Buffer serialization. The shared library build target (`libcuda_processor.so`) has been removed; the C API header is retained for the `processor_engine` wrapper used by the gRPC client.
 
-**Core Functions**:
-
-- **`processor_api_version()`**: Returns version information structure (major, minor, patch)
-- **`processor_init()`**: Initializes the processor library. Not thread-safe — call once during startup.
-- **`processor_cleanup()`**: Releases all processor resources. Not thread-safe.
-- **`processor_process_image()`**: Processes an image with configured filters. Thread-safe after initialization.
-- **`processor_get_capabilities()`**: Queries library capabilities. Thread-safe, can be called without initialization.
-- **`processor_get_library_version()`**: Gets library version string from VERSION file. Thread-safe.
-- **`processor_free_response()`**: Frees response buffers allocated by the library. Always call for every non-NULL response buffer.
-
-**Memory Management**: Request buffers are managed by the caller. Response buffers are allocated by the library and must be freed using `processor_free_response()`. Never call `free()` or `delete` directly on response buffers.
-
-**API Version**: The C API version is defined as `PROCESSOR_API_VERSION "2.1.0"` in `processor_api.h`. This is separate from the library version (4.0.1) and indicates the C interface contract.
+**API Version**: The C API version is defined as `PROCESSOR_API_VERSION "2.1.0"` in `processor_api.h`. This is separate from the library version (4.0.2) and indicates the C interface contract.
 
 ## Adding New Filters
 
@@ -484,11 +537,6 @@ Build accelerator control client:
 bazel build //src/cpp_accelerator/ports/grpc:accelerator_control_client
 ```
 
-Build shared library:
-```bash
-bazel build //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so
-```
-
 Build all:
 ```bash
 bazel build //src/cpp_accelerator/...
@@ -505,5 +553,3 @@ The library uses semantic versioning:
 - **Major**: Breaking API changes
 - **Minor**: New features, backward compatible
 - **Patch**: Bug fixes, backward compatible
-
-The C API checks version compatibility at runtime to prevent mismatched library/loader combinations.

@@ -13,7 +13,7 @@
 #include "src/cpp_accelerator/ports/grpc/accelerator_control_client.h"
 #include "src/cpp_accelerator/ports/grpc/processor_engine_adapter.h"
 #include "src/cpp_accelerator/ports/grpc/webrtc_manager.h"
-#include "src/cpp_accelerator/ports/shared_lib/library_version.h"
+#include "src/cpp_accelerator/core/version.h"
 #include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
 ABSL_FLAG(std::string, control_addr, "localhost:60062",

@@ -4,6 +4,29 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+genrule(
+    name = "library_version_private",
+    srcs = ["//:src/cpp_accelerator/VERSION"],
+    outs = ["library_version_private.h"],
+    cmd = "VERSION=$$(cat $(location //:src/cpp_accelerator/VERSION) | tr -d '[:space:]'); echo '#pragma once' > $@; echo '#define LIBRARY_VERSION \"'$$VERSION'\"' >> $@",
+)
+
+genrule(
+    name = "git_hash_private",
+    outs = ["git_hash_private.h"],
+    cmd = "if [ -n \"$${LIBRARY_GIT_HASH:-}\" ]; then HASH=\"$$LIBRARY_GIT_HASH\"; else HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo 'dev'); fi; echo '#pragma once' > $@; echo '#define LIBRARY_GIT_HASH \"'$$HASH'\"' >> $@",
+)
+
+cc_library(
+    name = "version",
+    hdrs = [
+        "version.h",
+        ":git_hash_private",
+        ":library_version_private",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "otel_log_sink",
     srcs = ["otel_log_sink.cpp"],
@@ -16,7 +39,7 @@ cc_library(
         "@io_opentelemetry_cpp//sdk/src/logs:logs",
         "@io_opentelemetry_cpp//sdk/src/resource:resource",
         "@curl//:curl",
-        "//src/cpp_accelerator/ports/shared_lib:library_version",
+        ":version",
     ],
 )
 

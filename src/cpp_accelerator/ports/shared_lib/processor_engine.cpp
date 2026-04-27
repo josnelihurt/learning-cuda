@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include "src/cpp_accelerator/ports/shared_lib/library_version.h"
+#include "src/cpp_accelerator/core/version.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -23,8 +23,6 @@
 #include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
-#include "src/cpp_accelerator/ports/shared_lib/processor_api.h"
-
 namespace jrb::ports::shared_lib {
 
 using jrb::domain::interfaces::GrayscaleAlgorithm;
@@ -143,7 +141,7 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   response->set_message("OK");
 
   auto* caps = response->mutable_capabilities();
-  caps->set_api_version(PROCESSOR_API_VERSION);
+  caps->set_api_version("2.1.0");
   caps->set_library_version(LIBRARY_VERSION_STR);
   caps->set_supports_streaming(false);
   caps->set_build_date(__DATE__);

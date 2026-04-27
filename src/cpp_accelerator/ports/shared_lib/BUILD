@@ -1,47 +1,11 @@
 
 cc_library(
-    name = "processor_api",
-    hdrs = ["processor_api.h"],
-    visibility = ["//visibility:public"],
-)
-
-genrule(
-    name = "library_version_private",
-    srcs = ["//:src/cpp_accelerator/VERSION"],
-    outs = ["library_version_private.h"],
-    cmd = "VERSION=$$(cat $(location //:src/cpp_accelerator/VERSION) | tr -d '[:space:]'); echo '#pragma once' > $@; echo '#define LIBRARY_VERSION \"'$$VERSION'\"' >> $@",
-)
-
-genrule(
-    name = "git_hash_private",
-    outs = ["git_hash_private.h"],
-    cmd = "if [ -n \"$${LIBRARY_GIT_HASH:-}\" ]; then HASH=\"$$LIBRARY_GIT_HASH\"; else HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo 'dev'); fi; echo '#pragma once' > $@; echo '#define LIBRARY_GIT_HASH \"'$$HASH'\"' >> $@",
-)
-
-cc_library(
-    name = "git_hash",
-    hdrs = [":git_hash_private"],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "library_version",
-    hdrs = [
-        "library_version.h",
-        ":git_hash_private",
-        ":library_version_private",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
     name = "processor_engine",
     srcs = ["processor_engine.cpp"],
     hdrs = ["processor_engine.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":library_version",
-        ":processor_api",
+        "//src/cpp_accelerator/core:version",
         "//src/cpp_accelerator/application/pipeline:filter_pipeline",
         "//src/cpp_accelerator/core:logger",
         "//src/cpp_accelerator/core:telemetry",

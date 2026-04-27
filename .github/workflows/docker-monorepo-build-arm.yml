@@ -116,7 +116,9 @@ jobs:
           av="${FILTER_ARM_CPP_VERSION:-false}"
           ac="${FILTER_ARM_CUDA_RUNTIME:-false}"
 
-          # bazel-base feeds cpp-dependencies, so a bazel-base change forces a deps rebuild too.
+          # cpp-dependencies bakes proto/ and bazel-base content used by cpp-builder.
+          # Force deps rebuild whenever proto or bazel-base changes.
+          if [ "${ap}" = "true" ]; then ad="true"; fi
           if [ "${ab}" = "true" ]; then ad="true"; fi
 
           out "build_proto=${ap}"

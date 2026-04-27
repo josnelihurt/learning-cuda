@@ -401,7 +401,7 @@ run_cpp_built() {
     fi
   fi
 
-  print_stage_header "Building cpp-builder intermediate (${cpp_version})"
+  print_stage_header "Building cpp-builder intermediate (${cpp_version}) ${TARGETARCH}"
 
   local docker_build_args=()
   if [[ "${REGISTRY}" != "local" && "${BUILD_LOCAL_PULL:-1}" != "0" ]]; then

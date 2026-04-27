@@ -43,7 +43,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
     CACHE_FLAGS="" && \
     COMMON_FLAGS="--show_timestamps --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) --local_cpu_resources=$(($NPROC - 1)) --experimental_repository_cache_hardlinks --disk_cache=/tmp/bazel-cache" && \
-    BUILD_TARGETS="//src/cpp_accelerator/ports/shared_lib:libcuda_processor.so //src/cpp_accelerator/ports/grpc:accelerator_control_client" && \
+    BUILD_TARGETS="//src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client" && \
     JOBS="$NPROC" && \
     ARCH_FLAGS="--announce_rc --verbose_failures --subcommands --linkopt=-Wl,--verbose --linkopt=-Wl,--stats" && \
     BUILD_START_MSG="Building AMD64 with verbose output" && \
@@ -75,9 +75,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
 
 RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/lib /artifacts/bin && \
-    cp -L bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so "/artifacts/lib/libcuda_processor_v${VERSION}.so" && \
-    cp "/artifacts/lib/libcuda_processor_v${VERSION}.so" /artifacts/lib/libcuda_processor.so && \
-    cp -L bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client /artifacts/bin/accelerator_control_client
+    cp -L bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client /artifacts/bin/accelerator_control_client
 
 FROM ${CUDA_RUNTIME_REGISTRY}/base:cuda-runtime-${CUDA_RUNTIME_VERSION}-${TARGETARCH} AS cpp-accelerator
 
@@ -86,7 +84,6 @@ ARG ENABLE_TENSORRT=false
 WORKDIR /opt/cuda/grpc
 
 COPY --from=cpp-builder /artifacts/bin/accelerator_control_client ./bin/accelerator_control_client
-COPY --from=cpp-builder /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
 
 # ONNX at runtime only (TensorRT engine generated lazily at run).
 RUN mkdir -p /opt/cuda/grpc/data/models

@@ -149,8 +149,6 @@ dpkg -l | grep libnvinfer
 ### Build
 ```bash
 bazel build //src/cpp_accelerator/...
-# Or a single target
-bazel build //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so
 ```
 
 ### Dev stack

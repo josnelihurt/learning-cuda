@@ -51,4 +51,4 @@ apt-get remove --purge -y \
 apt-get autoremove --purge -y
 
 echo "==> Done. Now rebuild:"
-echo "    bazel build //src/cpp_accelerator/ports/grpc:accelerator_control_client"
+echo "    bazel build //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client"

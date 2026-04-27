@@ -137,14 +137,14 @@ run_optional_build() {
     fi
 
     echo "Building C++ accelerator client..."
-    bazel build //src/cpp_accelerator/ports/grpc:accelerator_control_client
+    bazel build //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
 
     echo "Building backend with Go..."
     (cd src/go_api && make build)
 }
 
 require_grpc_binary() {
-    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client"
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client"
     if [ ! -x "$GRPC_SERVER_BIN" ]; then
         echo "Error: accelerator client binary not found at ${GRPC_SERVER_BIN}" >&2
         echo "       Run './scripts/dev/start.sh --build' to build it." >&2
@@ -153,7 +153,7 @@ require_grpc_binary() {
 }
 
 start_grpc() {
-    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client"
+    GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client"
     echo "Starting C++ accelerator client..."
     "$GRPC_SERVER_BIN" \
         --control_addr=localhost:60062 \

@@ -49,20 +49,20 @@ ensure_writable() {
 ensure_writable ".ignore/lib/cuda_learning"
 
 echo "Building CUDA shared library..."
-bazel build //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so
+bazel build //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
 
 VERSION=$(cat src/cpp_accelerator/VERSION)
-TARGET_FILE=".ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so"
+TARGET_FILE=".ignore/lib/cuda_learning/accelerator_control_client_v${VERSION}"
 
 # Remove existing file first to handle permission issues
 rm -f "$TARGET_FILE"
-cp bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so "$TARGET_FILE"
+cp bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client "$TARGET_FILE"
 chmod 644 "$TARGET_FILE"
 
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-cat > .ignore/lib/cuda_learning/libcuda_processor_v${VERSION}.so.json <<EOF
+cat > .ignore/lib/cuda_learning/accelerator_control_client_v${VERSION}.json <<EOF
 {
   "name": "CUDA Image Processor",
   "version": "${VERSION}",

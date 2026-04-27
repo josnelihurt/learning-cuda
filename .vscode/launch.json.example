@@ -28,7 +28,7 @@
             "name": "Attach to C++ Accelerator",
             "type": "cppdbg",
             "request": "attach",
-            "program": "${workspaceFolder}/bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client",
+            "program": "${workspaceFolder}/bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client",
             "processId": 200,
             "MIMode": "gdb",
             "cwd": "${workspaceFolder}"

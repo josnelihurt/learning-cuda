@@ -8,8 +8,6 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 
 **Version**: See `VERSION` file (currently 4.0.2)
 
-**Note**: The library version (4.0.2) is separate from the C API version (2.1.0 defined in `processor_api.h`). The API version indicates the C interface contract, while the library version tracks overall library releases.
-
 **Features**:
 - GPU acceleration via CUDA kernels with CPU fallback
 - **Accelerator Control Client** with mTLS outbound connections to Go cloud server
@@ -58,7 +56,7 @@ graph TB
         ImageBuffer[ImageBuffer]
     end
 
-    subgraph "Infrastructure"
+    subgraph "Adapters / Compute"
         CudaFilters[CUDA Filters]
         CpuFilters[CPU Filters]
         YOLODetector[YOLO Detector<br/>TensorRT]
@@ -94,16 +92,21 @@ graph TB
         GoServer[Go Server<br/>AcceleratorControlService]
     end
 
-    subgraph "C++ Ports Layer"
-        AccelClient[AcceleratorControlClient]
+    subgraph "C++ Ports (interfaces)"
+        IControlPort[IControlPort]
+        IMediaSession[IMediaSession]
+    end
+
+    subgraph "C++ Adapters"
+        AccelClient[adapters/grpc_control<br/>AcceleratorControlClient]
         Provider[ProcessorEngineAdapter]
-        WebRTCPort[WebRTCManager]
+        WebRTCPort[adapters/webrtc<br/>WebRTCManager]
         DataChannelFraming[DataChannelFraming]
         LiveVideoProcessor[LiveVideoProcessor]
     end
 
     subgraph "C++ Application Layer"
-        ProcessorEngine[ProcessorEngine]
+        ProcessorEngine[application/engine<br/>ProcessorEngine]
         FilterPipeline[FilterPipeline]
         BufferPool[BufferPool]
         CommandFactory[CommandFactory]
@@ -116,11 +119,12 @@ graph TB
         GrayscaleAlgorithm[GrayscaleAlgorithm]
     end
 
-    subgraph "C++ Infrastructure Layer"
-        CudaFilters[CUDA Filters]
-        CpuFilters[CPU Filters]
-        ImageIO[Image I/O]
-        ConfigManager[ConfigManager]
+    subgraph "C++ Adapters / Compute"
+        CudaFilters[compute/cuda<br/>Kernels + Filters]
+        CpuFilters[compute/cpu<br/>CPU Filters]
+        TRTInference[cuda/tensorrt<br/>YOLO + TensorRT]
+        ImageIO[image_io<br/>Image I/O]
+        ConfigManager[config<br/>ConfigManager]
     end
 
     subgraph "C++ Core Layer"
@@ -130,6 +134,8 @@ graph TB
     end
 
     GoServer -->|mTLS bidi| AccelClient
+    AccelClient -.->|implements| IControlPort
+    WebRTCPort -.->|implements| IMediaSession
     AccelClient --> Provider
     Provider --> ProcessorEngine
     AccelClient --> WebRTCPort
@@ -139,6 +145,7 @@ graph TB
     FilterPipeline --> IFilter
     IFilter --> CudaFilters
     IFilter --> CpuFilters
+    IFilter --> TRTInference
     CommandFactory --> ConfigManager
     ProcessorEngine --> Logger
     ProcessorEngine --> Telemetry
@@ -148,7 +155,7 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant Main as main_client.cpp
+    participant Main as cmd/accelerator_control_client/main.cpp
     participant Flags as absl Flags
     participant Engine as ProcessorEngine
     participant TM as TelemetryManager
@@ -278,85 +285,77 @@ sequenceDiagram
 
 ## Directory Structure
 
+Hexagonal architecture: `ports/` holds abstract interfaces only; `adapters/` holds all concrete implementations.
+
 ```
 cpp_accelerator/
-├── application/                # Application layer - use cases and orchestration
-│   ├── commands/               # Command pattern implementation (placeholder)
-│   │   ├── command_interface.h
-│   │   ├── command_factory.h/cpp
-│   │   └── command_factory_test.cpp
-│   └── pipeline/               # Filter pipeline implementation
-│       ├── filter_pipeline.h/cpp
-│       ├── buffer_pool.h/cpp
-│       └── filter_pipeline_test.cpp
-├── domain/                     # Domain layer - business logic interfaces
-│   └── interfaces/             # Abstraction interfaces
-│       ├── filters/            # Filter interfaces
-│       │   └── i_filter.h
-│       ├── processors/         # Processor interfaces
-│       │   └── i_image_processor.h
-│       ├── image_buffer.h
-│       ├── image_source.h
-│       ├── image_sink.h
-│       ├── i_pixel_getter.h
-│       └── grayscale_algorithm.h
-├── infrastructure/             # Infrastructure layer - concrete implementations
-│   ├── cuda/                   # CUDA kernel implementations → [see README](infrastructure/cuda/README.md)
-│   │   ├── cuda_memory_pool.h/cpp             # Thread-local GPU allocation cache
-│   │   ├── grayscale_kernel.cu/h              # Grayscale CUDA kernel
-│   │   ├── grayscale_filter.h/cpp             # Grayscale filter (CUDA)
-│   │   ├── blur_kernel.cu/h                   # Gaussian blur CUDA kernels (4 variants)
-│   │   ├── blur_processor.h/wrapper.cpp       # Blur processor host interface
-│   │   ├── letterbox_kernel.cu/h              # Aspect-preserving resize + NCHW convert for TRT
-│   │   ├── i_yolo_detector.h                  # YOLO detector interface (extends IFilter)
-│   │   ├── yolo_detector.h/cpp                # TensorRT-based YOLO inference engine
-│   │   ├── yolo_factory.h/cpp                 # Factory for creating YOLO detector instances
-│   │   ├── detection.h                        # Detection result struct
-│   │   ├── model_manager.h/cpp                # Model loading & management
-│   │   └── model_registry.h/cpp               # Model path registry
-│   ├── cpu/                    # CPU fallback implementations
-│   │   ├── grayscale_filter.h/cpp
-│   │   └── blur_filter.h/cpp
-│   ├── image/                  # Image I/O adapters
+├── cmd/
+│   └── accelerator_control_client/
+│       ├── main.cpp            # Binary entry point
+│       └── BUILD
+├── core/                       # Cross-cutting utilities (no deps on other layers)
+│   ├── logger.h/cpp
+│   ├── telemetry.h/cpp
+│   ├── otel_log_sink.h/cpp
+│   ├── signal_handler.h/cpp
+│   ├── result.h
+│   └── version.h               # Build-time version + git hash (generated)
+├── domain/                     # Pure domain — no infrastructure deps
+│   ├── interfaces/
+│   │   ├── filters/i_filter.h
+│   │   ├── processors/i_image_processor.h
+│   │   ├── i_yolo_detector.h   # YOLO detector interface (extends IFilter)
+│   │   ├── image_buffer.h, image_sink.h, image_source.h, i_pixel_getter.h
+│   │   └── grayscale_algorithm.h
+│   └── models/
+│       └── detection.h         # Detection result struct
+├── application/                # Use cases — orchestrates domain + adapters
+│   ├── engine/
+│   │   ├── processor_engine.h/cpp   # Main orchestrator: filter dispatch + YOLO cache
+│   │   └── BUILD
+│   ├── pipeline/
+│   │   ├── filter_pipeline.h/cpp
+│   │   └── buffer_pool.h/cpp
+│   └── commands/               # Placeholder command pattern (unused)
+├── ports/                      # Abstract port interfaces ONLY
+│   ├── control/
+│   │   └── i_control_port.h    # IControlPort — Run/Stop interface
+│   └── media/
+│       └── i_media_session.h   # IMediaSession — WebRTC session lifecycle
+├── adapters/                   # Concrete implementations of ports + domain
+│   ├── grpc_control/           # Outbound mTLS gRPC control client
+│   │   ├── accelerator_control_client.h/cpp  # implements IControlPort
+│   │   ├── processor_engine_adapter.h/cpp    # bridges engine → ProcessorEngineProvider
+│   │   └── processor_engine_provider.h       # service provider interface
+│   ├── webrtc/                 # WebRTC media path
+│   │   ├── webrtc_manager.h/cpp              # implements IMediaSession
+│   │   ├── live_video_processor.h/cpp        # H.264 decode → ProcessorEngine → encode
+│   │   └── data_channel_framing.h/cpp        # chunked binary framing over SCTP
+│   ├── compute/
+│   │   ├── cpu/                # CPU filter implementations
+│   │   │   ├── grayscale_filter.h/cpp
+│   │   │   └── blur_filter.h/cpp
+│   │   ├── cuda/
+│   │   │   ├── kernels/        # Raw CUDA .cu kernels (blur, grayscale, letterbox)
+│   │   │   ├── filters/        # C++ wrappers: grayscale_filter, blur_processor
+│   │   │   ├── memory/         # cuda_memory_pool (thread-local GPU alloc cache)
+│   │   │   └── tensorrt/       # TensorRT/YOLO inference
+│   │   │       ├── yolo_detector.h/cpp
+│   │   │       ├── yolo_factory.h/trt.cpp
+│   │   │       ├── model_manager.h/cpp
+│   │   │       └── model_registry.h/cpp
+│   │   └── filters/            # Cross-backend equivalence tests
+│   ├── image_io/               # Image file I/O (stb-based)
 │   │   ├── image_loader.h/cpp
 │   │   └── image_writer.h/cpp
-│   ├── config/                 # Configuration management
-│   │   ├── config_manager.h/cpp
-│   │   └── models/
-│   │       └── program_config.h
-│   └── filters/                # Cross-accelerator tests
-│       └── blur_equivalence_test.cpp
-├── ports/                      # Ports layer - external adapters
-│   ├── grpc/                   # Accelerator control client (primary integration path)
-│   │   ├── accelerator_control_client.h/cpp   # Outbound mTLS client to Go server
-│   │   ├── processor_engine_adapter.h/cpp     # Adapter for ProcessorEngine
-│   │   ├── processor_engine_provider.h        # Provider interface
-│   │   ├── webrtc_manager.h/cpp               # WebRTC session management
-│   │   ├── data_channel_framing.h/cpp         # Binary framing protocol for WebRTC data channels
-│   │   ├── live_video_processor.h/cpp         # Real-time video frame processing
-│   │   └── main_client.cpp                    # Client entry point
-│   └── shared_lib/             # Shared library exports (C API)
-│       ├── processor_api.h                    # C API header
-│       ├── processor_engine.h/cpp             # Processor engine shared lib wrapper
-│       ├── library_version.h                  # Library version constants
-│       └── blur_e2e_test.cpp                  # End-to-end blur test
-├── core/                       # Core utilities
-│   ├── logger.h/cpp            # Logging infrastructure
-│   ├── telemetry.h/cpp         # OpenTelemetry integration
-│   ├── otel_log_sink.h/cpp     # OpenTelemetry log sink for spdlog
-│   ├── signal_handler.h/cpp    # Process signal handling
-│   └── result.h                # Error handling types
-├── docker-cuda-runtime/        # CUDA runtime image for deployment
-│   ├── Dockerfile
-│   └── VERSION
-├── yolo-model-gen/             # YOLO model generation container
-│   ├── Dockerfile
-│   └── VERSION
-├── docker-compose.yml
-├── Dockerfile.build            # Build image for gRPC server
-├── Dockerfile.build.mock       # Mock build image for testing
-├── VERSION                     # Library version file
-└── lessons_learned.md          # Development notes and learnings
+│   └── config/                 # Configuration management
+│       ├── config_manager.h/cpp
+│       └── models/program_config.h
+├── docker-cuda-runtime/
+├── yolo-model-gen/
+├── Dockerfile.build
+├── VERSION
+└── lessons_learned.md
 ```
 
 ## Sub-folder Documentation

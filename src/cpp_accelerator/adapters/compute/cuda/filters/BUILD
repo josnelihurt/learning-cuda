@@ -9,7 +9,7 @@ cc_library(
         "//src/cpp_accelerator/adapters/compute/cuda/kernels:kernels",
         "//src/cpp_accelerator/core:telemetry",
         "//src/cpp_accelerator/domain/interfaces",
-        "//src/cpp_accelerator/domain/interfaces/processors",
+        "//src/cpp_accelerator/domain/interfaces:processors",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",
         "@spdlog",
     ],

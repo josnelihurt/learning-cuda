@@ -25,7 +25,7 @@ cc_library(
     deps = [
         ":tensorrt",
         "//src/cpp_accelerator/adapters/compute/cuda/kernels:kernels",
-        "//src/cpp_accelerator/domain/interfaces/i_yolo_detector",
+        "//src/cpp_accelerator/domain/interfaces:i_yolo_detector",
         "//src/cpp_accelerator/core:telemetry",
         "//src/cpp_accelerator/domain/interfaces",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",

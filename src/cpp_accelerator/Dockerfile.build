@@ -79,7 +79,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
         echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
     fi
 
-RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
+RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/lib /artifacts/bin && \
     cp -L bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so "/artifacts/lib/libcuda_processor_v${VERSION}.so" && \
     cp "/artifacts/lib/libcuda_processor_v${VERSION}.so" /artifacts/lib/libcuda_processor.so && \

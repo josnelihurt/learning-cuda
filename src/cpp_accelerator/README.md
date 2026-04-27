@@ -154,34 +154,6 @@ graph TB
 
 ### Initialization Sequences
 
-#### CGO (Shared Library) Initialization (Deprecated)
-
-> **Note**: The CGO integration path is deprecated. The Go server no longer uses CGO and communicates exclusively via gRPC. This section is retained for historical reference.
-
-```mermaid
-sequenceDiagram
-    participant GoClient as Go Client
-    participant Loader as Loader (dlopen)
-    participant CAPI as C API
-    participant Impl as cuda_processor_impl.cpp
-    participant Engine as ProcessorEngine
-    participant TM as TelemetryManager
-    
-    GoClient->>Loader: dlopen(libcuda_processor.so)
-    GoClient->>CAPI: processor_api_version()
-    CAPI-->>GoClient: Version 2.1.0
-    GoClient->>CAPI: processor_init(marshalled_request)
-    CAPI->>Impl: processor_init()
-    Impl->>Engine: Initialize(InitRequest)
-    Engine->>TM: Initialize("cgo-api", endpoint)
-    TM->>TM: Create OpenTelemetry exporter
-    Engine-->>Impl: InitResponse
-    Impl-->>CAPI: marshalled_response
-    CAPI-->>GoClient: InitResponse{code: 0}
-    
-    Note over GoClient,Engine: Ready for processing
-```
-
 #### Accelerator Control Client Initialization
 
 ```mermaid

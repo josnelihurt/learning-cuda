@@ -1,10 +1,10 @@
 #include "src/cpp_accelerator/ports/shared_lib/processor_engine.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <string>
 #include <utility>
-#include <algorithm>
 
 #include "src/cpp_accelerator/ports/shared_lib/library_version.h"
 
@@ -23,6 +23,7 @@
 #include "src/cpp_accelerator/infrastructure/cuda/grayscale_filter.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_manager.h"
 #include "src/cpp_accelerator/infrastructure/cuda/model_registry.h"
+#include "src/cpp_accelerator/ports/shared_lib/processor_api.h"
 
 namespace jrb::ports::shared_lib {
 
@@ -389,13 +390,14 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
     if (yolo_detector != nullptr) {
       // Keep detector input on original RGB for accuracy, but never let YOLO's passthrough write
       // override the already-processed pipeline output.
-      std::vector<unsigned char> detector_passthrough(
-          static_cast<size_t>(input_buffer.width) * input_buffer.height * input_buffer.channels);
+      std::vector<unsigned char> detector_passthrough(static_cast<size_t>(input_buffer.width) *
+                                                      input_buffer.height * input_buffer.channels);
       jrb::domain::interfaces::ImageBufferMut detector_output(
-          detector_passthrough.data(), input_buffer.width, input_buffer.height, input_buffer.channels);
-      jrb::domain::interfaces::FilterContext det_context(
-          input_buffer.data, detector_output.data, input_buffer.width, input_buffer.height,
+          detector_passthrough.data(), input_buffer.width, input_buffer.height,
           input_buffer.channels);
+      jrb::domain::interfaces::FilterContext det_context(input_buffer.data, detector_output.data,
+                                                         input_buffer.width, input_buffer.height,
+                                                         input_buffer.channels);
       det_context.output = detector_output;
       yolo_detector->Apply(det_context);
     }

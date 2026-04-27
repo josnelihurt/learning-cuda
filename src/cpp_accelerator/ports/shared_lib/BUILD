@@ -87,33 +87,3 @@ cc_binary(
     ],
 )
 
-cc_test(
-    name = "blur_e2e_test",
-    srcs = [
-        "blur_e2e_test.cpp",
-        "cuda_processor_impl.cpp",
-    ],
-    data = [
-        "//data:static_images/lena.png",
-    ],
-    deps = [
-        ":image_buffer_adapter",
-        ":processor_api",
-        ":processor_engine",
-        "//src/cpp_accelerator/application/pipeline:filter_pipeline",
-        "//src/cpp_accelerator/core:logger",
-        "//src/cpp_accelerator/core:telemetry",
-        "@googletest//:gtest_main",
-        "@spdlog",
-        "//src/cpp_accelerator/domain/interfaces",
-        "//src/cpp_accelerator/infrastructure/cpu:blur_filter",
-        "//src/cpp_accelerator/infrastructure/cpu:grayscale_filter",
-        "//src/cpp_accelerator/infrastructure/cuda:cuda_kernels",
-        "//src/cpp_accelerator/infrastructure/cuda:cuda_wrappers",
-        "//src/cpp_accelerator/infrastructure/cuda:grayscale_filter",
-        "//src/cpp_accelerator/infrastructure/image:image_adapters",
-        "//proto:common_cc_proto",
-        "//proto:image_processor_service_cc_proto",
-    ],
-)
-

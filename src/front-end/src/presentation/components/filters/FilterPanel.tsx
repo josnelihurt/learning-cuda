@@ -114,23 +114,17 @@ function filterPanelReducer(state: FilterPanelState, action: FilterAction): Filt
 
 // --- Helpers ---
 
-function parseParamMetadata(
-  metadata: Record<string, string>,
-  defaults: { min: number; max: number; step: number }
-) {
-  return {
-    min: metadata.min !== undefined ? parseFloat(metadata.min) : defaults.min,
-    max: metadata.max !== undefined ? parseFloat(metadata.max) : defaults.max,
-    step: metadata.step !== undefined ? parseFloat(metadata.step) : defaults.step,
-  };
+function parseNumericRule(rawValue: number | undefined): number | undefined {
+  if (rawValue === undefined || Number.isNaN(rawValue)) {
+    return undefined;
+  }
+  return rawValue;
 }
 
 function getActiveFilters(filterStates: FilterState[]): ActiveFilterState[] {
-  const active = filterStates.filter((f) => f.enabled);
-  if (active.length === 0) {
-    return [{ id: 'none', parameters: {} }];
-  }
-  return active.map((filter) => ({ id: filter.id, parameters: { ...filter.parameterValues } }));
+  return filterStates
+    .filter((f) => f.enabled)
+    .map((filter) => ({ id: filter.id, parameters: { ...filter.parameterValues } }));
 }
 
 // --- Parameter sub-components ---
@@ -172,8 +166,10 @@ function SelectParameter({ filter, param, onChange }: ParameterProps): ReactElem
 
 function RangeParameter({ filter, param, onChange }: ParameterProps): ReactElement {
   const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';
-  const { min, max, step } = parseParamMetadata(param.metadata || {}, { min: 3, max: 15, step: 2 });
-  const rangeValue = currentValue ? parseFloat(currentValue) : (param.defaultValue ? parseFloat(param.defaultValue) : min);
+  const min = parseNumericRule(param.minValue);
+  const max = parseNumericRule(param.maxValue);
+  const step = parseNumericRule(param.step);
+  const rangeValue = currentValue || param.defaultValue || '';
   return (
     <div className={styles.paramControl}>
       <label className={styles.paramLabel}>{param.name}</label>
@@ -196,18 +192,20 @@ function RangeParameter({ filter, param, onChange }: ParameterProps): ReactEleme
 
 function NumberParameter({ filter, param, onChange, onError }: NumberParameterProps): ReactElement {
   const currentValue = filter.parameterValues[param.id] || param.defaultValue || '';
-  const { min, max, step } = parseParamMetadata(param.metadata || {}, { min: -Infinity, max: Infinity, step: 1 });
-  const numValue = currentValue || param.defaultValue || (min !== -Infinity ? String(min) : '0');
+  const min = parseNumericRule(param.minValue);
+  const max = parseNumericRule(param.maxValue);
+  const step = parseNumericRule(param.step) ?? 1;
+  const numValue = currentValue || param.defaultValue || (min !== undefined ? String(min) : '0');
 
   function handleChange(inputValue: string) {
     if (inputValue === '' || inputValue === '-') return;
     const parsed = parseFloat(inputValue);
     if (isNaN(parsed)) return;
     let clamped = parsed;
-    if (min !== -Infinity && parsed < min) {
+    if (min !== undefined && parsed < min) {
       clamped = min;
       onError('Invalid Value', `${param.name} must be at least ${min}. Value adjusted to ${min}.`);
-    } else if (max !== Infinity && parsed > max) {
+    } else if (max !== undefined && parsed > max) {
       clamped = max;
       onError('Invalid Value', `${param.name} must be at most ${max}. Value adjusted to ${max}.`);
     }
@@ -220,8 +218,8 @@ function NumberParameter({ filter, param, onChange, onError }: NumberParameterPr
       <div className={styles.numberInputContainer}>
         <input
           type="number"
-          min={min !== -Infinity ? min : undefined}
-          max={max !== Infinity ? max : undefined}
+          min={min}
+          max={max}
           step={step}
           value={numValue}
           onChange={(e) => handleChange(e.target.value)}
@@ -231,14 +229,15 @@ function NumberParameter({ filter, param, onChange, onError }: NumberParameterPr
               e.preventDefault();
               const current = parseFloat(e.currentTarget.value) || 0;
               const next = e.key === 'ArrowUp' ? current + step : current - step;
-              if ((min !== -Infinity && next < min) || (max !== Infinity && next > max)) return;
+              if ((min !== undefined && next < min) || (max !== undefined && next > max)) return;
               onChange(filter.id, param.id, String(next));
             }
           }}
           onWheel={(e) => {
             e.preventDefault();
             const current = parseFloat(e.currentTarget.value) || 0;
-            const next = Math.max(min, Math.min(max, current + (e.deltaY < 0 ? step : -step)));
+            const down = current + (e.deltaY < 0 ? step : -step);
+            const next = Math.max(min ?? down, Math.min(max ?? down, down));
             onChange(filter.id, param.id, String(next));
           }}
           data-testid={`filter-parameter-${filter.id}-${param.id}`}

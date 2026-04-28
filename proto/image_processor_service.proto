@@ -61,6 +61,13 @@ message GenericFilterParameter {
   repeated GenericFilterParameterOption options = 7 [json_name = "options"];
   string default_value = 9 [json_name = "default_value"];
   map<string, string> metadata = 11 [json_name = "metadata"];
+  bool required = 13 [json_name = "required"];
+  double min_value = 15 [json_name = "min_value"];
+  double max_value = 17 [json_name = "max_value"];
+  double step = 19 [json_name = "step"];
+  uint32 min_items = 21 [json_name = "min_items"];
+  uint32 max_items = 23 [json_name = "max_items"];
+  string pattern = 25 [json_name = "pattern"];
 }
 
 message GenericFilterDefinition {
@@ -102,6 +109,18 @@ message GetAcceleratorCapabilitiesResponse {
   string device_id = 1 [json_name = "device_id"];
   string display_name = 2 [json_name = "display_name"];
   repeated AcceleratorOption supported_options = 3 [json_name = "supported_options"];
+}
+
+message KeepaliveRequest {
+  string session_id = 1 [json_name = "session_id"];
+  string api_version = 3 [json_name = "api_version"];
+}
+
+message DataChannelRequest {
+  oneof payload {
+    ProcessImageRequest process_image = 1 [json_name = "process_image"];
+    KeepaliveRequest keepalive = 3 [json_name = "keepalive"];
+  }
 }
 
 // Request: Go passes raw image buffer

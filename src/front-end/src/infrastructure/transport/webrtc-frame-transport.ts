@@ -4,6 +4,7 @@ import type { IFrameTransportService } from '@/domain/interfaces/i-frame-transpo
 import { FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
 import { VideoPlaybackService } from '@/gen/image_processor_service_connect';
 import {
+  DataChannelRequest,
   DetectionFrame,
   GenericFilterParameterSelection,
   GenericFilterSelection,
@@ -15,9 +16,6 @@ import {
 } from '@/gen/image_processor_service_pb';
 import {
   AcceleratorType,
-  BorderMode,
-  GrayscaleType,
-  ModelInferenceParameters,
   TraceContext,
 } from '@/gen/common_pb';
 import type { IStatsDisplay, IToastDisplay, ICameraPreview } from './transport-types';
@@ -29,7 +27,6 @@ import { logger } from '@/infrastructure/observability/otel-logger';
 type FrameResultCallback = (data: ProcessImageResponse) => void;
 
 const REQUEST_TIMEOUT_MS = 10_000;
-const DEFAULT_THRESHOLD = "0.45";
 
 type PendingResponse = {
   resolve: (response: ProcessImageResponse) => void;
@@ -49,7 +46,6 @@ function serializeValue(value: unknown): string {
 
 function toGenericFilterSelections(filters: FilterData[]): GenericFilterSelection[] {
   return filters
-    .filter((filter) => !filter.isNone())
     .map((filter) => {
       const parameters = Object.entries(filter.getParameters())
         .map(([parameterId, value]) => {
@@ -71,38 +67,6 @@ function toGenericFilterSelections(filters: FilterData[]): GenericFilterSelectio
         parameters,
       });
     });
-}
-
-function extractBlurParams(
-  filters: FilterData[]
-): { kernelSize: number; sigma: number; borderMode: BorderMode; separable: boolean } | undefined {
-  const blur = filters.find((filter) => filter.isBlur());
-  if (!blur) {
-    return undefined;
-  }
-
-  const params = blur.getParameters();
-  const kernelValue = typeof params.kernel_size === 'string' ? parseInt(params.kernel_size, 10) : params.kernel_size;
-  let kernelSize = typeof kernelValue === 'number' && !Number.isNaN(kernelValue) && kernelValue > 0 ? kernelValue : 5;
-  if (kernelSize % 2 === 0) {
-    kernelSize += 1;
-  }
-
-  const sigmaValue = typeof params.sigma === 'string' ? parseFloat(params.sigma) : params.sigma;
-  const sigma = typeof sigmaValue === 'number' && !Number.isNaN(sigmaValue) && sigmaValue >= 0 ? sigmaValue : 1;
-  const borderModeValue = String(params.border_mode ?? 'REFLECT').toUpperCase();
-  const borderMode = borderModeValue === 'CLAMP'
-    ? BorderMode.CLAMP
-    : borderModeValue === 'WRAP'
-      ? BorderMode.WRAP
-      : BorderMode.REFLECT;
-  const separable = typeof params.separable === 'string'
-    ? params.separable === 'true' || params.separable === '1'
-    : params.separable === undefined
-      ? true
-      : Boolean(params.separable);
-
-  return { kernelSize, sigma, borderMode, separable };
 }
 
 function buildTraceContext(): TraceContext {
@@ -234,6 +198,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     accelerator: AcceleratorType,
     grayscale: GrayscaleAlgorithm
   ): void {
+    void grayscale;
     void this.sendRequest(image, filters, accelerator, grayscale, { awaitResponse: false }).catch((error) => {
       this.handleError('Failed to send frame', error);
     });
@@ -278,29 +243,23 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const pending = this.registerPending(frameId);
     const requestImageData = new Uint8Array(rasterizedBytes);
 
-    const modelFilter = filters.find((f) => f.getId() === 'model_inference');
-    const modelParams = modelFilter
-      ? new ModelInferenceParameters({
-        modelId: modelFilter.getParameter('model_id') || 'yolov10n',
-        confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? DEFAULT_THRESHOLD),
-      })
-      : undefined;
-
-    const payload = new ProcessImageRequest({
+    const payload = new DataChannelRequest({
+      payload: {
+        case: 'processImage',
+        value: new ProcessImageRequest({
       imageData: requestImageData,
       width,
       height,
       channels,
-      filters: filters.filter((filter) => !filter.isNone()).map((filter) => filter.toProtocol()),
+      filters: [],
       accelerator,
-      grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
-      blurParams: extractBlurParams(filters),
       genericFilters: toGenericFilterSelections(filters),
-      modelParams,
       sessionId: this.sessionId,
       traceContext: buildTraceContext(),
       apiVersion: '1.1',
       frameId,
+        }),
+      },
     }).toBinary();
 
     try {
@@ -316,25 +275,13 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
   }
 
   sendStartVideo(videoId: string, filters: FilterData[], accelerator: AcceleratorType): void {
-    const grayscale = new GrayscaleAlgorithm('bt601');
-    const modelFilter = filters.find((f) => f.getId() === 'model_inference');
-    const modelParams = modelFilter
-      ? new ModelInferenceParameters({
-        modelId: modelFilter.getParameter('model_id') || 'yolov10n',
-        confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? DEFAULT_THRESHOLD),
-      })
-      : undefined;
-
     void this.ensureConnected()
       .then(() => this.client.startVideoPlayback(new StartVideoPlaybackRequest({
         videoId,
         sessionId: this.sessionId ?? '',
-        filters: filters.filter((filter) => !filter.isNone()).map((filter) => filter.toProtocol()),
+        filters: [],
         accelerator,
-        grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
-        blurParams: extractBlurParams(filters),
         genericFilters: toGenericFilterSelections(filters),
-        modelParams,
         traceContext: buildTraceContext(),
         apiVersion: '1.1',
       })))
@@ -547,29 +494,25 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     const frameId = ++this.frameIdCounter;
     const pending = options.awaitResponse ? this.registerPending(frameId) : null;
 
-    const modelFilter = filters.find((f) => f.getId() === 'model_inference');
-    const modelParams = modelFilter
-      ? new ModelInferenceParameters({
-        modelId: modelFilter.getParameter('model_id') || 'yolov10n',
-        confidenceThreshold: parseFloat(modelFilter.getParameter('confidence_threshold') ?? DEFAULT_THRESHOLD),
-      })
-      : undefined;
+    void grayscale;
 
-    const payload = new ProcessImageRequest({
+    const payload = new DataChannelRequest({
+      payload: {
+        case: 'processImage',
+        value: new ProcessImageRequest({
       imageData: new Uint8Array(rasterized.imageData),
       width: image.getWidth(),
       height: image.getHeight(),
       channels: rasterized.channels,
-      filters: filters.filter((filter) => !filter.isNone()).map((filter) => filter.toProtocol()),
+      filters: [],
       accelerator,
-      grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
-      blurParams: extractBlurParams(filters),
       genericFilters: toGenericFilterSelections(filters),
-      modelParams,
       sessionId: this.sessionId,
       traceContext: buildTraceContext(),
       apiVersion: '1.1',
       frameId,
+        }),
+      },
     }).toBinary();
 
     try {

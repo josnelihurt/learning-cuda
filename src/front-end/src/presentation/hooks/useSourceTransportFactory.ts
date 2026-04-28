@@ -7,7 +7,6 @@ import type { ActiveFilterState } from '@/presentation/components/filters/Filter
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
 import { filtersToFilterData } from '@/presentation/utils/grid-source';
-import { hasModelInferenceFilter } from '@/presentation/utils/grid-source';
 import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
 import { AcceleratorType } from '@/gen/common_pb';
@@ -140,24 +139,6 @@ export function useSourceTransportFactory({
           });
         });
         transport.onDetectionResult((frame) => {
-          const sourceSnapshot = sourcesRef.current.find((item) => item.id === uniqueId);
-          const shouldShowDetections = sourceSnapshot
-            ? hasModelInferenceFilter(sourceSnapshot.filters)
-            : false;
-
-          if (!shouldShowDetections) {
-            dispatch({
-              type: GridSourceActionType.SET_DETECTIONS,
-              payload: {
-                sourceId: uniqueId,
-                detections: [],
-                width: 0,
-                height: 0,
-              },
-            });
-            return;
-          }
-
           dispatch({
             type: GridSourceActionType.SET_DETECTIONS,
             payload: {
@@ -186,7 +167,7 @@ export function useSourceTransportFactory({
       const filters =
         activeFilters.length > 0
           ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } }))
-          : [{ id: 'none', parameters: {} }];
+          : [];
 
       if (transport) {
         if (inputSource.type === 'video') {

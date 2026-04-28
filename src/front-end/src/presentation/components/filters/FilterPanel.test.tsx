@@ -21,6 +21,9 @@ const mockFilters: GenericFilterDefinition[] = [
         name: 'Radius',
         type: 3, // NUMBER
         defaultValue: '5',
+        minValue: 1,
+        maxValue: 10,
+        step: 1,
         metadata: { min: '1', max: '10', step: '1' },
         options: [],
       } as GenericFilterParameter,
@@ -55,6 +58,9 @@ const mockFilters: GenericFilterDefinition[] = [
         name: 'Intensity',
         type: 2, // RANGE
         defaultValue: '1.0',
+        minValue: 0,
+        maxValue: 2,
+        step: 0.1,
         metadata: { min: '0', max: '2', step: '0.1' },
         options: [],
       } as GenericFilterParameter,
@@ -125,6 +131,28 @@ describe('FilterPanel', () => {
     render(<FilterPanel filters={[]} onFiltersChange={onFiltersChange} />);
 
     expect(screen.getByText('No filters available')).toBeInTheDocument();
+  });
+
+  it('returns empty active list when no filter is enabled', () => {
+    const onFiltersChange = vi.fn();
+    render(<FilterPanel filters={mockFilters} onFiltersChange={onFiltersChange} />);
+    expect(onFiltersChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it('works with arbitrary backend filter ids', () => {
+    const onFiltersChange = vi.fn();
+    const customFilters = [
+      {
+        id: 'x_custom_filter',
+        name: 'X Custom',
+        type: 0,
+        parameters: [],
+      },
+    ] as GenericFilterDefinition[];
+    render(<FilterPanel filters={customFilters} onFiltersChange={onFiltersChange} />);
+    fireEvent.click(screen.getByTestId('filter-checkbox-x_custom_filter'));
+    const lastCall = onFiltersChange.mock.calls.at(-1)?.[0] as ActiveFilterState[];
+    expect(lastCall[0]?.id).toBe('x_custom_filter');
   });
 
   it('toggles filter expansion on card click', () => {
@@ -285,12 +313,12 @@ describe('FilterPanel', () => {
 
     const slider = screen.getByTestId('filter-parameter-grayscale-intensity') as HTMLInputElement;
     expect(slider.type).toBe('range');
-    expect(slider.value).toBe('1');
+    expect(parseFloat(slider.value)).toBe(1);
     expect(slider.min).toBe('0');
     expect(slider.max).toBe('2');
     expect(slider.step).toBe('0.1');
 
-    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('1.0')).toBeInTheDocument();
   });
 
   it('Success_RangeParameterUpdatesOnSliderChange', () => {

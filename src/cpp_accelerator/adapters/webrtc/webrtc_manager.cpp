@@ -43,6 +43,35 @@ cuda_learning::GenericFilterParameterType ConvertParamType(const std::string& ty
   return cuda_learning::GENERIC_FILTER_PARAMETER_TYPE_UNSPECIFIED;
 }
 
+void CopyValidationRulesFromMetadata(const cuda_learning::FilterParameter& source,
+                                     cuda_learning::GenericFilterParameter* target) {
+  if (target == nullptr) {
+    return;
+  }
+  for (const auto& [key, value] : source.metadata()) {
+    (*target->mutable_metadata())[key] = value;
+    try {
+      if (key == "required") {
+        target->set_required(value == "true" || value == "1");
+      } else if (key == "min") {
+        target->set_min_value(std::stod(value));
+      } else if (key == "max") {
+        target->set_max_value(std::stod(value));
+      } else if (key == "step") {
+        target->set_step(std::stod(value));
+      } else if (key == "min_items") {
+        target->set_min_items(static_cast<uint32_t>(std::stoul(value)));
+      } else if (key == "max_items") {
+        target->set_max_items(static_cast<uint32_t>(std::stoul(value)));
+      } else if (key == "pattern") {
+        target->set_pattern(value);
+      }
+    } catch (const std::exception&) {
+      // Keep metadata passthrough even if typed conversion fails.
+    }
+  }
+}
+
 void PopulateGetVersionResponse(jrb::application::engine::ProcessorEngine* engine,
                                 cuda_learning::GetVersionInfoResponse* response) {
   if (response == nullptr) return;
@@ -101,6 +130,7 @@ void PopulateListFiltersResponse(jrb::application::engine::ProcessorEngine* engi
       gp->set_name(param.name());
       gp->set_type(ConvertParamType(param.type()));
       gp->set_default_value(param.default_value());
+      CopyValidationRulesFromMetadata(param, gp);
       for (const auto& opt : param.options()) {
         auto* go = gp->add_options();
         go->set_value(opt);
@@ -134,6 +164,225 @@ std::string AcceleratorTypeLabel(cuda_learning::AcceleratorType type) {
     default:
       return "Unknown";
   }
+}
+
+std::string NormalizeFilterId(const std::string& value) {
+  std::string normalized = value;
+  std::transform(
+      normalized.begin(), normalized.end(), normalized.begin(),
+      [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+  return normalized;
+}
+
+std::optional<std::string> FirstGenericValue(
+    const cuda_learning::GenericFilterParameterSelection& selection) {
+  if (selection.values().empty()) {
+    return std::nullopt;
+  }
+  return selection.values(0);
+}
+
+cuda_learning::GrayscaleType MapStringToGrayscaleType(const std::string& value) {
+  const std::string normalized = NormalizeFilterId(value);
+  if (normalized == "bt709") {
+    return cuda_learning::GRAYSCALE_TYPE_BT709;
+  }
+  if (normalized == "average") {
+    return cuda_learning::GRAYSCALE_TYPE_AVERAGE;
+  }
+  if (normalized == "lightness") {
+    return cuda_learning::GRAYSCALE_TYPE_LIGHTNESS;
+  }
+  if (normalized == "luminosity") {
+    return cuda_learning::GRAYSCALE_TYPE_LUMINOSITY;
+  }
+  return cuda_learning::GRAYSCALE_TYPE_BT601;
+}
+
+cuda_learning::BorderMode MapStringToBorderMode(const std::string& value) {
+  const std::string normalized = NormalizeFilterId(value);
+  if (normalized == "clamp") {
+    return cuda_learning::BORDER_MODE_CLAMP;
+  }
+  if (normalized == "wrap") {
+    return cuda_learning::BORDER_MODE_WRAP;
+  }
+  return cuda_learning::BORDER_MODE_REFLECT;
+}
+
+bool ParseBool(const std::string& value) {
+  const std::string normalized = NormalizeFilterId(value);
+  return normalized == "1" || normalized == "true" || normalized == "yes" ||
+         normalized == "on";
+}
+
+void ResolveGenericSelectionsInPlace(cuda_learning::ProcessImageRequest* request) {
+  if (request == nullptr || request->generic_filters_size() == 0) {
+    return;
+  }
+
+  std::vector<cuda_learning::FilterType> filters;
+  filters.reserve(static_cast<size_t>(request->filters_size()));
+  for (const int filter : request->filters()) {
+    filters.push_back(static_cast<cuda_learning::FilterType>(filter));
+  }
+  cuda_learning::GrayscaleType grayscale = request->grayscale_type();
+  cuda_learning::GaussianBlurParameters blur_params = request->blur_params();
+  bool has_blur_params = request->has_blur_params();
+
+  filters.clear();
+  for (const auto& selection : request->generic_filters()) {
+    const std::string filter_id = NormalizeFilterId(selection.filter_id());
+    if (filter_id.empty() || filter_id == "none") {
+      filters.push_back(cuda_learning::FILTER_TYPE_NONE);
+      continue;
+    }
+
+    if (filter_id == "grayscale") {
+      filters.push_back(cuda_learning::FILTER_TYPE_GRAYSCALE);
+      for (const auto& parameter : selection.parameters()) {
+        if (NormalizeFilterId(parameter.parameter_id()) != "algorithm") {
+          continue;
+        }
+        const auto value = FirstGenericValue(parameter);
+        if (value.has_value()) {
+          grayscale = MapStringToGrayscaleType(*value);
+        }
+      }
+      continue;
+    }
+
+    if (filter_id == "blur") {
+      filters.push_back(cuda_learning::FILTER_TYPE_BLUR);
+      for (const auto& parameter : selection.parameters()) {
+        const auto value = FirstGenericValue(parameter);
+        if (!value.has_value()) {
+          continue;
+        }
+
+        const std::string parameter_id = NormalizeFilterId(parameter.parameter_id());
+        if (parameter_id == "kernel_size") {
+          try {
+            int parsed = std::stoi(*value);
+            parsed = std::max(1, parsed);
+            if (parsed % 2 == 0) {
+              parsed += 1;
+            }
+            blur_params.set_kernel_size(parsed);
+            has_blur_params = true;
+          } catch (const std::exception&) {
+            spdlog::warn("Ignoring invalid blur kernel_size value: {}", *value);
+          }
+          continue;
+        }
+
+        if (parameter_id == "sigma") {
+          try {
+            const float parsed = std::stof(*value);
+            if (parsed >= 0.0F) {
+              blur_params.set_sigma(parsed);
+              has_blur_params = true;
+            }
+          } catch (const std::exception&) {
+            spdlog::warn("Ignoring invalid blur sigma value: {}", *value);
+          }
+          continue;
+        }
+
+        if (parameter_id == "border_mode") {
+          blur_params.set_border_mode(MapStringToBorderMode(*value));
+          has_blur_params = true;
+          continue;
+        }
+
+        if (parameter_id == "separable") {
+          blur_params.set_separable(ParseBool(*value));
+          has_blur_params = true;
+        }
+      }
+      continue;
+    }
+
+    if (filter_id == "model_inference") {
+      filters.push_back(cuda_learning::FILTER_TYPE_MODEL_INFERENCE);
+      auto* model_params = request->mutable_model_params();
+      if (model_params->model_id().empty()) {
+        model_params->set_model_id("yolov10n");
+      }
+      if (model_params->confidence_threshold() <= 0.0F) {
+        model_params->set_confidence_threshold(0.5F);
+      }
+      for (const auto& parameter : selection.parameters()) {
+        const auto value = FirstGenericValue(parameter);
+        if (!value.has_value()) {
+          continue;
+        }
+        const std::string parameter_id = NormalizeFilterId(parameter.parameter_id());
+        if (parameter_id == "model_id") {
+          if (!value->empty()) {
+            model_params->set_model_id(*value);
+          }
+        } else if (parameter_id == "confidence_threshold") {
+          try {
+            const float parsed = std::stof(*value);
+            if (parsed > 0.0F) {
+              model_params->set_confidence_threshold(parsed);
+            }
+          } catch (const std::exception&) {
+            spdlog::warn("Ignoring invalid model confidence_threshold: {}", *value);
+          }
+        }
+      }
+      continue;
+    }
+
+    spdlog::warn("Ignoring unsupported generic filter in ProcessImageRequest: {}",
+                 selection.filter_id());
+  }
+
+  request->clear_filters();
+  for (const auto filter : filters) {
+    request->add_filters(filter);
+  }
+
+  if (grayscale == cuda_learning::GRAYSCALE_TYPE_UNSPECIFIED) {
+    grayscale = cuda_learning::GRAYSCALE_TYPE_BT601;
+  }
+  request->set_grayscale_type(grayscale);
+
+  if (has_blur_params) {
+    request->mutable_blur_params()->CopyFrom(blur_params);
+  }
+}
+
+bool ParseDataChannelRequest(const std::vector<std::byte>& assembled,
+                             cuda_learning::ProcessImageRequest* process_request,
+                             bool* is_keepalive) {
+  if (process_request == nullptr || is_keepalive == nullptr) {
+    return false;
+  }
+  *is_keepalive = false;
+
+  cuda_learning::DataChannelRequest envelope;
+  if (envelope.ParseFromArray(assembled.data(), static_cast<int>(assembled.size()))) {
+    if (envelope.has_keepalive()) {
+      *is_keepalive = true;
+      return true;
+    }
+    if (envelope.has_process_image()) {
+      *process_request = envelope.process_image();
+      return true;
+    }
+    return false;
+  }
+
+  // Compatibility path: accept legacy raw ProcessImageRequest payloads.
+  if (process_request->ParseFromArray(assembled.data(), static_cast<int>(assembled.size()))) {
+    spdlog::warn("[WebRTC] Received legacy raw ProcessImageRequest payload; migrate client to DataChannelRequest envelope");
+    return true;
+  }
+
+  return false;
 }
 
 // Sends a logical message over the data channel as one or more framed chunks.
@@ -933,9 +1182,15 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
         const auto& assembled = maybe_payload.value();
 
         cuda_learning::ProcessImageRequest request;
-        if (!request.ParseFromArray(assembled.data(), static_cast<int>(assembled.size()))) {
-          spdlog::warn("[WebRTC:{}] Failed to parse ProcessImageRequest ({} bytes)", session_id,
+        bool is_keepalive_message = false;
+        if (!ParseDataChannelRequest(assembled, &request, &is_keepalive_message)) {
+          spdlog::warn("[WebRTC:{}] Failed to parse DataChannelRequest ({} bytes)", session_id,
                        assembled.size());
+          return;
+        }
+
+        if (is_keepalive_message) {
+          spdlog::debug("[WebRTC:{}] Keepalive message received", session_id);
           return;
         }
 
@@ -943,14 +1198,6 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
                                        request.height() == 0 && request.channels() == 0;
 
         if (is_control_update) {
-          // A control update with no filters is treated as a keepalive: the
-          // last_heartbeat timestamp was already refreshed above, so we skip
-          // UpdateFilterState to avoid clobbering the active filter state.
-          if (request.generic_filters_size() == 0 && request.filters_size() == 0) {
-            spdlog::debug("[WebRTC:{}] Heartbeat control message received", session_id);
-            return;
-          }
-
           if (session->live_video_processor == nullptr) {
             spdlog::error("[WebRTC:{}] Cannot apply live filter update: video processor missing",
                           session_id);
@@ -971,11 +1218,14 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
           return;
         }
 
+        cuda_learning::ProcessImageRequest resolved_request = request;
+        ResolveGenericSelectionsInPlace(&resolved_request);
+
         cuda_learning::ProcessImageResponse response;
-        CopyProcessMetadata(request, &response);
+        CopyProcessMetadata(resolved_request, &response);
 
         const auto process_started = std::chrono::steady_clock::now();
-        const bool ok = self->engine_->ProcessImage(request, &response);
+        const bool ok = self->engine_->ProcessImage(resolved_request, &response);
         if (!ok || response.code() != 0) {
           spdlog::warn("[WebRTC:{}] DataChannel frame processing failed (code={}): {}", session_id,
                        response.code(), response.message());

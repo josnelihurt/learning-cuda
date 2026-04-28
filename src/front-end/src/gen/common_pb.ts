@@ -376,6 +376,11 @@ export class FilterParameter extends Message<FilterParameter> {
    */
   defaultValue = "";
 
+  /**
+   * @generated from field: map<string, string> metadata = 11;
+   */
+  metadata: { [key: string]: string } = {};
+
   constructor(data?: PartialMessage<FilterParameter>) {
     super();
     proto3.util.initPartial(data, this);
@@ -389,6 +394,7 @@ export class FilterParameter extends Message<FilterParameter> {
     { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "options", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 9, name: "default_value", jsonName: "default_value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "metadata", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FilterParameter {

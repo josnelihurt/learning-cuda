@@ -54,7 +54,9 @@ export function useFilterApplication(toastManager: IToastDisplay): { applyStatic
 
         const rasterized = await rasterizeImageToRgb(source.originalImageSrc, targetWidth, targetHeight);
 
-        if (filters.length === 1 && filters[0].id === 'none') {
+        // Keep this client-side fallback: some backend paths may not return a fresh frame
+        // for an empty filter list, so we must proactively restore the unfiltered image.
+        if (filters.length === 0) {
           onSourceUpdate(source.id, (current) => ({
             ...current,
             currentImageSrc: frameResponseToDataUrl(rasterized, targetWidth, targetHeight, 3),

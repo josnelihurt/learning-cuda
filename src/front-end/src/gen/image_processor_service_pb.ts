@@ -323,6 +323,41 @@ export class GenericFilterParameter extends Message<GenericFilterParameter> {
    */
   metadata: { [key: string]: string } = {};
 
+  /**
+   * @generated from field: bool required = 13;
+   */
+  required = false;
+
+  /**
+   * @generated from field: double min_value = 15 [json_name = "min_value"];
+   */
+  minValue = 0;
+
+  /**
+   * @generated from field: double max_value = 17 [json_name = "max_value"];
+   */
+  maxValue = 0;
+
+  /**
+   * @generated from field: double step = 19;
+   */
+  step = 0;
+
+  /**
+   * @generated from field: uint32 min_items = 21 [json_name = "min_items"];
+   */
+  minItems = 0;
+
+  /**
+   * @generated from field: uint32 max_items = 23 [json_name = "max_items"];
+   */
+  maxItems = 0;
+
+  /**
+   * @generated from field: string pattern = 25;
+   */
+  pattern = "";
+
   constructor(data?: PartialMessage<GenericFilterParameter>) {
     super();
     proto3.util.initPartial(data, this);
@@ -337,6 +372,13 @@ export class GenericFilterParameter extends Message<GenericFilterParameter> {
     { no: 7, name: "options", kind: "message", T: GenericFilterParameterOption, repeated: true },
     { no: 9, name: "default_value", jsonName: "default_value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 11, name: "metadata", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+    { no: 13, name: "required", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 15, name: "min_value", jsonName: "min_value", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 17, name: "max_value", jsonName: "max_value", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 19, name: "step", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 21, name: "min_items", jsonName: "min_items", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 23, name: "max_items", jsonName: "max_items", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 25, name: "pattern", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GenericFilterParameter {
@@ -709,6 +751,99 @@ export class GetAcceleratorCapabilitiesResponse extends Message<GetAcceleratorCa
 
   static equals(a: GetAcceleratorCapabilitiesResponse | PlainMessage<GetAcceleratorCapabilitiesResponse> | undefined, b: GetAcceleratorCapabilitiesResponse | PlainMessage<GetAcceleratorCapabilitiesResponse> | undefined): boolean {
     return proto3.util.equals(GetAcceleratorCapabilitiesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.KeepaliveRequest
+ */
+export class KeepaliveRequest extends Message<KeepaliveRequest> {
+  /**
+   * @generated from field: string session_id = 1 [json_name = "session_id"];
+   */
+  sessionId = "";
+
+  /**
+   * @generated from field: string api_version = 3 [json_name = "api_version"];
+   */
+  apiVersion = "";
+
+  constructor(data?: PartialMessage<KeepaliveRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.KeepaliveRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "session_id", jsonName: "session_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeepaliveRequest {
+    return new KeepaliveRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeepaliveRequest {
+    return new KeepaliveRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeepaliveRequest {
+    return new KeepaliveRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeepaliveRequest | PlainMessage<KeepaliveRequest> | undefined, b: KeepaliveRequest | PlainMessage<KeepaliveRequest> | undefined): boolean {
+    return proto3.util.equals(KeepaliveRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.DataChannelRequest
+ */
+export class DataChannelRequest extends Message<DataChannelRequest> {
+  /**
+   * @generated from oneof cuda_learning.DataChannelRequest.payload
+   */
+  payload: {
+    /**
+     * @generated from field: cuda_learning.ProcessImageRequest process_image = 1 [json_name = "process_image"];
+     */
+    value: ProcessImageRequest;
+    case: "processImage";
+  } | {
+    /**
+     * @generated from field: cuda_learning.KeepaliveRequest keepalive = 3;
+     */
+    value: KeepaliveRequest;
+    case: "keepalive";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<DataChannelRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.DataChannelRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "process_image", jsonName: "process_image", kind: "message", T: ProcessImageRequest, oneof: "payload" },
+    { no: 3, name: "keepalive", kind: "message", T: KeepaliveRequest, oneof: "payload" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DataChannelRequest {
+    return new DataChannelRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DataChannelRequest {
+    return new DataChannelRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DataChannelRequest {
+    return new DataChannelRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DataChannelRequest | PlainMessage<DataChannelRequest> | undefined, b: DataChannelRequest | PlainMessage<DataChannelRequest> | undefined): boolean {
+    return proto3.util.equals(DataChannelRequest, a, b);
   }
 }
 

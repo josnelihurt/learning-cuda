@@ -14,7 +14,7 @@ import {
   type StartSessionResponse,
   SendIceCandidateRequest,
 } from '@/gen/webrtc_signal_pb';
-import { ProcessImageRequest } from '@/gen/image_processor_service_pb';
+import { DataChannelRequest, KeepaliveRequest, ProcessImageRequest } from '@/gen/image_processor_service_pb';
 import { WebRTCSignalingService } from '@/gen/webrtc_signal_connect';
 import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 import { nextMessageId, packMessage } from '@/infrastructure/transport/data-channel-framing';
@@ -490,10 +490,12 @@ export class WebRTCService implements IWebRTCService {
       return;
     }
 
-    // Empty ProcessImageRequest acts as a keepalive: the C++ side refreshes
-    // last_heartbeat on any inbound DC message and treats filter-less control
-    // updates as heartbeats (no-op on live filter state).
-    const payload = new ProcessImageRequest({ sessionId, apiVersion: '1.1' }).toBinary();
+    const payload = new DataChannelRequest({
+      payload: {
+        case: 'keepalive',
+        value: new KeepaliveRequest({ sessionId, apiVersion: '1.1' }),
+      },
+    }).toBinary();
 
     try {
       for (const chunk of packMessage(nextMessageId(), payload)) {
@@ -623,7 +625,12 @@ export class WebRTCService implements IWebRTCService {
       throw new Error(`WebRTC data channel is not open for session ${sessionId}`);
     }
 
-    const payload = request.toBinary();
+    const payload = new DataChannelRequest({
+      payload: {
+        case: 'processImage',
+        value: request,
+      },
+    }).toBinary();
     for (const chunk of packMessage(nextMessageId(), payload)) {
       dataChannel.send(chunk);
     }

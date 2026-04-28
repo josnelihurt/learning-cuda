@@ -3,18 +3,17 @@ import { FilterData } from './filter-data';
 import { FilterType } from '@/gen/common_pb';
 
 describe('FilterData', () => {
-  it('creates none filter by default', () => {
-    const sut = new FilterData('none');
-    expect(sut.getType()).toBe('none');
-    expect(sut.toProtocol()).toBe(FilterType.NONE);
+  it('creates arbitrary filter without hardcoded semantics', () => {
+    const sut = new FilterData('custom_edge_enhance');
+    expect(sut.getType()).toBe('custom_edge_enhance');
+    expect(sut.toProtocol()).toBe(FilterType.UNSPECIFIED);
     expect(sut.hasParameters()).toBe(false);
   });
 
-  it('creates grayscale filter and reports algorithm', () => {
-    const sut = new FilterData('grayscale', { algorithm: 'bt709' });
-    expect(sut.isGrayscale()).toBe(true);
-    expect(sut.getParameter('algorithm')).toBe('bt709');
-    expect(sut.toProtocol()).toBe(FilterType.GRAYSCALE);
+  it('stores generic parameter maps as-is', () => {
+    const sut = new FilterData('arbitrary_filter_v2', { alpha: '0.7', enabled: true });
+    expect(sut.getParameter('alpha')).toBe('0.7');
+    expect(sut.getParameter('enabled')).toBe(true);
   });
 
   it('accepts unknown filter types without throwing', () => {
@@ -24,15 +23,10 @@ describe('FilterData', () => {
     expect(sut.getParameter('strength')).toBe('high');
   });
 
-  it('validates blur kernel size', () => {
-    expect(() => new FilterData('blur', { kernel_size: 4 })).toThrow('kernel_size must be a positive odd number');
-    expect(() => new FilterData('blur', { kernel_size: 5 })).not.toThrow();
-  });
-
-  it('validates blur sigma', () => {
-    expect(() => new FilterData('blur', { sigma: -1 })).toThrow('sigma must be a non-negative number');
-    expect(() => new FilterData('blur', { sigma: 'invalid' })).toThrow('sigma must be a non-negative number');
-    expect(() => new FilterData('blur', { sigma: 1.5 })).not.toThrow();
+  it('validates parameters shape only', () => {
+    expect(() => new FilterData('custom', null as any)).toThrow('Filter parameters must be an object');
+    expect(() => new FilterData('custom', [] as any)).toThrow('Filter parameters must be an object');
+    expect(() => new FilterData('custom', { any: 'value' })).not.toThrow();
   });
 
   it('validates empty filter type', () => {
@@ -40,15 +34,15 @@ describe('FilterData', () => {
   });
 
   it('compares equality by type and parameters', () => {
-    const a = new FilterData('none');
-    const b = new FilterData('none');
-    const c = new FilterData('grayscale');
+    const a = new FilterData('f_a');
+    const b = new FilterData('f_a');
+    const c = new FilterData('f_b');
     expect(a.equals(b)).toBe(true);
     expect(a.equals(c)).toBe(false);
   });
 
   it('exposes immutable parameters snapshot', () => {
-    const sut = new FilterData('none', { radius: 5 });
+    const sut = new FilterData('x_filter', { radius: 5 });
     const params = sut.getParameters();
     params.radius = 10;
     expect(sut.getParameter('radius')).toBe(5);

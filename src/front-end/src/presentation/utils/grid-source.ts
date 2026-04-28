@@ -68,9 +68,5 @@ export function filtersToFilterData(filters: ActiveFilterState[]): FilterData[] 
 export function normalizeFilters(filters: ActiveFilterState[]): ActiveFilterState[] {
   return filters.length > 0
     ? filters.map((f) => ({ id: f.id, parameters: { ...f.parameters } }))
-    : [{ id: 'none', parameters: {} }];
-}
-
-export function hasModelInferenceFilter(filters: ActiveFilterState[]): boolean {
-  return filters.some((filter) => filter.id === 'model_inference');
+    : [];
 }

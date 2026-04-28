@@ -73,6 +73,7 @@ message FilterParameter {
   string type = 5 [json_name = "type"];
   repeated string options = 7 [json_name = "options"];
   string default_value = 9 [json_name = "default_value"];
+  map<string, string> metadata = 11 [json_name = "metadata"];
 }
 
 // Filter definition with supported accelerators

@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
   spdlog::info("========================================");
   spdlog::info("CUDA Accelerator Control Client Starting");
   spdlog::info("========================================");
-  spdlog::info("Version:      {} (git: {})", LIBRARY_VERSION_STR, LIBRARY_GIT_HASH_STR);
+  spdlog::info("Version:      {} (git: {})", kLibraryVersionStr, kLibraryGitHashStr);
   spdlog::info("Control addr: {}", absl::GetFlag(FLAGS_control_addr));
   spdlog::info("Device ID:    {}", absl::GetFlag(FLAGS_device_id));
   spdlog::info("CUDA device:  {}", absl::GetFlag(FLAGS_cuda_device_id));
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
   cfg.control_addr = absl::GetFlag(FLAGS_control_addr);
   cfg.device_id = absl::GetFlag(FLAGS_device_id);
   cfg.display_name = absl::GetFlag(FLAGS_display_name);
-  cfg.accelerator_version = LIBRARY_VERSION_STR;
+  cfg.accelerator_version = kLibraryVersionStr;
   cfg.client_cert_file = absl::GetFlag(FLAGS_client_cert);
   cfg.client_key_file = absl::GetFlag(FLAGS_client_key);
   cfg.ca_cert_file = absl::GetFlag(FLAGS_ca_cert);

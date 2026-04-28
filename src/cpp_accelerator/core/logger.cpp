@@ -17,7 +17,7 @@
 namespace jrb::core {
 
 // Build-time constant to verify library reloading
-constexpr const char* LOGGER_BUILD_TIMESTAMP = __DATE__ " " __TIME__;
+constexpr const char* kLoggerBuildTimestamp = __DATE__ " " __TIME__;
 
 void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
                        const std::string& environment) {
@@ -40,7 +40,7 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
     env = env_environment;
   }
 
-  std::cout << "DEBUG: initialize_logger() called [BUILD: " << LOGGER_BUILD_TIMESTAMP << "]"
+  std::cout << "DEBUG: initialize_logger() called [BUILD: " << kLoggerBuildTimestamp << "]"
             << std::endl;
 
   const char* log_file = "/tmp/cppaccelerator.log";
@@ -85,7 +85,7 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
     spdlog::set_level(spdlog::level::info);
 
     // Use stdout for initialization message to ensure visibility
-    std::cout << "Logger initialized successfully [BUILD: " << LOGGER_BUILD_TIMESTAMP
+    std::cout << "Logger initialized successfully [BUILD: " << kLoggerBuildTimestamp
               << "] [LIB_RELOAD_TEST]" << std::endl;
 
     // Verify file was created by attempting to read it
@@ -98,7 +98,7 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
 
   } catch (const spdlog::spdlog_ex& ex) {
     std::cerr << "ERROR: spdlog initialization failed: " << ex.what() << std::endl;
-    std::cerr << "ERROR: Logger build timestamp: " << LOGGER_BUILD_TIMESTAMP << std::endl;
+    std::cerr << "ERROR: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
     std::cerr << "ERROR: Attempting fallback to console logger..." << std::endl;
 
     try {
@@ -117,12 +117,12 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
     } catch (const std::exception& fallback_ex) {
       std::cerr << "FATAL: Both file and console logger initialization failed: "
                 << fallback_ex.what() << std::endl;
-      std::cerr << "FATAL: Logger build timestamp: " << LOGGER_BUILD_TIMESTAMP << std::endl;
+      std::cerr << "FATAL: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
     }
   } catch (const std::exception& ex) {
     std::cerr << "ERROR: Unexpected exception during logger initialization: " << ex.what()
               << std::endl;
-    std::cerr << "ERROR: Logger build timestamp: " << LOGGER_BUILD_TIMESTAMP << std::endl;
+    std::cerr << "ERROR: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
     std::cerr << "ERROR: Attempting fallback to console logger..." << std::endl;
 
     try {
@@ -139,7 +139,7 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
     } catch (const std::exception& fallback_ex) {
       std::cerr << "FATAL: Both file and console logger initialization failed: "
                 << fallback_ex.what() << std::endl;
-      std::cerr << "FATAL: Logger build timestamp: " << LOGGER_BUILD_TIMESTAMP << std::endl;
+      std::cerr << "FATAL: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
     }
   }
 }

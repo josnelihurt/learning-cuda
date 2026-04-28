@@ -16,7 +16,7 @@ using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
 using jrb::domain::interfaces::IPixelGetter;
 
-constexpr float SQRT_2PI = 2.506628274631000242F;
+constexpr float kSqrt2Pi = 2.506628274631000242F;
 
 namespace {
 std::vector<float> GenerateGaussianKernel(int size, float sigma) {
@@ -30,7 +30,7 @@ std::vector<float> GenerateGaussianKernel(int size, float sigma) {
   float sum = 0.0F;
   for (int i = 0; i < size; i++) {
     float x = static_cast<float>(i - radius);
-    float value = std::exp(-0.5F * (x * x) / (sigma * sigma)) / (sigma * SQRT_2PI);
+    float value = std::exp(-0.5F * (x * x) / (sigma * sigma)) / (sigma * kSqrt2Pi);
     kernel[i] = value;
     sum += value;
   }

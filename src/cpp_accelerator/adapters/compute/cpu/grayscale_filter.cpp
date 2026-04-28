@@ -12,17 +12,17 @@ using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
 
 namespace {
-constexpr float LUMA_RED_WEIGHT_BT601 = 0.299F;
-constexpr float LUMA_GREEN_WEIGHT_BT601 = 0.587F;
-constexpr float LUMA_BLUE_WEIGHT_BT601 = 0.114F;
+constexpr float kLumaRedWeightBt601 = 0.299F;
+constexpr float kLumaGreenWeightBt601 = 0.587F;
+constexpr float kLumaBlueWeightBt601 = 0.114F;
 
-constexpr float LUMA_RED_WEIGHT_BT709 = 0.2126F;
-constexpr float LUMA_GREEN_WEIGHT_BT709 = 0.7152F;
-constexpr float LUMA_BLUE_WEIGHT_BT709 = 0.0722F;
+constexpr float kLumaRedWeightBt709 = 0.2126F;
+constexpr float kLumaGreenWeightBt709 = 0.7152F;
+constexpr float kLumaBlueWeightBt709 = 0.0722F;
 
-constexpr float LUMA_RED_WEIGHT_LUMINOSITY = 0.21F;
-constexpr float LUMA_GREEN_WEIGHT_LUMINOSITY = 0.72F;
-constexpr float LUMA_BLUE_WEIGHT_LUMINOSITY = 0.07F;
+constexpr float kLumaRedWeightLuminosity = 0.21F;
+constexpr float kLumaGreenWeightLuminosity = 0.72F;
+constexpr float kLumaBlueWeightLuminosity = 0.07F;
 }  // namespace
 
 GrayscaleFilter::GrayscaleFilter(GrayscaleAlgorithm algorithm) : algorithm_(algorithm) {}
@@ -47,13 +47,13 @@ unsigned char GrayscaleFilter::CalculateGrayscaleValue(unsigned char r, unsigned
                                                        unsigned char b) const {
   switch (algorithm_) {
     case GrayscaleAlgorithm::BT601:
-      return static_cast<unsigned char>(LUMA_RED_WEIGHT_BT601 * static_cast<float>(r) +
-                                        LUMA_GREEN_WEIGHT_BT601 * static_cast<float>(g) +
-                                        LUMA_BLUE_WEIGHT_BT601 * static_cast<float>(b));
+      return static_cast<unsigned char>(kLumaRedWeightBt601 * static_cast<float>(r) +
+                                        kLumaGreenWeightBt601 * static_cast<float>(g) +
+                                        kLumaBlueWeightBt601 * static_cast<float>(b));
     case GrayscaleAlgorithm::BT709:
-      return static_cast<unsigned char>(LUMA_RED_WEIGHT_BT709 * static_cast<float>(r) +
-                                        LUMA_GREEN_WEIGHT_BT709 * static_cast<float>(g) +
-                                        LUMA_BLUE_WEIGHT_BT709 * static_cast<float>(b));
+      return static_cast<unsigned char>(kLumaRedWeightBt709 * static_cast<float>(r) +
+                                        kLumaGreenWeightBt709 * static_cast<float>(g) +
+                                        kLumaBlueWeightBt709 * static_cast<float>(b));
     case GrayscaleAlgorithm::Average:
       return static_cast<unsigned char>(
           (static_cast<int>(r) + static_cast<int>(g) + static_cast<int>(b)) / 3);
@@ -64,13 +64,13 @@ unsigned char GrayscaleFilter::CalculateGrayscaleValue(unsigned char r, unsigned
                                         2);
     }
     case GrayscaleAlgorithm::Luminosity:
-      return static_cast<unsigned char>(LUMA_RED_WEIGHT_LUMINOSITY * static_cast<float>(r) +
-                                        LUMA_GREEN_WEIGHT_LUMINOSITY * static_cast<float>(g) +
-                                        LUMA_BLUE_WEIGHT_LUMINOSITY * static_cast<float>(b));
+      return static_cast<unsigned char>(kLumaRedWeightLuminosity * static_cast<float>(r) +
+                                        kLumaGreenWeightLuminosity * static_cast<float>(g) +
+                                        kLumaBlueWeightLuminosity * static_cast<float>(b));
     default:
-      return static_cast<unsigned char>(LUMA_RED_WEIGHT_BT601 * static_cast<float>(r) +
-                                        LUMA_GREEN_WEIGHT_BT601 * static_cast<float>(g) +
-                                        LUMA_BLUE_WEIGHT_BT601 * static_cast<float>(b));
+      return static_cast<unsigned char>(kLumaRedWeightBt601 * static_cast<float>(r) +
+                                        kLumaGreenWeightBt601 * static_cast<float>(g) +
+                                        kLumaBlueWeightBt601 * static_cast<float>(b));
   }
 }
 

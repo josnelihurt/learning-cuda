@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import App from './App';
 import { ToastProvider } from './context/toast-context';
 import { GrpcClientsProvider } from './providers/grpc-clients-provider';
+import { AcceleratorType } from '@/gen/common_pb';
 
 function renderWithProviders(ui: ReactElement) {
   return render(
@@ -24,7 +25,7 @@ vi.mock('./context/dashboard-state-context', () => ({
   useDashboardState: () => ({
     selectedSourceNumber: 1,
     selectedSourceName: 'Lena',
-    selectedAccelerator: 'gpu',
+    selectedAccelerator: AcceleratorType.CUDA,
     selectedResolution: 'original',
     activeFilters: [],
     processorFilterEpoch: 0,

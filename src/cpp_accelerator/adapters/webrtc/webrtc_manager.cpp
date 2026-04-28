@@ -10,6 +10,7 @@
 #include <mutex>
 #include <optional>
 #include <random>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -120,6 +121,21 @@ bool ShouldRegisterSessionChannel(const std::string& session_id, const std::stri
   return !IsGoVideoSession(session_id) && !IsGoVideoSession(label);
 }
 
+std::string AcceleratorTypeLabel(cuda_learning::AcceleratorType type) {
+  switch (type) {
+    case cuda_learning::ACCELERATOR_TYPE_CUDA:
+      return "CUDA";
+    case cuda_learning::ACCELERATOR_TYPE_CPU:
+      return "CPU";
+    case cuda_learning::ACCELERATOR_TYPE_OPENCL:
+      return "OpenCL";
+    case cuda_learning::ACCELERATOR_TYPE_VULKAN:
+      return "Vulkan";
+    default:
+      return "Unknown";
+  }
+}
+
 // Sends a logical message over the data channel as one or more framed chunks.
 // Short-circuits and logs on the first send failure.
 void SendFramed(rtc::DataChannel& dc,
@@ -221,8 +237,12 @@ std::string StripRtpHeaderExtensions(const std::string& sdp) {
 
 }  // namespace
 
-WebRTCManager::WebRTCManager(std::shared_ptr<jrb::application::engine::ProcessorEngine> engine)
-    : engine_(std::move(engine)), initialized_(false), cleanup_running_(false) {
+WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
+    : engine_(std::move(config.engine)),
+      initialized_(false),
+      device_id_(std::move(config.device_id)),
+      display_name_(std::move(config.display_name)),
+      cleanup_running_(false) {
   rtc::InitLogger(rtc::LogLevel::Info);
 }
 
@@ -795,6 +815,27 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
               PopulateGetVersionResponse(self->engine_.get(), &ver_resp);
               ver_resp.set_api_version(request.get_version().api_version());
               *response.mutable_get_version() = std::move(ver_resp);
+              break;
+            }
+            case cuda_learning::ControlRequest::kGetAcceleratorCapabilities: {
+              auto* caps_resp = response.mutable_get_accelerator_capabilities();
+              caps_resp->set_device_id(self->device_id_);
+              caps_resp->set_display_name(self->display_name_);
+
+              std::set<cuda_learning::AcceleratorType> accelerator_types;
+              cuda_learning::GetCapabilitiesResponse engine_caps;
+              if (self->engine_ && self->engine_->GetCapabilities(&engine_caps)) {
+                for (const auto& filter : engine_caps.capabilities().filters()) {
+                  for (const auto accelerator : filter.supported_accelerators()) {
+                    accelerator_types.insert(static_cast<cuda_learning::AcceleratorType>(accelerator));
+                  }
+                }
+              }
+              for (const auto type : accelerator_types) {
+                auto* option = caps_resp->add_supported_options();
+                option->set_type(type);
+                option->set_label(AcceleratorTypeLabel(type));
+              }
               break;
             }
             default: {

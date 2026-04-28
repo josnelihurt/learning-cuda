@@ -10,6 +10,7 @@ import { filtersToFilterData } from '@/presentation/utils/grid-source';
 import { hasModelInferenceFilter } from '@/presentation/utils/grid-source';
 import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
+import { AcceleratorType } from '@/gen/common_pb';
 
 type SourceTransportFactoryOptions = {
   nextNumberRef: RefObject<number>;
@@ -18,7 +19,7 @@ type SourceTransportFactoryOptions = {
   dispatch: Dispatch<GridSourceAction>;
   activeFiltersRef: RefObject<ActiveFilterState[]>;
   selectedResolutionRef: RefObject<string>;
-  selectedAcceleratorRef: RefObject<'gpu' | 'cpu'>;
+  selectedAcceleratorRef: RefObject<AcceleratorType>;
   sourcesRef: RefObject<GridSource[]>;
 };
 
@@ -214,7 +215,7 @@ export function useSourceTransportFactory({
         sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
         filters,
         resolution: selectedResolution || 'original',
-        accelerator: selectedAccelerator || 'gpu',
+        accelerator: selectedAccelerator ?? AcceleratorType.CUDA,
         videoId: inputSource.type === 'video' ? inputSource.id : undefined,
         detections: [],
         detectionImageWidth: 0,

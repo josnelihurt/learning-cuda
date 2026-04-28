@@ -18,10 +18,6 @@ import {
   ProcessImageRequest,
 } from '@/gen/image_processor_service_pb';
 
-function toProtocolAccelerator(value: 'gpu' | 'cpu'): AcceleratorType {
-  return value === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
-}
-
 function filtersToGenericSelections(filters: ActiveFilterState[]): GenericFilterSelection[] {
   const nonNoneFilters = filters.filter((f) => f.id !== 'none');
   if (nonNoneFilters.length === 0) {
@@ -52,7 +48,7 @@ type CameraTransportResult = {
     sessionId: string,
     sourceId: string,
     filters: ActiveFilterState[],
-    accelerator: 'gpu' | 'cpu'
+    accelerator: AcceleratorType
   ) => void;
 };
 
@@ -64,14 +60,14 @@ export function useCameraTransport({
   const cameraSessionSourceIdsRef = useRef<Set<string>>(new Set());
 
   const sendCameraControlRequest = useCallback(
-    (sessionId: string, sourceId: string, filters: ActiveFilterState[], accelerator: 'gpu' | 'cpu'): void => {
+    (sessionId: string, sourceId: string, filters: ActiveFilterState[], accelerator: AcceleratorType): void => {
       try {
         webrtcService.sendControlRequest(
           sessionId,
           new ProcessImageRequest({
             sessionId,
             genericFilters: filtersToGenericSelections(filters),
-            accelerator: toProtocolAccelerator(accelerator),
+            accelerator,
             apiVersion: '1.1',
           })
         );

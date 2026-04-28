@@ -251,10 +251,14 @@ func convertFilters(filters []domain.FilterType) []pb.FilterType {
 
 func convertAccelerator(acc domain.AcceleratorType) pb.AcceleratorType {
 	switch acc {
-	case domain.AcceleratorGPU:
+	case domain.AcceleratorCUDA:
 		return pb.AcceleratorType_ACCELERATOR_TYPE_CUDA
 	case domain.AcceleratorCPU:
 		return pb.AcceleratorType_ACCELERATOR_TYPE_CPU
+	case domain.AcceleratorOpenCL:
+		return pb.AcceleratorType_ACCELERATOR_TYPE_OPENCL
+	case domain.AcceleratorVulkan:
+		return pb.AcceleratorType_ACCELERATOR_TYPE_VULKAN
 	default:
 		return pb.AcceleratorType_ACCELERATOR_TYPE_CPU
 	}

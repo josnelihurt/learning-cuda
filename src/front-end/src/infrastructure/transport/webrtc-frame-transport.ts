@@ -1,7 +1,7 @@
 import { createPromiseClient, type PromiseClient } from '@connectrpc/connect';
 import { context, propagation } from '@opentelemetry/api';
 import type { IFrameTransportService } from '@/domain/interfaces/i-frame-transport-service';
-import { AcceleratorConfig, FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
+import { FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
 import { VideoPlaybackService } from '@/gen/image_processor_service_connect';
 import {
   DetectionFrame,
@@ -13,7 +13,13 @@ import {
   StartVideoPlaybackRequest,
   StopVideoPlaybackRequest,
 } from '@/gen/image_processor_service_pb';
-import { BorderMode, GrayscaleType, ModelInferenceParameters, TraceContext } from '@/gen/common_pb';
+import {
+  AcceleratorType,
+  BorderMode,
+  GrayscaleType,
+  ModelInferenceParameters,
+  TraceContext,
+} from '@/gen/common_pb';
 import type { IStatsDisplay, IToastDisplay, ICameraPreview } from './transport-types';
 import { ChunkReassembler, nextMessageId, packMessage } from './data-channel-framing';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
@@ -67,7 +73,9 @@ function toGenericFilterSelections(filters: FilterData[]): GenericFilterSelectio
     });
 }
 
-function extractBlurParams(filters: FilterData[]) {
+function extractBlurParams(
+  filters: FilterData[]
+): { kernelSize: number; sigma: number; borderMode: BorderMode; separable: boolean } | undefined {
   const blur = filters.find((filter) => filter.isBlur());
   if (!blur) {
     return undefined;
@@ -202,20 +210,20 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     width: number,
     height: number,
     filters: FilterData[],
-    accelerator: string
+    accelerator: AcceleratorType
   ): void {
     this.sendFrameWithImageData(new ImageData(imageData, width, height), filters, accelerator);
   }
 
-  sendFrameWithImageData(image: ImageData, filters: FilterData[], accelerator: string): void {
+  sendFrameWithImageData(image: ImageData, filters: FilterData[], accelerator: AcceleratorType): void {
     this.sendFrameWithValueObjects(image, filters, accelerator);
   }
 
-  sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: string): void {
+  sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: AcceleratorType): void {
     this.sendFrameWithProcessingConfig(
       image,
       filters,
-      new AcceleratorConfig(accelerator),
+      accelerator,
       new GrayscaleAlgorithm('bt601')
     );
   }
@@ -223,7 +231,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
   sendFrameWithProcessingConfig(
     image: ImageData,
     filters: FilterData[],
-    accelerator: AcceleratorConfig,
+    accelerator: AcceleratorType,
     grayscale: GrayscaleAlgorithm
   ): void {
     void this.sendRequest(image, filters, accelerator, grayscale, { awaitResponse: false }).catch((error) => {
@@ -236,13 +244,12 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     width: number,
     height: number,
     filters: FilterData[],
-    accelerator: string
+    accelerator: AcceleratorType
   ): Promise<ProcessImageResponse> {
     const image = new ImageData(imageData, width, height);
-    const acceleratorConfig = new AcceleratorConfig(accelerator);
     const grayscale = new GrayscaleAlgorithm('bt601');
 
-    return this.sendRequest(image, filters, acceleratorConfig, grayscale, { awaitResponse: true }) as Promise<ProcessImageResponse>;
+    return this.sendRequest(image, filters, accelerator, grayscale, { awaitResponse: true }) as Promise<ProcessImageResponse>;
   }
 
   async sendSingleImage(
@@ -251,7 +258,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     height: number,
     channels: number,
     filters: FilterData[],
-    accelerator: AcceleratorConfig,
+    accelerator: AcceleratorType,
     grayscale: GrayscaleAlgorithm
   ): Promise<ProcessImageResponse> {
     await this.ensureConnected();
@@ -269,6 +276,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
 
     const frameId = ++this.frameIdCounter;
     const pending = this.registerPending(frameId);
+    const requestImageData = new Uint8Array(rasterizedBytes);
 
     const modelFilter = filters.find((f) => f.getId() === 'model_inference');
     const modelParams = modelFilter
@@ -279,12 +287,12 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       : undefined;
 
     const payload = new ProcessImageRequest({
-      imageData: rasterizedBytes,
+      imageData: requestImageData,
       width,
       height,
       channels,
       filters: filters.filter((filter) => !filter.isNone()).map((filter) => filter.toProtocol()),
-      accelerator: accelerator.toProtocol(),
+      accelerator,
       grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
       blurParams: extractBlurParams(filters),
       genericFilters: toGenericFilterSelections(filters),
@@ -307,8 +315,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     return pending;
   }
 
-  sendStartVideo(videoId: string, filters: FilterData[], accelerator: string): void {
-    const acceleratorConfig = new AcceleratorConfig(accelerator);
+  sendStartVideo(videoId: string, filters: FilterData[], accelerator: AcceleratorType): void {
     const grayscale = new GrayscaleAlgorithm('bt601');
     const modelFilter = filters.find((f) => f.getId() === 'model_inference');
     const modelParams = modelFilter
@@ -323,7 +330,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
         videoId,
         sessionId: this.sessionId ?? '',
         filters: filters.filter((filter) => !filter.isNone()).map((filter) => filter.toProtocol()),
-        accelerator: acceleratorConfig.toProtocol(),
+        accelerator,
         grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
         blurParams: extractBlurParams(filters),
         genericFilters: toGenericFilterSelections(filters),
@@ -513,7 +520,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
   private async sendRequest(
     image: ImageData,
     filters: FilterData[],
-    accelerator: AcceleratorConfig,
+    accelerator: AcceleratorType,
     grayscale: GrayscaleAlgorithm,
     options: { awaitResponse: boolean }
   ): Promise<ProcessImageResponse | void> {
@@ -549,12 +556,12 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       : undefined;
 
     const payload = new ProcessImageRequest({
-      imageData: rasterized.imageData,
+      imageData: new Uint8Array(rasterized.imageData),
       width: image.getWidth(),
       height: image.getHeight(),
       channels: rasterized.channels,
       filters: filters.filter((filter) => !filter.isNone()).map((filter) => filter.toProtocol()),
-      accelerator: accelerator.toProtocol(),
+      accelerator,
       grayscaleType: filters.some((filter) => filter.isGrayscale()) ? grayscale.toProtocol() : GrayscaleType.UNSPECIFIED,
       blurParams: extractBlurParams(filters),
       genericFilters: toGenericFilterSelections(filters),

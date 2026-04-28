@@ -9,13 +9,14 @@ import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import type { useCameraTransport } from '@/presentation/hooks/useCameraTransport';
 import type { useFilterApplication } from '@/presentation/hooks/useFilterApplication';
+import { AcceleratorType } from '@/gen/common_pb';
 
 type SourceFilterSyncOptions = {
   ready: boolean;
   selectedSourceId: string | null;
   sourcesRef: RefObject<GridSource[]>;
   activeFilters: ActiveFilterState[];
-  selectedAccelerator: 'gpu' | 'cpu';
+  selectedAccelerator: AcceleratorType;
   selectedResolution: string;
   dispatch: Dispatch<GridSourceAction>;
   sendCameraControlRequest: ReturnType<typeof useCameraTransport>['sendCameraControlRequest'];

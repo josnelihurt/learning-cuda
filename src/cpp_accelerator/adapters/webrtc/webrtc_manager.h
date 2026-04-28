@@ -25,10 +25,16 @@ class ProcessorEngine;
 
 namespace jrb::adapters::webrtc {
 
+struct WebRTCManagerConfig {
+  std::shared_ptr<jrb::application::engine::ProcessorEngine> engine;
+  std::string device_id;
+  std::string display_name;
+};
+
 class WebRTCManager : public std::enable_shared_from_this<WebRTCManager>,
                       public jrb::ports::media::IMediaSession {
 public:
-  explicit WebRTCManager(std::shared_ptr<jrb::application::engine::ProcessorEngine> engine = nullptr);
+  explicit WebRTCManager(WebRTCManagerConfig config = {});
   virtual ~WebRTCManager();
 
   bool Initialize();
@@ -93,6 +99,8 @@ public:
   std::unordered_map<std::string, std::shared_ptr<SessionState>> sessions_;
   std::mutex session_channels_mutex_;
   std::unordered_map<std::string, std::weak_ptr<rtc::DataChannel>> session_channels_;
+  std::string device_id_;
+  std::string display_name_;
   std::atomic<bool> cleanup_running_;
   std::thread cleanup_thread_;
 };

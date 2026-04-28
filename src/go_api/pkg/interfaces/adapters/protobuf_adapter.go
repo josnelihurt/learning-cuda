@@ -36,18 +36,19 @@ func (a *ProtobufAdapter) ToFilters(pbFilters []pb.FilterType) []domain.FilterTy
 func (a *ProtobufAdapter) ToAccelerator(pbAccel pb.AcceleratorType) domain.AcceleratorType {
 	switch pbAccel {
 	case pb.AcceleratorType_ACCELERATOR_TYPE_CUDA:
-		return domain.AcceleratorGPU
+		return domain.AcceleratorCUDA
 	case pb.AcceleratorType_ACCELERATOR_TYPE_CPU:
 		return domain.AcceleratorCPU
-	case pb.AcceleratorType_ACCELERATOR_TYPE_UNSPECIFIED:
-		logger.Global().Warn().Msg("received unspecified accelerator type, defaulting to GPU")
-		return domain.AcceleratorGPU
 	case pb.AcceleratorType_ACCELERATOR_TYPE_OPENCL:
-		logger.Global().Warn().Msg("received unsupported accelerator type OPENCL, defaulting to GPU")
-		return domain.AcceleratorGPU
+		return domain.AcceleratorOpenCL
+	case pb.AcceleratorType_ACCELERATOR_TYPE_VULKAN:
+		return domain.AcceleratorVulkan
+	case pb.AcceleratorType_ACCELERATOR_TYPE_UNSPECIFIED:
+		logger.Global().Warn().Msg("received unspecified accelerator type, defaulting to CUDA")
+		return domain.AcceleratorCUDA
 	default:
-		logger.Global().Warn().Int("accelerator_type", int(pbAccel)).Msg("received unknown accelerator type, defaulting to GPU")
-		return domain.AcceleratorGPU
+		logger.Global().Warn().Int("accelerator_type", int(pbAccel)).Msg("received unknown accelerator type, defaulting to CUDA")
+		return domain.AcceleratorCUDA
 	}
 }
 

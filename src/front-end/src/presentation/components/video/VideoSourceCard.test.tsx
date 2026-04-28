@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { VideoSourceCard } from './VideoSourceCard';
 import { VideoGridProvider, type VideoGridContextValue } from '@/presentation/context/video-grid-context';
 import type { GridSource } from '@/presentation/utils/grid-source';
+import { AcceleratorType } from '@/gen/common_pb';
 
 function makeSource(overrides: Partial<GridSource> = {}): GridSource {
   return {
@@ -19,7 +20,7 @@ function makeSource(overrides: Partial<GridSource> = {}): GridSource {
     sessionMode: 'frame-processing',
     filters: [],
     resolution: 'original',
-    accelerator: 'gpu',
+    accelerator: AcceleratorType.CUDA,
     detections: [],
     detectionImageWidth: 0,
     detectionImageHeight: 0,

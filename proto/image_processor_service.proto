@@ -17,6 +17,7 @@ message ControlRequest {
   oneof payload {
     ListFiltersRequest list_filters = 10 [json_name = "list_filters"];
     GetVersionInfoRequest get_version = 11 [json_name = "get_version"];
+    GetAcceleratorCapabilitiesRequest get_accelerator_capabilities = 12 [json_name = "get_accelerator_capabilities"];
   }
 }
 
@@ -29,6 +30,7 @@ message ControlResponse {
   oneof payload {
     ListFiltersResponse list_filters = 10 [json_name = "list_filters"];
     GetVersionInfoResponse get_version = 11 [json_name = "get_version"];
+    GetAcceleratorCapabilitiesResponse get_accelerator_capabilities = 12 [json_name = "get_accelerator_capabilities"];
     ControlError error = 99 [json_name = "error"];
   }
 }
@@ -87,6 +89,19 @@ message ListFiltersResponse {
   repeated GenericFilterDefinition filters = 1 [json_name = "filters"];
   string api_version = 3 [json_name = "api_version"];
   TraceContext trace_context = 5 [json_name = "trace_context"];
+}
+
+message GetAcceleratorCapabilitiesRequest {}
+
+message AcceleratorOption {
+  AcceleratorType type = 1 [json_name = "type"];
+  string label = 2 [json_name = "label"];
+}
+
+message GetAcceleratorCapabilitiesResponse {
+  string device_id = 1 [json_name = "device_id"];
+  string display_name = 2 [json_name = "display_name"];
+  repeated AcceleratorOption supported_options = 3 [json_name = "supported_options"];
 }
 
 // Request: Go passes raw image buffer

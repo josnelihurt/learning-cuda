@@ -1,15 +1,16 @@
 import { useCallback, useRef } from 'react';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
-import { AcceleratorConfig, FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
+import { FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { frameResponseToDataUrl, rasterizeImageToRgb } from '@/presentation/utils/image-utils';
 import type { GridSource } from '@/presentation/utils/grid-source';
+import { AcceleratorType } from '@/gen/common_pb';
 
 export interface FilterApplicationOptions {
   source: GridSource;
   filters: ActiveFilterState[];
-  accelerator: 'gpu' | 'cpu';
+  accelerator: AcceleratorType;
   resolution: string;
   onSourceUpdate: (sourceId: string, updater: (current: GridSource) => GridSource) => void;
 }
@@ -70,7 +71,7 @@ export function useFilterApplication(toastManager: IToastDisplay): { applyStatic
           targetHeight,
           3,
           mapFiltersToValueObjects(filters),
-          new AcceleratorConfig(accelerator),
+          accelerator,
           new GrayscaleAlgorithm('bt601')
         );
 

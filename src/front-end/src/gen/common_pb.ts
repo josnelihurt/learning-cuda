@@ -127,6 +127,11 @@ export enum AcceleratorType {
    * @generated from enum value: ACCELERATOR_TYPE_OPENCL = 3;
    */
   OPENCL = 3,
+
+  /**
+   * @generated from enum value: ACCELERATOR_TYPE_VULKAN = 4;
+   */
+  VULKAN = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(AcceleratorType)
 proto3.util.setEnumType(AcceleratorType, "cuda_learning.AcceleratorType", [
@@ -134,6 +139,7 @@ proto3.util.setEnumType(AcceleratorType, "cuda_learning.AcceleratorType", [
   { no: 1, name: "ACCELERATOR_TYPE_CUDA" },
   { no: 2, name: "ACCELERATOR_TYPE_CPU" },
   { no: 3, name: "ACCELERATOR_TYPE_OPENCL" },
+  { no: 4, name: "ACCELERATOR_TYPE_VULKAN" },
 ]);
 
 /**

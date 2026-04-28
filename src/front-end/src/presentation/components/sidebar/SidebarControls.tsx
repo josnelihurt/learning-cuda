@@ -1,4 +1,6 @@
 import { useDashboardState } from '@/presentation/context/dashboard-state-context';
+import { useAcceleratorCapabilities } from '@/presentation/hooks/useAcceleratorCapabilities';
+import { AcceleratorType } from '@/gen/common_pb';
 import styles from './SidebarControls.module.css';
 
 export function SidebarControls() {
@@ -10,6 +12,7 @@ export function SidebarControls() {
     setAccelerator,
     setResolution,
   } = useDashboardState();
+  const { options, loading } = useAcceleratorCapabilities();
 
   return (
     <div className={styles.shell}>
@@ -22,25 +25,25 @@ export function SidebarControls() {
       </div>
 
       <div className={styles.controlSection}>
-        <span className={styles.controlLabel}>Accelerator</span>
-        <div className={styles.segmented}>
-          <button
-            type="button"
-            className={`${styles.segment} ${selectedAccelerator === 'gpu' ? styles.segmentActive : ''}`}
-            data-value="gpu"
-            onClick={() => setAccelerator('gpu')}
-          >
-            GPU
-          </button>
-          <button
-            type="button"
-            className={`${styles.segment} ${selectedAccelerator === 'cpu' ? styles.segmentActive : ''}`}
-            data-value="cpu"
-            onClick={() => setAccelerator('cpu')}
-          >
-            CPU
-          </button>
-        </div>
+        <label className={styles.controlLabel} htmlFor="accelerator-select-react">
+          Accelerator
+        </label>
+        <select
+          id="accelerator-select-react"
+          className={styles.compactSelect}
+          data-testid="accelerator-select"
+          value={selectedAccelerator}
+          onChange={(e) => setAccelerator(Number(e.target.value) as AcceleratorType)}
+          disabled={loading || options.length === 0}
+        >
+          {loading && <option value="">Loading...</option>}
+          {!loading && options.length === 0 && <option value="">No accelerator connected</option>}
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className={styles.controlSection}>

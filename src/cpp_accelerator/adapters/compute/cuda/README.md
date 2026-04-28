@@ -27,7 +27,7 @@ graph TB
     subgraph Device[Device / GPU]
         POOL[memory/CudaMemoryPool<br/>thread-local cache]
         K1[kernels/grayscale_kernel.cu]
-        K2[kernels/blur_kernel.cu<br/>1D / 2D / separable / tiled]
+        K2[kernels/blur/<br/>1D / 2D / separable / tiled]
         K3[kernels/letterbox_kernel.cu]
         TRT[tensorrt/ TensorRT YOLO engine]
     end
@@ -48,7 +48,7 @@ Files at a glance:
 |---|---|
 | `memory/cuda_memory_pool.{h,cpp}` | Thread-local GPU allocation cache. Kills `cudaMalloc/Free` churn. |
 | `kernels/grayscale_kernel.cu` + `filters/grayscale_filter.{h,cpp}` | RGB → 1-channel luma, 5 algorithms. |
-| `kernels/blur_kernel.cu` + `filters/blur_processor*` | Gaussian blur, four flavors (full 2D, two 1D passes, separable+tiled). |
+| `kernels/blur/` + `filters/blur_processor*` | Gaussian blur, four flavors (full 2D, two 1D passes, separable+tiled). |
 | `kernels/letterbox_kernel.cu` | Aspect-preserving resize + pad + uint8→float NCHW for TRT input. |
 | `tensorrt/yolo_detector.{h,cpp}` + `tensorrt/model_*`, `tensorrt/yolo_factory*` | TensorRT-based YOLO inference + NMS post-process. |
 
@@ -146,7 +146,7 @@ block(16,16), grid(ceil(W/16), ceil(H/16))
 
 ---
 
-## 5. `kernels/blur_kernel.cu` — Four Flavors of Gaussian Blur
+## 5. `kernels/blur/` — Four Flavors of Gaussian Blur
 
 This is the centerpiece of the folder. Read it as a tutorial: we start with the **math of blur itself**, build a naïve CUDA kernel from it, then add one optimization at a time until we reach the production code.
 
@@ -213,7 +213,7 @@ When you blur pixel `(0, 0)`, the kernel asks for `input(-1, -1)` etc. — pixel
 | `REFLECT` | Mirror the image about the edge: `-1 → 0`, `-2 → 1`, … | Cleanest — preserves frequency content at boundaries. |
 | `WRAP` | Modulo: `-1 → width-1`. Treats image as a torus. | Useful for tileable textures, weird elsewhere. |
 
-The code (`blur_kernel.cu:11-51`) is exactly that math, hand-written:
+The code (`kernels/blur/device_utils.cuh`) is exactly that math, hand-written:
 ```cpp
 case BorderMode::REFLECT:
   if (x < 0)        return -x - 1;          //  -1 → 0,  -2 → 1
@@ -259,7 +259,7 @@ for each output pixel (x, y):           ← parallelized: one thread per pixel
     output(x, y, c) = clamp(sum, 0, 255)
 ```
 
-**The CUDA translation** (`blur_kernel.cu:238-267`):
+**The CUDA translation** (`kernels/blur/non_separable.cu`):
 ```cpp
 __global__ void ApplyFullBlurKernel(const unsigned char* input, unsigned char* output,
                                     int width, int height, int channels,
@@ -307,7 +307,7 @@ Variants 2–4 attack each of these.
 
 ### 5.6 Variant 2 — separable as two 1D kernels: `ApplyHorizontalBlurKernel` + `ApplyVerticalBlurKernel`
 
-Apply the math from §5.2: turn one O(K²) pass into two O(K) passes. From `blur_kernel.cu:269-294`:
+Apply the math from §5.2: turn one O(K²) pass into two O(K) passes. From `kernels/blur/separable_basic.cu`:
 ```cpp
 __global__ void ApplyVerticalBlurKernel(...) {
   int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -352,7 +352,7 @@ const int tile_height = blockDim.y;                // 8
 ```
 Total bytes = `tile_width * tile_height * channels`. The kernel launch passes this size as the third `<<<…>>>` argument: `<<<grid, block, shared_horizontal_rgba>>>`. **Dynamic shared memory** — caller specifies the size at launch.
 
-**Cooperative load with strided loop** (`blur_kernel.cu:107-120`):
+**Cooperative load with strided loop** (`kernels/blur/separable_tiled.cu`):
 ```cpp
 if (threadIdx.y < tile_height) {
   for (int sx = threadIdx.x; sx < tile_width; sx += blockDim.x) {  // ← cooperative fill
@@ -376,7 +376,7 @@ The strided pattern `sx = threadIdx.x; sx < tile_width; sx += blockDim.x` is the
 
 **Why `__syncthreads()` is non-negotiable.** Without it, thread A might read `tile[5]` before thread B finished writing `tile[5]`. The barrier guarantees that when *any* thread proceeds past it, *every* thread in the block has reached it — so all writes to `tile[]` are visible to all subsequent reads.
 
-**The actual convolution after the load** (`blur_kernel.cu:128-147`):
+**The actual convolution after the load** (`kernels/blur/separable_tiled.cu`):
 ```cpp
 int output_idx = (y * width + x) * channels;
 bool is_interior = (x >= radius) && (x < width - radius);
@@ -441,9 +441,9 @@ CUDA reads global memory in 32 / 64 / 128-byte transactions, **aligned**. Best c
 A 3-byte RGB pixel is a worst case. Pixel `i` is at byte `3i`, so successive threads read addresses `0, 3, 6, 9, …` — neither aligned nor of a power-of-two stride. The hardware can't fully coalesce; effective bandwidth drops.
 
 The trick:
-1. `PackRgbToRgbaKernel` (`blur_kernel.cu:66-80`) widens RGB → RGBA in a temporary buffer, padding each pixel with `alpha = 255`. Now pixel `i` is at byte `4i` — aligned, power-of-two stride, perfect coalescing.
+1. `PackRgbToRgbaKernel` (`kernels/blur/separable_tiled.cu`) widens RGB → RGBA in a temporary buffer, padding each pixel with `alpha = 255`. Now pixel `i` is at byte `4i` — aligned, power-of-two stride, perfect coalescing.
 2. The two tiled blur passes run on RGBA. They process 4 channels instead of 3, so they do ~33% more arithmetic — **but** all global accesses are now coalesced, and on memory-bound kernels (which blurs are) that's a net win.
-3. `UnpackRgbaToRgbKernel` (`blur_kernel.cu:82-95`) drops the alpha back, producing the final RGB output.
+3. `UnpackRgbaToRgbKernel` (`kernels/blur/separable_tiled.cu`) drops the alpha back, producing the final RGB output.
 
 The net of "pack + 33% extra compute + unpack" beats "no pack + uncoalesced loads", because we were memory-bound, and we improved bandwidth utilization more than we added work.
 
@@ -595,7 +595,7 @@ Detections come back in 640×640 model space. `Apply()` reverses the letterbox t
 A checklist of CUDA capabilities you can study by reading these files:
 
 - **Kernel launch syntax** `<<<grid, block, shared_bytes, stream>>>` — every `.cu` file.
-- **`__global__`, `__device__`, `__constant__` qualifiers** — `kernels/blur_kernel.cu`.
+- **`__global__`, `__device__`, `__constant__` qualifiers** — `kernels/blur/` (all variants).
 - **Thread/block/grid indexing** `blockIdx`, `blockDim`, `threadIdx` — every kernel.
 - **Bounds-check early return** — every kernel; the standard idiom for non-divisible image sizes.
 - **`cudaMemcpy` H2D / D2H** — wrappers in every `.cu`.

@@ -38,6 +38,19 @@ cc_library(
 )
 
 cc_library(
+    name = "webrtc_protocol",
+    srcs = ["webrtc_protocol.cpp"],
+    hdrs = ["webrtc_protocol.h"],
+    deps = [
+        ":data_channel_framing",
+        "//proto:image_processor_service_cc_proto",
+        "//src/cpp_accelerator/application/engine:engine",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+        "@spdlog",
+    ],
+)
+
+cc_library(
     name = "webrtc_manager",
     srcs = ["webrtc_manager.cpp"],
     hdrs = ["webrtc_manager.h"],
@@ -45,6 +58,7 @@ cc_library(
     deps = [
         ":data_channel_framing",
         ":live_video_processor",
+        ":webrtc_protocol",
         "//proto:image_processor_service_cc_proto",
         "//src/cpp_accelerator/application/engine:engine",
         "//src/cpp_accelerator/adapters/compute/cuda/memory:cuda_memory_pool",

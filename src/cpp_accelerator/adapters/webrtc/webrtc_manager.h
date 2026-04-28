@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -91,6 +92,44 @@ public:
   void RegisterSessionChannel(const std::string& session_id,
                               const std::shared_ptr<rtc::DataChannel>& data_channel);
   void UnregisterSessionChannel(const std::string& session_id);
+
+  // Returns a shared_future that will be fulfilled with the SDP answer string.
+  // Registers all peer connection state callbacks (onStateChange, onGatheringStateChange,
+  // onIceStateChange, onLocalDescription, onLocalCandidate) and the onTrack callback.
+  std::shared_future<std::string> SetupPeerConnectionCallbacks(
+      const std::string& session_id,
+      std::shared_ptr<SessionState> session,
+      std::shared_ptr<std::string> manual_candidate_sdp,
+      std::string* sdp_answer_out);
+
+  // Adds the outbound H264 video track and configures the RTP packetizer chain
+  // based on the parsed SDP offer. Returns false on error.
+  bool SetupMediaTracks(const std::string& session_id,
+                        std::shared_ptr<SessionState> session,
+                        const rtc::Description& offer,
+                        std::string* error_message);
+
+  // Registers the onDataChannel callback that routes the four data channels
+  // (main, detections, stats, control) to their respective handlers.
+  void SetupDataChannels(const std::string& session_id, std::shared_ptr<SessionState> session);
+
+  // Handles a framed binary payload from the control channel.
+  void HandleControlMessage(const std::string& session_id,
+                            SessionState& state,
+                            const rtc::binary& raw_chunk,
+                            rtc::DataChannel& response_channel);
+
+  // Handles a framed binary payload from the main data channel (image processing requests).
+  void HandleProcessingMessage(const std::string& session_id,
+                               SessionState& state,
+                               const rtc::binary& raw_chunk,
+                               rtc::DataChannel& response_channel);
+
+  // Processes a decoded inbound video frame and sends the result on the outbound track.
+  void HandleVideoFrame(const std::string& session_id,
+                        SessionState& state,
+                        rtc::binary frame,
+                        rtc::FrameInfo info);
 
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
   bool initialized_;

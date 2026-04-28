@@ -142,10 +142,10 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
 
   auto* caps = response->mutable_capabilities();
   caps->set_api_version("2.1.0");
-  caps->set_library_version(LIBRARY_VERSION_STR);
+  caps->set_library_version(kLibraryVersionStr);
   caps->set_supports_streaming(false);
   caps->set_build_date(__DATE__);
-  caps->set_build_commit(LIBRARY_GIT_HASH_STR);
+  caps->set_build_commit(kLibraryGitHashStr);
 
   auto* grayscale_filter = caps->add_filters();
   grayscale_filter->set_id("grayscale");

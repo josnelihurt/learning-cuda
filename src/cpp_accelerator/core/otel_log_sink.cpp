@@ -33,7 +33,7 @@ namespace otlp = opentelemetry::exporter::otlp;
 namespace resource = opentelemetry::sdk::resource;
 
 namespace {
-constexpr const char* SERVICE_NAME = "cuda-cpp-app";
+constexpr const char* kServiceName = "cuda-cpp-app";
 }  // namespace
 
 // PIMPL implementation to hide OpenTelemetry details
@@ -80,14 +80,14 @@ public:
       auto processor = std::unique_ptr<logs_sdk::LogRecordProcessor>(
           new logs_sdk::BatchLogRecordProcessor(std::move(exporter), processor_opts));
 
-      std::string service_version = LIBRARY_VERSION_STR;
+      std::string service_version = kLibraryVersionStr;
       if (service_version.empty() || service_version == "unknown") {
         service_version = "1.0.0";
       }
 
       // Create resource attributes
       auto resource_attributes = resource::ResourceAttributes{
-          {resource::SemanticConventions::kServiceName, SERVICE_NAME},
+          {resource::SemanticConventions::kServiceName, kServiceName},
           {resource::SemanticConventions::kServiceVersion, service_version},
           {"environment", environment}};
       auto resource_ptr = resource::Resource::Create(resource_attributes);
@@ -100,7 +100,7 @@ public:
       logs_api::Provider::SetLoggerProvider(provider);
 
       // Get logger instance
-      logger_ = provider->GetLogger(SERVICE_NAME, SERVICE_NAME, service_version);
+      logger_ = provider->GetLogger(kServiceName, kServiceName, service_version);
 
       spdlog::info("OpenTelemetry logs sink initialized (endpoint: {})", opts.url);
       initialized_ = true;

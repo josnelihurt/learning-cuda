@@ -14,7 +14,7 @@
 
 namespace jrb::infrastructure::cuda {
 
-constexpr float SQRT_2PI = 2.506628274631000242F;
+constexpr float kSqrt2Pi = 2.506628274631000242F;
 
 CudaGaussianBlurFilter::CudaGaussianBlurFilter(int kernel_size, float sigma, BorderMode border_mode,
                                                bool separable)
@@ -35,7 +35,7 @@ void CudaGaussianBlurFilter::InitializeKernel() {
   float sum = 0.0F;
   for (int i = 0; i < kernel_size_; i++) {
     float x = static_cast<float>(i - radius);
-    float value = std::exp(-0.5F * (x * x) / (sigma_ * sigma_)) / (sigma_ * SQRT_2PI);
+    float value = std::exp(-0.5F * (x * x) / (sigma_ * sigma_)) / (sigma_ * kSqrt2Pi);
     kernel_[i] = value;
     sum += value;
   }

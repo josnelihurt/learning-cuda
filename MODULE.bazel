@@ -56,6 +56,21 @@ archive_override(
 )
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "llvm_spirv_18_tool_deb",
+    downloaded_file_path = "llvm-spirv-18_amd64.deb",
+    sha256 = "4c8256b5325af9db0ea3c0548233e9a1aaa50f37aecbd1e4ab9c3f679df55639",
+    urls = ["http://archive.ubuntu.com/ubuntu/pool/universe/s/spirv-llvm-translator-18/llvm-spirv-18_18.1.8-1~ubuntu0.24.04.1_amd64.deb"],
+)
+
+http_file(
+    name = "libllvmspirvlib18_tool_deb",
+    downloaded_file_path = "libllvmspirvlib18.1_amd64.deb",
+    sha256 = "48c4c02cb3e3179a894b27545818048a79a4acc9a3cc0bbeea646c84493a86de",
+    urls = ["http://archive.ubuntu.com/ubuntu/pool/universe/s/spirv-llvm-translator-18/libllvmspirvlib18.1_18.1.8-1~ubuntu0.24.04.1_amd64.deb"],
+)
 
 http_archive(
     name = "com_google_absl",
@@ -159,6 +174,30 @@ http_archive(
     integrity = "sha256-YqTR+0Pfc1SbvtnYIWHSv4sTlr7ipQdZudio0D5iqxI=",
     strip_prefix = "libdatachannel-0.24.0",
     urls = ["https://github.com/paullouisageneau/libdatachannel/archive/refs/tags/v0.24.0.tar.gz"],
+)
+
+http_archive(
+    name = "opencl_sdk",
+    build_file = "//bazel/third_party:opencl_sdk.BUILD",
+    sha256 = "add91d0f9bf342d268b2146f2ac71ef3256da054fcf185702efc27d7014b525c",
+    strip_prefix = "OpenCL-SDK-v2025.07.23-Source/home/runner/work/OpenCL-SDK/OpenCL-SDK/install",
+    urls = ["https://github.com/KhronosGroup/OpenCL-SDK/releases/download/v2025.07.23/OpenCL-SDK-v2025.07.23-Source.tar.gz"],
+)
+
+http_archive(
+    name = "vulkan_headers",
+    build_file = "//bazel/third_party:vulkan_headers.BUILD",
+    sha256 = "d7b84712f8469657baa37a436d1a23efbf0a6354fc8835b6758ef036e15dcc14",
+    strip_prefix = "Vulkan-Headers-1.4.349",
+    urls = ["https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.349.tar.gz"],
+)
+
+http_archive(
+    name = "vulkan_hpp",
+    build_file = "//bazel/third_party:vulkan_hpp.BUILD",
+    sha256 = "53b5d6136a3b3103d3ab51170fa4d103b710d8aa221f006e300985a900744700",
+    strip_prefix = "Vulkan-Hpp-1.4.349",
+    urls = ["https://github.com/KhronosGroup/Vulkan-Hpp/archive/refs/tags/v1.4.349.tar.gz"],
 )
 
 http_archive(

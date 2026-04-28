@@ -12,7 +12,7 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/ports/shared_lib/library_version.h"
+#include "src/cpp_accelerator/core/version.h"
 
 // OpenTelemetry includes
 #include "opentelemetry/exporters/otlp/otlp_http_log_record_exporter.h"

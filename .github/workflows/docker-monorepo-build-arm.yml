@@ -109,22 +109,24 @@ jobs:
             exit 0
           fi
 
-          ap="${FILTER_ARM_PROTO:-false}"
-          ab="${FILTER_ARM_BAZEL_BASE:-false}"
-          ad="${FILTER_ARM_CPP_DEPS:-false}"
-          aa="${FILTER_ARM_CPP_APP:-false}"
-          av="${FILTER_ARM_CPP_VERSION:-false}"
-          ac="${FILTER_ARM_CUDA_RUNTIME:-false}"
+          changed_proto="${FILTER_ARM_PROTO:-false}"
+          changed_bazel_base="${FILTER_ARM_BAZEL_BASE:-false}"
+          build_cpp_deps="${FILTER_ARM_CPP_DEPS:-false}"
+          changed_cpp_app="${FILTER_ARM_CPP_APP:-false}"
+          changed_cpp_version="${FILTER_ARM_CPP_VERSION:-false}"
+          changed_cuda_runtime="${FILTER_ARM_CUDA_RUNTIME:-false}"
 
-          # bazel-base feeds cpp-dependencies, so a bazel-base change forces a deps rebuild too.
-          if [ "${ab}" = "true" ]; then ad="true"; fi
+          # cpp-dependencies bakes proto/ and bazel-base content used by cpp-builder.
+          # Force deps rebuild whenever proto or bazel-base changes.
+          if [ "${changed_proto}" = "true" ]; then build_cpp_deps="true"; fi
+          if [ "${changed_bazel_base}" = "true" ]; then build_cpp_deps="true"; fi
 
-          out "build_proto=${ap}"
-          out "build_bazel_base=${ab}"
-          out "build_cpp_deps=${ad}"
-          out "build_cuda_runtime=${ac}"
-          out "cpp_version_changed=${av}"
-          if [ "${ap}" = "true" ] || [ "${ab}" = "true" ] || [ "${ad}" = "true" ] || [ "${aa}" = "true" ] || [ "${ac}" = "true" ]; then
+          out "build_proto=${changed_proto}"
+          out "build_bazel_base=${changed_bazel_base}"
+          out "build_cpp_deps=${build_cpp_deps}"
+          out "build_cuda_runtime=${changed_cuda_runtime}"
+          out "cpp_version_changed=${changed_cpp_version}"
+          if [ "${changed_proto}" = "true" ] || [ "${changed_bazel_base}" = "true" ] || [ "${build_cpp_deps}" = "true" ] || [ "${changed_cpp_app}" = "true" ] || [ "${changed_cuda_runtime}" = "true" ]; then
             out "cpp_touched=true"
           else
             out "cpp_touched=false"

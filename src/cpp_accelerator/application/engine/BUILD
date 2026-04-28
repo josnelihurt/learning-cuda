@@ -1,0 +1,22 @@
+cc_library(
+    name = "engine",
+    srcs = ["processor_engine.cpp"],
+    hdrs = ["processor_engine.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/cpp_accelerator/application/pipeline:filter_pipeline",
+        "//src/cpp_accelerator/core:logger",
+        "//src/cpp_accelerator/core:telemetry",
+        "//src/cpp_accelerator/core:version",
+        "//src/cpp_accelerator/domain/interfaces",
+        "//src/cpp_accelerator/adapters/compute/cpu:blur_filter",
+        "//src/cpp_accelerator/adapters/compute/cpu:grayscale_filter",
+        "//src/cpp_accelerator/adapters/compute/cuda/filters:blur_processor",
+        "//src/cpp_accelerator/adapters/compute/cuda/filters:grayscale_filter",
+        "//src/cpp_accelerator/domain/interfaces:i_yolo_detector",
+        "//src/cpp_accelerator/adapters/compute/cuda/tensorrt:model_manager",
+        "//proto:common_cc_proto",
+        "//proto:image_processor_service_cc_proto",
+        "@spdlog",
+    ],
+)

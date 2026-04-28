@@ -1,7 +1,7 @@
 ARG BASE_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG BASE_TAG=latest
 ARG TARGETARCH=amd64
-ARG PROTO_VERSION=2.0.0
+ARG PROTO_VERSION=4.0.0
 ARG YOLO_MODEL_VERSION=0.1.0
 ARG YOLO_MODEL_REGISTRY=ghcr.io/josnelihurt-code/learning-cuda
 ARG COMMIT_HASH=unknown
@@ -25,6 +25,7 @@ FROM bazel-deps AS cpp-builder
 ARG BAZEL_REMOTE_CACHE=""
 ARG BAZEL_REMOTE_UPLOAD_LOCAL_RESULTS="false"
 ARG COMMIT_HASH=unknown
+ARG TARGETARCH=amd64
 
 WORKDIR /build
 
@@ -41,6 +42,12 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
 RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
     CACHE_FLAGS="" && \
+    COMMON_FLAGS="--show_timestamps --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) --local_cpu_resources=$(($NPROC - 1)) --experimental_repository_cache_hardlinks --disk_cache=/tmp/bazel-cache" && \
+    BUILD_TARGETS="//src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client" && \
+    JOBS="$NPROC" && \
+    ARCH_FLAGS="--announce_rc --verbose_failures --subcommands --linkopt=-Wl,--verbose --linkopt=-Wl,--stats" && \
+    BUILD_START_MSG="Building AMD64 with verbose output" && \
+    BUILD_DONE_MSG="AMD64 build completed" && \
     if [ -n "${BAZEL_REMOTE_CACHE}" ]; then \
         echo "Using remote Bazel cache at ${BAZEL_REMOTE_CACHE}"; \
         CACHE_FLAGS="${CACHE_FLAGS} --remote_cache=${BAZEL_REMOTE_CACHE}"; \
@@ -49,41 +56,26 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
         fi; \
     fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
-        echo "Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)" && \
-        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
-          --show_timestamps \
-          --jobs=$(($NPROC > 4 ? 4 : $NPROC)) \
-          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
-          --local_cpu_resources=$(($NPROC - 1)) \
-          --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so \
-          //src/cpp_accelerator/ports/grpc:accelerator_control_client 2>&1 | tee /tmp/bazel-build.log && \
-        echo "ARM64 build completed. Log: $(wc -l < /tmp/bazel-build.log) lines"; \
-    else \
-        echo "Building AMD64 with verbose output" && \
-        LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
-          --show_timestamps \
-          --announce_rc \
-          --verbose_failures \
-          --subcommands \
-          --jobs=$NPROC \
-          --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) \
-          --local_cpu_resources=$(($NPROC - 1)) \
-          --experimental_repository_cache_hardlinks \
-          --disk_cache=/tmp/bazel-cache ${CACHE_FLAGS} \
-          --linkopt="-Wl,--verbose" \
-          --linkopt="-Wl,--stats" \
-          //src/cpp_accelerator/ports/shared_lib:libcuda_processor.so \
-          //src/cpp_accelerator/ports/grpc:accelerator_control_client 2>&1 | tee /tmp/bazel-build.log && \
-        echo "Build log: $(wc -l < /tmp/bazel-build.log) lines"; \
-    fi
+        JOBS=$(($NPROC > 4 ? 4 : $NPROC)); \
+        BUILD_DONE_MSG="ARM64 build completed"; \
+        BUILD_START_MSG="Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)"; \
+    fi && \
+    echo "${BUILD_START_MSG}" && \
+    BUILD_START_TS=$(date +%s) && \
+    LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
+      --jobs=${JOBS} \
+      ${COMMON_FLAGS} \
+      ${ARCH_FLAGS} \
+      ${CACHE_FLAGS} \
+      ${BUILD_TARGETS} 2>&1 | tee /tmp/bazel-build.log && \
+    BUILD_END_TS=$(date +%s) && \
+    BUILD_DURATION_SEC=$(($BUILD_END_TS - $BUILD_START_TS)) && \
+    BUILD_DURATION_MMSS=$(printf "%02d:%02d" $(($BUILD_DURATION_SEC / 60)) $(($BUILD_DURATION_SEC % 60))) && \
+    echo "${BUILD_DONE_MSG}. Duration: ${BUILD_DURATION_MMSS}. Log: $(wc -l < /tmp/bazel-build.log) lines"
 
-RUN VERSION=$(cat src/cpp_accelerator/VERSION 2>/dev/null || echo "2.1.8") && \
+RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
     mkdir -p /artifacts/lib /artifacts/bin && \
-    cp -L bazel-bin/src/cpp_accelerator/ports/shared_lib/libcuda_processor.so "/artifacts/lib/libcuda_processor_v${VERSION}.so" && \
-    cp "/artifacts/lib/libcuda_processor_v${VERSION}.so" /artifacts/lib/libcuda_processor.so && \
-    cp -L bazel-bin/src/cpp_accelerator/ports/grpc/accelerator_control_client /artifacts/bin/accelerator_control_client
+    cp -L bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client /artifacts/bin/accelerator_control_client
 
 FROM ${CUDA_RUNTIME_REGISTRY}/base:cuda-runtime-${CUDA_RUNTIME_VERSION}-${TARGETARCH} AS cpp-accelerator
 
@@ -92,7 +84,6 @@ ARG ENABLE_TENSORRT=false
 WORKDIR /opt/cuda/grpc
 
 COPY --from=cpp-builder /artifacts/bin/accelerator_control_client ./bin/accelerator_control_client
-COPY --from=cpp-builder /artifacts/lib/libcuda_processor.so ./lib/libcuda_processor.so
 
 # ONNX at runtime only (TensorRT engine generated lazily at run).
 RUN mkdir -p /opt/cuda/grpc/data/models

@@ -6,9 +6,9 @@
 
 #include "src/cpp_accelerator/application/pipeline/buffer_pool.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
-#include "src/cpp_accelerator/infrastructure/cpu/blur_filter.h"
-#include "src/cpp_accelerator/infrastructure/cpu/grayscale_filter.h"
-#include "src/cpp_accelerator/infrastructure/image/image_loader.h"
+#include "src/cpp_accelerator/adapters/compute/cpu/blur_filter.h"
+#include "src/cpp_accelerator/adapters/compute/cpu/grayscale_filter.h"
+#include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 
 namespace jrb::application::pipeline {
 namespace {

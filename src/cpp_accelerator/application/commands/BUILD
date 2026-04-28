@@ -25,7 +25,7 @@ cc_library(
     deps = [
         ":command_interface",
         ":commands",
-        "//src/cpp_accelerator/infrastructure/config",
+        "//src/cpp_accelerator/adapters/config",
     ],
 )
 
@@ -42,7 +42,7 @@ cc_test(
         ":command_interface",
         ":commands",
         "//src/cpp_accelerator/core:result",
-        "//src/cpp_accelerator/infrastructure/config",
+        "//src/cpp_accelerator/adapters/config",
         "@googletest//:gtest_main",
     ],
 )

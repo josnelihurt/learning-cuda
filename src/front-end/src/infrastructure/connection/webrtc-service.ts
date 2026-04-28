@@ -27,6 +27,10 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 10_000;
 const HEARTBEAT_STALE_THRESHOLD_MS = 15_000;
 const HEARTBEAT_MAX_CONSECUTIVE_FAILURES = 3;
 const ICE_GATHERING_TIMEOUT_MS = 1_500;
+const STATS_DATA_CHANNEL_LABEL = 'cpp-processor-stats';
+const CONTROL_DATA_CHANNEL_LABEL = 'control';
+
+type ControlChannelListener = (sessionId: string, channel: RTCDataChannel | null) => void;
 
 export class WebRTCService implements IWebRTCService {
   private initialized = false;
@@ -35,6 +39,9 @@ export class WebRTCService implements IWebRTCService {
   private peerConnections: Map<string, RTCPeerConnection> = new Map();
   private dataChannels: Map<string, RTCDataChannel> = new Map();
   private detectionChannels: Map<string, RTCDataChannel> = new Map();
+  private statsChannels: Map<string, RTCDataChannel> = new Map();
+  private controlChannels: Map<string, RTCDataChannel> = new Map();
+  private controlChannelListeners: Set<ControlChannelListener> = new Set();
   private remoteStreamHandlers: Map<string, (stream: MediaStream) => void> = new Map();
   private remoteStreams: Map<string, MediaStream> = new Map();
   private pollControllers: Map<string, AbortController> = new Map();
@@ -315,6 +322,34 @@ export class WebRTCService implements IWebRTCService {
       this.dataChannels.set(sessionId, dataChannel);
       this.configureDataChannelHandlers(sessionId, dataChannel, peerConnection);
 
+      // The "control" data channel carries ControlRequest/ControlResponse
+      // envelopes used by the browser to ask the C++ accelerator for filter
+      // capabilities and version info. It is created alongside the primary
+      // process-image channel so a single SDP negotiation provisions both.
+      const controlChannel = this.createDataChannel(peerConnection, CONTROL_DATA_CHANNEL_LABEL);
+      if (controlChannel) {
+        controlChannel.binaryType = 'arraybuffer';
+        this.controlChannels.set(sessionId, controlChannel);
+        const notifyOpen = () => {
+          for (const listener of this.controlChannelListeners) {
+            try { listener(sessionId, controlChannel); } catch (e) { void e; }
+          }
+        };
+        const notifyClose = () => {
+          this.controlChannels.delete(sessionId);
+          for (const listener of this.controlChannelListeners) {
+            try { listener(sessionId, null); } catch (e) { void e; }
+          }
+        };
+        if (controlChannel.readyState === 'open') {
+          notifyOpen();
+        } else {
+          controlChannel.addEventListener('open', notifyOpen);
+        }
+        controlChannel.addEventListener('close', notifyClose);
+        controlChannel.addEventListener('error', notifyClose);
+      }
+
       // Opening multiple SCTP data channels concurrently in the same SDP
       // triggers a DCEP race with libdatachannel on the C++ side that causes
       // the SCTP stream to close within milliseconds of opening. Detections
@@ -368,6 +403,31 @@ export class WebRTCService implements IWebRTCService {
       if (this.sessions.size === 0) {
         this.connectionState = 'disconnected';
       }
+    }
+  }
+
+  // Connect-RPC's fetch is cancelled by the browser when the page unloads, so
+  // an `await closeSession(...)` from a `beforeunload` handler does not reach
+  // the server. The orphaned session keeps the C++ accelerator's encoder /
+  // CUDA pool / signaling stream alive until ICE consent expires (~30s),
+  // during which a fresh page load cannot establish a new session and stays
+  // stuck on "connecting". `navigator.sendBeacon` is the only transport the
+  // browser guarantees to flush during unload.
+  closeSessionBeacon(sessionId: string): boolean {
+    if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') {
+      return false;
+    }
+    try {
+      const url = `${window.location.origin}/cuda_learning.WebRTCSignalingService/CloseSession`;
+      const body = new Blob([JSON.stringify({ sessionId })], { type: 'application/json' });
+      const queued = navigator.sendBeacon(url, body);
+      this.cleanupSession(sessionId);
+      if (this.sessions.size === 0) {
+        this.connectionState = 'disconnected';
+      }
+      return queued;
+    } catch {
+      return false;
     }
   }
 
@@ -433,7 +493,7 @@ export class WebRTCService implements IWebRTCService {
     // Empty ProcessImageRequest acts as a keepalive: the C++ side refreshes
     // last_heartbeat on any inbound DC message and treats filter-less control
     // updates as heartbeats (no-op on live filter state).
-    const payload = new ProcessImageRequest({ sessionId, apiVersion: '1.0' }).toBinary();
+    const payload = new ProcessImageRequest({ sessionId, apiVersion: '1.1' }).toBinary();
 
     try {
       for (const chunk of packMessage(nextMessageId(), payload)) {
@@ -515,6 +575,46 @@ export class WebRTCService implements IWebRTCService {
 
   getDetectionDataChannel(sessionId: string): RTCDataChannel | null {
     return this.detectionChannels.get(sessionId) ?? null;
+  }
+
+  getStatsDataChannel(sessionId: string): RTCDataChannel | null {
+    return this.statsChannels.get(sessionId) ?? null;
+  }
+
+  getControlDataChannel(sessionId: string): RTCDataChannel | null {
+    return this.controlChannels.get(sessionId) ?? null;
+  }
+
+  getAnyOpenControlDataChannel(): RTCDataChannel | null {
+    for (const channel of this.controlChannels.values()) {
+      if (channel.readyState === 'open') {
+        return channel;
+      }
+    }
+    return null;
+  }
+
+  addControlChannelListener(listener: ControlChannelListener): () => void {
+    this.controlChannelListeners.add(listener);
+    return () => this.controlChannelListeners.delete(listener);
+  }
+
+  ensureStatsDataChannel(sessionId: string): RTCDataChannel | null {
+    const existing = this.statsChannels.get(sessionId);
+    if (existing) {
+      return existing;
+    }
+    const peerConnection = this.peerConnections.get(sessionId);
+    if (!peerConnection) {
+      return null;
+    }
+    const statsChannel = this.createDataChannel(peerConnection, STATS_DATA_CHANNEL_LABEL);
+    if (!statsChannel) {
+      return null;
+    }
+    statsChannel.binaryType = 'arraybuffer';
+    this.statsChannels.set(sessionId, statsChannel);
+    return statsChannel;
   }
 
   sendControlRequest(sessionId: string, request: ProcessImageRequest): void {
@@ -1190,6 +1290,33 @@ export class WebRTCService implements IWebRTCService {
         });
       }
       this.detectionChannels.delete(sessionId);
+    }
+
+    const statsChannel = this.statsChannels.get(sessionId);
+    if (statsChannel) {
+      try {
+        statsChannel.close();
+      } catch (error) {
+        logger.debug(`[WebRTC:${sessionId}] Error closing stats channel`, {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      }
+      this.statsChannels.delete(sessionId);
+    }
+
+    const controlChannel = this.controlChannels.get(sessionId);
+    if (controlChannel) {
+      try {
+        controlChannel.close();
+      } catch (error) {
+        logger.debug(`[WebRTC:${sessionId}] Error closing control channel`, {
+          'error.message': error instanceof Error ? error.message : String(error),
+        });
+      }
+      this.controlChannels.delete(sessionId);
+      for (const listener of this.controlChannelListeners) {
+        try { listener(sessionId, null); } catch (e) { void e; }
+      }
     }
 
     this.remoteStreams.delete(sessionId);

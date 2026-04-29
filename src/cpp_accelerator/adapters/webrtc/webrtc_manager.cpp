@@ -15,15 +15,21 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
-#include "src/cpp_accelerator/adapters/webrtc/webrtc_protocol.h"
+#include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
+#include "src/cpp_accelerator/adapters/webrtc/protocol/message_codec.h"
+#include "src/cpp_accelerator/adapters/webrtc/protocol/session_routing.h"
+#include "src/cpp_accelerator/adapters/webrtc/sdp/sdp_utils.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
+#include "src/cpp_accelerator/application/server_info/server_info_provider.h"
 
 namespace jrb::adapters::webrtc {
 
-using namespace internal;  // bring internal helpers into scope
+using namespace jrb::adapters::webrtc::protocol;
+using namespace jrb::adapters::webrtc::sdp;
 
 WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
     : engine_(std::move(config.engine)),
+      server_info_(std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
       initialized_(false),
       device_id_(std::move(config.device_id)),
       display_name_(std::move(config.display_name)),
@@ -772,13 +778,13 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
   switch (request.payload_case()) {
     case cuda_learning::ControlRequest::kListFilters: {
       cuda_learning::ListFiltersResponse list_resp;
-      PopulateListFiltersResponse(engine_.get(), request.list_filters(), &list_resp);
+      server_info_->PopulateListFiltersResponse(request.list_filters(), &list_resp);
       *response.mutable_list_filters() = std::move(list_resp);
       break;
     }
     case cuda_learning::ControlRequest::kGetVersion: {
       cuda_learning::GetVersionInfoResponse ver_resp;
-      PopulateGetVersionResponse(engine_.get(), &ver_resp);
+      server_info_->PopulateVersionResponse(&ver_resp);
       ver_resp.set_api_version(request.get_version().api_version());
       *response.mutable_get_version() = std::move(ver_resp);
       break;

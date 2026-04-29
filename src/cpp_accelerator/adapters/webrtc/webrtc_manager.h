@@ -18,6 +18,7 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/memory/cuda_memory_pool.h"
 #include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 #include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
+#include "src/cpp_accelerator/application/server_info/i_server_info_provider.h"
 #include "src/cpp_accelerator/ports/media/i_media_session.h"
 
 namespace jrb::application::engine {
@@ -160,6 +161,7 @@ public:
                          const cuda_learning::DetectionFrame& frame);
 
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
+  std::unique_ptr<jrb::application::server_info::IServerInfoProvider> server_info_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;
   std::mutex sessions_mutex_;

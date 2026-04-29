@@ -439,26 +439,8 @@ std::shared_future<std::string> WebRTCManager::SetupPeerConnectionCallbacks(
           return;
         }
 
-        session->inbound_video_track = track;
-        session->inbound_rtcp_session = std::make_shared<rtc::RtcpReceivingSession>();
-        session->inbound_depacketizer = std::make_shared<rtc::H264RtpDepacketizer>();
-        // incomingChain() processes in reverse: rtcp_session validates RTP first,
-        // then depacketizer assembles the frame.
-        session->inbound_depacketizer->addToChain(session->inbound_rtcp_session);
-        track->setMediaHandler(session->inbound_depacketizer);
-
-        track->onOpen([session_id, mid = track->mid()]() {
-          spdlog::info("[WebRTC:{}] Inbound video track opened (mid={})", session_id, mid);
-        });
-        track->onClosed([session_id, mid = track->mid()]() {
-          spdlog::warn("[WebRTC:{}] Inbound video track closed (mid={})", session_id, mid);
-        });
-
-        track->onFrame([weak_self, session_id, session](rtc::binary frame, rtc::FrameInfo info) {
-          auto self = weak_self.lock();
-          if (!self) return;
-          self->HandleVideoFrame(session_id, *session, std::move(frame), info);
-        });
+        auto self = weak_self.lock();
+        if (self) self->SetupInboundTrackCallbacks(session_id, session, track);
       });
 
   return answer_future;
@@ -525,135 +507,239 @@ bool WebRTCManager::SetupMediaTracks(const std::string& session_id,
 }
 
 // ---------------------------------------------------------------------------
-// SetupDataChannels
+// SetupDataChannels — dispatcher
 // ---------------------------------------------------------------------------
 void WebRTCManager::SetupDataChannels(const std::string& session_id,
                                       std::shared_ptr<SessionState> session) {
   session->peer_connection->onDataChannel(
       [weak_self = weak_from_this(), session_id, session](
-          std::shared_ptr<rtc::DataChannel> data_channel) {
-        const std::string label = data_channel->label();
-        spdlog::info("[WebRTC:{}] Remote data channel received: {}", session_id, label);
+          std::shared_ptr<rtc::DataChannel> dc) {
+        spdlog::info("[WebRTC:{}] Remote data channel received: {}", session_id, dc->label());
+        auto self = weak_self.lock();
+        if (!self) return;
 
-        if (label == "detections") {
-          data_channel->onOpen([session_id]() {
-            spdlog::info("[WebRTC:{}] Detection channel opened", session_id);
-          });
-          data_channel->onClosed([session_id, session]() {
-            spdlog::warn("[WebRTC:{}] Detection channel closed", session_id);
-            std::lock_guard<std::mutex> cl(session->mutex);
-            session->detection_channel = nullptr;
-          });
-          data_channel->onError([session_id](std::string err) {
-            spdlog::error("[WebRTC:{}] Detection channel error: {}", session_id, err);
-          });
-          {
-            std::lock_guard<std::mutex> lock(session->mutex);
-            session->detection_channel = data_channel;
-          }
-          return;
-        }
-
-        if (label == kControlChannelLabel) {
-          {
-            std::lock_guard<std::mutex> lock(session->mutex);
-            session->control_channel = data_channel;
-          }
-          data_channel->onOpen([session_id]() {
-            spdlog::info("[WebRTC:{}] Control channel opened", session_id);
-          });
-          data_channel->onClosed([session_id, session]() {
-            spdlog::warn("[WebRTC:{}] Control channel closed", session_id);
-            std::lock_guard<std::mutex> cl(session->mutex);
-            session->control_channel = nullptr;
-          });
-          data_channel->onError([session_id](std::string err) {
-            spdlog::error("[WebRTC:{}] Control channel error: {}", session_id, err);
-          });
-          std::weak_ptr<rtc::DataChannel> weak_ctrl = data_channel;
-          data_channel->onMessage(
-              [weak_self, weak_ctrl, session_id, session](rtc::message_variant data) {
-                auto self = weak_self.lock();
-                auto dc = weak_ctrl.lock();
-                if (!self || !dc) return;
-                if (!std::holds_alternative<rtc::binary>(data)) {
-                  spdlog::warn("[WebRTC:{}] Control channel: ignoring non-binary message",
-                               session_id);
-                  return;
-                }
-                self->HandleControlMessage(session_id, *session, std::get<rtc::binary>(data),
-                                           *dc);
-              });
-          return;
-        }
-
-        if (label == kStatsChannelLabel) {
-          data_channel->onOpen([session_id]() {
-            spdlog::info("[WebRTC:{}] Stats channel opened", session_id);
-          });
-          data_channel->onClosed([session_id, session]() {
-            spdlog::warn("[WebRTC:{}] Stats channel closed", session_id);
-            std::lock_guard<std::mutex> cl(session->mutex);
-            session->stats_channel = nullptr;
-          });
-          data_channel->onError([session_id](std::string err) {
-            spdlog::error("[WebRTC:{}] Stats channel error: {}", session_id, err);
-          });
-          {
-            std::lock_guard<std::mutex> lock(session->mutex);
-            session->stats_channel = data_channel;
-          }
-          return;
-        }
-
-        // Default: main processing data channel.
-        session->data_channel = data_channel;
-        std::weak_ptr<rtc::DataChannel> weak_dc = data_channel;
-
-        data_channel->onOpen([weak_self, weak_dc, session_id, label, session]() {
-          auto self = weak_self.lock();
-          auto dc = weak_dc.lock();
-          if (!self || !dc) return;
-          {
-            std::lock_guard<std::mutex> lock(session->mutex);
-            session->last_heartbeat = std::chrono::steady_clock::now();
-          }
-          if (ShouldRegisterSessionChannel(session_id, label)) {
-            self->RegisterSessionChannel(session_id, dc);
-          }
-          spdlog::info("[WebRTC:{}] Remote data channel opened successfully - isOpen: {}",
-                       session_id, dc->isOpen());
-        });
-
-        data_channel->onMessage(
-            [weak_self, weak_dc, session_id, session](rtc::message_variant data) {
-              auto self = weak_self.lock();
-              auto dc = weak_dc.lock();
-              if (!self || !dc) return;
-              if (!std::holds_alternative<rtc::binary>(data)) {
-                spdlog::warn("[WebRTC:{}] Ignoring non-binary data channel message", session_id);
-                return;
-              }
-              self->HandleProcessingMessage(session_id, *session, std::get<rtc::binary>(data),
-                                            *dc);
-            });
-
-        data_channel->onClosed([weak_self, session_id, label]() {
-          auto self = weak_self.lock();
-          if (!self) return;
-          if (ShouldRegisterSessionChannel(session_id, label)) {
-            self->UnregisterSessionChannel(session_id);
-          }
-          spdlog::warn("[WebRTC:{}] Remote data channel closed", session_id);
-        });
-
-        data_channel->onError([session_id](std::string err) {
-          spdlog::error("[WebRTC:{}] Remote data channel error: {}", session_id, err);
-        });
-
-        spdlog::info("[WebRTC:{}] Data channel callbacks registered on remote channel",
-                     session_id);
+        const std::string& label = dc->label();
+        if (label == "detections")       self->SetupDetectionChannel(session_id, session, dc);
+        else if (label == kControlChannelLabel) self->SetupControlChannel(session_id, session, dc);
+        else if (label == kStatsChannelLabel)   self->SetupStatsChannel(session_id, session, dc);
+        else                                    self->SetupMainChannel(session_id, session, dc);
       });
+}
+
+// ---------------------------------------------------------------------------
+// SetupDetectionChannel
+// ---------------------------------------------------------------------------
+void WebRTCManager::SetupDetectionChannel(const std::string& session_id,
+                                          std::shared_ptr<SessionState> session,
+                                          std::shared_ptr<rtc::DataChannel> dc) {
+  {
+    std::lock_guard<std::mutex> lock(session->mutex);
+    session->detection_channel = dc;
+  }
+  dc->onOpen([session_id]() {
+    spdlog::info("[WebRTC:{}] Detection channel opened", session_id);
+  });
+  dc->onClosed([session_id, session]() {
+    spdlog::warn("[WebRTC:{}] Detection channel closed", session_id);
+    std::lock_guard<std::mutex> lock(session->mutex);
+    session->detection_channel = nullptr;
+  });
+  dc->onError([session_id](std::string err) {
+    spdlog::error("[WebRTC:{}] Detection channel error: {}", session_id, err);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SetupControlChannel
+// ---------------------------------------------------------------------------
+void WebRTCManager::SetupControlChannel(const std::string& session_id,
+                                        std::shared_ptr<SessionState> session,
+                                        std::shared_ptr<rtc::DataChannel> dc) {
+  {
+    std::lock_guard<std::mutex> lock(session->mutex);
+    session->control_channel = dc;
+  }
+  dc->onOpen([session_id]() {
+    spdlog::info("[WebRTC:{}] Control channel opened", session_id);
+  });
+  dc->onClosed([session_id, session]() {
+    spdlog::warn("[WebRTC:{}] Control channel closed", session_id);
+    std::lock_guard<std::mutex> lock(session->mutex);
+    session->control_channel = nullptr;
+  });
+  dc->onError([session_id](std::string err) {
+    spdlog::error("[WebRTC:{}] Control channel error: {}", session_id, err);
+  });
+  std::weak_ptr<rtc::DataChannel> weak_dc = dc;
+  dc->onMessage([weak_self = weak_from_this(), weak_dc, session_id, session](
+                    rtc::message_variant data) {
+    auto self = weak_self.lock();
+    auto ch = weak_dc.lock();
+    if (!self || !ch) return;
+    if (!std::holds_alternative<rtc::binary>(data)) {
+      spdlog::warn("[WebRTC:{}] Control channel: ignoring non-binary message", session_id);
+      return;
+    }
+    self->HandleControlMessage(session_id, *session, std::get<rtc::binary>(data), *ch);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SetupStatsChannel
+// ---------------------------------------------------------------------------
+void WebRTCManager::SetupStatsChannel(const std::string& session_id,
+                                      std::shared_ptr<SessionState> session,
+                                      std::shared_ptr<rtc::DataChannel> dc) {
+  {
+    std::lock_guard<std::mutex> lock(session->mutex);
+    session->stats_channel = dc;
+  }
+  dc->onOpen([session_id]() {
+    spdlog::info("[WebRTC:{}] Stats channel opened", session_id);
+  });
+  dc->onClosed([session_id, session]() {
+    spdlog::warn("[WebRTC:{}] Stats channel closed", session_id);
+    std::lock_guard<std::mutex> lock(session->mutex);
+    session->stats_channel = nullptr;
+  });
+  dc->onError([session_id](std::string err) {
+    spdlog::error("[WebRTC:{}] Stats channel error: {}", session_id, err);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SetupMainChannel
+// ---------------------------------------------------------------------------
+void WebRTCManager::SetupMainChannel(const std::string& session_id,
+                                     std::shared_ptr<SessionState> session,
+                                     std::shared_ptr<rtc::DataChannel> dc) {
+  session->data_channel = dc;
+  const std::string label = dc->label();
+  std::weak_ptr<rtc::DataChannel> weak_dc = dc;
+
+  dc->onOpen([weak_self = weak_from_this(), weak_dc, session_id, label, session]() {
+    auto self = weak_self.lock();
+    auto ch = weak_dc.lock();
+    if (!self || !ch) return;
+    {
+      std::lock_guard<std::mutex> lock(session->mutex);
+      session->last_heartbeat = std::chrono::steady_clock::now();
+    }
+    if (ShouldRegisterSessionChannel(session_id, label)) {
+      self->RegisterSessionChannel(session_id, ch);
+    }
+    spdlog::info("[WebRTC:{}] Main data channel opened (isOpen={})", session_id, ch->isOpen());
+  });
+  dc->onMessage([weak_self = weak_from_this(), weak_dc, session_id, session](
+                    rtc::message_variant data) {
+    auto self = weak_self.lock();
+    auto ch = weak_dc.lock();
+    if (!self || !ch) return;
+    if (!std::holds_alternative<rtc::binary>(data)) {
+      spdlog::warn("[WebRTC:{}] Ignoring non-binary data channel message", session_id);
+      return;
+    }
+    self->HandleProcessingMessage(session_id, *session, std::get<rtc::binary>(data), *ch);
+  });
+  dc->onClosed([weak_self = weak_from_this(), session_id, label]() {
+    auto self = weak_self.lock();
+    if (!self) return;
+    if (ShouldRegisterSessionChannel(session_id, label)) {
+      self->UnregisterSessionChannel(session_id);
+    }
+    spdlog::warn("[WebRTC:{}] Main data channel closed", session_id);
+  });
+  dc->onError([session_id](std::string err) {
+    spdlog::error("[WebRTC:{}] Main data channel error: {}", session_id, err);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SetupInboundTrackCallbacks
+// ---------------------------------------------------------------------------
+void WebRTCManager::SetupInboundTrackCallbacks(const std::string& session_id,
+                                               std::shared_ptr<SessionState> session,
+                                               std::shared_ptr<rtc::Track> track) {
+  // incomingChain processes in reverse: rtcp_session validates RTP first,
+  // then depacketizer assembles the NAL frame.
+  session->inbound_video_track = track;
+  session->inbound_rtcp_session = std::make_shared<rtc::RtcpReceivingSession>();
+  session->inbound_depacketizer = std::make_shared<rtc::H264RtpDepacketizer>();
+  session->inbound_depacketizer->addToChain(session->inbound_rtcp_session);
+  track->setMediaHandler(session->inbound_depacketizer);
+
+  track->onOpen([session_id, mid = track->mid()]() {
+    spdlog::info("[WebRTC:{}] Inbound video track opened (mid={})", session_id, mid);
+  });
+  track->onClosed([session_id, mid = track->mid()]() {
+    spdlog::warn("[WebRTC:{}] Inbound video track closed (mid={})", session_id, mid);
+  });
+  track->onFrame([weak_self = weak_from_this(), session_id, session](
+                     rtc::binary frame, rtc::FrameInfo info) {
+    auto self = weak_self.lock();
+    if (!self) return;
+    self->HandleVideoFrame(session_id, *session, std::move(frame), info);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// EmitProcessingStats
+// ---------------------------------------------------------------------------
+void WebRTCManager::EmitProcessingStats(const std::string& session_id, SessionState& state,
+                                        double elapsed_ms, int64_t detection_count,
+                                        uint32_t frame_id) {
+  std::shared_ptr<rtc::DataChannel> stats_ch;
+  {
+    std::lock_guard<std::mutex> lock(state.mutex);
+    stats_ch = state.stats_channel;
+  }
+  if (!stats_ch || !stats_ch->isOpen()) return;
+
+  cuda_learning::ProcessingStatsFrame stats_frame;
+  stats_frame.set_session_id(session_id);
+  stats_frame.set_frame_id(frame_id);
+  stats_frame.set_capture_ts_unix_ms(CurrentUnixTimeMs());
+
+  auto* total_ms = stats_frame.add_metrics();
+  total_ms->set_key("pipeline.total.ms");
+  total_ms->set_unit("ms");
+  total_ms->mutable_value()->set_double_value(elapsed_ms);
+
+  auto* det_count = stats_frame.add_metrics();
+  det_count->set_key("detections.count");
+  det_count->set_unit("count");
+  det_count->mutable_value()->set_int64_value(detection_count);
+
+  std::string payload;
+  if (stats_frame.SerializeToString(&payload)) {
+    SendFramed(*stats_ch, payload,
+               state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
+  } else {
+    spdlog::error("[WebRTC:{}] Failed to serialize ProcessingStatsFrame", session_id);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ForwardDetections
+// ---------------------------------------------------------------------------
+void WebRTCManager::ForwardDetections(const std::string& session_id, SessionState& state,
+                                      const cuda_learning::DetectionFrame& frame) {
+  if (frame.detections_size() == 0) return;
+
+  std::shared_ptr<rtc::DataChannel> det_ch;
+  {
+    std::lock_guard<std::mutex> lock(state.mutex);
+    det_ch = state.detection_channel;
+  }
+  if (!det_ch || !det_ch->isOpen()) return;
+
+  std::string payload;
+  if (frame.SerializeToString(&payload)) {
+    SendFramed(*det_ch, payload,
+               state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
+  } else {
+    spdlog::error("[WebRTC:{}] Failed to serialize DetectionFrame", session_id);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -822,66 +908,21 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
   SendFramed(response_channel, output,
              state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
 
-  // Emit processing stats.
-  {
-    std::shared_ptr<rtc::DataChannel> stats_ch;
-    {
-      std::lock_guard<std::mutex> lock(state.mutex);
-      stats_ch = state.stats_channel;
-    }
-    if (stats_ch && stats_ch->isOpen()) {
-      const auto elapsed_ms =
-          std::chrono::duration_cast<std::chrono::microseconds>(
-              std::chrono::steady_clock::now() - process_started)
-              .count() /
-          1000.0;
-      cuda_learning::ProcessingStatsFrame stats_frame;
-      stats_frame.set_session_id(session_id);
-      stats_frame.set_frame_id(request.frame_id());
-      stats_frame.set_capture_ts_unix_ms(CurrentUnixTimeMs());
+  const auto elapsed_ms =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::steady_clock::now() - process_started)
+          .count() / 1000.0;
+  EmitProcessingStats(session_id, state, elapsed_ms, response.detections_size(),
+                      request.frame_id());
 
-      auto* total_ms = stats_frame.add_metrics();
-      total_ms->set_key("pipeline.total.ms");
-      total_ms->set_unit("ms");
-      total_ms->mutable_value()->set_double_value(elapsed_ms);
-
-      auto* det_count = stats_frame.add_metrics();
-      det_count->set_key("detections.count");
-      det_count->set_unit("count");
-      det_count->mutable_value()->set_int64_value(response.detections_size());
-
-      std::string stats_payload;
-      if (stats_frame.SerializeToString(&stats_payload)) {
-        SendFramed(*stats_ch, stats_payload,
-                   state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
-      } else {
-        spdlog::error("[WebRTC:{}] Failed to serialize ProcessingStatsFrame", session_id);
-      }
-    }
+  cuda_learning::DetectionFrame det_frame;
+  det_frame.set_frame_id(request.frame_id());
+  det_frame.set_image_width(request.width());
+  det_frame.set_image_height(request.height());
+  for (const auto& d : response.detections()) {
+    *det_frame.add_detections() = d;
   }
-
-  // Forward detections to the dedicated detection channel.
-  if (response.detections_size() > 0) {
-    std::shared_ptr<rtc::DataChannel> det_ch;
-    {
-      std::lock_guard<std::mutex> lock(state.mutex);
-      det_ch = state.detection_channel;
-    }
-    if (det_ch && det_ch->isOpen()) {
-      cuda_learning::DetectionFrame det_frame;
-      det_frame.set_frame_id(request.frame_id());
-      det_frame.set_image_width(request.width());
-      det_frame.set_image_height(request.height());
-      for (const auto& d : response.detections()) {
-        *det_frame.add_detections() = d;
-      }
-      std::string det_output;
-      if (det_frame.SerializeToString(&det_output)) {
-        SendFramed(*det_ch, det_output,
-                   state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
-      }
-    }
-  }
+  ForwardDetections(session_id, state, det_frame);
 }
 
 // ---------------------------------------------------------------------------
@@ -898,8 +939,7 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
 
   std::lock_guard<std::mutex> media_lock(state.media_mutex);
 
-  static std::atomic<int> s_frame_count{0};
-  const int frame_num = ++s_frame_count;
+  const int frame_num = ++state.frame_count;
   if (frame_num <= 5 || frame_num % 30 == 0) {
     spdlog::info(
         "[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}", session_id,
@@ -936,59 +976,12 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
     }
   }
 
-  // Emit processing stats.
-  {
-    std::shared_ptr<rtc::DataChannel> stats_ch;
-    {
-      std::lock_guard<std::mutex> lock(state.mutex);
-      stats_ch = state.stats_channel;
-    }
-    if (stats_ch && stats_ch->isOpen()) {
-      const auto elapsed_ms =
-          std::chrono::duration_cast<std::chrono::microseconds>(
-              std::chrono::steady_clock::now() - process_started)
-              .count() /
-          1000.0;
-      cuda_learning::ProcessingStatsFrame stats_frame;
-      stats_frame.set_session_id(session_id);
-      stats_frame.set_frame_id(0);
-      stats_frame.set_capture_ts_unix_ms(CurrentUnixTimeMs());
-
-      auto* total_ms = stats_frame.add_metrics();
-      total_ms->set_key("pipeline.total.ms");
-      total_ms->set_unit("ms");
-      total_ms->mutable_value()->set_double_value(elapsed_ms);
-
-      auto* det_count = stats_frame.add_metrics();
-      det_count->set_key("detections.count");
-      det_count->set_unit("count");
-      det_count->mutable_value()->set_int64_value(detection_frame.detections_size());
-
-      std::string stats_payload;
-      if (stats_frame.SerializeToString(&stats_payload)) {
-        SendFramed(*stats_ch, stats_payload,
-                   state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
-      } else {
-        spdlog::error("[WebRTC:{}] Failed to serialize ProcessingStatsFrame", session_id);
-      }
-    }
-  }
-
-  // Forward detections.
-  if (detection_frame.detections_size() > 0) {
-    std::shared_ptr<rtc::DataChannel> det_ch;
-    {
-      std::lock_guard<std::mutex> lock(state.mutex);
-      det_ch = state.detection_channel;
-    }
-    if (det_ch && det_ch->isOpen()) {
-      std::string det_output;
-      if (detection_frame.SerializeToString(&det_output)) {
-        SendFramed(*det_ch, det_output,
-                   state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
-      }
-    }
-  }
+  const auto elapsed_ms =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::steady_clock::now() - process_started)
+          .count() / 1000.0;
+  EmitProcessingStats(session_id, state, elapsed_ms, detection_frame.detections_size(), 0);
+  ForwardDetections(session_id, state, detection_frame);
 }
 
 // ---------------------------------------------------------------------------

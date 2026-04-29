@@ -74,6 +74,7 @@ public:
     std::unique_ptr<ChunkReassembler> incoming_reassembler =
         std::make_unique<ChunkReassembler>();
     std::atomic<uint32_t> outgoing_message_id{0};
+    std::atomic<int> frame_count{0};
     cuda_learning::ProcessImageRequest live_filter_state;
     std::vector<rtc::Candidate> pending_candidates;
     std::queue<rtc::Candidate> local_candidates_queue;
@@ -130,6 +131,33 @@ public:
                         SessionState& state,
                         rtc::binary frame,
                         rtc::FrameInfo info);
+
+  // Sets up RTP handlers and callbacks for an inbound RecvOnly video track.
+  void SetupInboundTrackCallbacks(const std::string& session_id,
+                                  std::shared_ptr<SessionState> session,
+                                  std::shared_ptr<rtc::Track> track);
+
+  // Per-channel setup helpers called from SetupDataChannels.
+  void SetupDetectionChannel(const std::string& session_id,
+                             std::shared_ptr<SessionState> session,
+                             std::shared_ptr<rtc::DataChannel> dc);
+  void SetupControlChannel(const std::string& session_id,
+                           std::shared_ptr<SessionState> session,
+                           std::shared_ptr<rtc::DataChannel> dc);
+  void SetupStatsChannel(const std::string& session_id,
+                         std::shared_ptr<SessionState> session,
+                         std::shared_ptr<rtc::DataChannel> dc);
+  void SetupMainChannel(const std::string& session_id,
+                        std::shared_ptr<SessionState> session,
+                        std::shared_ptr<rtc::DataChannel> dc);
+
+  // Serializes and sends a ProcessingStatsFrame to the stats channel if open.
+  void EmitProcessingStats(const std::string& session_id, SessionState& state,
+                           double elapsed_ms, int64_t detection_count, uint32_t frame_id);
+
+  // Serializes and sends a DetectionFrame to the detection channel if open.
+  void ForwardDetections(const std::string& session_id, SessionState& state,
+                         const cuda_learning::DetectionFrame& frame);
 
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
   bool initialized_;

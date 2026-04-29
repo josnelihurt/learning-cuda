@@ -7,11 +7,6 @@
 
 namespace jrb::adapters::webrtc::protocol {
 
-cuda_learning::GenericFilterParameterType ConvertParamType(const std::string& type);
-
-void CopyValidationRulesFromMetadata(const cuda_learning::FilterParameter& source,
-                                     cuda_learning::GenericFilterParameter* target);
-
 std::string NormalizeFilterId(const std::string& value);
 
 std::optional<std::string> FirstGenericValue(

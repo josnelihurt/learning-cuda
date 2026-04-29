@@ -49,7 +49,6 @@ class LiveVideoProcessor {
   bool BuildProcessingRequest(const cuda_learning::ProcessImageRequest& state, int width, int height,
                               const std::vector<uint8_t>& rgb_buffer,
                               cuda_learning::ProcessImageRequest* request) const;
-  bool ResolveGenericSelections(cuda_learning::ProcessImageRequest* request) const;
   bool HasActiveFilters(const cuda_learning::ProcessImageRequest& request) const;
 
   bool CopyDecodedFrameToRgbBuffer(std::vector<uint8_t>* rgb_buffer, std::string* error_message);

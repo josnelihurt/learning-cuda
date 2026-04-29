@@ -21,7 +21,7 @@ extern "C" {
 
 namespace jrb::adapters::webrtc {
 
-using namespace jrb::adapters::webrtc::protocol;
+using jrb::adapters::webrtc::protocol::ResolveGenericSelectionsInPlace;
 
 namespace {
 
@@ -49,12 +49,12 @@ LiveVideoProcessor::LiveVideoProcessor(jrb::application::engine::ProcessorEngine
       encoder_context_(nullptr),
       decode_to_rgb_context_(nullptr),
       rgb_to_yuv_context_(nullptr),
-      decoded_frame_(av_frame_alloc()),
-      rgb_input_frame_(av_frame_alloc()),
-      rgb_output_frame_(av_frame_alloc()),
-      yuv_frame_(av_frame_alloc()),
-      decode_packet_(av_packet_alloc()),
-      encode_packet_(av_packet_alloc()),
+      decoded_frame_(nullptr),
+      rgb_input_frame_(nullptr),
+      rgb_output_frame_(nullptr),
+      yuv_frame_(nullptr),
+      decode_packet_(nullptr),
+      encode_packet_(nullptr),
       frame_width_(0),
       frame_height_(0),
       input_pixel_format_(-1),
@@ -88,6 +88,10 @@ bool LiveVideoProcessor::UpdateFilterState(const cuda_learning::ProcessImageRequ
   state->set_width(0);
   state->set_height(0);
   state->set_channels(0);
+
+  // Resolve generic_filters into the typed filters[] field once, here, so
+  // per-frame paths don't need to copy + re-resolve.
+  ResolveGenericSelectionsInPlace(state);
   return true;
 }
 
@@ -215,6 +219,19 @@ bool LiveVideoProcessor::EnsureDecoder(std::string* error_message) {
     return true;
   }
 
+  if (decoded_frame_ == nullptr) {
+    decoded_frame_ = av_frame_alloc();
+  }
+  if (decode_packet_ == nullptr) {
+    decode_packet_ = av_packet_alloc();
+  }
+  if (decoded_frame_ == nullptr || decode_packet_ == nullptr) {
+    if (error_message != nullptr) {
+      *error_message = "failed to allocate decoder frame/packet";
+    }
+    return false;
+  }
+
   const AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
   if (decoder == nullptr) {
     if (error_message != nullptr) {
@@ -261,6 +278,22 @@ bool LiveVideoProcessor::EnsureFrameResources(int width, int height, int input_f
   sws_freeContext(rgb_to_yuv_context_);
   decode_to_rgb_context_ = nullptr;
   rgb_to_yuv_context_ = nullptr;
+
+  if (rgb_input_frame_ == nullptr) {
+    rgb_input_frame_ = av_frame_alloc();
+  }
+  if (rgb_output_frame_ == nullptr) {
+    rgb_output_frame_ = av_frame_alloc();
+  }
+  if (yuv_frame_ == nullptr) {
+    yuv_frame_ = av_frame_alloc();
+  }
+  if (rgb_input_frame_ == nullptr || rgb_output_frame_ == nullptr || yuv_frame_ == nullptr) {
+    if (error_message != nullptr) {
+      *error_message = "failed to allocate scaler frames";
+    }
+    return false;
+  }
 
   av_frame_unref(rgb_input_frame_);
   av_frame_unref(rgb_output_frame_);
@@ -338,6 +371,16 @@ bool LiveVideoProcessor::EnsureEncoder(int width, int height, std::string* error
     return true;
   }
 
+  if (encode_packet_ == nullptr) {
+    encode_packet_ = av_packet_alloc();
+  }
+  if (encode_packet_ == nullptr) {
+    if (error_message != nullptr) {
+      *error_message = "failed to allocate encoder packet";
+    }
+    return false;
+  }
+
   avcodec_free_context(&encoder_context_);
 
   const AVCodec* encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
@@ -390,6 +433,8 @@ bool LiveVideoProcessor::BuildProcessingRequest(const cuda_learning::ProcessImag
     return false;
   }
 
+  // `state` was already resolved by UpdateFilterState, so we just need to
+  // attach the per-frame image data and dimensions.
   *request = state;
   request->set_image_data(rgb_buffer.data(), rgb_buffer.size());
   request->set_width(width);
@@ -399,45 +444,18 @@ bool LiveVideoProcessor::BuildProcessingRequest(const cuda_learning::ProcessImag
   if (request->accelerator() == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
     request->set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);
   }
-
-  if (request->generic_filters_size() > 0) {
-    return ResolveGenericSelections(request);
-  }
-
-  return true;
-}
-
-bool LiveVideoProcessor::ResolveGenericSelections(cuda_learning::ProcessImageRequest* request) const {
-  if (request == nullptr) return false;
-  ResolveGenericSelectionsInPlace(request);
   return true;
 }
 
 bool LiveVideoProcessor::HasActiveFilters(const cuda_learning::ProcessImageRequest& request) const {
-  cuda_learning::ProcessImageRequest resolved = request;
-  if (resolved.generic_filters_size() > 0) {
-    ResolveGenericSelections(&resolved);
-  }
-
-  bool has_effective_filter = false;
-  for (const int filter : resolved.filters()) {
+  // `request` is the already-resolved live filter state — checking the typed
+  // filters[] field is sufficient.
+  for (const int filter : request.filters()) {
     if (!IsFilterNone(static_cast<cuda_learning::FilterType>(filter))) {
-      has_effective_filter = true;
-      break;
+      return true;
     }
   }
-
-  if (!has_effective_filter && resolved.generic_filters_size() > 0) {
-    for (const auto& selection : resolved.generic_filters()) {
-      const std::string filter_id = NormalizeFilterId(selection.filter_id());
-      if (!filter_id.empty() && filter_id != "none") {
-        has_effective_filter = true;
-        break;
-      }
-    }
-  }
-
-  return has_effective_filter;
+  return false;
 }
 
 bool LiveVideoProcessor::CopyDecodedFrameToRgbBuffer(std::vector<uint8_t>* rgb_buffer,

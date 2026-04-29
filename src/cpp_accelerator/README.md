@@ -323,7 +323,9 @@ cpp_accelerator/
 │   │   └── buffer_pool.h/cpp
 │   ├── server_info/
 │   │   ├── i_server_info_provider.h     # Interface for version/filter queries
-│   │   └── server_info_provider.h/cpp   # Implementation (reads VERSION, queries engine caps)
+│   │   ├── server_info_provider.h/cpp   # Implementation (reads VERSION, queries engine caps)
+│   │   ├── filter_parameter_mapping.h/cpp  # Engine FilterParameter → wire GenericFilterParameter
+│   │   └── accelerator_label.h/cpp         # AcceleratorType → human-readable label
 │   └── commands/               # Placeholder command pattern (unused)
 ├── ports/                      # Abstract port interfaces ONLY
 │   ├── control/
@@ -338,11 +340,12 @@ cpp_accelerator/
 │   ├── webrtc/                 # WebRTC media path
 │   │   ├── webrtc_manager.h/cpp              # implements IMediaSession
 │   │   ├── live_video_processor.h/cpp        # H.264 decode → ProcessorEngine → encode
-│   │   ├── data_channel_framing.h/cpp        # chunked binary framing over SCTP
+│   │   ├── data_channel_framing.h/cpp        # chunked binary framing + SendFramed over SCTP
+│   │   ├── channel_labels.h                  # channel name constants, session prefixes
+│   │   ├── session_routing.h/cpp             # IsGoVideoSession, ShouldRegisterSessionChannel
 │   │   ├── protocol/             # WebRTC protocol helpers
 │   │   │   ├── filter_resolver.h/cpp         # Generic filter → enum mapping
-│   │   │   ├── message_codec.h/cpp           # DataChannel request parsing + framed send
-│   │   │   └── session_routing.h/cpp         # Session constants + routing helpers
+│   │   │   └── data_channel_envelope.h/cpp   # DataChannelRequest protobuf envelope parsing
 │   │   └── sdp/                  # SDP utilities
 │   │       └── sdp_utils.h/cpp               # Codec negotiation, extmap strip, ICE injection
 │   ├── compute/
@@ -449,8 +452,9 @@ The library provides WebRTC-based real-time video streaming capabilities through
 
 - **WebRTCManager** (`adapters/webrtc/webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, session lifecycle, and per-session CUDA memory pools
 - **LiveVideoProcessor** (`adapters/webrtc/live_video_processor.h/cpp`): Real-time video frame processing pipeline — FFmpeg H.264 decode → RGB → ProcessorEngine → RGB → FFmpeg H.264 encode
-- **DataChannelFraming** (`adapters/webrtc/data_channel_framing.h/cpp`): Binary chunking/reassembly protocol for large protobuf messages over SCTP data channels
-- **Protocol helpers** (`adapters/webrtc/protocol/`): Filter parameter resolution (`filter_resolver`), data channel message parsing/framing (`message_codec`), session routing constants (`session_routing`)
+- **DataChannelFraming** (`adapters/webrtc/data_channel_framing.h/cpp`): Binary chunking/reassembly protocol for large protobuf messages over SCTP data channels, plus `SendFramed()` helper
+- **Channel labels & routing** (`adapters/webrtc/channel_labels.h`, `session_routing.h/cpp`): Channel name constants, Go-video session prefix detection, session channel registration logic
+- **Protocol helpers** (`adapters/webrtc/protocol/`): Filter parameter resolution (`filter_resolver`), `DataChannelRequest` protobuf envelope parsing (`data_channel_envelope`)
 - **SDP utilities** (`adapters/webrtc/sdp/sdp_utils.h/cpp`): H.264 codec negotiation, RTP header extension stripping, manual ICE candidate injection, SDP answer waiting
 
 **WebRTC Channels per Session**:

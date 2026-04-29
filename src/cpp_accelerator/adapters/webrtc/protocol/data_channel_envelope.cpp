@@ -1,13 +1,6 @@
-#include "src/cpp_accelerator/adapters/webrtc/protocol/message_codec.h"
-
-#include <chrono>
-#include <span>
-#include <string>
-#include <vector>
+#include "src/cpp_accelerator/adapters/webrtc/protocol/data_channel_envelope.h"
 
 #include <spdlog/spdlog.h>
-
-#include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 
 namespace jrb::adapters::webrtc::protocol {
 
@@ -44,24 +37,6 @@ void CopyProcessMetadata(const cuda_learning::ProcessImageRequest& request,
   if (response == nullptr) return;
   response->set_api_version(request.api_version());
   response->mutable_trace_context()->CopyFrom(request.trace_context());
-}
-
-void SendFramed(rtc::DataChannel& dc, const std::string& payload, uint32_t message_id) {
-  const auto span = std::span<const std::byte>(
-      reinterpret_cast<const std::byte*>(payload.data()), payload.size());
-  auto chunks = PackMessage(message_id, span);
-  for (auto& chunk : chunks) {
-    if (!dc.send(std::move(chunk))) {
-      spdlog::error("[framing] Failed to send chunk for message_id={}", message_id);
-      return;
-    }
-  }
-}
-
-int64_t CurrentUnixTimeMs() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
-             std::chrono::system_clock::now().time_since_epoch())
-      .count();
 }
 
 }  // namespace jrb::adapters::webrtc::protocol

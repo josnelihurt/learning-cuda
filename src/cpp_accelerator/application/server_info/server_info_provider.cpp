@@ -3,8 +3,8 @@
 #include <fstream>
 #include <string>
 
-#include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
+#include "src/cpp_accelerator/application/server_info/filter_parameter_mapping.h"
 
 namespace jrb::application::server_info {
 
@@ -65,9 +65,9 @@ void ServerInfoProvider::PopulateListFiltersResponse(
       auto* gp = gf->add_parameters();
       gp->set_id(param.id());
       gp->set_name(param.name());
-      gp->set_type(jrb::adapters::webrtc::protocol::ConvertParamType(param.type()));
+      gp->set_type(ConvertParamType(param.type()));
       gp->set_default_value(param.default_value());
-      jrb::adapters::webrtc::protocol::CopyValidationRulesFromMetadata(param, gp);
+      CopyValidationRulesFromMetadata(param, gp);
       for (const auto& opt : param.options()) {
         auto* go = gp->add_options();
         go->set_value(opt);

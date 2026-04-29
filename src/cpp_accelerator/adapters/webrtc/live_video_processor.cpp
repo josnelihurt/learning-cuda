@@ -223,7 +223,7 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
       }
 
       cuda_learning::ProcessImageResponse processing_response;
-      if (!engine_->ProcessImage(processing_request, &processing_response) ||
+      if (!engine_->ProcessImage(processing_request, &processing_response, cuda_memory_pool_) ||
           processing_response.code() != 0) {
         if (error_message != nullptr) {
           *error_message = "processor engine failed for live camera frame: " +

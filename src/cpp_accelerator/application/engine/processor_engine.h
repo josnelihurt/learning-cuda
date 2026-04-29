@@ -24,20 +24,19 @@ public:
   bool Initialize(const cuda_learning::InitRequest& request, cuda_learning::InitResponse* response);
 
   bool ProcessImage(const cuda_learning::ProcessImageRequest& request,
-                    cuda_learning::ProcessImageResponse* response);
+                    cuda_learning::ProcessImageResponse* response,
+                    void* memory_pool = nullptr);
 
   bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response);
-
-  void SetMemoryPool(void* pool) { memory_pool_ = pool; }
 
 private:
   jrb::domain::interfaces::GrayscaleAlgorithm ProtoToAlgorithm(
       cuda_learning::GrayscaleType type) const;
   bool ApplyFilters(const cuda_learning::ProcessImageRequest& request,
-                    cuda_learning::ProcessImageResponse* response);
+                    cuda_learning::ProcessImageResponse* response,
+                    void* memory_pool = nullptr);
 
   std::string component_name_;
-  void* memory_pool_ = nullptr;
   std::unordered_map<std::string, std::shared_ptr<jrb::infrastructure::cuda::IYoloDetector>>
       detector_cache_;
 };

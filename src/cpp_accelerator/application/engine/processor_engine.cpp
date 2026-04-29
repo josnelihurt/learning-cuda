@@ -125,11 +125,12 @@ bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
 }
 
 bool ProcessorEngine::ProcessImage(const cuda_learning::ProcessImageRequest& request,
-                                   cuda_learning::ProcessImageResponse* response) {
+                                   cuda_learning::ProcessImageResponse* response,
+                                   void* memory_pool) {
   if (!response) {
     return false;
   }
-  return ApplyFilters(request, response);
+  return ApplyFilters(request, response, memory_pool);
 }
 
 bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* response) {
@@ -258,7 +259,8 @@ GrayscaleAlgorithm ProcessorEngine::ProtoToAlgorithm(cuda_learning::GrayscaleTyp
 }
 
 bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& request,
-                                   cuda_learning::ProcessImageResponse* response) {
+                                   cuda_learning::ProcessImageResponse* response,
+                                   void* memory_pool) {
   cuda_learning::AcceleratorType accelerator = request.accelerator();
   if (accelerator == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
     accelerator = cuda_learning::ACCELERATOR_TYPE_CUDA;
@@ -389,7 +391,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
                                                           request.height(), output_channels);
 
     if (pipeline.GetFilterCount() > 0) {
-      bool success = pipeline.Apply(input_buffer, output_buffer, memory_pool_);
+      bool success = pipeline.Apply(input_buffer, output_buffer, memory_pool);
       if (!success) {
         spdlog::error("Filter pipeline processing failed");
         scoped_span.RecordError("Filter pipeline processing failed");

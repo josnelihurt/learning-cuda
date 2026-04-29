@@ -49,7 +49,6 @@ async function runBootstrap(): Promise<void> {
   const telemetryService = container.getTelemetryService();
   const logger = container.getLogger();
   const inputSourceService = container.getInputSourceService();
-  const processorCapabilitiesService = container.getProcessorCapabilitiesService();
   const toolsService = container.getToolsService();
   const videoService = container.getVideoService();
   const webrtcService = container.getWebRTCService();
@@ -150,11 +149,6 @@ async function runBootstrap(): Promise<void> {
       undefined
     ),
     withTimeout(
-      processorCapabilitiesService.initialize(),
-      'processorCapabilitiesService.initialize',
-      undefined
-    ),
-    withTimeout(
       toolsService.initialize(),
       'toolsService.initialize',
       undefined
@@ -175,7 +169,6 @@ async function runBootstrap(): Promise<void> {
     if (result.status === 'rejected') {
       const serviceNames = [
         'Input Source',
-        'Processor Capabilities',
         'Tools',
         'Video',
         'WebRTC',

@@ -7,6 +7,7 @@ import type { ActiveFilterState } from '@/presentation/components/filters/Filter
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
 import { markStart, markEnd } from '@/infrastructure/observability/perf-mark';
+import { container } from '@/application/di';
 import { filtersToFilterData } from '@/presentation/utils/grid-source';
 import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
@@ -215,6 +216,22 @@ export function useSourceTransportFactory({
   return { buildSource, clearSourceMetrics };
 }
 
+let capabilitiesInitialized = false;
+
+function ensureProcessorCapabilities(): void {
+  if (capabilitiesInitialized) {
+    return;
+  }
+  capabilitiesInitialized = true;
+  const service = container.getProcessorCapabilitiesService();
+  service.initialize().catch((error) => {
+    capabilitiesInitialized = false;
+    container.getLogger().warn('Processor capabilities initialization failed, will retry on next connection', {
+      'error.message': error instanceof Error ? error.message : String(error),
+    });
+  });
+}
+
 function waitForConnected(
   transport: WebRTCFrameTransportService,
   onConnected: () => void
@@ -223,6 +240,7 @@ function waitForConnected(
   const check = (): void => {
     if (transport.isConnected()) {
       markEnd('transport.wait-for-connected', waitMark);
+      ensureProcessorCapabilities();
       onConnected();
     } else {
       setTimeout(check, 50);

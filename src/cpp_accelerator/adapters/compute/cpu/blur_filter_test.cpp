@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::infrastructure::cpu {
 namespace {
@@ -33,17 +33,17 @@ TEST_F(GaussianBlurFilterTest, FilterConstructsWithDefaultValues) {
   EXPECT_FALSE(filter.IsInPlace());
   EXPECT_EQ(filter.GetKernelSize(), 5);
   EXPECT_FLOAT_EQ(filter.GetSigma(), 1.0F);
-  EXPECT_EQ(filter.GetBorderMode(), BorderMode::REFLECT);
+  EXPECT_EQ(filter.GetBorderMode(), BorderMode::kReflect);
 }
 
 TEST_F(GaussianBlurFilterTest, FilterConstructsWithCustomValues) {
   // Arrange & Act
-  GaussianBlurFilter filter(7, 2.5F, BorderMode::CLAMP, false);
+  GaussianBlurFilter filter(7, 2.5F, BorderMode::kClamp, false);
 
   // Assert
   EXPECT_EQ(filter.GetKernelSize(), 7);
   EXPECT_FLOAT_EQ(filter.GetSigma(), 2.5F);
-  EXPECT_EQ(filter.GetBorderMode(), BorderMode::CLAMP);
+  EXPECT_EQ(filter.GetBorderMode(), BorderMode::kClamp);
 }
 
 TEST_F(GaussianBlurFilterTest, SettersUpdateFilterConfiguration) {
@@ -57,13 +57,13 @@ TEST_F(GaussianBlurFilterTest, SettersUpdateFilterConfiguration) {
   filter.SetSigma(3.0F);
   EXPECT_FLOAT_EQ(filter.GetSigma(), 3.0F);
 
-  filter.SetBorderMode(BorderMode::WRAP);
-  EXPECT_EQ(filter.GetBorderMode(), BorderMode::WRAP);
+  filter.SetBorderMode(BorderMode::kWrap);
+  EXPECT_EQ(filter.GetBorderMode(), BorderMode::kWrap);
 }
 
 TEST_F(GaussianBlurFilterTest, AppliesBlurToImageSuccessfully) {
   // Arrange
-  GaussianBlurFilter filter(5, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(5, 1.0F, BorderMode::kReflect, true);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() *
                                     image_loader_->channels());
   FilterContext context(image_loader_->data(), output.data(), image_loader_->width(),
@@ -110,7 +110,7 @@ TEST_F(GaussianBlurFilterTest, BlurPreservesImageDimensions) {
 TEST_F(GaussianBlurFilterTest, DifferentSigmaValuesProduceDifferentResults) {
   // Arrange
   int kernel_size = 5;
-  BorderMode border_mode = BorderMode::REFLECT;
+  BorderMode border_mode = BorderMode::kReflect;
   GaussianBlurFilter filter1(kernel_size, 0.5F, border_mode, true);
   GaussianBlurFilter filter2(kernel_size, 2.0F, border_mode, true);
   std::vector<unsigned char> output1(image_loader_->width() * image_loader_->height() *
@@ -141,9 +141,9 @@ TEST_F(GaussianBlurFilterTest, DifferentBorderModesProduceDifferentResults) {
   // Arrange
   int kernel_size = 5;
   float sigma = 1.0F;
-  GaussianBlurFilter filter1(kernel_size, sigma, BorderMode::CLAMP, true);
-  GaussianBlurFilter filter2(kernel_size, sigma, BorderMode::REFLECT, true);
-  GaussianBlurFilter filter3(kernel_size, sigma, BorderMode::WRAP, true);
+  GaussianBlurFilter filter1(kernel_size, sigma, BorderMode::kClamp, true);
+  GaussianBlurFilter filter2(kernel_size, sigma, BorderMode::kReflect, true);
+  GaussianBlurFilter filter3(kernel_size, sigma, BorderMode::kWrap, true);
   std::vector<unsigned char> output1(image_loader_->width() * image_loader_->height() *
                                      image_loader_->channels());
   std::vector<unsigned char> output2(image_loader_->width() * image_loader_->height() *
@@ -175,8 +175,8 @@ TEST_F(GaussianBlurFilterTest, DifferentBorderModesProduceDifferentResults) {
 
 TEST_F(GaussianBlurFilterTest, SeparableAndNonSeparableProduceSameResults) {
   // Arrange
-  GaussianBlurFilter separable_filter(5, 1.0F, BorderMode::REFLECT, true);
-  GaussianBlurFilter non_separable_filter(5, 1.0F, BorderMode::REFLECT, false);
+  GaussianBlurFilter separable_filter(5, 1.0F, BorderMode::kReflect, true);
+  GaussianBlurFilter non_separable_filter(5, 1.0F, BorderMode::kReflect, false);
   std::vector<unsigned char> output_separable(image_loader_->width() * image_loader_->height() *
                                               image_loader_->channels());
   std::vector<unsigned char> output_non_separable(image_loader_->width() * image_loader_->height() *
@@ -218,7 +218,7 @@ TEST_F(GaussianBlurFilterTest, AppliesCorrectlyToSmallImage) {
   std::vector<unsigned char> test_output(test_width * test_height * test_channels);
   FilterContext context(test_input.data(), test_output.data(), test_width, test_height,
                         test_channels);
-  GaussianBlurFilter filter(3, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(3, 1.0F, BorderMode::kReflect, true);
   ASSERT_TRUE(context.input.IsValid());
 
   // Act
@@ -238,7 +238,7 @@ TEST_F(GaussianBlurFilterTest, SingleChannelImageProcessesCorrectly) {
   std::vector<unsigned char> test_output(test_width * test_height * test_channels);
   FilterContext context(test_input.data(), test_output.data(), test_width, test_height,
                         test_channels);
-  GaussianBlurFilter filter(5, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(5, 1.0F, BorderMode::kReflect, true);
   ASSERT_TRUE(context.input.IsValid());
 
   // Act
@@ -251,8 +251,8 @@ TEST_F(GaussianBlurFilterTest, SingleChannelImageProcessesCorrectly) {
 
 TEST_F(GaussianBlurFilterTest, LargeKernelSizeProducesHeavyBlur) {
   // Arrange
-  GaussianBlurFilter filter(15, 1.0F, BorderMode::REFLECT, true);
-  GaussianBlurFilter reference_filter(5, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(15, 1.0F, BorderMode::kReflect, true);
+  GaussianBlurFilter reference_filter(5, 1.0F, BorderMode::kReflect, true);
   std::vector<unsigned char> output_large(image_loader_->width() * image_loader_->height() *
                                           image_loader_->channels());
   std::vector<unsigned char> output_reference(image_loader_->width() * image_loader_->height() *
@@ -280,7 +280,7 @@ TEST_F(GaussianBlurFilterTest, LargeKernelSizeProducesHeavyBlur) {
 
 TEST_F(GaussianBlurFilterTest, NonSeparableBlurProducesValidOutput) {
   // Arrange
-  GaussianBlurFilter filter(5, 1.0F, BorderMode::REFLECT, false);
+  GaussianBlurFilter filter(5, 1.0F, BorderMode::kReflect, false);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() *
                                     image_loader_->channels());
   FilterContext context(image_loader_->data(), output.data(), image_loader_->width(),
@@ -299,7 +299,7 @@ TEST_F(GaussianBlurFilterTest, NonSeparableBlurProducesValidOutput) {
 
 TEST_F(GaussianBlurFilterTest, AllBorderModesHandleEdgePixels) {
   // Arrange
-  std::vector<BorderMode> modes = {BorderMode::CLAMP, BorderMode::REFLECT, BorderMode::WRAP};
+  std::vector<BorderMode> modes = {BorderMode::kClamp, BorderMode::kReflect, BorderMode::kWrap};
   std::vector<std::vector<unsigned char>> outputs(
       modes.size(), std::vector<unsigned char>(image_loader_->width() * image_loader_->height() *
                                                image_loader_->channels()));

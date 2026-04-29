@@ -109,11 +109,11 @@ class BorderClamperFactory {
 public:
   const IBorderClamper& Get(BorderMode mode) const {
     switch (mode) {
-      case BorderMode::CLAMP:
+      case BorderMode::kClamp:
         return clamp_border_;
-      case BorderMode::REFLECT:
+      case BorderMode::kReflect:
         return reflect_border_;
-      case BorderMode::WRAP:
+      case BorderMode::kWrap:
         return wrap_border_;
       default:
         return clamp_border_;

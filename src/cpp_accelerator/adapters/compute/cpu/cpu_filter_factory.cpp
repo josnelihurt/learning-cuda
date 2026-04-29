@@ -84,19 +84,18 @@ std::vector<FilterDescriptor> CpuFilterFactory::GetFilterDescriptors() const {
 std::unique_ptr<jrb::domain::interfaces::IFilter> CpuFilterFactory::CreateFilter(
     FilterType type, const FilterCreationParams& params) const {
   return jrb::application::engine::DispatchCreateFilter(
-      type,
-      [&params]() { return std::make_unique<GrayscaleFilter>(params.grayscale_algorithm); },
+      type, [&params]() { return std::make_unique<GrayscaleFilter>(params.grayscale_algorithm); },
       [&params]() {
-        BorderMode border_mode = BorderMode::REFLECT;
+        BorderMode border_mode = BorderMode::kReflect;
         switch (params.blur_border_mode) {
           case BlurBorderMode::CLAMP:
-            border_mode = BorderMode::CLAMP;
+            border_mode = BorderMode::kClamp;
             break;
           case BlurBorderMode::REFLECT:
-            border_mode = BorderMode::REFLECT;
+            border_mode = BorderMode::kReflect;
             break;
           case BlurBorderMode::WRAP:
-            border_mode = BorderMode::WRAP;
+            border_mode = BorderMode::kWrap;
             break;
         }
         return std::make_unique<GaussianBlurFilter>(params.blur_kernel_size, params.blur_sigma,

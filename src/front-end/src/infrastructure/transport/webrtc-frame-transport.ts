@@ -23,6 +23,7 @@ import { ChunkReassembler, nextMessageId, packMessage } from './data-channel-fra
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
 import { logger } from '@/infrastructure/observability/otel-logger';
+import { markStart, markEnd } from '@/infrastructure/observability/perf-mark';
 
 type FrameResultCallback = (data: ProcessImageResponse) => void;
 
@@ -351,6 +352,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     this.statsManager.updateTransportStatus('connecting', 'Connecting...');
 
     this.connectPromise = (async () => {
+      const ensureMark = markStart('transport.ensure-connected');
       const session = await webrtcService.createSession(this.sourceId);
       this.sessionId = session.getId();
       // waitForTransportReady waits until readyState === 'open' AND the
@@ -366,6 +368,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
       this.lastRequest = 'Data channel connected';
       this.lastRequestTime = new Date();
       this.statsManager.updateTransportStatus('connected', 'Connected');
+      markEnd('transport.ensure-connected', ensureMark);
     })().finally(() => {
       this.connectPromise = null;
     });

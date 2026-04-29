@@ -6,6 +6,7 @@ import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-f
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
+import { markStart, markEnd } from '@/infrastructure/observability/perf-mark';
 import { filtersToFilterData } from '@/presentation/utils/grid-source';
 import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
@@ -218,12 +219,14 @@ function waitForConnected(
   transport: WebRTCFrameTransportService,
   onConnected: () => void
 ): void {
+  const waitMark = markStart('transport.wait-for-connected');
   const check = (): void => {
     if (transport.isConnected()) {
+      markEnd('transport.wait-for-connected', waitMark);
       onConnected();
     } else {
-      setTimeout(check, 100);
+      setTimeout(check, 50);
     }
   };
-  setTimeout(check, 100);
+  setTimeout(check, 50);
 }

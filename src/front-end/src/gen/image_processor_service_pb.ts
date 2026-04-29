@@ -553,6 +553,14 @@ export class ListFiltersRequest extends Message<ListFiltersRequest> {
    */
   traceContext?: TraceContext;
 
+  /**
+   * When set, returns only filters supported by this accelerator.
+   * When UNSPECIFIED (0), returns all filters across all accelerators.
+   *
+   * @generated from field: cuda_learning.AcceleratorType requested_accelerator = 5 [json_name = "requested_accelerator"];
+   */
+  requestedAccelerator = AcceleratorType.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ListFiltersRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -563,6 +571,7 @@ export class ListFiltersRequest extends Message<ListFiltersRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "api_version", jsonName: "api_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "trace_context", jsonName: "trace_context", kind: "message", T: TraceContext },
+    { no: 5, name: "requested_accelerator", jsonName: "requested_accelerator", kind: "enum", T: proto3.getEnumType(AcceleratorType) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFiltersRequest {

@@ -1,17 +1,17 @@
 # CUDA Accelerator Library
 
-High-performance image processing library implementing Clean Architecture principles with CUDA GPU acceleration and CPU fallback support.
+High-performance image processing library implementing Clean Architecture principles with multi-backend GPU acceleration (CUDA, OpenCL) and CPU fallback support.
 
 ## Library Description
 
-The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters using CUDA kernels. The architecture follows Clean Architecture patterns with clear separation between domain logic, application use cases, infrastructure implementations, and external adapters.
+The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters. The architecture uses a **pluggable filter factory** pattern: `ProcessorEngine` is decoupled from concrete filter implementations via `IFilterFactory`, with one factory registered per accelerator backend (CUDA, CPU, OpenCL). New backends are added by implementing `IFilterFactory` and registering it at startup — no engine changes required.
 
 **Version**: See `VERSION` file (currently 4.0.6)
 
 **Features**:
-- GPU acceleration via CUDA kernels with CPU fallback
+- Multi-backend GPU acceleration: **CUDA**, **OpenCL**, and CPU fallback
+- Pluggable `IFilterFactory` / `FilterFactoryRegistry` for extensibility
 - **Accelerator Control Client** with mTLS outbound connections to Go cloud server
-- **Multiplexed bidirectional gRPC stream** for all commands (image processing, filters, version, signaling)
 - WebRTC signaling support for real-time video streaming
 - **YOLO object detection** via TensorRT with GPU-accelerated inference
 - **Data channel framing** for structured detection result transport over WebRTC
@@ -57,8 +57,9 @@ graph TB
     end
 
     subgraph "Adapters / Compute"
-        CudaFilters[CUDA Filters]
-        CpuFilters[CPU Filters]
+        CudaFactory[CUDA FilterFactory]
+        CpuFactory[CPU FilterFactory]
+        OpenCLFactory[OpenCL FilterFactory]
         YOLODetector[YOLO Detector<br/>TensorRT]
         ModelManager[Model Manager]
     end
@@ -77,9 +78,13 @@ graph TB
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
     FilterPipeline --> IFilter
-    IFilter --> CudaFilters
-    IFilter --> CpuFilters
-    CudaFilters --> YOLODetector
+    ProcessorEngine -->|FilterFactoryRegistry| CudaFactory
+    ProcessorEngine -->|FilterFactoryRegistry| CpuFactory
+    ProcessorEngine -->|FilterFactoryRegistry| OpenCLFactory
+    CudaFactory --> IFilter
+    CpuFactory --> IFilter
+    OpenCLFactory --> IFilter
+    CudaFactory --> YOLODetector
     YOLODetector --> ModelManager
     FilterPipeline --> ImageBuffer
 ```
@@ -107,6 +112,7 @@ graph TB
 
     subgraph "C++ Application Layer"
         ProcessorEngine[application/engine<br/>ProcessorEngine]
+        FactoryRegistry[FilterFactoryRegistry]
         ServerInfo[server_info<br/>ServerInfoProvider]
         FilterPipeline[FilterPipeline]
         BufferPool[BufferPool]
@@ -121,8 +127,9 @@ graph TB
     end
 
     subgraph "C++ Adapters / Compute"
-        CudaFilters[compute/cuda<br/>Kernels + Filters]
-        CpuFilters[compute/cpu<br/>CPU Filters]
+        CudaFactory[compute/cuda<br/>CudaFilterFactory]
+        CpuFactory[compute/cpu<br/>CpuFilterFactory]
+        OpenCLFactory[compute/opencl<br/>OpenCLFilterFactory]
         TRTInference[cuda/tensorrt<br/>YOLO + TensorRT]
         ImageIO[image_io<br/>Image I/O]
         ConfigManager[config<br/>ConfigManager]
@@ -145,9 +152,14 @@ graph TB
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
     FilterPipeline --> IFilter
-    IFilter --> CudaFilters
-    IFilter --> CpuFilters
-    IFilter --> TRTInference
+    ProcessorEngine --> FactoryRegistry
+    FactoryRegistry --> CudaFactory
+    FactoryRegistry --> CpuFactory
+    FactoryRegistry --> OpenCLFactory
+    CudaFactory --> IFilter
+    CpuFactory --> IFilter
+    OpenCLFactory --> IFilter
+    CudaFactory --> TRTInference
     CommandFactory --> ConfigManager
     ProcessorEngine --> Logger
     ProcessorEngine --> Telemetry
@@ -317,6 +329,9 @@ cpp_accelerator/
 ├── application/                # Use cases — orchestrates domain + adapters
 │   ├── engine/
 │   │   ├── processor_engine.h/cpp   # Main orchestrator: filter dispatch + YOLO cache
+│   │   ├── i_filter_factory.h       # IFilterFactory — one per accelerator backend
+│   │   ├── filter_descriptor.h      # FilterDescriptor, FilterCreationParams, BlurBorderMode
+│   │   ├── filter_factory_registry.h/cpp  # Registry: AcceleratorType → IFilterFactory
 │   │   └── BUILD
 │   ├── pipeline/
 │   │   ├── filter_pipeline.h/cpp
@@ -351,8 +366,10 @@ cpp_accelerator/
 │   ├── compute/
 │   │   ├── cpu/                # CPU filter implementations
 │   │   │   ├── grayscale_filter.h/cpp
-│   │   │   └── blur_filter.h/cpp
+│   │   │   ├── blur_filter.h/cpp
+│   │   │   └── cpu_filter_factory.h/cpp    # IFilterFactory for CPU
 │   │   ├── cuda/
+│   │   │   ├── cuda_filter_factory.h/cpp   # IFilterFactory for CUDA
 │   │   │   ├── kernels/        # Raw CUDA .cu kernels
 │   │   │   │   ├── blur/       # Blur variants (non-separable, separable basic/tiled)
 │   │   │   │   ├── grayscale_kernel.cu
@@ -364,6 +381,11 @@ cpp_accelerator/
 │   │   │       ├── yolo_factory.h/trt.cpp
 │   │   │       ├── model_manager.h/cpp
 │   │   │       └── model_registry.h/cpp
+│   │   ├── opencl/              # OpenCL filter implementations
+│   │   │   ├── opencl_context.h/cpp         # OpenCL platform/device initialization
+│   │   │   ├── opencl_grayscale_filter.h/cpp
+│   │   │   ├── opencl_blur_filter.h/cpp
+│   │   │   └── opencl_filter_factory.h/cpp  # IFilterFactory for OpenCL
 │   │   └── filters/            # Cross-backend equivalence tests
 │   ├── image_io/               # Image file I/O (stb-based)
 │   │   ├── image_loader.h/cpp
@@ -403,6 +425,7 @@ These examples are intentionally kept separate from the production codebase and 
 5. **Interface Segregation**: Small, focused interfaces (IFilter, ImageBuffer)
 6. **Separation of Concerns**: Clear boundaries between layers
 7. **Filter Pipeline**: Composable filter architecture for chaining multiple filters
+8. **Pluggable Backends**: `IFilterFactory` + `FilterFactoryRegistry` enable zero-change engine extensibility
 
 ## Key Components
 
@@ -493,15 +516,24 @@ The library includes YOLO object detection via TensorRT for GPU-accelerated infe
 
 The command pattern infrastructure (`application/commands/`) is maintained for potential future use. All processing is currently handled directly by `FilterPipeline` which orchestrates filter chains without the command pattern abstraction layer.
 
-### Buffer Pool
+### Filter Factory Pattern
 
-The `BufferPool` class provides efficient memory management for image processing operations by reusing allocated buffers. The buffer pool is optional — `FilterPipeline` can operate with or without it. When provided, it significantly improves performance for pipelines with multiple filters.
+The engine uses a **pluggable factory pattern** to decouple from concrete filter implementations:
+
+- **`IFilterFactory`** (`application/engine/i_filter_factory.h`): Interface with three methods — `GetAcceleratorType()`, `GetFilterDescriptors()`, `CreateFilter()`
+- **`FilterFactoryRegistry`** (`application/engine/filter_factory_registry.h`): Maps `AcceleratorType` → `IFilterFactory`. One factory per type; re-registration replaces.
+- **`FilterDescriptor`** (`application/engine/filter_descriptor.h`): Declarative filter metadata (id, name, parameters with validation rules). Each factory returns its supported filters.
+- **`FilterCreationParams`**: Runtime parameter struct passed to `CreateFilter()` — factories read what they need.
+
+Registered factories: `CudaFilterFactory`, `CpuFilterFactory`, `OpenCLFilterFactory`.
+
+`GetCapabilities()` accepts an optional `requested_accelerator` — when specified, only that backend's filter descriptors are returned. When unspecified, all factories contribute (backward compatible).
 
 ### Processor Engine
 
-The `ProcessorEngine` is the core orchestration component that coordinates image processing operations. It bridges the gRPC service interface and the internal processing pipeline.
+The `ProcessorEngine` is the core orchestration component that coordinates image processing operations. It uses a `FilterFactoryRegistry` to look up the appropriate `IFilterFactory` for the requested accelerator type, then delegates filter creation to that factory. This decouples the engine from concrete filter implementations.
 
-**Responsibilities**: Initialization and telemetry setup, filter orchestration via `FilterPipeline`, algorithm selection from protocol buffer enums, and response building.
+**Responsibilities**: Initialization and telemetry setup, filter orchestration via `FilterFactoryRegistry` → `IFilterFactory` → `FilterPipeline`, algorithm selection from protocol buffer enums, and response building.
 
 **Integration Points**: Used by `adapters/grpc_control` via `ProcessorEngineAdapter` for the gRPC service, and by `adapters/webrtc` for WebRTC data channel and live video processing.
 
@@ -531,11 +563,21 @@ The library previously exposed a C API through `processor_api.h`. The shared lib
 
 **API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.0.6).
 
-## Adding New Filters
+## Adding New Filters or Backends
 
-1. **Adapters**: Implement CPU and CUDA filter classes in `adapters/compute/cpu/` and `adapters/compute/cuda/`
-2. **Application**: Filters are automatically usable via `FilterPipeline`
+### Adding a new filter to an existing backend
+
+1. **Adapters**: Implement the filter class in the appropriate `adapters/compute/<backend>/` directory
+2. **Factory**: Add the filter to the backend's `IFilterFactory::CreateFilter()` switch and add a `FilterDescriptor` to `GetFilterDescriptors()`
 3. **Protocol**: Add parameter parsing in `adapters/webrtc/protocol/filter_resolver` if new generic filter parameters are needed
+
+### Adding a new accelerator backend
+
+1. **Adapters**: Create `adapters/compute/<backend>/` with filter implementations and an `<backend>_filter_factory.h/cpp` implementing `IFilterFactory`
+2. **Engine**: Register the factory in `ProcessorEngine` constructor: `factory_registry_.Register(std::make_unique<NewBackendFilterFactory>())`
+3. **Protocol buffer**: Add the new `AcceleratorType` enum value in `image_processor_service.proto`
+
+The `FilterFactoryRegistry` handles the rest — no engine logic changes needed.
 
 The FilterPipeline automatically handles filter composition and execution order.
 

@@ -55,7 +55,7 @@ void ServerInfoProvider::PopulateListFiltersResponse(
   if (engine_ == nullptr) return;
 
   cuda_learning::GetCapabilitiesResponse caps;
-  if (!engine_->GetCapabilities(&caps)) return;
+  if (!engine_->GetCapabilities(&caps, request.requested_accelerator())) return;
 
   for (const auto& filter : caps.capabilities().filters()) {
     auto* gf = response->add_filters();

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type GenericFilterDefinition } from '@/gen/image_processor_service_pb';
+import { ListFiltersRequest } from '@/gen/image_processor_service_pb';
+import { AcceleratorType } from '@/gen/common_pb';
 import { controlChannelService } from '@/infrastructure/transport/control-channel-service';
 import type { GrpcAsyncError } from './useAsyncGRPC';
 
-export function useFilters() {
+export function useFilters(selectedAccelerator?: AcceleratorType) {
   const [filters, setFilters] = useState<GenericFilterDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<GrpcAsyncError | null>(null);
@@ -16,7 +18,10 @@ export function useFilters() {
 
     void (async () => {
       try {
-        const response = await controlChannelService.listFilters();
+        const req = new ListFiltersRequest({
+          requestedAccelerator: selectedAccelerator ?? AcceleratorType.UNSPECIFIED,
+        });
+        const response = await controlChannelService.listFilters(req);
         if (gen !== requestGenRef.current) return;
         setFilters(response.filters);
       } catch (e) {
@@ -29,7 +34,7 @@ export function useFilters() {
         }
       }
     })();
-  }, []);
+  }, [selectedAccelerator]);
 
   useEffect(() => {
     refetch();

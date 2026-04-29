@@ -11,6 +11,7 @@
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #pragma GCC diagnostic pop
 
+#include "src/cpp_accelerator/application/engine/filter_factory_registry.h"
 #include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
 #include "src/cpp_accelerator/domain/interfaces/i_yolo_detector.h"
 
@@ -27,7 +28,9 @@ public:
                     cuda_learning::ProcessImageResponse* response,
                     void* memory_pool = nullptr);
 
-  bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response);
+  bool GetCapabilities(cuda_learning::GetCapabilitiesResponse* response,
+                       cuda_learning::AcceleratorType requested_accelerator =
+                           cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED);
 
 private:
   jrb::domain::interfaces::GrayscaleAlgorithm ProtoToAlgorithm(
@@ -37,6 +40,7 @@ private:
                     void* memory_pool = nullptr);
 
   std::string component_name_;
+  FilterFactoryRegistry factory_registry_;
   std::unordered_map<std::string, std::shared_ptr<jrb::infrastructure::cuda::IYoloDetector>>
       detector_cache_;
 };

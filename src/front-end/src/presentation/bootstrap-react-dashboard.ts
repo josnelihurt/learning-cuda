@@ -2,6 +2,7 @@ import { container } from '@/application/di';
 import { acceleratorHealthMonitor } from '@/infrastructure/external/accelerator-health-monitor';
 import { systemInfoService } from '@/infrastructure/external/system-info-service';
 import { featureFlagsService } from '@/infrastructure/external/feature-flags-service';
+import { markStart, markEnd, logTimingSummary } from '@/infrastructure/observability/perf-mark';
 
 declare global {
   interface Window {
@@ -48,12 +49,12 @@ async function runBootstrap(): Promise<void> {
   const telemetryService = container.getTelemetryService();
   const logger = container.getLogger();
   const inputSourceService = container.getInputSourceService();
-  const processorCapabilitiesService = container.getProcessorCapabilitiesService();
   const toolsService = container.getToolsService();
   const videoService = container.getVideoService();
   const webrtcService = container.getWebRTCService();
 
   logger.info('Initializing dashboard (React)...');
+  const bootstrapTotalMark = markStart('bootstrap.total');
 
   const withTimeout = async <T>(promise: Promise<T>, stepName: string, fallback: T): Promise<T> => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -77,12 +78,15 @@ async function runBootstrap(): Promise<void> {
     }
   };
 
+  const featureFlagsMark = markStart('bootstrap.feature-flags');
   const observabilityEnabled = await withTimeout(
     featureFlagsService.isFeatureEnabled('observability_enabled'),
     'featureFlagsService.isFeatureEnabled(observability_enabled)',
     false
   );
+  markEnd('bootstrap.feature-flags', featureFlagsMark);
 
+  const coreServicesMark = markStart('bootstrap.core-services');
   const coreServicesResults = await Promise.allSettled([
     withTimeout(
       telemetryService.initialize(observabilityEnabled),
@@ -108,6 +112,7 @@ async function runBootstrap(): Promise<void> {
       });
     }
   });
+  markEnd('bootstrap.core-services', coreServicesMark);
 
   logger.initialize(streamConfigService.getLogLevel(), streamConfigService.getConsoleLogging(), undefined, observabilityEnabled);
 
@@ -122,6 +127,7 @@ async function runBootstrap(): Promise<void> {
     build_time: buildTime,
   });
 
+  const systemInfoMark = markStart('bootstrap.system-info');
   try {
     await systemInfoService.initialize();
     const systemInfo = await systemInfoService.getSystemInfo();
@@ -133,16 +139,13 @@ async function runBootstrap(): Promise<void> {
       'error.message': error instanceof Error ? error.message : String(error),
     });
   }
+  markEnd('bootstrap.system-info', systemInfoMark);
 
+  const dataServicesMark = markStart('bootstrap.data-services');
   const dataServicesResults = await Promise.allSettled([
     withTimeout(
       inputSourceService.initialize(),
       'inputSourceService.initialize',
-      undefined
-    ),
-    withTimeout(
-      processorCapabilitiesService.initialize(),
-      'processorCapabilitiesService.initialize',
       undefined
     ),
     withTimeout(
@@ -166,7 +169,6 @@ async function runBootstrap(): Promise<void> {
     if (result.status === 'rejected') {
       const serviceNames = [
         'Input Source',
-        'Processor Capabilities',
         'Tools',
         'Video',
         'WebRTC',
@@ -181,6 +183,7 @@ async function runBootstrap(): Promise<void> {
       });
     }
   });
+  markEnd('bootstrap.data-services', dataServicesMark);
 
   acceleratorHealthMonitor.startMonitoring(
     () => {
@@ -192,6 +195,8 @@ async function runBootstrap(): Promise<void> {
   logger.info('Accelerator health monitoring started');
 
   attachBeforeUnload();
+  markEnd('bootstrap.total', bootstrapTotalMark);
+  logTimingSummary('Init Timing', ['bootstrap.']);
   logger.info('Dashboard (React) services initialized');
 }
 

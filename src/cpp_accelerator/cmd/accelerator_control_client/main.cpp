@@ -55,7 +55,11 @@ int main(int argc, char** argv) {
   }
 
   auto adapter = std::make_shared<jrb::adapters::grpc_control::ProcessorEngineAdapter>(engine);
-  auto webrtc_manager = std::make_shared<jrb::adapters::webrtc::WebRTCManager>(engine);
+  jrb::adapters::webrtc::WebRTCManagerConfig webrtc_cfg;
+  webrtc_cfg.engine = engine;
+  webrtc_cfg.device_id = absl::GetFlag(FLAGS_device_id);
+  webrtc_cfg.display_name = absl::GetFlag(FLAGS_display_name);
+  auto webrtc_manager = std::make_shared<jrb::adapters::webrtc::WebRTCManager>(webrtc_cfg);
   if (!webrtc_manager->Initialize()) {
     spdlog::warn("WebRTCManager failed to initialize — signaling will be unavailable");
   } else {

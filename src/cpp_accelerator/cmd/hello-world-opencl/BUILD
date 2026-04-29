@@ -34,6 +34,6 @@ cc_binary(
     visibility = ["//visibility:public"],
     deps = [":hello_world_opencl_lib"],
     linkopts = [
-        "/lib/x86_64-linux-gnu/libOpenCL.so.1.0.0",
+        "-l:libOpenCL.so.1",
     ],
 )

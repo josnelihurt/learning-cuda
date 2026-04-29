@@ -1,6 +1,7 @@
 import { createPromiseClient, type PromiseClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { logger } from '@/infrastructure/observability/otel-logger';
+import { markStart, markEnd, logTimingSummary } from '@/infrastructure/observability/perf-mark';
 import { telemetryService } from '@/infrastructure/observability/telemetry-service';
 import type {
   CreateWebRTCSessionOptions,
@@ -14,7 +15,7 @@ import {
   type StartSessionResponse,
   SendIceCandidateRequest,
 } from '@/gen/webrtc_signal_pb';
-import { ProcessImageRequest } from '@/gen/image_processor_service_pb';
+import { DataChannelRequest, KeepaliveRequest, ProcessImageRequest } from '@/gen/image_processor_service_pb';
 import { WebRTCSignalingService } from '@/gen/webrtc_signal_connect';
 import { tracingInterceptor } from '@/infrastructure/grpc/tracing-interceptor';
 import { nextMessageId, packMessage } from '@/infrastructure/transport/data-channel-framing';
@@ -29,6 +30,8 @@ const HEARTBEAT_MAX_CONSECUTIVE_FAILURES = 3;
 const ICE_GATHERING_TIMEOUT_MS = 1_500;
 const STATS_DATA_CHANNEL_LABEL = 'cpp-processor-stats';
 const CONTROL_DATA_CHANNEL_LABEL = 'control';
+
+const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 type ControlChannelListener = (sessionId: string, channel: RTCDataChannel | null) => void;
 
@@ -122,7 +125,7 @@ export class WebRTCService implements IWebRTCService {
 
     try {
       const peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        iceServers: DEFAULT_ICE_SERVERS,
         ...config,
       });
 
@@ -248,6 +251,7 @@ export class WebRTCService implements IWebRTCService {
     options: CreateWebRTCSessionOptions = {}
   ): Promise<WebRTCSession> {
     logger.info(`[WebRTC] createSession called for sourceId: ${sourceId}`);
+    const sessionTotalMark = markStart('webrtc.create-session.total');
 
     if (!this.isSupported()) {
       logger.error('[WebRTC] WebRTC is not supported in this browser');
@@ -264,7 +268,12 @@ export class WebRTCService implements IWebRTCService {
     const session = WebRTCSession.create(sourceId, sessionMode);
     const sessionId = session.getId();
 
-    const peerConnection = this.createPeerConnection();
+    const pcMark = markStart('webrtc.create-peer-connection');
+    const peerConnectionConfig: RTCConfiguration | undefined = options.iceServers
+      ? { iceServers: options.iceServers }
+      : undefined;
+    const peerConnection = this.createPeerConnection(peerConnectionConfig);
+    markEnd('webrtc.create-peer-connection', pcMark);
     if (!peerConnection) {
       throw new Error('Failed to create peer connection');
     }
@@ -370,9 +379,13 @@ export class WebRTCService implements IWebRTCService {
       this.ensurePolling(sessionId);
 
       if (shouldUseDataChannel) {
+        const dcMark = markStart('webrtc.data-channel-open');
         await this.waitForDataChannelOpen(sessionId);
+        markEnd('webrtc.data-channel-open', dcMark);
       }
 
+      markEnd('webrtc.create-session.total', sessionTotalMark);
+      logTimingSummary('WebRTC Timing', ['webrtc.']);
       logger.info(`[WebRTC:${sessionId}] Session created successfully`, {
         'session.source_id': sourceId,
         'session.mode': sessionMode,
@@ -490,10 +503,12 @@ export class WebRTCService implements IWebRTCService {
       return;
     }
 
-    // Empty ProcessImageRequest acts as a keepalive: the C++ side refreshes
-    // last_heartbeat on any inbound DC message and treats filter-less control
-    // updates as heartbeats (no-op on live filter state).
-    const payload = new ProcessImageRequest({ sessionId, apiVersion: '1.1' }).toBinary();
+    const payload = new DataChannelRequest({
+      payload: {
+        case: 'keepalive',
+        value: new KeepaliveRequest({ sessionId, apiVersion: '1.1' }),
+      },
+    }).toBinary();
 
     try {
       for (const chunk of packMessage(nextMessageId(), payload)) {
@@ -623,7 +638,12 @@ export class WebRTCService implements IWebRTCService {
       throw new Error(`WebRTC data channel is not open for session ${sessionId}`);
     }
 
-    const payload = request.toBinary();
+    const payload = new DataChannelRequest({
+      payload: {
+        case: 'processImage',
+        value: request,
+      },
+    }).toBinary();
     for (const chunk of packMessage(nextMessageId(), payload)) {
       dataChannel.send(chunk);
     }
@@ -697,24 +717,24 @@ export class WebRTCService implements IWebRTCService {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
-    // Block until ICE gathering completes so the SDP offer embeds every candidate.
-    // libdatachannel/juice on the peer side reinitializes the ICE agent when new
-    // remote candidates arrive after the DTLS/SCTP transport is established, which
-    // aborts the data channel milliseconds after it opens. Non-trickle negotiation
-    // avoids that race entirely; the modest extra setup latency is acceptable for
-    // a dev/LAN topology and still compatible with STUN over WAN.
+    const iceMark = markStart('webrtc.ice-gathering');
     await this.waitForIceGatheringComplete(peerConnection, ICE_GATHERING_TIMEOUT_MS);
+    markEnd('webrtc.ice-gathering', iceMark);
 
     const finalOfferSdp = peerConnection.localDescription?.sdp || offer.sdp || '';
 
     this.lastRequest = 'StartSession';
     this.lastRequestTime = new Date();
+    const signalingMark = markStart('webrtc.signaling.start-session');
     const response = await this.signalingClient.startSession({
       sessionId,
       sdpOffer: finalOfferSdp,
     });
+    markEnd('webrtc.signaling.start-session', signalingMark);
 
+    const sdpMark = markStart('webrtc.apply-sdp-answer');
     await this.applyStartSessionResponse(sessionId, response);
+    markEnd('webrtc.apply-sdp-answer', sdpMark);
 
     this.sessionNegotiated.set(sessionId, true);
     // Any candidates gathered after the SDP was serialized are redundant: they
@@ -953,7 +973,9 @@ export class WebRTCService implements IWebRTCService {
       throw new Error(`Peer connection not found for session ${sessionId}`);
     }
     const remaining = Math.max(0, timeoutMs - (Date.now() - started));
+    const sctpMark = markStart('webrtc.sctp-connected');
     await this.waitForSctpConnected(peerConnection, remaining);
+    markEnd('webrtc.sctp-connected', sctpMark);
     return dataChannel;
   }
 
@@ -994,7 +1016,7 @@ export class WebRTCService implements IWebRTCService {
           resolve();
           return;
         }
-        setTimeout(tick, 15);
+        setTimeout(tick, 5);
       };
       tick();
     });

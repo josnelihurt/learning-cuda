@@ -1,6 +1,8 @@
 import {
   ControlRequest,
   ControlResponse,
+  GetAcceleratorCapabilitiesRequest,
+  GetAcceleratorCapabilitiesResponse,
   GetVersionInfoRequest,
   GetVersionInfoResponse,
   ListFiltersRequest,
@@ -74,6 +76,22 @@ class ControlChannelService {
     }
     if (response.payload.case !== 'getVersion') {
       throw new Error(`GetVersion: unexpected response case ${String(response.payload.case)}`);
+    }
+    return response.payload.value;
+  }
+
+  async getAcceleratorCapabilities(): Promise<GetAcceleratorCapabilitiesResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: {
+        case: 'getAcceleratorCapabilities',
+        value: new GetAcceleratorCapabilitiesRequest({}),
+      },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`GetAcceleratorCapabilities failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'getAcceleratorCapabilities') {
+      throw new Error(`GetAcceleratorCapabilities: unexpected response case ${String(response.payload.case)}`);
     }
     return response.payload.value;
   }

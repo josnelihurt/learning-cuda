@@ -125,11 +125,12 @@ bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
 }
 
 bool ProcessorEngine::ProcessImage(const cuda_learning::ProcessImageRequest& request,
-                                   cuda_learning::ProcessImageResponse* response) {
+                                   cuda_learning::ProcessImageResponse* response,
+                                   void* memory_pool) {
   if (!response) {
     return false;
   }
-  return ApplyFilters(request, response);
+  return ApplyFilters(request, response, memory_pool);
 }
 
 bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* response) {
@@ -163,6 +164,9 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   algorithm_param->add_options("lightness");
   algorithm_param->add_options("luminosity");
   algorithm_param->set_default_value("bt601");
+  (*algorithm_param->mutable_metadata())["required"] = "true";
+  (*algorithm_param->mutable_metadata())["min_items"] = "1";
+  (*algorithm_param->mutable_metadata())["max_items"] = "1";
 
   auto* blur_filter = caps->add_filters();
   blur_filter->set_id("blur");
@@ -175,12 +179,20 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   kernel_size_param->set_name("Kernel Size");
   kernel_size_param->set_type("range");
   kernel_size_param->set_default_value("5");
+  (*kernel_size_param->mutable_metadata())["required"] = "true";
+  (*kernel_size_param->mutable_metadata())["min"] = "1";
+  (*kernel_size_param->mutable_metadata())["max"] = "31";
+  (*kernel_size_param->mutable_metadata())["step"] = "2";
 
   auto* sigma_param = blur_filter->add_parameters();
   sigma_param->set_id("sigma");
   sigma_param->set_name("Sigma");
   sigma_param->set_type("number");
   sigma_param->set_default_value("1.0");
+  (*sigma_param->mutable_metadata())["required"] = "true";
+  (*sigma_param->mutable_metadata())["min"] = "0";
+  (*sigma_param->mutable_metadata())["max"] = "100";
+  (*sigma_param->mutable_metadata())["step"] = "0.1";
 
   auto* border_mode_param = blur_filter->add_parameters();
   border_mode_param->set_id("border_mode");
@@ -190,12 +202,16 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   border_mode_param->add_options("REFLECT");
   border_mode_param->add_options("WRAP");
   border_mode_param->set_default_value("REFLECT");
+  (*border_mode_param->mutable_metadata())["required"] = "true";
+  (*border_mode_param->mutable_metadata())["min_items"] = "1";
+  (*border_mode_param->mutable_metadata())["max_items"] = "1";
 
   auto* separable_param = blur_filter->add_parameters();
   separable_param->set_id("separable");
   separable_param->set_name("Separable");
   separable_param->set_type("checkbox");
   separable_param->set_default_value("true");
+  (*separable_param->mutable_metadata())["required"] = "true";
 
   auto* model_filter = caps->add_filters();
   model_filter->set_id("model_inference");
@@ -208,12 +224,19 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   model_param->set_type("select");
   model_param->add_options("yolov10n");
   model_param->set_default_value("yolov10n");
+  (*model_param->mutable_metadata())["required"] = "true";
+  (*model_param->mutable_metadata())["min_items"] = "1";
+  (*model_param->mutable_metadata())["max_items"] = "1";
 
   auto* threshold_param = model_filter->add_parameters();
   threshold_param->set_id("confidence_threshold");
   threshold_param->set_name("Confidence Threshold");
   threshold_param->set_type("number");
   threshold_param->set_default_value("0.45");
+  (*threshold_param->mutable_metadata())["required"] = "true";
+  (*threshold_param->mutable_metadata())["min"] = "0";
+  (*threshold_param->mutable_metadata())["max"] = "1";
+  (*threshold_param->mutable_metadata())["step"] = "0.01";
 
   return true;
 }
@@ -236,7 +259,8 @@ GrayscaleAlgorithm ProcessorEngine::ProtoToAlgorithm(cuda_learning::GrayscaleTyp
 }
 
 bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& request,
-                                   cuda_learning::ProcessImageResponse* response) {
+                                   cuda_learning::ProcessImageResponse* response,
+                                   void* memory_pool) {
   cuda_learning::AcceleratorType accelerator = request.accelerator();
   if (accelerator == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
     accelerator = cuda_learning::ACCELERATOR_TYPE_CUDA;
@@ -367,7 +391,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
                                                           request.height(), output_channels);
 
     if (pipeline.GetFilterCount() > 0) {
-      bool success = pipeline.Apply(input_buffer, output_buffer, memory_pool_);
+      bool success = pipeline.Apply(input_buffer, output_buffer, memory_pool);
       if (!success) {
         spdlog::error("Filter pipeline processing failed");
         scoped_span.RecordError("Filter pipeline processing failed");

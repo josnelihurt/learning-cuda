@@ -21,8 +21,10 @@ const (
 type AcceleratorType string
 
 const (
-	AcceleratorGPU AcceleratorType = "gpu"
-	AcceleratorCPU AcceleratorType = "cpu"
+	AcceleratorCUDA   AcceleratorType = "cuda"
+	AcceleratorCPU    AcceleratorType = "cpu"
+	AcceleratorOpenCL AcceleratorType = "opencl"
+	AcceleratorVulkan AcceleratorType = "vulkan"
 )
 
 // GrayscaleType represents the grayscale conversion algorithm

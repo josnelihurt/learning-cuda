@@ -1,15 +1,16 @@
 import { useCallback, useRef } from 'react';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
-import { AcceleratorConfig, FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
+import { FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { frameResponseToDataUrl, rasterizeImageToRgb } from '@/presentation/utils/image-utils';
 import type { GridSource } from '@/presentation/utils/grid-source';
+import { AcceleratorType } from '@/gen/common_pb';
 
 export interface FilterApplicationOptions {
   source: GridSource;
   filters: ActiveFilterState[];
-  accelerator: 'gpu' | 'cpu';
+  accelerator: AcceleratorType;
   resolution: string;
   onSourceUpdate: (sourceId: string, updater: (current: GridSource) => GridSource) => void;
 }
@@ -53,7 +54,9 @@ export function useFilterApplication(toastManager: IToastDisplay): { applyStatic
 
         const rasterized = await rasterizeImageToRgb(source.originalImageSrc, targetWidth, targetHeight);
 
-        if (filters.length === 1 && filters[0].id === 'none') {
+        // Keep this client-side fallback: some backend paths may not return a fresh frame
+        // for an empty filter list, so we must proactively restore the unfiltered image.
+        if (filters.length === 0) {
           onSourceUpdate(source.id, (current) => ({
             ...current,
             currentImageSrc: frameResponseToDataUrl(rasterized, targetWidth, targetHeight, 3),
@@ -70,7 +73,7 @@ export function useFilterApplication(toastManager: IToastDisplay): { applyStatic
           targetHeight,
           3,
           mapFiltersToValueObjects(filters),
-          new AcceleratorConfig(accelerator),
+          accelerator,
           new GrayscaleAlgorithm('bt601')
         );
 

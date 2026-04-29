@@ -2,6 +2,7 @@ import type { WebRTCFrameTransportService } from '@/infrastructure/transport/web
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { Detection } from '@/gen/image_processor_service_pb';
 import { FilterData } from '@/domain/value-objects';
+import { AcceleratorType } from '@/gen/common_pb';
 
 export type GridSourceSessionMode = 'frame-processing' | 'camera-mediatrack';
 
@@ -19,7 +20,7 @@ export type GridSource = {
   sessionMode: GridSourceSessionMode;
   filters: ActiveFilterState[];
   resolution: string;
-  accelerator: 'gpu' | 'cpu';
+  accelerator: AcceleratorType;
   videoId?: string;
   detections: Detection[];
   detectionImageWidth: number;
@@ -58,7 +59,7 @@ export type GridSourceAction =
   | { type: GridSourceActionType.SET_SOURCE_FPS; payload: { sourceId: string; fps: number } }
   | { type: GridSourceActionType.SET_SOURCE_RESOLUTION; payload: { sourceId: string; width: number; height: number } }
   | { type: GridSourceActionType.SET_SOURCE_METRICS; payload: { sourceId: string; metrics: Record<string, string> } }
-  | { type: GridSourceActionType.SYNC_FILTERS; payload: { sourceId: string; filters: ActiveFilterState[]; resolution: string; accelerator: 'gpu' | 'cpu' } };
+  | { type: GridSourceActionType.SYNC_FILTERS; payload: { sourceId: string; filters: ActiveFilterState[]; resolution: string; accelerator: AcceleratorType } };
 
 export function filtersToFilterData(filters: ActiveFilterState[]): FilterData[] {
   return filters.map((f) => new FilterData(f.id, { ...f.parameters }));
@@ -67,9 +68,5 @@ export function filtersToFilterData(filters: ActiveFilterState[]): FilterData[] 
 export function normalizeFilters(filters: ActiveFilterState[]): ActiveFilterState[] {
   return filters.length > 0
     ? filters.map((f) => ({ id: f.id, parameters: { ...f.parameters } }))
-    : [{ id: 'none', parameters: {} }];
-}
-
-export function hasModelInferenceFilter(filters: ActiveFilterState[]): boolean {
-  return filters.some((filter) => filter.id === 'model_inference');
+    : [];
 }

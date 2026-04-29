@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import { VideoStreamer } from './VideoStreamer';
+import { AcceleratorType } from '@/gen/common_pb';
 
 const dashboardFiltersRef: { current: ActiveFilterState[] } = { current: [] };
 
@@ -9,7 +10,7 @@ vi.mock('../../context/dashboard-state-context', () => ({
   useDashboardState: () => ({
     selectedSourceNumber: 1,
     selectedSourceName: 'Lena',
-    selectedAccelerator: 'gpu',
+    selectedAccelerator: AcceleratorType.CUDA,
     selectedResolution: 'original',
     activeFilters: dashboardFiltersRef.current,
     processorFilterEpoch: 0,

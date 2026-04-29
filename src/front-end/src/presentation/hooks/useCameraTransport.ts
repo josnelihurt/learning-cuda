@@ -4,7 +4,6 @@ import type { ActiveFilterState } from '@/presentation/components/filters/Filter
 import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
-import { hasModelInferenceFilter } from '@/presentation/utils/grid-source';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
@@ -18,16 +17,8 @@ import {
   ProcessImageRequest,
 } from '@/gen/image_processor_service_pb';
 
-function toProtocolAccelerator(value: 'gpu' | 'cpu'): AcceleratorType {
-  return value === 'cpu' ? AcceleratorType.CPU : AcceleratorType.CUDA;
-}
-
 function filtersToGenericSelections(filters: ActiveFilterState[]): GenericFilterSelection[] {
-  const nonNoneFilters = filters.filter((f) => f.id !== 'none');
-  if (nonNoneFilters.length === 0) {
-    return [new GenericFilterSelection({ filterId: 'none', parameters: [] })];
-  }
-  return nonNoneFilters.map(
+  return filters.map(
     (filter) =>
       new GenericFilterSelection({
         filterId: filter.id,
@@ -52,7 +43,7 @@ type CameraTransportResult = {
     sessionId: string,
     sourceId: string,
     filters: ActiveFilterState[],
-    accelerator: 'gpu' | 'cpu'
+    accelerator: AcceleratorType
   ) => void;
 };
 
@@ -64,14 +55,14 @@ export function useCameraTransport({
   const cameraSessionSourceIdsRef = useRef<Set<string>>(new Set());
 
   const sendCameraControlRequest = useCallback(
-    (sessionId: string, sourceId: string, filters: ActiveFilterState[], accelerator: 'gpu' | 'cpu'): void => {
+    (sessionId: string, sourceId: string, filters: ActiveFilterState[], accelerator: AcceleratorType): void => {
       try {
         webrtcService.sendControlRequest(
           sessionId,
           new ProcessImageRequest({
             sessionId,
             genericFilters: filtersToGenericSelections(filters),
-            accelerator: toProtocolAccelerator(accelerator),
+            accelerator,
             apiVersion: '1.1',
           })
         );
@@ -120,7 +111,7 @@ export function useCameraTransport({
         const currentFilters =
           currentSource.filters.length > 0
             ? currentSource.filters
-            : [{ id: 'none', parameters: {} }];
+            : [];
         sendCameraControlRequest(
           session.getId(),
           sourceId,
@@ -139,22 +130,6 @@ export function useCameraTransport({
               const assembled = reassembler.pushChunk(buffer);
               if (assembled === null) return;
               const frame = DetectionFrame.fromBinary(assembled);
-              const activeSource = sourcesRef.current.find((item) => item.id === sourceId);
-              const shouldShowDetections = activeSource
-                ? hasModelInferenceFilter(activeSource.filters)
-                : false;
-              if (!shouldShowDetections) {
-                dispatch({
-                  type: GridSourceActionType.SET_DETECTIONS,
-                  payload: {
-                    sourceId,
-                    detections: [],
-                    width: 0,
-                    height: 0,
-                  },
-                });
-                return;
-              }
               dispatch({
                 type: GridSourceActionType.SET_DETECTIONS,
                 payload: {

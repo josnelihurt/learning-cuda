@@ -290,9 +290,11 @@ Hexagonal architecture: `ports/` holds abstract interfaces only; `adapters/` hol
 ```
 cpp_accelerator/
 ├── cmd/
-│   └── accelerator_control_client/
-│       ├── main.cpp            # Binary entry point
-│       └── BUILD
+│   ├── accelerator_control_client/
+│   │   ├── main.cpp            # Binary entry point
+│   │   └── BUILD
+│   ├── spike_multi_gpu_backend/  # Experimental multi-backend abstraction spike
+│   └── [hello-world examples]    # See "Hello World Examples" section below
 ├── core/                       # Cross-cutting utilities (no deps on other layers)
 │   ├── logger.h/cpp
 │   ├── telemetry.h/cpp
@@ -336,7 +338,10 @@ cpp_accelerator/
 │   │   │   ├── grayscale_filter.h/cpp
 │   │   │   └── blur_filter.h/cpp
 │   │   ├── cuda/
-│   │   │   ├── kernels/        # Raw CUDA .cu kernels (blur, grayscale, letterbox)
+│   │   │   ├── kernels/        # Raw CUDA .cu kernels
+│   │   │   │   ├── blur/       # Blur variants (non-separable, separable basic/tiled)
+│   │   │   │   ├── grayscale_kernel.cu
+│   │   │   │   └── letterbox_kernel.cu
 │   │   │   ├── filters/        # C++ wrappers: grayscale_filter, blur_processor
 │   │   │   ├── memory/         # cuda_memory_pool (thread-local GPU alloc cache)
 │   │   │   └── tensorrt/       # TensorRT/YOLO inference
@@ -360,7 +365,19 @@ cpp_accelerator/
 
 ## Sub-folder Documentation
 
-- **[infrastructure/cuda/README.md](infrastructure/cuda/README.md)** — Comprehensive CUDA tutorial covering kernel implementations, memory hierarchy, blur optimization variants, letterbox preprocessing, and TensorRT YOLO inference pipeline.
+- **[adapters/compute/cuda/README.md](adapters/compute/cuda/README.md)** — Comprehensive CUDA tutorial covering kernel implementations, memory hierarchy, blur optimization variants, letterbox preprocessing, and TensorRT YOLO inference pipeline.
+
+## Hello World Examples
+
+The `cmd/` folder contains several minimal examples for learning GPU programming concepts. These are standalone programs that demonstrate specific compute APIs without the full accelerator architecture:
+
+- **[OpenCL Hello World](cmd/hello-world-opencl/README.md)** — Minimal OpenCL example adding two float vectors on the GPU. Demonstrates OpenCL platform/device initialization, embedded SPIR-V and OpenCL C source assets, and program compilation.
+
+- **[Vulkan Compute Hello World](cmd/hello-world-vulkan/README.md)** — Minimal Vulkan compute shader example for vector addition. Demonstrates Vulkan instance/device setup, compute pipeline creation, and embedded SPIR-V shaders.
+
+- **[Spike Multi-GPU Backend](cmd/spike_multi_gpu_backend/)** — Experimental spike exploring a unified backend abstraction for CUDA/OpenCL with a grayscale filter demo.
+
+These examples are intentionally kept separate from the production codebase and serve as learning resources for understanding the underlying compute APIs.
 
 ## Design Principles
 
@@ -443,16 +460,16 @@ The library provides WebRTC-based real-time video streaming capabilities through
 
 ### YOLO Object Detection
 
-The library includes YOLO object detection via TensorRT for GPU-accelerated inference. See the [CUDA infrastructure README](infrastructure/cuda/README.md) for detailed documentation on the inference pipeline, letterbox preprocessing, and TensorRT engine lifecycle.
+The library includes YOLO object detection via TensorRT for GPU-accelerated inference. See the [CUDA compute adapter README](adapters/compute/cuda/README.md) for detailed documentation on the inference pipeline, letterbox preprocessing, and TensorRT engine lifecycle.
 
 **Components**:
 
-- **IYoloDetector** (`infrastructure/cuda/i_yolo_detector.h`): Detector interface extending `IFilter`
-- **YOLODetector** (`infrastructure/cuda/yolo_detector.h/cpp`): TensorRT-based inference engine with NMS post-processing
-- **YoloFactory** (`infrastructure/cuda/yolo_factory.h/cpp`): Factory for creating detector instances
-- **ModelManager** (`infrastructure/cuda/model_manager.h/cpp`): Model loading & session management
-- **ModelRegistry** (`infrastructure/cuda/model_registry.h/cpp`): Model path resolution
-- **LetterboxKernel** (`infrastructure/cuda/letterbox_kernel.cu/h`): GPU-accelerated resize + pad + NCHW conversion
+- **IYoloDetector** (`domain/interfaces/i_yolo_detector.h`): Detector interface extending `IFilter`
+- **YOLODetector** (`adapters/compute/cuda/tensorrt/yolo_detector.h/cpp`): TensorRT-based inference engine with NMS post-processing
+- **YoloFactory** (`adapters/compute/cuda/tensorrt/yolo_factory.h/trt.cpp`): Factory for creating detector instances
+- **ModelManager** (`adapters/compute/cuda/tensorrt/model_manager.h/cpp`): Model loading & session management
+- **ModelRegistry** (`adapters/compute/cuda/tensorrt/model_registry.h/cpp`): Model path resolution
+- **LetterboxKernel** (`adapters/compute/cuda/kernels/letterbox_kernel.cu/h`): GPU-accelerated resize + pad + NCHW conversion
 
 ### Command Pattern
 
@@ -498,7 +515,7 @@ The library exposes a C API through `processor_api.h` for language-agnostic inte
 
 ## Adding New Filters
 
-1. **Infrastructure**: Implement CPU and CUDA filter classes in `infrastructure/cpu/` and `infrastructure/cuda/`
+1. **Adapters**: Implement CPU and CUDA filter classes in `adapters/compute/cpu/` and `adapters/compute/cuda/`
 2. **Application**: Filters are automatically usable via `FilterPipeline`
 3. **Ports**: Update adapters if new parameters are required
 
@@ -517,14 +534,14 @@ bazel test //src/cpp_accelerator/core:logger_test
 bazel test //src/cpp_accelerator/core:result_test
 bazel test //src/cpp_accelerator/application/pipeline:filter_pipeline_test
 bazel test //src/cpp_accelerator/application/commands:commands_test
-bazel test //src/cpp_accelerator/infrastructure/filters:blur_equivalence_test
-bazel test //src/cpp_accelerator/infrastructure/cuda:grayscale_filter_test
-bazel test //src/cpp_accelerator/infrastructure/cuda:blur_processor_test
-bazel test //src/cpp_accelerator/infrastructure/cpu:grayscale_filter_test
-bazel test //src/cpp_accelerator/infrastructure/cpu:blur_filter_test
-bazel test //src/cpp_accelerator/infrastructure/image:image_loader_test
-bazel test //src/cpp_accelerator/infrastructure/image:image_writer_test
-bazel test //src/cpp_accelerator/infrastructure/config:config_manager_test
+bazel test //src/cpp_accelerator/adapters/compute/filters:blur_equivalence_test
+bazel test //src/cpp_accelerator/adapters/compute/cuda/filters:grayscale_filter_test
+bazel test //src/cpp_accelerator/adapters/compute/cuda/filters:blur_processor_test
+bazel test //src/cpp_accelerator/adapters/compute/cpu:grayscale_filter_test
+bazel test //src/cpp_accelerator/adapters/compute/cpu:blur_filter_test
+bazel test //src/cpp_accelerator/adapters/image_io:image_loader_test
+bazel test //src/cpp_accelerator/adapters/image_io:image_writer_test
+bazel test //src/cpp_accelerator/adapters/config:config_manager_test
 bazel test //src/cpp_accelerator/ports/shared_lib:blur_e2e_test
 bazel test //src/cpp_accelerator/ports/grpc:data_channel_framing_test
 ```

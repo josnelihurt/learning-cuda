@@ -127,6 +127,11 @@ export enum AcceleratorType {
    * @generated from enum value: ACCELERATOR_TYPE_OPENCL = 3;
    */
   OPENCL = 3,
+
+  /**
+   * @generated from enum value: ACCELERATOR_TYPE_VULKAN = 4;
+   */
+  VULKAN = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(AcceleratorType)
 proto3.util.setEnumType(AcceleratorType, "cuda_learning.AcceleratorType", [
@@ -134,6 +139,7 @@ proto3.util.setEnumType(AcceleratorType, "cuda_learning.AcceleratorType", [
   { no: 1, name: "ACCELERATOR_TYPE_CUDA" },
   { no: 2, name: "ACCELERATOR_TYPE_CPU" },
   { no: 3, name: "ACCELERATOR_TYPE_OPENCL" },
+  { no: 4, name: "ACCELERATOR_TYPE_VULKAN" },
 ]);
 
 /**
@@ -370,6 +376,11 @@ export class FilterParameter extends Message<FilterParameter> {
    */
   defaultValue = "";
 
+  /**
+   * @generated from field: map<string, string> metadata = 11;
+   */
+  metadata: { [key: string]: string } = {};
+
   constructor(data?: PartialMessage<FilterParameter>) {
     super();
     proto3.util.initPartial(data, this);
@@ -383,6 +394,7 @@ export class FilterParameter extends Message<FilterParameter> {
     { no: 5, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "options", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 9, name: "default_value", jsonName: "default_value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "metadata", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FilterParameter {

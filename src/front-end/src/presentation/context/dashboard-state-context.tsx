@@ -9,19 +9,18 @@ import {
 } from 'react';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import { useAppServices } from '@/presentation/providers/app-services-provider';
-
-type AcceleratorChoice = 'gpu' | 'cpu';
+import { AcceleratorType } from '@/gen/common_pb';
 
 export type DashboardState = {
   selectedSourceNumber: number;
   selectedSourceName: string;
-  selectedAccelerator: AcceleratorChoice;
+  selectedAccelerator: AcceleratorType;
   selectedResolution: string;
   activeFilters: ActiveFilterState[];
   processorFilterEpoch: number;
   isWebRTCReady: boolean;
   setSelectedSource: (number: number, name: string) => void;
-  setAccelerator: (a: AcceleratorChoice) => void;
+  setAccelerator: (a: AcceleratorType) => void;
   setResolution: (r: string) => void;
   setActiveFilters: (f: ActiveFilterState[]) => void;
   setWebRTCReady: (ready: boolean) => void;
@@ -37,11 +36,11 @@ export function useDashboardState(): DashboardState {
   return ctx;
 }
 
-export function DashboardStateProvider({ children }: { children: ReactNode }) {
+export function DashboardStateProvider({ children }: { children: ReactNode }): ReactNode {
   const { container, ready } = useAppServices();
   const [selectedSourceNumber, setSelectedSourceNumber] = useState(1);
   const [selectedSourceName, setSelectedSourceName] = useState('Lena');
-  const [selectedAccelerator, setSelectedAccelerator] = useState<AcceleratorChoice>('gpu');
+  const [selectedAccelerator, setSelectedAccelerator] = useState<AcceleratorType>(AcceleratorType.CUDA);
   const [selectedResolution, setSelectedResolution] = useState('original');
   const [activeFilters, setActiveFiltersState] = useState<ActiveFilterState[]>([]);
   const [processorFilterEpoch, setProcessorFilterEpoch] = useState(0);
@@ -52,7 +51,7 @@ export function DashboardStateProvider({ children }: { children: ReactNode }) {
       return;
     }
     const svc = container.getProcessorCapabilitiesService();
-    const onFiltersUpdated = () => {
+    const onFiltersUpdated = (): void => {
       setProcessorFilterEpoch((n) => n + 1);
     };
     svc.addFiltersUpdatedListener(onFiltersUpdated);
@@ -66,7 +65,7 @@ export function DashboardStateProvider({ children }: { children: ReactNode }) {
     setSelectedSourceName(name);
   }, []);
 
-  const setAccelerator = useCallback((a: AcceleratorChoice) => {
+  const setAccelerator = useCallback((a: AcceleratorType) => {
     setSelectedAccelerator(a);
   }, []);
 

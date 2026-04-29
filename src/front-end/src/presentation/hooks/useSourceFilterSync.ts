@@ -4,18 +4,19 @@ import type { ActiveFilterState } from '@/presentation/components/filters/Filter
 import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
-import { hasModelInferenceFilter, normalizeFilters } from '@/presentation/utils/grid-source';
+import { normalizeFilters } from '@/presentation/utils/grid-source';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import type { useCameraTransport } from '@/presentation/hooks/useCameraTransport';
 import type { useFilterApplication } from '@/presentation/hooks/useFilterApplication';
+import { AcceleratorType } from '@/gen/common_pb';
 
 type SourceFilterSyncOptions = {
   ready: boolean;
   selectedSourceId: string | null;
   sourcesRef: RefObject<GridSource[]>;
   activeFilters: ActiveFilterState[];
-  selectedAccelerator: 'gpu' | 'cpu';
+  selectedAccelerator: AcceleratorType;
   selectedResolution: string;
   dispatch: Dispatch<GridSourceAction>;
   sendCameraControlRequest: ReturnType<typeof useCameraTransport>['sendCameraControlRequest'];
@@ -43,6 +44,7 @@ export function useSourceFilterSync({
     if (!selectedSource) return;
 
     const normalizedFilters = normalizeFilters(activeFilters);
+    const hasDetectionFilter = normalizedFilters.some((filter) => filter.id === 'model_inference');
 
     dispatch({
       type: GridSourceActionType.SYNC_FILTERS,
@@ -54,14 +56,14 @@ export function useSourceFilterSync({
       },
     });
 
+    if (!hasDetectionFilter) {
+      dispatch({
+        type: GridSourceActionType.SET_DETECTIONS,
+        payload: { sourceId: selectedSource.id, detections: [], width: 0, height: 0 },
+      });
+    }
+
     if (selectedSource.type === 'video') {
-      const hasModelInference = hasModelInferenceFilter(normalizedFilters);
-      if (!hasModelInference) {
-        dispatch({
-          type: GridSourceActionType.SET_DETECTIONS,
-          payload: { sourceId: selectedSource.id, detections: [], width: 0, height: 0 },
-        });
-      }
       void applyVideoFilters({
         source: selectedSource,
         filters: normalizedFilters,
@@ -79,13 +81,6 @@ export function useSourceFilterSync({
     }
 
     if (selectedSource.type === 'camera') {
-      const hasModelInference = hasModelInferenceFilter(normalizedFilters);
-      if (!hasModelInference) {
-        dispatch({
-          type: GridSourceActionType.SET_DETECTIONS,
-          payload: { sourceId: selectedSource.id, detections: [], width: 0, height: 0 },
-        });
-      }
       if (!selectedSource.sessionId) {
         logger.warn('Camera filter update skipped - no sessionId', {
           'source.id': selectedSource.id,

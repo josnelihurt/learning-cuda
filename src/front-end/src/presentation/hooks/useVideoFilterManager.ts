@@ -3,6 +3,7 @@ import type { ActiveFilterState } from '@/presentation/components/filters/Filter
 import type { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
 import { FilterData } from '@/domain/value-objects';
 import { logger } from '@/infrastructure/observability/otel-logger';
+import { AcceleratorType } from '@/gen/common_pb';
 
 export type VideoFilterState =
   | { status: 'idle' }
@@ -21,10 +22,10 @@ const MAX_RETRIES = 2;
 
 export function useVideoFilterManager() {
   const [state, setState] = useState<VideoFilterState>({ status: 'idle' });
-  const pendingUpdateRef = useRef<{ filters: ActiveFilterState[]; accelerator: 'gpu' | 'cpu'; retryCount: number } | null>(null);
+  const pendingUpdateRef = useRef<{ filters: ActiveFilterState[]; accelerator: AcceleratorType; retryCount: number } | null>(null);
 
   const updateFilters = useCallback(
-    async (options: VideoFilterManagerOptions & { filters: ActiveFilterState[]; accelerator: 'gpu' | 'cpu' }) => {
+    async (options: VideoFilterManagerOptions & { filters: ActiveFilterState[]; accelerator: AcceleratorType }) => {
       const { transport, videoId, filters, accelerator, onError } = options;
 
       if (!transport || !transport.isConnected()) {

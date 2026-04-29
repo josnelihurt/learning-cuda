@@ -6,6 +6,7 @@ export type CreateWebRTCSessionOptions = {
   useDataChannel?: boolean;
   localStream?: MediaStream | null;
   onRemoteStream?: (stream: MediaStream) => void;
+  iceServers?: RTCIceServer[];
 };
 
 export interface IWebRTCService {

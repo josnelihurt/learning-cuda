@@ -278,7 +278,7 @@ export function VideoGridHost(): React.ReactNode {
         if (!cameraSource.transport?.isConnected()) return;
         const filters = cameraSource.filters.length
           ? cameraSource.filters
-          : [{ id: 'none', parameters: {} }];
+          : [];
         cameraSource.transport.sendFrame(
           `data:image/jpeg;base64,${payload.base64data}`,
           payload.width,

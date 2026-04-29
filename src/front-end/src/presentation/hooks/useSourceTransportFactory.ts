@@ -6,10 +6,12 @@ import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-f
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
+import { markStart, markEnd } from '@/infrastructure/observability/perf-mark';
+import { container } from '@/application/di';
 import { filtersToFilterData } from '@/presentation/utils/grid-source';
-import { hasModelInferenceFilter } from '@/presentation/utils/grid-source';
 import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
+import { AcceleratorType } from '@/gen/common_pb';
 
 type SourceTransportFactoryOptions = {
   nextNumberRef: RefObject<number>;
@@ -18,7 +20,7 @@ type SourceTransportFactoryOptions = {
   dispatch: Dispatch<GridSourceAction>;
   activeFiltersRef: RefObject<ActiveFilterState[]>;
   selectedResolutionRef: RefObject<string>;
-  selectedAcceleratorRef: RefObject<'gpu' | 'cpu'>;
+  selectedAcceleratorRef: RefObject<AcceleratorType>;
   sourcesRef: RefObject<GridSource[]>;
 };
 
@@ -139,24 +141,6 @@ export function useSourceTransportFactory({
           });
         });
         transport.onDetectionResult((frame) => {
-          const sourceSnapshot = sourcesRef.current.find((item) => item.id === uniqueId);
-          const shouldShowDetections = sourceSnapshot
-            ? hasModelInferenceFilter(sourceSnapshot.filters)
-            : false;
-
-          if (!shouldShowDetections) {
-            dispatch({
-              type: GridSourceActionType.SET_DETECTIONS,
-              payload: {
-                sourceId: uniqueId,
-                detections: [],
-                width: 0,
-                height: 0,
-              },
-            });
-            return;
-          }
-
           dispatch({
             type: GridSourceActionType.SET_DETECTIONS,
             payload: {
@@ -185,7 +169,7 @@ export function useSourceTransportFactory({
       const filters =
         activeFilters.length > 0
           ? activeFilters.map((f) => ({ id: f.id, parameters: { ...f.parameters } }))
-          : [{ id: 'none', parameters: {} }];
+          : [];
 
       if (transport) {
         if (inputSource.type === 'video') {
@@ -214,7 +198,7 @@ export function useSourceTransportFactory({
         sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
         filters,
         resolution: selectedResolution || 'original',
-        accelerator: selectedAccelerator || 'gpu',
+        accelerator: selectedAccelerator ?? AcceleratorType.CUDA,
         videoId: inputSource.type === 'video' ? inputSource.id : undefined,
         detections: [],
         detectionImageWidth: 0,
@@ -232,16 +216,35 @@ export function useSourceTransportFactory({
   return { buildSource, clearSourceMetrics };
 }
 
+let capabilitiesInitialized = false;
+
+function ensureProcessorCapabilities(): void {
+  if (capabilitiesInitialized) {
+    return;
+  }
+  capabilitiesInitialized = true;
+  const service = container.getProcessorCapabilitiesService();
+  service.initialize().catch((error) => {
+    capabilitiesInitialized = false;
+    container.getLogger().warn('Processor capabilities initialization failed, will retry on next connection', {
+      'error.message': error instanceof Error ? error.message : String(error),
+    });
+  });
+}
+
 function waitForConnected(
   transport: WebRTCFrameTransportService,
   onConnected: () => void
 ): void {
+  const waitMark = markStart('transport.wait-for-connected');
   const check = (): void => {
     if (transport.isConnected()) {
+      markEnd('transport.wait-for-connected', waitMark);
+      ensureProcessorCapabilities();
       onConnected();
     } else {
-      setTimeout(check, 100);
+      setTimeout(check, 50);
     }
   };
-  setTimeout(check, 100);
+  setTimeout(check, 50);
 }

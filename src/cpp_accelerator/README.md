@@ -6,7 +6,7 @@ High-performance image processing library implementing Clean Architecture princi
 
 The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters. The architecture uses a **pluggable filter factory** pattern: `ProcessorEngine` is decoupled from concrete filter implementations via `IFilterFactory`, with one factory registered per accelerator backend (CUDA, CPU, OpenCL). New backends are added by implementing `IFilterFactory` and registering it at startup — no engine changes required.
 
-**Version**: See `VERSION` file (currently 4.0.6)
+**Version**: See `VERSION` file (currently 4.0.9)
 
 **Features**:
 - Multi-backend GPU acceleration: **CUDA**, **OpenCL**, and CPU fallback
@@ -60,6 +60,7 @@ graph TB
         CudaFactory[CUDA FilterFactory]
         CpuFactory[CPU FilterFactory]
         OpenCLFactory[OpenCL FilterFactory]
+        VulkanFactory[Vulkan FilterFactory]
         YOLODetector[YOLO Detector<br/>TensorRT]
         ModelManager[Model Manager]
     end
@@ -81,9 +82,11 @@ graph TB
     ProcessorEngine -->|FilterFactoryRegistry| CudaFactory
     ProcessorEngine -->|FilterFactoryRegistry| CpuFactory
     ProcessorEngine -->|FilterFactoryRegistry| OpenCLFactory
+    ProcessorEngine -->|FilterFactoryRegistry| VulkanFactory
     CudaFactory --> IFilter
     CpuFactory --> IFilter
     OpenCLFactory --> IFilter
+    VulkanFactory --> IFilter
     CudaFactory --> YOLODetector
     YOLODetector --> ModelManager
     FilterPipeline --> ImageBuffer
@@ -130,6 +133,7 @@ graph TB
         CudaFactory[compute/cuda<br/>CudaFilterFactory]
         CpuFactory[compute/cpu<br/>CpuFilterFactory]
         OpenCLFactory[compute/opencl<br/>OpenCLFilterFactory]
+        VulkanFactory[compute/vulkan<br/>VulkanFilterFactory]
         TRTInference[cuda/tensorrt<br/>YOLO + TensorRT]
         ImageIO[image_io<br/>Image I/O]
         ConfigManager[config<br/>ConfigManager]
@@ -156,9 +160,11 @@ graph TB
     FactoryRegistry --> CudaFactory
     FactoryRegistry --> CpuFactory
     FactoryRegistry --> OpenCLFactory
+    FactoryRegistry --> VulkanFactory
     CudaFactory --> IFilter
     CpuFactory --> IFilter
     OpenCLFactory --> IFilter
+    VulkanFactory --> IFilter
     CudaFactory --> TRTInference
     CommandFactory --> ConfigManager
     ProcessorEngine --> Logger
@@ -341,7 +347,7 @@ cpp_accelerator/
 │   │   ├── server_info_provider.h/cpp   # Implementation (reads VERSION, queries engine caps)
 │   │   ├── filter_parameter_mapping.h/cpp  # Engine FilterParameter → wire GenericFilterParameter
 │   │   └── accelerator_label.h/cpp         # AcceleratorType → human-readable label
-│   └── commands/               # Placeholder command pattern (unused)
+│   └── commands/               # CommandFactory (not wired into main pipeline)
 ├── ports/                      # Abstract port interfaces ONLY
 │   ├── control/
 │   │   └── i_control_port.h    # IControlPort — Run/Stop interface
@@ -370,10 +376,15 @@ cpp_accelerator/
 │   │   │   └── cpu_filter_factory.h/cpp    # IFilterFactory for CPU
 │   │   ├── cuda/
 │   │   │   ├── cuda_filter_factory.h/cpp   # IFilterFactory for CUDA
-│   │   │   ├── kernels/        # Raw CUDA .cu kernels
-│   │   │   │   ├── blur/       # Blur variants (non-separable, separable basic/tiled)
-│   │   │   │   ├── grayscale_kernel.cu
-│   │   │   │   └── letterbox_kernel.cu
+│   │   │   ├── kernels/        # Kernel launchers (.h) and CUDA source (.cu)
+│   │   │   │   ├── grayscale_kernel.h/cu
+│   │   │   │   ├── letterbox_kernel.h/cu
+│   │   │   │   ├── blur_kernel.h           # Launcher header for blur variants
+│   │   │   │   └── blur/       # Blur kernel implementations
+│   │   │   │       ├── device_utils.cuh    # Shared border-clamp helpers
+│   │   │   │       ├── non_separable.cu    # Naïve 2D convolution (reference)
+│   │   │   │       ├── separable_basic.cu  # Two 1D passes (algorithmic win)
+│   │   │   │       └── separable_tiled.cu  # Tiled + constant mem (production)
 │   │   │   ├── filters/        # C++ wrappers: grayscale_filter, blur_filter
 │   │   │   ├── memory/         # cuda_memory_pool (thread-local GPU alloc cache)
 │   │   │   └── tensorrt/       # TensorRT/YOLO inference
@@ -382,10 +393,26 @@ cpp_accelerator/
 │   │   │       ├── model_manager.h/cpp
 │   │   │       └── model_registry.h/cpp
 │   │   ├── opencl/              # OpenCL filter implementations
-│   │   │   ├── opencl_context.h/cpp         # OpenCL platform/device initialization
-│   │   │   ├── opencl_grayscale_filter.h/cpp
-│   │   │   ├── opencl_blur_filter.h/cpp
+│   │   │   ├── context/
+│   │   │   │   └── context.h/cpp            # OpenCL platform/device initialization
+│   │   │   ├── filters/
+│   │   │   │   ├── grayscale_filter.h/cpp
+│   │   │   │   └── blur_filter.h/cpp
+│   │   │   ├── kernels/
+│   │   │   │   ├── cl_grayscale.cl          # Grayscale OpenCL kernel source
+│   │   │   │   └── cl_blur.cl               # Blur OpenCL kernel source
 │   │   │   └── opencl_filter_factory.h/cpp  # IFilterFactory for OpenCL
+│   │   ├── vulkan/              # Vulkan compute filter implementations
+│   │   │   ├── context/
+│   │   │   │   ├── context.h/cpp            # Vulkan instance/device initialization
+│   │   │   │   └── compute_utils.h
+│   │   │   ├── filters/
+│   │   │   │   ├── grayscale_filter.h/cpp
+│   │   │   │   └── blur_filter.h/cpp
+│   │   │   ├── kernels/
+│   │   │   │   ├── grayscale.comp           # Grayscale GLSL compute shader
+│   │   │   │   └── blur.comp                # Blur GLSL compute shader
+│   │   │   └── vulkan_filter_factory.h/cpp  # IFilterFactory for Vulkan
 │   │   └── filters/            # Cross-backend equivalence tests
 │   ├── image_io/               # Image file I/O (stb-based)
 │   │   ├── image_loader.h/cpp
@@ -393,6 +420,25 @@ cpp_accelerator/
 │   └── config/                 # Configuration management
 │       ├── config_manager.h/cpp
 │       └── models/program_config.h
+├── composition/                # Bazel-flag-driven platform wiring
+│   └── platform/
+│       ├── platform_support.h              # Common registration interface
+│       ├── platform_support_cpu.cpp        # CPU-only build
+│       ├── platform_support_cuda.cpp       # CUDA-only build
+│       ├── platform_support_opencl.cpp     # OpenCL-only build
+│       ├── platform_support_vulkan.cpp     # Vulkan-only build
+│       ├── platform_support_full.cpp       # All backends
+│       ├── platform_support_all.cpp        # Alias: all backends
+│       ├── platform_support_cuda_vulkan.cpp
+│       ├── platform_support_opencl_vulkan.cpp
+│       ├── cpu/
+│       │   └── cpu_platform.h/cpp          # CPU platform registration
+│       ├── cuda/
+│       │   └── cuda_platform.h/cpp         # CUDA platform registration
+│       ├── opencl/
+│       │   └── opencl_platform.h/cpp       # OpenCL platform registration
+│       └── vulkan/
+│           └── vulkan_platform.h/cpp       # Vulkan platform registration
 ├── docker-cuda-runtime/
 ├── yolo-model-gen/
 ├── Dockerfile.build
@@ -403,6 +449,8 @@ cpp_accelerator/
 ## Sub-folder Documentation
 
 - **[adapters/compute/cuda/README.md](adapters/compute/cuda/README.md)** — Comprehensive CUDA tutorial covering kernel implementations, memory hierarchy, blur optimization variants, letterbox preprocessing, and TensorRT YOLO inference pipeline.
+
+- **[application/engine/README.md](application/engine/README.md)** — Describes the Strategy Pattern dispatch used in `IFilterFactory::CreateFilter` and the `DispatchCreateFilter` shared helper.
 
 ## Hello World Examples
 
@@ -525,7 +573,7 @@ The engine uses a **pluggable factory pattern** to decouple from concrete filter
 - **`FilterDescriptor`** (`application/engine/filter_descriptor.h`): Declarative filter metadata (id, name, parameters with validation rules). Each factory returns its supported filters.
 - **`FilterCreationParams`**: Runtime parameter struct passed to `CreateFilter()` — factories read what they need.
 
-Registered factories: `CudaFilterFactory`, `CpuFilterFactory`, `OpenCLFilterFactory`.
+Registered factories: `CudaFilterFactory`, `CpuFilterFactory`, `OpenCLFilterFactory`, `VulkanFilterFactory`.
 
 `GetCapabilities()` accepts an optional `requested_accelerator` — when specified, only that backend's filter descriptors are returned. When unspecified, all factories contribute (backward compatible).
 

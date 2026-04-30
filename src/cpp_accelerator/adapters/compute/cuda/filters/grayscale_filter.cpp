@@ -9,7 +9,7 @@
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 #include "src/cpp_accelerator/adapters/compute/cuda/kernels/grayscale_kernel.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 using jrb::domain::interfaces::FilterContext;
 using jrb::domain::interfaces::FilterType;
@@ -82,4 +82,4 @@ bool GrayscaleFilter::Apply(FilterContext& context) {
   return true;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_grayscale_filter.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/filters/grayscale_filter.h"
 
 #include <cstddef>
 #include <cstring>
@@ -8,24 +8,24 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/opencl/grayscale_kernel_blob.h"
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_context.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/kernels/cl_grayscale_blob.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/context/context.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::opencl {
+namespace jrb::adapters::compute::opencl {
 
-OpenCLGrayscaleFilter::OpenCLGrayscaleFilter()
+GrayscaleFilter::GrayscaleFilter()
     : kernel_ready_(false), program_(nullptr), kernel_(nullptr) {}
 
-OpenCLGrayscaleFilter::~OpenCLGrayscaleFilter() {
+GrayscaleFilter::~GrayscaleFilter() {
   if (kernel_) clReleaseKernel(kernel_);
   if (program_) clReleaseProgram(program_);
 }
 
-bool OpenCLGrayscaleFilter::EnsureKernel() {
+bool GrayscaleFilter::EnsureKernel() {
   if (kernel_ready_) return true;
 
-  auto& ctx = OpenCLContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   if (!ctx.available()) {
     spdlog::error("[OpenCLGrayscale] context unavailable: {}", ctx.error_message());
     return false;
@@ -35,16 +35,16 @@ bool OpenCLGrayscaleFilter::EnsureKernel() {
   cl_device_id device = ctx.device();
 
   // Prefer SPIR-V IL path; fall back to CL source text.
-  const void* il_ptr = grayscale_kernel_blob::spirv();
-  const size_t il_size = grayscale_kernel_blob::spirv_size_bytes();
+  const void* il_ptr = cl_grayscale_blob::spirv();
+  const size_t il_size = cl_grayscale_blob::spirv_size_bytes();
   if (il_ptr && il_size > 0 && (il_size % sizeof(cl_uint)) == 0) {
     program_ = clCreateProgramWithIL(ctx.context(), il_ptr, il_size, &err);
     if (err != CL_SUCCESS || !program_) program_ = nullptr;
   }
 
   if (!program_) {
-    const char* src = grayscale_kernel_blob::cl_src();
-    const size_t src_len = grayscale_kernel_blob::cl_src_size_bytes();
+    const char* src = cl_grayscale_blob::cl_src();
+    const size_t src_len = cl_grayscale_blob::cl_src_size_bytes();
     program_ = clCreateProgramWithSource(ctx.context(), 1, &src, &src_len, &err);
     if (err != CL_SUCCESS || !program_) {
       spdlog::error("[OpenCLGrayscale] clCreateProgramWithSource failed ({})", err);
@@ -78,10 +78,10 @@ bool OpenCLGrayscaleFilter::EnsureKernel() {
   return true;
 }
 
-bool OpenCLGrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
+bool GrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   if (!EnsureKernel()) return false;
 
-  auto& ctx = OpenCLContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   const int width = context.input.width;
   const int height = context.input.height;
   const int channels = context.input.channels;
@@ -138,12 +138,12 @@ bool OpenCLGrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& contex
   return true;
 }
 
-jrb::domain::interfaces::FilterType OpenCLGrayscaleFilter::GetType() const {
+jrb::domain::interfaces::FilterType GrayscaleFilter::GetType() const {
   return jrb::domain::interfaces::FilterType::GRAYSCALE;
 }
 
-bool OpenCLGrayscaleFilter::IsInPlace() const {
+bool GrayscaleFilter::IsInPlace() const {
   return false;
 }
 
-}  // namespace jrb::infrastructure::opencl
+}  // namespace jrb::adapters::compute::opencl

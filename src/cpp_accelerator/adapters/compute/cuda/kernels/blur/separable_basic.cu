@@ -1,6 +1,6 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/kernels/blur/device_utils.cuh"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 // Basic 1D horizontal blur: one thread per column, iterates over all rows.
 // Simpler than the tiled version but lacks shared memory reuse.
@@ -173,4 +173,4 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_vertical(const unsigned char*
   return error;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

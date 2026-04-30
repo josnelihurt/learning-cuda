@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 enum class GrayscaleAlgorithmType : int {
   BT601 = 0,
@@ -125,4 +125,4 @@ extern "C" cudaError_t cuda_convert_to_grayscale(const unsigned char* input, uns
   return cudaSuccess;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

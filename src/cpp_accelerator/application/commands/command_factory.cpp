@@ -13,8 +13,8 @@ void CommandFactory::register_commands() {
 }
 
 std::unique_ptr<ICommand> CommandFactory::create(
-    infrastructure::config::models::ProgramType type,
-    const infrastructure::config::models::ProgramConfig& config) const {
+    adapters::config::models::ProgramType type,
+    const adapters::config::models::ProgramConfig& config) const {
   auto it = creators_.find(type);
   if (it == creators_.end()) {
     return nullptr;
@@ -22,7 +22,7 @@ std::unique_ptr<ICommand> CommandFactory::create(
   return it->second(config);
 }
 
-bool CommandFactory::is_registered(infrastructure::config::models::ProgramType type) const {
+bool CommandFactory::is_registered(adapters::config::models::ProgramType type) const {
   return creators_.find(type) != creators_.end();
 }
 

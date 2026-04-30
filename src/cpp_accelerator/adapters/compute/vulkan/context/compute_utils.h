@@ -10,9 +10,9 @@
 #include <vulkan/vulkan.hpp>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_context.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/context/context.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
 // Finds a host-visible, host-coherent memory type index for the given requirements.
 inline uint32_t FindHostMemoryType(vk::PhysicalDevice pd, const vk::MemoryRequirements& reqs) {
@@ -95,4 +95,4 @@ inline bool SubmitAndWait(vk::Device device, vk::Queue queue,
   return true;
 }
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

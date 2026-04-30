@@ -75,7 +75,7 @@ public:
     // live_video_processor so the pool outlives the processor (members are
     // destroyed in reverse declaration order, and the processor holds a raw
     // pointer into the pool).
-    std::unique_ptr<jrb::infrastructure::cuda::CudaMemoryPool> memory_pool;
+    std::unique_ptr<jrb::adapters::compute::cuda::CudaMemoryPool> memory_pool;
     std::unique_ptr<LiveVideoProcessor> live_video_processor;
     std::unique_ptr<ChunkReassembler> incoming_reassembler =
         std::make_unique<ChunkReassembler>();

@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_grayscale_filter.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/filters/grayscale_filter.h"
 
 #include <gtest/gtest.h>
 
@@ -6,20 +6,20 @@
 #include <vector>
 
 #include "src/cpp_accelerator/adapters/compute/cpu/grayscale_filter.h"
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_context.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/context/context.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::opencl {
+namespace jrb::adapters::compute::opencl {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
 // Returns false when OpenCL is not available in the test environment.
 // Tests that require a live device should call this and skip gracefully.
 bool OpenCLAvailable() {
-  return OpenCLContext::GetInstance().available();
+  return Context::GetInstance().available();
 }
 
 FilterContext MakeGrayscaleContext(const unsigned char* input, unsigned char* output, int width,
@@ -29,7 +29,7 @@ FilterContext MakeGrayscaleContext(const unsigned char* input, unsigned char* ou
   return ctx;
 }
 
-class OpenCLGrayscaleFilterTest : public ::testing::Test {
+class GrayscaleFilterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loader_ = std::make_unique<ImageLoader>();
@@ -41,17 +41,17 @@ class OpenCLGrayscaleFilterTest : public ::testing::Test {
 
 // --- Construction ---
 
-TEST_F(OpenCLGrayscaleFilterTest, Success_ConstructsWithCorrectType) {
+TEST_F(GrayscaleFilterTest, Success_ConstructsWithCorrectType) {
   // Arrange & Act
-  OpenCLGrayscaleFilter sut;
+  GrayscaleFilter sut;
 
   // Assert
   EXPECT_EQ(sut.GetType(), jrb::domain::interfaces::FilterType::GRAYSCALE);
 }
 
-TEST_F(OpenCLGrayscaleFilterTest, Success_IsNotInPlace) {
+TEST_F(GrayscaleFilterTest, Success_IsNotInPlace) {
   // Arrange & Act
-  OpenCLGrayscaleFilter sut;
+  GrayscaleFilter sut;
 
   // Assert
   EXPECT_FALSE(sut.IsInPlace());
@@ -59,11 +59,11 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_IsNotInPlace) {
 
 // --- Apply: basic ---
 
-TEST_F(OpenCLGrayscaleFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
+TEST_F(GrayscaleFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange
-  OpenCLGrayscaleFilter sut;
+  GrayscaleFilter sut;
   const int w = loader_->width(), h = loader_->height();
   std::vector<unsigned char> output(w * h);
   FilterContext ctx = MakeGrayscaleContext(loader_->data(), output.data(), w, h,
@@ -76,11 +76,11 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) 
   EXPECT_TRUE(result);
 }
 
-TEST_F(OpenCLGrayscaleFilterTest, Success_OutputDimensionsPreserved) {
+TEST_F(GrayscaleFilterTest, Success_OutputDimensionsPreserved) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange
-  OpenCLGrayscaleFilter sut;
+  GrayscaleFilter sut;
   const int w = loader_->width(), h = loader_->height();
   std::vector<unsigned char> output(w * h);
   FilterContext ctx = MakeGrayscaleContext(loader_->data(), output.data(), w, h,
@@ -94,11 +94,11 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_OutputDimensionsPreserved) {
   EXPECT_EQ(ctx.input.height, h);
 }
 
-TEST_F(OpenCLGrayscaleFilterTest, Success_OutputValuesAreInValidRange) {
+TEST_F(GrayscaleFilterTest, Success_OutputValuesAreInValidRange) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange
-  OpenCLGrayscaleFilter sut;
+  GrayscaleFilter sut;
   const int w = loader_->width(), h = loader_->height();
   std::vector<unsigned char> output(w * h, 0xFF);
   FilterContext ctx = MakeGrayscaleContext(loader_->data(), output.data(), w, h,
@@ -120,7 +120,7 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_OutputValuesAreInValidRange) {
 
 // --- Apply: pixel equivalence with CPU BT.601 ---
 
-TEST_F(OpenCLGrayscaleFilterTest, Success_MatchesCpuBT601WithinRoundingTolerance) {
+TEST_F(GrayscaleFilterTest, Success_MatchesCpuBT601WithinRoundingTolerance) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange
@@ -128,7 +128,7 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_MatchesCpuBT601WithinRoundingTolerance
   std::vector<unsigned char> ocl_out(w * h);
   std::vector<unsigned char> cpu_out(w * h);
 
-  OpenCLGrayscaleFilter ocl_filter;
+  GrayscaleFilter ocl_filter;
   cpu::GrayscaleFilter cpu_filter(cpu::GrayscaleAlgorithm::BT601);
 
   FilterContext ocl_ctx = MakeGrayscaleContext(loader_->data(), ocl_out.data(), w, h,
@@ -153,7 +153,7 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_MatchesCpuBT601WithinRoundingTolerance
 
 // --- Apply: constant-colour image ---
 
-TEST_F(OpenCLGrayscaleFilterTest, Success_ConstantColorImageProducesExpectedLuminance) {
+TEST_F(GrayscaleFilterTest, Success_ConstantColorImageProducesExpectedLuminance) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange: pure red 4×4 image
@@ -161,7 +161,7 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_ConstantColorImageProducesExpectedLumi
   std::vector<unsigned char> input(w * h * ch, 0);
   for (int i = 0; i < w * h; ++i) input[i * 3 + 0] = 200;  // R=200, G=0, B=0
   std::vector<unsigned char> output(w * h);
-  OpenCLGrayscaleFilter sut;
+  GrayscaleFilter sut;
   FilterContext ctx = MakeGrayscaleContext(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -176,14 +176,14 @@ TEST_F(OpenCLGrayscaleFilterTest, Success_ConstantColorImageProducesExpectedLumi
 
 // --- Error cases ---
 
-TEST_F(OpenCLGrayscaleFilterTest, Error_RejectsFourChannelInput) {
+TEST_F(GrayscaleFilterTest, Error_RejectsFourChannelInput) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange: 4-channel RGBA input
   constexpr int w = 8, h = 8, ch = 4;
   std::vector<unsigned char> input(w * h * ch, 128);
   std::vector<unsigned char> output(w * h);
-  OpenCLGrayscaleFilter sut;
+  GrayscaleFilter sut;
   FilterContext ctx = MakeGrayscaleContext(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -194,4 +194,4 @@ TEST_F(OpenCLGrayscaleFilterTest, Error_RejectsFourChannelInput) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::opencl
+}  // namespace jrb::adapters::compute::opencl

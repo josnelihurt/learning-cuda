@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_blur_filter.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/filters/blur_filter.h"
 
 #include <cstddef>
 #include <vector>
@@ -8,21 +8,21 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/vulkan/vk_blur_kernel_blob.h"
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_compute_utils.h"
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_context.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/kernels/vk_blur_blob.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/context/compute_utils.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/context/context.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
-VulkanBlurFilter::VulkanBlurFilter() : pipeline_ready_(false) {}
+GaussianBlurFilter::GaussianBlurFilter() : pipeline_ready_(false) {}
 
-VulkanBlurFilter::~VulkanBlurFilter() { DestroyPipeline(); }
+GaussianBlurFilter::~GaussianBlurFilter() { DestroyPipeline(); }
 
-bool VulkanBlurFilter::EnsurePipeline() {
+bool GaussianBlurFilter::EnsurePipeline() {
   if (pipeline_ready_) return true;
 
-  auto& ctx = VulkanContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   if (!ctx.available()) {
     spdlog::error("[VulkanBlur] context unavailable: {}", ctx.error_message());
     return false;
@@ -30,8 +30,8 @@ bool VulkanBlurFilter::EnsurePipeline() {
 
   vk::Device device = ctx.device();
 
-  const auto* spirv = reinterpret_cast<const uint32_t*>(vk_blur_kernel_blob::spirv());
-  size_t spirv_size = vk_blur_kernel_blob::spirv_size_bytes();
+  const auto* spirv = reinterpret_cast<const uint32_t*>(vk_blur_blob::spirv());
+  size_t spirv_size = vk_blur_blob::spirv_size_bytes();
   if (spirv == nullptr || spirv_size == 0 || spirv_size % sizeof(uint32_t) != 0) {
     spdlog::error("[VulkanBlur] invalid embedded SPIR-V");
     return false;
@@ -83,8 +83,8 @@ bool VulkanBlurFilter::EnsurePipeline() {
   return true;
 }
 
-void VulkanBlurFilter::DestroyPipeline() {
-  auto& ctx = VulkanContext::GetInstance();
+void GaussianBlurFilter::DestroyPipeline() {
+  auto& ctx = Context::GetInstance();
   if (!ctx.available()) return;
   vk::Device device = ctx.device();
   if (pipeline_) {
@@ -162,10 +162,10 @@ static bool RunBlurPass(vk::Device device, vk::Queue queue, vk::CommandPool cmd_
   return ok;
 }
 
-bool VulkanBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
+bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   if (!EnsurePipeline()) return false;
 
-  auto& ctx = VulkanContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   vk::Device device = ctx.device();
 
   const uint32_t width = static_cast<uint32_t>(context.input.width);
@@ -235,10 +235,10 @@ bool VulkanBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   return ok;
 }
 
-jrb::domain::interfaces::FilterType VulkanBlurFilter::GetType() const {
+jrb::domain::interfaces::FilterType GaussianBlurFilter::GetType() const {
   return jrb::domain::interfaces::FilterType::BLUR;
 }
 
-bool VulkanBlurFilter::IsInPlace() const { return false; }
+bool GaussianBlurFilter::IsInPlace() const { return false; }
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

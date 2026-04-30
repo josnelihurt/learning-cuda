@@ -1,25 +1,25 @@
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_blur_filter.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/filters/blur_filter.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <vector>
 
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_context.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/context/context.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::opencl {
+namespace jrb::adapters::compute::opencl {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
 bool OpenCLAvailable() {
-  return OpenCLContext::GetInstance().available();
+  return Context::GetInstance().available();
 }
 
-class OpenCLBlurFilterTest : public ::testing::Test {
+class GaussianBlurFilterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loader_ = std::make_unique<ImageLoader>();
@@ -31,17 +31,17 @@ class OpenCLBlurFilterTest : public ::testing::Test {
 
 // --- Construction ---
 
-TEST_F(OpenCLBlurFilterTest, Success_ConstructsWithCorrectType) {
+TEST_F(GaussianBlurFilterTest, Success_ConstructsWithCorrectType) {
   // Arrange & Act
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
 
   // Assert
   EXPECT_EQ(sut.GetType(), jrb::domain::interfaces::FilterType::BLUR);
 }
 
-TEST_F(OpenCLBlurFilterTest, Success_IsNotInPlace) {
+TEST_F(GaussianBlurFilterTest, Success_IsNotInPlace) {
   // Arrange & Act
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
 
   // Assert
   EXPECT_FALSE(sut.IsInPlace());
@@ -49,11 +49,11 @@ TEST_F(OpenCLBlurFilterTest, Success_IsNotInPlace) {
 
 // --- Apply: basic ---
 
-TEST_F(OpenCLBlurFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
+TEST_F(GaussianBlurFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
   const int w = loader_->width(), h = loader_->height(), ch = loader_->channels();
   std::vector<unsigned char> output(w * h * ch);
   FilterContext ctx(loader_->data(), output.data(), w, h, ch);
@@ -65,11 +65,11 @@ TEST_F(OpenCLBlurFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
   EXPECT_TRUE(result);
 }
 
-TEST_F(OpenCLBlurFilterTest, Success_OutputDimensionsPreserved) {
+TEST_F(GaussianBlurFilterTest, Success_OutputDimensionsPreserved) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
   const int w = loader_->width(), h = loader_->height(), ch = loader_->channels();
   std::vector<unsigned char> output(w * h * ch);
   FilterContext ctx(loader_->data(), output.data(), w, h, ch);
@@ -86,11 +86,11 @@ TEST_F(OpenCLBlurFilterTest, Success_OutputDimensionsPreserved) {
   EXPECT_EQ(ctx.output.channels, ch);
 }
 
-TEST_F(OpenCLBlurFilterTest, Success_BlurActuallyChangesPixels) {
+TEST_F(GaussianBlurFilterTest, Success_BlurActuallyChangesPixels) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange: use lena.png which has natural variation
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
   const int w = loader_->width(), h = loader_->height(), ch = loader_->channels();
   std::vector<unsigned char> output(w * h * ch);
   FilterContext ctx(loader_->data(), output.data(), w, h, ch);
@@ -108,7 +108,7 @@ TEST_F(OpenCLBlurFilterTest, Success_BlurActuallyChangesPixels) {
 
 // --- Apply: constant image ---
 
-TEST_F(OpenCLBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
+TEST_F(GaussianBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange: flat image — blur of a constant is a constant
@@ -116,7 +116,7 @@ TEST_F(OpenCLBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
   constexpr unsigned char kVal = 128;
   std::vector<unsigned char> input(w * h * ch, kVal);
   std::vector<unsigned char> output(w * h * ch, 0);
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -130,14 +130,14 @@ TEST_F(OpenCLBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
 
 // --- Apply: single-channel image ---
 
-TEST_F(OpenCLBlurFilterTest, Success_SingleChannelImageProcessedCorrectly) {
+TEST_F(GaussianBlurFilterTest, Success_SingleChannelImageProcessedCorrectly) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange
   constexpr int w = 32, h = 32, ch = 1;
   std::vector<unsigned char> input(w * h * ch, 100);
   std::vector<unsigned char> output(w * h * ch, 0);
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -150,7 +150,7 @@ TEST_F(OpenCLBlurFilterTest, Success_SingleChannelImageProcessedCorrectly) {
 
 // --- Apply: blur produces a smoother image ---
 
-TEST_F(OpenCLBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
+TEST_F(GaussianBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange: checkerboard pattern maximises high-frequency content
@@ -163,7 +163,7 @@ TEST_F(OpenCLBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
     }
   }
   std::vector<unsigned char> output(w * h * ch, 0);
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -188,14 +188,14 @@ TEST_F(OpenCLBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
 }
 
 
-TEST_F(OpenCLBlurFilterTest, Success_SmallImageHandledCorrectly) {
+TEST_F(GaussianBlurFilterTest, Success_SmallImageHandledCorrectly) {
   if (!OpenCLAvailable()) GTEST_SKIP() << "OpenCL not available";
 
   // Arrange: 3×3 RGB image (smaller than the 5-tap kernel radius)
   constexpr int w = 3, h = 3, ch = 3;
   std::vector<unsigned char> input(w * h * ch, 64);
   std::vector<unsigned char> output(w * h * ch, 0);
-  OpenCLBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -209,4 +209,4 @@ TEST_F(OpenCLBlurFilterTest, Success_SmallImageHandledCorrectly) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::opencl
+}  // namespace jrb::adapters::compute::opencl

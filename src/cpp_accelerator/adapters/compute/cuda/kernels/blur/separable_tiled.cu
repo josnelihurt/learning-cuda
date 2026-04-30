@@ -1,6 +1,6 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/kernels/blur/device_utils.cuh"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 __constant__ float c_gaussian_kernel[K_MAX_KERNEL_SIZE];
 
@@ -307,4 +307,4 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_separable(const unsigned char* i
   return error;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

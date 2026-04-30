@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_blur_filter.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/filters/blur_filter.h"
 
 #include <cstddef>
 #include <cstring>
@@ -8,25 +8,25 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/opencl/blur_kernel_blob.h"
-#include "src/cpp_accelerator/adapters/compute/opencl/opencl_context.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/kernels/cl_blur_blob.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/context/context.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::opencl {
+namespace jrb::adapters::compute::opencl {
 
-OpenCLBlurFilter::OpenCLBlurFilter()
+GaussianBlurFilter::GaussianBlurFilter()
     : kernel_ready_(false), program_(nullptr), kernel_h_(nullptr), kernel_v_(nullptr) {}
 
-OpenCLBlurFilter::~OpenCLBlurFilter() {
+GaussianBlurFilter::~GaussianBlurFilter() {
   if (kernel_h_) clReleaseKernel(kernel_h_);
   if (kernel_v_) clReleaseKernel(kernel_v_);
   if (program_) clReleaseProgram(program_);
 }
 
-bool OpenCLBlurFilter::EnsureKernels() {
+bool GaussianBlurFilter::EnsureKernels() {
   if (kernel_ready_) return true;
 
-  auto& ctx = OpenCLContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   if (!ctx.available()) {
     spdlog::error("[OpenCLBlur] context unavailable: {}", ctx.error_message());
     return false;
@@ -36,16 +36,16 @@ bool OpenCLBlurFilter::EnsureKernels() {
   cl_device_id device = ctx.device();
 
   // Prefer SPIR-V IL path; fall back to CL source text.
-  const void* il_ptr = blur_kernel_blob::spirv();
-  const size_t il_size = blur_kernel_blob::spirv_size_bytes();
+  const void* il_ptr = cl_blur_blob::spirv();
+  const size_t il_size = cl_blur_blob::spirv_size_bytes();
   if (il_ptr && il_size > 0 && (il_size % sizeof(cl_uint)) == 0) {
     program_ = clCreateProgramWithIL(ctx.context(), il_ptr, il_size, &err);
     if (err != CL_SUCCESS || !program_) program_ = nullptr;
   }
 
   if (!program_) {
-    const char* src = blur_kernel_blob::cl_src();
-    const size_t src_len = blur_kernel_blob::cl_src_size_bytes();
+    const char* src = cl_blur_blob::cl_src();
+    const size_t src_len = cl_blur_blob::cl_src_size_bytes();
     program_ = clCreateProgramWithSource(ctx.context(), 1, &src, &src_len, &err);
     if (err != CL_SUCCESS || !program_) {
       spdlog::error("[OpenCLBlur] clCreateProgramWithSource failed ({})", err);
@@ -89,10 +89,10 @@ bool OpenCLBlurFilter::EnsureKernels() {
   return true;
 }
 
-bool OpenCLBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
+bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   if (!EnsureKernels()) return false;
 
-  auto& ctx = OpenCLContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   const int width = context.input.width;
   const int height = context.input.height;
   const int channels = context.input.channels;
@@ -174,12 +174,12 @@ bool OpenCLBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   return true;
 }
 
-jrb::domain::interfaces::FilterType OpenCLBlurFilter::GetType() const {
+jrb::domain::interfaces::FilterType GaussianBlurFilter::GetType() const {
   return jrb::domain::interfaces::FilterType::BLUR;
 }
 
-bool OpenCLBlurFilter::IsInPlace() const {
+bool GaussianBlurFilter::IsInPlace() const {
   return false;
 }
 
-}  // namespace jrb::infrastructure::opencl
+}  // namespace jrb::adapters::compute::opencl

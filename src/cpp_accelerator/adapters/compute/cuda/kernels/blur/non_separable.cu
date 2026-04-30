@@ -1,6 +1,6 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/kernels/blur/device_utils.cuh"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 // 2D non-separable blur: applies a 2D outer product kernel in a single pass.
 // Simpler than the two-pass separable approach, at the cost of O(r^2) multiplies per pixel.
@@ -91,4 +91,4 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_non_separable(
   return error;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

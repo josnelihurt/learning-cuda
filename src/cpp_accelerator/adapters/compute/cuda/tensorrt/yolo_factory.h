@@ -4,9 +4,9 @@
 #include <memory>
 #include <string>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 std::shared_ptr<IYoloDetector> CreateYoloDetector(
     const std::string& model_path, float confidence_threshold);
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

@@ -1,13 +1,11 @@
-#include "src/cpp_accelerator/application/engine/platform/platform_support.h"
+#include "src/cpp_accelerator/composition/platform/platform_support.h"
 
-#include "src/cpp_accelerator/adapters/compute/cpu/cpu_filter_factory.h"
-#include "src/cpp_accelerator/application/engine/platform/opencl/opencl_platform.h"
+#include "src/cpp_accelerator/composition/platform/cpu/cpu_platform.h"
 
 namespace jrb::application::engine {
 
 void RegisterPlatformAccelerators(FilterFactoryRegistry& registry) {
-  registry.Register(std::make_unique<jrb::infrastructure::cpu::CpuFilterFactory>());
-  platform::opencl::RegisterFactories(registry);
+  platform::cpu::RegisterFactories(registry);
 }
 
 void InitializePlatformSubsystems(const cuda_learning::InitRequest&, cuda_learning::InitResponse*) {

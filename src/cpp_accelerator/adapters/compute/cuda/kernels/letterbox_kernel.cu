@@ -2,7 +2,7 @@
 #include <cstdint>
 #include "src/cpp_accelerator/adapters/compute/cuda/kernels/letterbox_kernel.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 __global__ void letterbox_resize_kernel(const uint8_t* src, int src_w, int src_h, int src_c,
                                         float* dst, int dst_w, int dst_h, float scale, int pad_x,
@@ -32,7 +32,7 @@ __global__ void letterbox_resize_kernel(const uint8_t* src, int src_w, int src_h
   }
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda
 
 // Variant that writes the letterbox result directly into a pre-allocated device buffer.
 // Use this when the caller needs GPU memory (e.g. for TensorRT setTensorAddress).
@@ -63,7 +63,7 @@ extern "C" cudaError_t cuda_letterbox_resize_to_device(const uint8_t* src_host, 
   dim3 grid_size((dst_w + block_size.x - 1) / block_size.x,
                  (dst_h + block_size.y - 1) / block_size.y);
 
-  jrb::infrastructure::cuda::letterbox_resize_kernel<<<grid_size, block_size>>>(
+  jrb::adapters::compute::cuda::letterbox_resize_kernel<<<grid_size, block_size>>>(
       d_src, src_w, src_h, src_c, dst_device, dst_w, dst_h, scale, pad_x, pad_y);
 
   err = cudaDeviceSynchronize();

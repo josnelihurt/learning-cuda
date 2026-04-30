@@ -6,13 +6,13 @@
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
-class CudaGaussianBlurFilterTest : public ::testing::Test {
+class GaussianBlurFilterTest : public ::testing::Test {
 protected:
   void SetUp() override {
     image_loader_ = std::make_unique<ImageLoader>();
@@ -24,9 +24,9 @@ protected:
   std::unique_ptr<ImageLoader> image_loader_;
 };
 
-TEST_F(CudaGaussianBlurFilterTest, FilterConstructsWithDefaultValues) {
+TEST_F(GaussianBlurFilterTest, FilterConstructsWithDefaultValues) {
   // Arrange & Act
-  CudaGaussianBlurFilter filter;
+  GaussianBlurFilter filter;
 
   // Assert
   EXPECT_EQ(filter.GetType(), jrb::domain::interfaces::FilterType::BLUR);
@@ -36,9 +36,9 @@ TEST_F(CudaGaussianBlurFilterTest, FilterConstructsWithDefaultValues) {
   EXPECT_EQ(filter.GetBorderMode(), BorderMode::REFLECT);
 }
 
-TEST_F(CudaGaussianBlurFilterTest, FilterConstructsWithCustomValues) {
+TEST_F(GaussianBlurFilterTest, FilterConstructsWithCustomValues) {
   // Arrange & Act
-  CudaGaussianBlurFilter filter(7, 2.5F, BorderMode::CLAMP, true);
+  GaussianBlurFilter filter(7, 2.5F, BorderMode::CLAMP, true);
 
   // Assert
   EXPECT_EQ(filter.GetKernelSize(), 7);
@@ -46,9 +46,9 @@ TEST_F(CudaGaussianBlurFilterTest, FilterConstructsWithCustomValues) {
   EXPECT_EQ(filter.GetBorderMode(), BorderMode::CLAMP);
 }
 
-TEST_F(CudaGaussianBlurFilterTest, SettersUpdateFilterConfiguration) {
+TEST_F(GaussianBlurFilterTest, SettersUpdateFilterConfiguration) {
   // Arrange
-  CudaGaussianBlurFilter filter;
+  GaussianBlurFilter filter;
 
   // Act & Assert
   filter.SetKernelSize(9);
@@ -61,9 +61,9 @@ TEST_F(CudaGaussianBlurFilterTest, SettersUpdateFilterConfiguration) {
   EXPECT_EQ(filter.GetBorderMode(), BorderMode::WRAP);
 }
 
-TEST_F(CudaGaussianBlurFilterTest, AppliesBlurToImageSuccessfully) {
+TEST_F(GaussianBlurFilterTest, AppliesBlurToImageSuccessfully) {
   // Arrange
-  CudaGaussianBlurFilter filter(5, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(5, 1.0F, BorderMode::REFLECT, true);
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() *
                                     image_loader_->channels());
   FilterContext context(image_loader_->data(), output.data(), image_loader_->width(),
@@ -85,9 +85,9 @@ TEST_F(CudaGaussianBlurFilterTest, AppliesBlurToImageSuccessfully) {
   EXPECT_TRUE(has_variation);
 }
 
-TEST_F(CudaGaussianBlurFilterTest, BlurPreservesImageDimensions) {
+TEST_F(GaussianBlurFilterTest, BlurPreservesImageDimensions) {
   // Arrange
-  CudaGaussianBlurFilter filter;
+  GaussianBlurFilter filter;
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() *
                                     image_loader_->channels());
   FilterContext context(image_loader_->data(), output.data(), image_loader_->width(),
@@ -107,12 +107,12 @@ TEST_F(CudaGaussianBlurFilterTest, BlurPreservesImageDimensions) {
   EXPECT_EQ(context.input.channels, image_loader_->channels());
 }
 
-TEST_F(CudaGaussianBlurFilterTest, DifferentSigmaValuesProduceDifferentResults) {
+TEST_F(GaussianBlurFilterTest, DifferentSigmaValuesProduceDifferentResults) {
   // Arrange
   int kernel_size = 5;
   BorderMode border_mode = BorderMode::REFLECT;
-  CudaGaussianBlurFilter filter1(kernel_size, 0.5F, border_mode, true);
-  CudaGaussianBlurFilter filter2(kernel_size, 2.0F, border_mode, true);
+  GaussianBlurFilter filter1(kernel_size, 0.5F, border_mode, true);
+  GaussianBlurFilter filter2(kernel_size, 2.0F, border_mode, true);
   std::vector<unsigned char> output1(image_loader_->width() * image_loader_->height() *
                                      image_loader_->channels());
   std::vector<unsigned char> output2(image_loader_->width() * image_loader_->height() *
@@ -137,13 +137,13 @@ TEST_F(CudaGaussianBlurFilterTest, DifferentSigmaValuesProduceDifferentResults) 
   EXPECT_TRUE(results_differ);
 }
 
-TEST_F(CudaGaussianBlurFilterTest, DifferentBorderModesProduceDifferentResults) {
+TEST_F(GaussianBlurFilterTest, DifferentBorderModesProduceDifferentResults) {
   // Arrange
   int kernel_size = 5;
   float sigma = 1.0F;
-  CudaGaussianBlurFilter filter1(kernel_size, sigma, BorderMode::CLAMP, true);
-  CudaGaussianBlurFilter filter2(kernel_size, sigma, BorderMode::REFLECT, true);
-  CudaGaussianBlurFilter filter3(kernel_size, sigma, BorderMode::WRAP, true);
+  GaussianBlurFilter filter1(kernel_size, sigma, BorderMode::CLAMP, true);
+  GaussianBlurFilter filter2(kernel_size, sigma, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter3(kernel_size, sigma, BorderMode::WRAP, true);
   std::vector<unsigned char> output1(image_loader_->width() * image_loader_->height() *
                                      image_loader_->channels());
   std::vector<unsigned char> output2(image_loader_->width() * image_loader_->height() *
@@ -173,7 +173,7 @@ TEST_F(CudaGaussianBlurFilterTest, DifferentBorderModesProduceDifferentResults) 
   EXPECT_TRUE(modes_produce_different_results);
 }
 
-TEST_F(CudaGaussianBlurFilterTest, AppliesCorrectlyToSmallImage) {
+TEST_F(GaussianBlurFilterTest, AppliesCorrectlyToSmallImage) {
   // Arrange
   constexpr int test_width = 10;
   constexpr int test_height = 10;
@@ -182,7 +182,7 @@ TEST_F(CudaGaussianBlurFilterTest, AppliesCorrectlyToSmallImage) {
   std::vector<unsigned char> test_output(test_width * test_height * test_channels);
   FilterContext context(test_input.data(), test_output.data(), test_width, test_height,
                         test_channels);
-  CudaGaussianBlurFilter filter(3, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(3, 1.0F, BorderMode::REFLECT, true);
   ASSERT_TRUE(context.input.IsValid());
 
   // Act
@@ -193,7 +193,7 @@ TEST_F(CudaGaussianBlurFilterTest, AppliesCorrectlyToSmallImage) {
   EXPECT_TRUE(context.output.IsValid());
 }
 
-TEST_F(CudaGaussianBlurFilterTest, SingleChannelImageProcessesCorrectly) {
+TEST_F(GaussianBlurFilterTest, SingleChannelImageProcessesCorrectly) {
   // Arrange
   constexpr int test_width = 50;
   constexpr int test_height = 50;
@@ -202,7 +202,7 @@ TEST_F(CudaGaussianBlurFilterTest, SingleChannelImageProcessesCorrectly) {
   std::vector<unsigned char> test_output(test_width * test_height * test_channels);
   FilterContext context(test_input.data(), test_output.data(), test_width, test_height,
                         test_channels);
-  CudaGaussianBlurFilter filter(5, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(5, 1.0F, BorderMode::REFLECT, true);
   ASSERT_TRUE(context.input.IsValid());
 
   // Act
@@ -213,10 +213,10 @@ TEST_F(CudaGaussianBlurFilterTest, SingleChannelImageProcessesCorrectly) {
   EXPECT_TRUE(context.output.IsValid());
 }
 
-TEST_F(CudaGaussianBlurFilterTest, LargeKernelSizeProducesHeavyBlur) {
+TEST_F(GaussianBlurFilterTest, LargeKernelSizeProducesHeavyBlur) {
   // Arrange
-  CudaGaussianBlurFilter filter(15, 1.0F, BorderMode::REFLECT, true);
-  CudaGaussianBlurFilter reference_filter(5, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter filter(15, 1.0F, BorderMode::REFLECT, true);
+  GaussianBlurFilter reference_filter(5, 1.0F, BorderMode::REFLECT, true);
   std::vector<unsigned char> output_large(image_loader_->width() * image_loader_->height() *
                                           image_loader_->channels());
   std::vector<unsigned char> output_reference(image_loader_->width() * image_loader_->height() *
@@ -242,7 +242,7 @@ TEST_F(CudaGaussianBlurFilterTest, LargeKernelSizeProducesHeavyBlur) {
   EXPECT_GT(differences_count, 0);
 }
 
-TEST_F(CudaGaussianBlurFilterTest, AllBorderModesHandleEdgePixels) {
+TEST_F(GaussianBlurFilterTest, AllBorderModesHandleEdgePixels) {
   // Arrange
   std::vector<BorderMode> modes = {BorderMode::CLAMP, BorderMode::REFLECT, BorderMode::WRAP};
   std::vector<std::vector<unsigned char>> outputs(
@@ -257,7 +257,7 @@ TEST_F(CudaGaussianBlurFilterTest, AllBorderModesHandleEdgePixels) {
 
   // Act
   for (size_t i = 0; i < modes.size(); ++i) {
-    CudaGaussianBlurFilter filter(5, 1.0F, modes[i], true);
+    GaussianBlurFilter filter(5, 1.0F, modes[i], true);
     ASSERT_TRUE(filter.Apply(contexts[i]));
   }
 
@@ -268,4 +268,4 @@ TEST_F(CudaGaussianBlurFilterTest, AllBorderModesHandleEdgePixels) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

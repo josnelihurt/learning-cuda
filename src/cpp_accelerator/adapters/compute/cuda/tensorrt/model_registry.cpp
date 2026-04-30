@@ -1,6 +1,6 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/tensorrt/model_registry.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 void ModelRegistry::RegisterModel(const ModelInfo& info) {
   models_[info.id] = info;
@@ -32,4 +32,4 @@ std::vector<ModelInfo> ModelRegistry::GetAllModelInfo() const {
   return models;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

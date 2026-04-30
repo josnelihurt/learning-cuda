@@ -8,11 +8,11 @@
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure {
+namespace jrb::adapters::compute {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
 class BlurEquivalenceTest : public ::testing::Test {
 protected:
@@ -29,7 +29,7 @@ protected:
 TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithDefaultSettings) {
   // Arrange
   cpu::GaussianBlurFilter cpu_filter;
-  cuda::CudaGaussianBlurFilter cuda_filter;
+  cuda::GaussianBlurFilter cuda_filter;
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() *
                                         image_loader_->channels());
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() *
@@ -64,7 +64,7 @@ TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithDefaultSettings) {
 TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithCustomSigma) {
   // Arrange
   cpu::GaussianBlurFilter cpu_filter(5, 2.0F, cpu::BorderMode::kReflect, true);
-  cuda::CudaGaussianBlurFilter cuda_filter(5, 2.0F, cuda::BorderMode::REFLECT, true);
+  cuda::GaussianBlurFilter cuda_filter(5, 2.0F, cuda::BorderMode::REFLECT, true);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() *
                                         image_loader_->channels());
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() *
@@ -99,7 +99,7 @@ TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithCustomSigma) {
 TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithClampBorder) {
   // Arrange
   cpu::GaussianBlurFilter cpu_filter(5, 1.0F, cpu::BorderMode::kClamp, true);
-  cuda::CudaGaussianBlurFilter cuda_filter(5, 1.0F, cuda::BorderMode::CLAMP, true);
+  cuda::GaussianBlurFilter cuda_filter(5, 1.0F, cuda::BorderMode::CLAMP, true);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() *
                                         image_loader_->channels());
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() *
@@ -134,7 +134,7 @@ TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithClampBorder) {
 TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithWrapBorder) {
   // Arrange
   cpu::GaussianBlurFilter cpu_filter(5, 1.0F, cpu::BorderMode::kWrap, true);
-  cuda::CudaGaussianBlurFilter cuda_filter(5, 1.0F, cuda::BorderMode::WRAP, true);
+  cuda::GaussianBlurFilter cuda_filter(5, 1.0F, cuda::BorderMode::WRAP, true);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() *
                                         image_loader_->channels());
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() *
@@ -169,7 +169,7 @@ TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithWrapBorder) {
 TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithLargeKernel) {
   // Arrange
   cpu::GaussianBlurFilter cpu_filter(15, 1.0F, cpu::BorderMode::kReflect, true);
-  cuda::CudaGaussianBlurFilter cuda_filter(15, 1.0F, cuda::BorderMode::REFLECT, true);
+  cuda::GaussianBlurFilter cuda_filter(15, 1.0F, cuda::BorderMode::REFLECT, true);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() *
                                         image_loader_->channels());
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() *
@@ -214,7 +214,7 @@ TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithSmallImage) {
   FilterContext cuda_context(test_input.data(), cuda_output.data(), test_width, test_height,
                              test_channels);
   cpu::GaussianBlurFilter cpu_filter(5, 1.0F, cpu::BorderMode::kReflect, true);
-  cuda::CudaGaussianBlurFilter cuda_filter(5, 1.0F, cuda::BorderMode::REFLECT, true);
+  cuda::GaussianBlurFilter cuda_filter(5, 1.0F, cuda::BorderMode::REFLECT, true);
   ASSERT_TRUE(cpu_context.input.IsValid() && cuda_context.input.IsValid());
 
   // Act
@@ -239,4 +239,4 @@ TEST_F(BlurEquivalenceTest, CpuAndCudaProduceSameResultsWithSmallImage) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure
+}  // namespace jrb::adapters::compute

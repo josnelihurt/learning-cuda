@@ -9,13 +9,13 @@
 #include "src/cpp_accelerator/adapters/compute/cpu/grayscale_filter.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
 using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
 FilterContext CreateGrayscaleFilterContext(const unsigned char* input_data,
                                            unsigned char* output_data, int width, int height,
@@ -178,8 +178,8 @@ TEST_F(GrayscaleFilterTest, PreservesImageDimensions) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT601) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::BT601);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
-      jrb::infrastructure::cpu::GrayscaleAlgorithm::BT601);
+  jrb::adapters::compute::cpu::GrayscaleFilter cpu_filter(
+      jrb::adapters::compute::cpu::GrayscaleAlgorithm::BT601);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -212,8 +212,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT601) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT709) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::BT709);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
-      jrb::infrastructure::cpu::GrayscaleAlgorithm::BT709);
+  jrb::adapters::compute::cpu::GrayscaleFilter cpu_filter(
+      jrb::adapters::compute::cpu::GrayscaleAlgorithm::BT709);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -246,8 +246,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForBT709) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForAverage) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::Average);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
-      jrb::infrastructure::cpu::GrayscaleAlgorithm::Average);
+  jrb::adapters::compute::cpu::GrayscaleFilter cpu_filter(
+      jrb::adapters::compute::cpu::GrayscaleAlgorithm::Average);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -280,8 +280,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForAverage) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLightness) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::Lightness);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
-      jrb::infrastructure::cpu::GrayscaleAlgorithm::Lightness);
+  jrb::adapters::compute::cpu::GrayscaleFilter cpu_filter(
+      jrb::adapters::compute::cpu::GrayscaleAlgorithm::Lightness);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -314,8 +314,8 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLightness) {
 
 TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLuminosity) {
   GrayscaleFilter cuda_filter(GrayscaleAlgorithm::Luminosity);
-  jrb::infrastructure::cpu::GrayscaleFilter cpu_filter(
-      jrb::infrastructure::cpu::GrayscaleAlgorithm::Luminosity);
+  jrb::adapters::compute::cpu::GrayscaleFilter cpu_filter(
+      jrb::adapters::compute::cpu::GrayscaleAlgorithm::Luminosity);
 
   std::vector<unsigned char> cuda_output(image_loader_->width() * image_loader_->height() * 1);
   std::vector<unsigned char> cpu_output(image_loader_->width() * image_loader_->height() * 1);
@@ -347,4 +347,4 @@ TEST_F(GrayscaleFilterTest, CUDAAndCPUProduceIdenticalResultsForLuminosity) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

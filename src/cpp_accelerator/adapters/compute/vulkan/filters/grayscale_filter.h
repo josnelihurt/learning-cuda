@@ -7,14 +7,14 @@
 
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
 // Converts an RGB image to single-channel grayscale using BT.601 luma
 // coefficients (L = 0.299R + 0.587G + 0.114B) on the Vulkan compute device.
-class VulkanGrayscaleFilter : public jrb::domain::interfaces::IFilter {
+class GrayscaleFilter : public jrb::domain::interfaces::IFilter {
  public:
-  VulkanGrayscaleFilter();
-  ~VulkanGrayscaleFilter() override;
+  GrayscaleFilter();
+  ~GrayscaleFilter() override;
 
   bool Apply(jrb::domain::interfaces::FilterContext& context) override;
   jrb::domain::interfaces::FilterType GetType() const override;
@@ -35,4 +35,4 @@ class VulkanGrayscaleFilter : public jrb::domain::interfaces::IFilter {
   vk::Pipeline pipeline_;
 };
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

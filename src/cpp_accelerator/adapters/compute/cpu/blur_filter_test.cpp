@@ -6,11 +6,11 @@
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::cpu {
+namespace jrb::adapters::compute::cpu {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
 class GaussianBlurFilterTest : public ::testing::Test {
 protected:
@@ -323,4 +323,4 @@ TEST_F(GaussianBlurFilterTest, AllBorderModesHandleEdgePixels) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::cpu
+}  // namespace jrb::adapters::compute::cpu

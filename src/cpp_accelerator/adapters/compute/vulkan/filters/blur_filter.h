@@ -7,14 +7,14 @@
 
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
 // Applies a separable 5-tap Gaussian blur (sigma≈1, weights=[1,4,6,4,1]/16) using
 // two Vulkan compute dispatches: horizontal then vertical.
-class VulkanBlurFilter : public jrb::domain::interfaces::IFilter {
+class GaussianBlurFilter : public jrb::domain::interfaces::IFilter {
  public:
-  VulkanBlurFilter();
-  ~VulkanBlurFilter() override;
+  GaussianBlurFilter();
+  ~GaussianBlurFilter() override;
 
   bool Apply(jrb::domain::interfaces::FilterContext& context) override;
   jrb::domain::interfaces::FilterType GetType() const override;
@@ -34,4 +34,4 @@ class VulkanBlurFilter : public jrb::domain::interfaces::IFilter {
   vk::Pipeline pipeline_;
 };
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

@@ -12,19 +12,19 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 constexpr float kSqrt2Pi = 2.506628274631000242F;
 
-CudaGaussianBlurFilter::CudaGaussianBlurFilter(int kernel_size, float sigma, BorderMode border_mode,
+GaussianBlurFilter::GaussianBlurFilter(int kernel_size, float sigma, BorderMode border_mode,
                                                bool separable)
     : kernel_size_(kernel_size), sigma_(sigma), border_mode_(border_mode), separable_(separable) {
   InitializeKernel();
 }
 
-CudaGaussianBlurFilter::~CudaGaussianBlurFilter() = default;
+GaussianBlurFilter::~GaussianBlurFilter() = default;
 
-void CudaGaussianBlurFilter::InitializeKernel() {
+void GaussianBlurFilter::InitializeKernel() {
   if (kernel_size_ % 2 == 0) {
     kernel_size_++;
   }
@@ -45,41 +45,41 @@ void CudaGaussianBlurFilter::InitializeKernel() {
   }
 }
 
-void CudaGaussianBlurFilter::SetKernelSize(int size) {
+void GaussianBlurFilter::SetKernelSize(int size) {
   kernel_size_ = size;
   InitializeKernel();
 }
 
-void CudaGaussianBlurFilter::SetSigma(float sigma) {
+void GaussianBlurFilter::SetSigma(float sigma) {
   sigma_ = sigma;
   InitializeKernel();
 }
 
-void CudaGaussianBlurFilter::SetBorderMode(BorderMode mode) {
+void GaussianBlurFilter::SetBorderMode(BorderMode mode) {
   border_mode_ = mode;
 }
 
-FilterType CudaGaussianBlurFilter::GetType() const {
+FilterType GaussianBlurFilter::GetType() const {
   return FilterType::BLUR;
 }
 
-bool CudaGaussianBlurFilter::IsInPlace() const {
+bool GaussianBlurFilter::IsInPlace() const {
   return false;
 }
 
-int CudaGaussianBlurFilter::GetKernelSize() const {
+int GaussianBlurFilter::GetKernelSize() const {
   return kernel_size_;
 }
 
-float CudaGaussianBlurFilter::GetSigma() const {
+float GaussianBlurFilter::GetSigma() const {
   return sigma_;
 }
 
-BorderMode CudaGaussianBlurFilter::GetBorderMode() const {
+BorderMode GaussianBlurFilter::GetBorderMode() const {
   return border_mode_;
 }
 
-bool CudaGaussianBlurFilter::Apply(FilterContext& context) {
+bool GaussianBlurFilter::Apply(FilterContext& context) {
   auto& telemetry = core::telemetry::TelemetryManager::GetInstance();
   auto span = telemetry.CreateSpan("cuda-blur", "apply_gaussian_blur_cuda");
   core::telemetry::ScopedSpan scoped_span(span);
@@ -118,4 +118,4 @@ bool CudaGaussianBlurFilter::Apply(FilterContext& context) {
   return true;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

@@ -1,25 +1,25 @@
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_blur_filter.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/filters/blur_filter.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <vector>
 
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_context.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/context/context.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
 bool VulkanAvailable() {
-  return VulkanContext::GetInstance().available();
+  return Context::GetInstance().available();
 }
 
-class VulkanBlurFilterTest : public ::testing::Test {
+class GaussianBlurFilterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loader_ = std::make_unique<ImageLoader>();
@@ -31,17 +31,17 @@ class VulkanBlurFilterTest : public ::testing::Test {
 
 // --- Construction ---
 
-TEST_F(VulkanBlurFilterTest, Success_ConstructsWithCorrectType) {
+TEST_F(GaussianBlurFilterTest, Success_ConstructsWithCorrectType) {
   // Arrange & Act
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
 
   // Assert
   EXPECT_EQ(sut.GetType(), jrb::domain::interfaces::FilterType::BLUR);
 }
 
-TEST_F(VulkanBlurFilterTest, Success_IsNotInPlace) {
+TEST_F(GaussianBlurFilterTest, Success_IsNotInPlace) {
   // Arrange & Act
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
 
   // Assert
   EXPECT_FALSE(sut.IsInPlace());
@@ -49,11 +49,11 @@ TEST_F(VulkanBlurFilterTest, Success_IsNotInPlace) {
 
 // --- Apply: basic ---
 
-TEST_F(VulkanBlurFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
+TEST_F(GaussianBlurFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
   if (!VulkanAvailable()) GTEST_SKIP() << "Vulkan not available";
 
   // Arrange
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
   const int w = loader_->width(), h = loader_->height(), ch = loader_->channels();
   std::vector<unsigned char> output(w * h * ch);
   FilterContext ctx(loader_->data(), output.data(), w, h, ch);
@@ -65,11 +65,11 @@ TEST_F(VulkanBlurFilterTest, Success_ApplyReturnsTrueWhenContextAvailable) {
   EXPECT_TRUE(result);
 }
 
-TEST_F(VulkanBlurFilterTest, Success_OutputDimensionsPreserved) {
+TEST_F(GaussianBlurFilterTest, Success_OutputDimensionsPreserved) {
   if (!VulkanAvailable()) GTEST_SKIP() << "Vulkan not available";
 
   // Arrange
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
   const int w = loader_->width(), h = loader_->height(), ch = loader_->channels();
   std::vector<unsigned char> output(w * h * ch);
   FilterContext ctx(loader_->data(), output.data(), w, h, ch);
@@ -86,11 +86,11 @@ TEST_F(VulkanBlurFilterTest, Success_OutputDimensionsPreserved) {
   EXPECT_EQ(ctx.output.channels, ch);
 }
 
-TEST_F(VulkanBlurFilterTest, Success_BlurActuallyChangesPixels) {
+TEST_F(GaussianBlurFilterTest, Success_BlurActuallyChangesPixels) {
   if (!VulkanAvailable()) GTEST_SKIP() << "Vulkan not available";
 
   // Arrange: use lena.png which has natural variation
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
   const int w = loader_->width(), h = loader_->height(), ch = loader_->channels();
   std::vector<unsigned char> output(w * h * ch);
   FilterContext ctx(loader_->data(), output.data(), w, h, ch);
@@ -108,7 +108,7 @@ TEST_F(VulkanBlurFilterTest, Success_BlurActuallyChangesPixels) {
 
 // --- Apply: constant image ---
 
-TEST_F(VulkanBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
+TEST_F(GaussianBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
   if (!VulkanAvailable()) GTEST_SKIP() << "Vulkan not available";
 
   // Arrange: flat image — blur of a constant is a constant
@@ -116,7 +116,7 @@ TEST_F(VulkanBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
   constexpr unsigned char kVal = 128;
   std::vector<unsigned char> input(w * h * ch, kVal);
   std::vector<unsigned char> output(w * h * ch, 0);
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -130,14 +130,14 @@ TEST_F(VulkanBlurFilterTest, Success_ConstantImageRemainsConstantAfterBlur) {
 
 // --- Apply: single-channel image ---
 
-TEST_F(VulkanBlurFilterTest, Success_SingleChannelImageProcessedCorrectly) {
+TEST_F(GaussianBlurFilterTest, Success_SingleChannelImageProcessedCorrectly) {
   if (!VulkanAvailable()) GTEST_SKIP() << "Vulkan not available";
 
   // Arrange
   constexpr int w = 32, h = 32, ch = 1;
   std::vector<unsigned char> input(w * h * ch, 100);
   std::vector<unsigned char> output(w * h * ch, 0);
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -150,7 +150,7 @@ TEST_F(VulkanBlurFilterTest, Success_SingleChannelImageProcessedCorrectly) {
 
 // --- Apply: blur reduces high-frequency variation ---
 
-TEST_F(VulkanBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
+TEST_F(GaussianBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
   if (!VulkanAvailable()) GTEST_SKIP() << "Vulkan not available";
 
   // Arrange: checkerboard pattern maximises high-frequency content
@@ -163,7 +163,7 @@ TEST_F(VulkanBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
     }
   }
   std::vector<unsigned char> output(w * h * ch, 0);
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -187,14 +187,14 @@ TEST_F(VulkanBlurFilterTest, Success_BlurReducesHighFrequencyVariation) {
       << "Blur should reduce high-frequency variation";
 }
 
-TEST_F(VulkanBlurFilterTest, Success_SmallImageHandledCorrectly) {
+TEST_F(GaussianBlurFilterTest, Success_SmallImageHandledCorrectly) {
   if (!VulkanAvailable()) GTEST_SKIP() << "Vulkan not available";
 
   // Arrange: 3×3 RGB image (smaller than the 5-tap kernel radius)
   constexpr int w = 3, h = 3, ch = 3;
   std::vector<unsigned char> input(w * h * ch, 64);
   std::vector<unsigned char> output(w * h * ch, 0);
-  VulkanBlurFilter sut;
+  GaussianBlurFilter sut;
   FilterContext ctx(input.data(), output.data(), w, h, ch);
 
   // Act
@@ -208,4 +208,4 @@ TEST_F(VulkanBlurFilterTest, Success_SmallImageHandledCorrectly) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

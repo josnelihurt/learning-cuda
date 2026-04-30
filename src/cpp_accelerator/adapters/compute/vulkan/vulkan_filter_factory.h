@@ -2,7 +2,7 @@
 
 #include "src/cpp_accelerator/application/engine/i_filter_factory.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
 // Filter factory for the Vulkan compute accelerator.
 // Supports grayscale (BT.601) and Gaussian blur (5×5, σ≈1) via SPIR-V compute shaders.
@@ -21,4 +21,4 @@ class VulkanFilterFactory : public jrb::application::engine::IFilterFactory {
       const jrb::application::engine::FilterCreationParams& params) const override;
 };
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

@@ -7,15 +7,15 @@
 #include <vulkan/vulkan.hpp>
 #pragma GCC diagnostic pop
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
 // Meyers singleton that owns the Vulkan instance, physical device, logical device,
-// compute queue, and command pool. Mirrors the OpenCLContext singleton pattern.
+// compute queue, and command pool. Mirrors the Context singleton pattern.
 // If no Vulkan-capable compute device is found, available() returns false and
 // callers degrade gracefully.
-class VulkanContext {
+class Context {
  public:
-  static VulkanContext& GetInstance();
+  static Context& GetInstance();
 
   bool available() const;
   const char* error_message() const;
@@ -27,11 +27,11 @@ class VulkanContext {
   uint32_t compute_queue_family_index() const;
 
  private:
-  VulkanContext();
-  ~VulkanContext();
+  Context();
+  ~Context();
 
-  VulkanContext(const VulkanContext&) = delete;
-  VulkanContext& operator=(const VulkanContext&) = delete;
+  Context(const Context&) = delete;
+  Context& operator=(const Context&) = delete;
 
   bool SetError(const char* message);
 
@@ -46,4 +46,4 @@ class VulkanContext {
   uint32_t compute_queue_family_index_;
 };
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

@@ -4,7 +4,7 @@
 #include <string>
 #include "src/cpp_accelerator/domain/interfaces/image_source.h"
 
-namespace jrb::infrastructure::image {
+namespace jrb::adapters::image {
 
 class ImageLoader : public domain::interfaces::IImageSource {
 public:
@@ -35,4 +35,4 @@ private:
   int channels_;
 };
 
-}  // namespace jrb::infrastructure::image
+}  // namespace jrb::adapters::image

@@ -2,14 +2,14 @@
 
 #include <CL/cl.h>
 
-namespace jrb::infrastructure::opencl {
+namespace jrb::adapters::compute::opencl {
 
 // Meyer singleton owning the OpenCL platform / device / context / queue.
 // Constructed on first use; the `available()` guard lets callers fall back
 // gracefully when the host has no OpenCL-capable device.
-class OpenCLContext {
+class Context {
  public:
-  static OpenCLContext& GetInstance();
+  static Context& GetInstance();
 
   bool available() const;
   const char* error_message() const;
@@ -19,11 +19,11 @@ class OpenCLContext {
   cl_command_queue queue() const;
 
  private:
-  OpenCLContext();
-  ~OpenCLContext();
+  Context();
+  ~Context();
 
-  OpenCLContext(const OpenCLContext&) = delete;
-  OpenCLContext& operator=(const OpenCLContext&) = delete;
+  Context(const Context&) = delete;
+  Context& operator=(const Context&) = delete;
 
   bool available_;
   const char* error_message_;
@@ -34,4 +34,4 @@ class OpenCLContext {
   cl_command_queue queue_;
 };
 
-}  // namespace jrb::infrastructure::opencl
+}  // namespace jrb::adapters::compute::opencl

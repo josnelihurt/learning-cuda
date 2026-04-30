@@ -5,7 +5,7 @@
 
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 using jrb::domain::interfaces::FilterContext;
 using jrb::domain::interfaces::FilterType;
@@ -13,12 +13,12 @@ using jrb::domain::interfaces::IFilter;
 
 enum class BorderMode : std::uint8_t { CLAMP, REFLECT, WRAP };
 
-class CudaGaussianBlurFilter : public IFilter {
+class GaussianBlurFilter : public IFilter {
 public:
-  explicit CudaGaussianBlurFilter(int kernel_size = 5, float sigma = 1.0F,
+  explicit GaussianBlurFilter(int kernel_size = 5, float sigma = 1.0F,
                                   BorderMode border_mode = BorderMode::REFLECT,
                                   bool separable = true);
-  ~CudaGaussianBlurFilter() override;
+  ~GaussianBlurFilter() override;
 
   bool Apply(FilterContext& context) override;
 
@@ -45,4 +45,4 @@ private:
   std::vector<float> kernel_;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

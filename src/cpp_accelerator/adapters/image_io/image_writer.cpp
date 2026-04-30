@@ -11,7 +11,7 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-namespace jrb::infrastructure::image {
+namespace jrb::adapters::image {
 
 bool ImageWriter::write(const char* filepath, const unsigned char* data, int width, int height,
                         int channels) {
@@ -34,4 +34,4 @@ bool ImageWriter::write(const char* filepath, const unsigned char* data, int wid
   return true;
 }
 
-}  // namespace jrb::infrastructure::image
+}  // namespace jrb::adapters::image

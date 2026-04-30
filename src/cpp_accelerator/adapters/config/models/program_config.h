@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace jrb::infrastructure::config::models {
+namespace jrb::adapters::config::models {
 
 enum class ProgramType : std::uint8_t {
   Passthrough,       // Renamed from Simple - no-op command
@@ -17,4 +17,4 @@ struct ProgramConfig {
   ProgramType program_type;
 };
 
-}  // namespace jrb::infrastructure::config::models
+}  // namespace jrb::adapters::config::models

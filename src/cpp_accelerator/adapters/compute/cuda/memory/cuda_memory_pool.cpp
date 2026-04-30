@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 CudaMemoryPool::~CudaMemoryPool() {
   Clear();
@@ -90,4 +90,4 @@ CudaMemoryPool& GetThreadLocalMemoryPool() {
   return pool;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

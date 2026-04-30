@@ -2,7 +2,7 @@
 
 #include "src/cpp_accelerator/domain/interfaces/image_sink.h"
 
-namespace jrb::infrastructure::image {
+namespace jrb::adapters::image {
 
 class ImageWriter : public domain::interfaces::IImageSink {
 public:
@@ -16,4 +16,4 @@ public:
              int channels) override;
 };
 
-}  // namespace jrb::infrastructure::image
+}  // namespace jrb::adapters::image

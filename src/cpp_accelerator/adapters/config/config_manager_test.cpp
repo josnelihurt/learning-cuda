@@ -4,7 +4,7 @@
 #include <vector>
 #include "src/cpp_accelerator/adapters/config/models/program_config.h"
 
-namespace jrb::infrastructure::config {
+namespace jrb::adapters::config {
 namespace {
 
 class ConfigManagerTest : public ::testing::Test {
@@ -160,4 +160,4 @@ TEST_F(ConfigManagerTest, ParseWithLongOptionNames) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::config
+}  // namespace jrb::adapters::config

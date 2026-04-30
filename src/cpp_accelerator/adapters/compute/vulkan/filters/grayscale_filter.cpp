@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_grayscale_filter.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/filters/grayscale_filter.h"
 
 #include <cstddef>
 #include <vector>
@@ -8,22 +8,22 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/vulkan/vk_grayscale_kernel_blob.h"
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_compute_utils.h"
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_context.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/kernels/vk_grayscale_blob.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/context/compute_utils.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/context/context.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
-VulkanGrayscaleFilter::VulkanGrayscaleFilter()
+GrayscaleFilter::GrayscaleFilter()
     : pipeline_ready_(false) {}
 
-VulkanGrayscaleFilter::~VulkanGrayscaleFilter() { DestroyPipeline(); }
+GrayscaleFilter::~GrayscaleFilter() { DestroyPipeline(); }
 
-bool VulkanGrayscaleFilter::EnsurePipeline() {
+bool GrayscaleFilter::EnsurePipeline() {
   if (pipeline_ready_) return true;
 
-  auto& ctx = VulkanContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   if (!ctx.available()) {
     spdlog::error("[VulkanGrayscale] context unavailable: {}", ctx.error_message());
     return false;
@@ -32,8 +32,8 @@ bool VulkanGrayscaleFilter::EnsurePipeline() {
   vk::Device device = ctx.device();
 
   // Create shader module from embedded SPIR-V.
-  const auto* spirv = reinterpret_cast<const uint32_t*>(vk_grayscale_kernel_blob::spirv());
-  size_t spirv_size = vk_grayscale_kernel_blob::spirv_size_bytes();
+  const auto* spirv = reinterpret_cast<const uint32_t*>(vk_grayscale_blob::spirv());
+  size_t spirv_size = vk_grayscale_blob::spirv_size_bytes();
   if (spirv == nullptr || spirv_size == 0 || spirv_size % sizeof(uint32_t) != 0) {
     spdlog::error("[VulkanGrayscale] invalid embedded SPIR-V");
     return false;
@@ -86,8 +86,8 @@ bool VulkanGrayscaleFilter::EnsurePipeline() {
   return true;
 }
 
-void VulkanGrayscaleFilter::DestroyPipeline() {
-  auto& ctx = VulkanContext::GetInstance();
+void GrayscaleFilter::DestroyPipeline() {
+  auto& ctx = Context::GetInstance();
   if (!ctx.available()) return;
   vk::Device device = ctx.device();
   if (pipeline_) {
@@ -109,10 +109,10 @@ void VulkanGrayscaleFilter::DestroyPipeline() {
   pipeline_ready_ = false;
 }
 
-bool VulkanGrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
+bool GrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   if (!EnsurePipeline()) return false;
 
-  auto& ctx = VulkanContext::GetInstance();
+  auto& ctx = Context::GetInstance();
   vk::Device device = ctx.device();
 
   const int width = context.input.width;
@@ -228,10 +228,10 @@ bool VulkanGrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& contex
   return ok;
 }
 
-jrb::domain::interfaces::FilterType VulkanGrayscaleFilter::GetType() const {
+jrb::domain::interfaces::FilterType GrayscaleFilter::GetType() const {
   return jrb::domain::interfaces::FilterType::GRAYSCALE;
 }
 
-bool VulkanGrayscaleFilter::IsInPlace() const { return false; }
+bool GrayscaleFilter::IsInPlace() const { return false; }
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

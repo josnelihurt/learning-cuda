@@ -4,7 +4,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 struct ModelInfo {
   std::string id;
@@ -26,4 +26,4 @@ class ModelRegistry {
   std::unordered_map<std::string, ModelInfo> models_;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

@@ -5,7 +5,7 @@
 #include "src/cpp_accelerator/application/engine/filter_creation_dispatch.hpp"
 #include "src/cpp_accelerator/application/engine/filter_descriptor.h"
 
-namespace jrb::infrastructure::cpu {
+namespace jrb::adapters::compute::cpu {
 
 using jrb::application::engine::BlurBorderMode;
 using jrb::application::engine::FilterCreationParams;
@@ -103,4 +103,4 @@ std::unique_ptr<jrb::domain::interfaces::IFilter> CpuFilterFactory::CreateFilter
       });
 }
 
-}  // namespace jrb::infrastructure::cpu
+}  // namespace jrb::adapters::compute::cpu

@@ -6,13 +6,13 @@
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 
-namespace jrb::infrastructure::cpu {
+namespace jrb::adapters::compute::cpu {
 namespace {
 
 using jrb::domain::interfaces::FilterContext;
 using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::image::ImageLoader;
 
 FilterContext CreateGrayscaleFilterContext(const unsigned char* input_data,
                                            unsigned char* output_data, int width, int height,
@@ -208,4 +208,4 @@ TEST_F(GrayscaleFilterTest, DifferentAlgorithmsProduceDifferentResults) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::cpu
+}  // namespace jrb::adapters::compute::cpu

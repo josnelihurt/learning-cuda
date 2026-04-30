@@ -1,17 +1,19 @@
-#include "src/cpp_accelerator/application/engine/platform/platform_support.h"
+#include "src/cpp_accelerator/composition/platform/platform_support.h"
 
-#include "src/cpp_accelerator/adapters/compute/cpu/cpu_filter_factory.h"
-#include "src/cpp_accelerator/application/engine/platform/cuda/cuda_platform.h"
+#include "src/cpp_accelerator/composition/platform/cpu/cpu_platform.h"
+#include "src/cpp_accelerator/composition/platform/cuda/cuda_platform.h"
+#include "src/cpp_accelerator/composition/platform/vulkan/vulkan_platform.h"
 
 namespace jrb::application::engine {
 
 void RegisterPlatformAccelerators(FilterFactoryRegistry& registry) {
-  registry.Register(std::make_unique<jrb::infrastructure::cpu::CpuFilterFactory>());
+  platform::cpu::RegisterFactories(registry);
   platform::cuda::RegisterFactories(registry);
+  platform::vulkan::RegisterFactories(registry);
 }
 
 void InitializePlatformSubsystems(const cuda_learning::InitRequest& request,
-                                  cuda_learning::InitResponse* response) {
+                                   cuda_learning::InitResponse* response) {
   platform::cuda::Initialize(request, response);
 }
 

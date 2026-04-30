@@ -3,7 +3,7 @@
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 #include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 using jrb::domain::interfaces::GrayscaleAlgorithm;
 
@@ -25,4 +25,4 @@ private:
   GrayscaleAlgorithm algorithm_;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

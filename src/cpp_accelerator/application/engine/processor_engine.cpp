@@ -11,7 +11,7 @@
 #pragma GCC diagnostic pop
 
 #include "src/cpp_accelerator/application/engine/filter_descriptor.h"
-#include "src/cpp_accelerator/application/engine/platform/platform_support.h"
+#include "src/cpp_accelerator/composition/platform/platform_support.h"
 #include "src/cpp_accelerator/application/pipeline/filter_pipeline.h"
 #include "src/cpp_accelerator/core/logger.h"
 #include "src/cpp_accelerator/core/telemetry.h"

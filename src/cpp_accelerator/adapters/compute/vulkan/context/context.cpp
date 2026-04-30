@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_context.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/context/context.h"
 
 #include <vector>
 
@@ -7,14 +7,14 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
-VulkanContext& VulkanContext::GetInstance() {
-  static VulkanContext instance;
+Context& Context::GetInstance() {
+  static Context instance;
   return instance;
 }
 
-VulkanContext::VulkanContext()
+Context::Context()
     : available_(false),
       error_message_("not initialized"),
       compute_queue_family_index_(0xFFFFFFFFu) {
@@ -84,10 +84,10 @@ VulkanContext::VulkanContext()
 
   available_ = true;
   error_message_ = "ok";
-  spdlog::info("[VulkanContext] Vulkan context ready");
+  spdlog::info("[Context] Vulkan context ready");
 }
 
-VulkanContext::~VulkanContext() {
+Context::~Context() {
   if (device_) {
     if (command_pool_) {
       device_.destroyCommandPool(command_pool_);
@@ -102,18 +102,18 @@ VulkanContext::~VulkanContext() {
   }
 }
 
-bool VulkanContext::SetError(const char* message) {
+bool Context::SetError(const char* message) {
   error_message_ = message;
-  spdlog::warn("[VulkanContext] {}", message);
+  spdlog::warn("[Context] {}", message);
   return false;
 }
 
-bool VulkanContext::available() const { return available_; }
-const char* VulkanContext::error_message() const { return error_message_; }
-vk::Device VulkanContext::device() const { return device_; }
-vk::PhysicalDevice VulkanContext::physical_device() const { return physical_device_; }
-vk::Queue VulkanContext::queue() const { return queue_; }
-vk::CommandPool VulkanContext::command_pool() const { return command_pool_; }
-uint32_t VulkanContext::compute_queue_family_index() const { return compute_queue_family_index_; }
+bool Context::available() const { return available_; }
+const char* Context::error_message() const { return error_message_; }
+vk::Device Context::device() const { return device_; }
+vk::PhysicalDevice Context::physical_device() const { return physical_device_; }
+vk::Queue Context::queue() const { return queue_; }
+vk::CommandPool Context::command_pool() const { return command_pool_; }
+uint32_t Context::compute_queue_family_index() const { return compute_queue_family_index_; }
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

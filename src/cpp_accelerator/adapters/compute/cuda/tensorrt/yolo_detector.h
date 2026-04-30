@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 class YOLODetector : public IYoloDetector {
 public:
@@ -23,4 +23,4 @@ private:
     float confidence_threshold_;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

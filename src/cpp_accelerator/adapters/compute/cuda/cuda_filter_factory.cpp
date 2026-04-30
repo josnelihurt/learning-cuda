@@ -5,7 +5,7 @@
 #include "src/cpp_accelerator/application/engine/filter_creation_dispatch.hpp"
 #include "src/cpp_accelerator/application/engine/filter_descriptor.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 using jrb::application::engine::BlurBorderMode;
 using jrb::application::engine::FilterCreationParams;
@@ -123,9 +123,9 @@ std::unique_ptr<jrb::domain::interfaces::IFilter> CudaFilterFactory::CreateFilte
             border_mode = BorderMode::WRAP;
             break;
         }
-        return std::make_unique<CudaGaussianBlurFilter>(params.blur_kernel_size, params.blur_sigma,
+        return std::make_unique<GaussianBlurFilter>(params.blur_kernel_size, params.blur_sigma,
                                                         border_mode, params.blur_separable);
       });
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

@@ -1,4 +1,4 @@
-#include "src/cpp_accelerator/application/engine/platform/cuda/cuda_platform.h"
+#include "src/cpp_accelerator/composition/platform/cuda/cuda_platform.h"
 
 #include <algorithm>
 #include <chrono>
@@ -22,19 +22,19 @@ namespace jrb::application::engine::platform::cuda {
 
 namespace {
 
-std::unordered_map<std::string, std::shared_ptr<jrb::infrastructure::cuda::IYoloDetector>>
+std::unordered_map<std::string, std::shared_ptr<jrb::adapters::compute::cuda::IYoloDetector>>
     g_detector_cache;
 
 }  // namespace
 
 void RegisterFactories(FilterFactoryRegistry& registry) {
-  registry.Register(std::make_unique<jrb::infrastructure::cuda::CudaFilterFactory>());
+  registry.Register(std::make_unique<jrb::adapters::compute::cuda::CudaFilterFactory>());
 }
 
 void Initialize(const cuda_learning::InitRequest& /*request*/,
                 cuda_learning::InitResponse* /*response*/) {
-  auto& model_manager = jrb::infrastructure::cuda::ModelManager::GetInstance();
-  jrb::infrastructure::cuda::ModelRegistry registry;
+  auto& model_manager = jrb::adapters::compute::cuda::ModelManager::GetInstance();
+  jrb::adapters::compute::cuda::ModelRegistry registry;
   registry.RegisterModel(
       {"yolov10n", "YOLO v10 Nano", "data/models/yolov10n.onnx", "Fastest YOLO v10 model"});
   model_manager.Initialize(registry);
@@ -69,7 +69,7 @@ bool ApplyInference(const std::string& model_id, float confidence, bool pipeline
   auto cache_it = g_detector_cache.find(cache_key);
   if (cache_it == g_detector_cache.end()) {
     auto new_detector =
-        jrb::infrastructure::cuda::ModelManager::GetInstance().GetDetector(model_id, confidence);
+        jrb::adapters::compute::cuda::ModelManager::GetInstance().GetDetector(model_id, confidence);
     if (!new_detector) {
       spdlog::error("Failed to get detector for model: {}", model_id);
       return false;
@@ -78,7 +78,7 @@ bool ApplyInference(const std::string& model_id, float confidence, bool pipeline
     cache_it = g_detector_cache.find(cache_key);
   }
 
-  jrb::infrastructure::cuda::IYoloDetector* yolo_detector = cache_it->second.get();
+  jrb::adapters::compute::cuda::IYoloDetector* yolo_detector = cache_it->second.get();
 
   if (!pipeline_has_output) {
     // Model inference only: preserve original frame as the output image.

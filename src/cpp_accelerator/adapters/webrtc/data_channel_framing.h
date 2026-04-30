@@ -5,8 +5,11 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <rtc/rtc.hpp>
 
 namespace jrb::adapters::webrtc {
 
@@ -22,6 +25,10 @@ inline constexpr int kMaxInFlightMessages = 16;
 // Throws std::invalid_argument when payload exceeds kMaxMessageBytes.
 std::vector<std::vector<std::byte>> PackMessage(
     uint32_t message_id, std::span<const std::byte> payload);
+
+// Pack `payload` into framed chunks and send each over `dc`. Bails on the first
+// failed send().
+void SendFramed(rtc::DataChannel& dc, const std::string& payload, uint32_t message_id);
 
 class ChunkReassembler {
  public:

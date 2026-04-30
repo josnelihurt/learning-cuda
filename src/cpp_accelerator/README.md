@@ -6,7 +6,7 @@ High-performance image processing library implementing Clean Architecture princi
 
 The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters using CUDA kernels. The architecture follows Clean Architecture patterns with clear separation between domain logic, application use cases, infrastructure implementations, and external adapters.
 
-**Version**: See `VERSION` file (currently 4.0.2)
+**Version**: See `VERSION` file (currently 4.0.6)
 
 **Features**:
 - GPU acceleration via CUDA kernels with CPU fallback
@@ -107,6 +107,7 @@ graph TB
 
     subgraph "C++ Application Layer"
         ProcessorEngine[application/engine<br/>ProcessorEngine]
+        ServerInfo[server_info<br/>ServerInfoProvider]
         FilterPipeline[FilterPipeline]
         BufferPool[BufferPool]
         CommandFactory[CommandFactory]
@@ -139,6 +140,7 @@ graph TB
     AccelClient --> Provider
     Provider --> ProcessorEngine
     AccelClient --> WebRTCPort
+    WebRTCPort --> ServerInfo
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -271,15 +273,16 @@ Filter discovery and version queries are handled on a dedicated "control" data c
 sequenceDiagram
     participant Peer as Remote Peer (via Go)
     participant WRTC as WebRTCManager
-    participant Engine as ProcessorEngine
+    participant Info as ServerInfoProvider
 
     Peer->>WRTC: ControlRequest(kListFilters) on "control" channel
-    WRTC->>Engine: GetCapabilities()
-    Engine-->>WRTC: filter definitions
+    WRTC->>Info: PopulateListFiltersResponse()
+    Info-->>WRTC: filter definitions
     WRTC->>Peer: ControlResponse(ListFiltersResponse)
 
     Peer->>WRTC: ControlRequest(kGetVersion) on "control" channel
-    WRTC->>WRTC: Read VERSION file + engine capabilities
+    WRTC->>Info: PopulateVersionResponse()
+    Info-->>WRTC: version + build info
     WRTC->>Peer: ControlResponse(GetVersionInfoResponse)
 ```
 
@@ -318,6 +321,11 @@ cpp_accelerator/
 │   ├── pipeline/
 │   │   ├── filter_pipeline.h/cpp
 │   │   └── buffer_pool.h/cpp
+│   ├── server_info/
+│   │   ├── i_server_info_provider.h     # Interface for version/filter queries
+│   │   ├── server_info_provider.h/cpp   # Implementation (reads VERSION, queries engine caps)
+│   │   ├── filter_parameter_mapping.h/cpp  # Engine FilterParameter → wire GenericFilterParameter
+│   │   └── accelerator_label.h/cpp         # AcceleratorType → human-readable label
 │   └── commands/               # Placeholder command pattern (unused)
 ├── ports/                      # Abstract port interfaces ONLY
 │   ├── control/
@@ -332,7 +340,14 @@ cpp_accelerator/
 │   ├── webrtc/                 # WebRTC media path
 │   │   ├── webrtc_manager.h/cpp              # implements IMediaSession
 │   │   ├── live_video_processor.h/cpp        # H.264 decode → ProcessorEngine → encode
-│   │   └── data_channel_framing.h/cpp        # chunked binary framing over SCTP
+│   │   ├── data_channel_framing.h/cpp        # chunked binary framing + SendFramed over SCTP
+│   │   ├── channel_labels.h                  # channel name constants, session prefixes
+│   │   ├── session_routing.h/cpp             # IsGoVideoSession, ShouldRegisterSessionChannel
+│   │   ├── protocol/             # WebRTC protocol helpers
+│   │   │   ├── filter_resolver.h/cpp         # Generic filter → enum mapping
+│   │   │   └── data_channel_envelope.h/cpp   # DataChannelRequest protobuf envelope parsing
+│   │   └── sdp/                  # SDP utilities
+│   │       └── sdp_utils.h/cpp               # Codec negotiation, extmap strip, ICE injection
 │   ├── compute/
 │   │   ├── cpu/                # CPU filter implementations
 │   │   │   ├── grayscale_filter.h/cpp
@@ -435,9 +450,12 @@ The library provides WebRTC-based real-time video streaming capabilities through
 
 **Components**:
 
-- **WebRTCManager** (`ports/grpc/webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, session lifecycle, and per-session CUDA memory pools
-- **LiveVideoProcessor** (`ports/grpc/live_video_processor.h/cpp`): Real-time video frame processing pipeline — FFmpeg H.264 decode → RGB → ProcessorEngine → RGB → FFmpeg H.264 encode
-- **DataChannelFraming** (`ports/grpc/data_channel_framing.h/cpp`): Binary chunking/reassembly protocol for large protobuf messages over SCTP data channels
+- **WebRTCManager** (`adapters/webrtc/webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, session lifecycle, and per-session CUDA memory pools
+- **LiveVideoProcessor** (`adapters/webrtc/live_video_processor.h/cpp`): Real-time video frame processing pipeline — FFmpeg H.264 decode → RGB → ProcessorEngine → RGB → FFmpeg H.264 encode
+- **DataChannelFraming** (`adapters/webrtc/data_channel_framing.h/cpp`): Binary chunking/reassembly protocol for large protobuf messages over SCTP data channels, plus `SendFramed()` helper
+- **Channel labels & routing** (`adapters/webrtc/channel_labels.h`, `session_routing.h/cpp`): Channel name constants, Go-video session prefix detection, session channel registration logic
+- **Protocol helpers** (`adapters/webrtc/protocol/`): Filter parameter resolution (`filter_resolver`), `DataChannelRequest` protobuf envelope parsing (`data_channel_envelope`)
+- **SDP utilities** (`adapters/webrtc/sdp/sdp_utils.h/cpp`): H.264 codec negotiation, RTP header extension stripping, manual ICE candidate injection, SDP answer waiting
 
 **WebRTC Channels per Session**:
 
@@ -485,7 +503,7 @@ The `ProcessorEngine` is the core orchestration component that coordinates image
 
 **Responsibilities**: Initialization and telemetry setup, filter orchestration via `FilterPipeline`, algorithm selection from protocol buffer enums, and response building.
 
-**Integration Points**: Used by `ports/grpc` via `ProcessorEngineAdapter` for the gRPC service.
+**Integration Points**: Used by `adapters/grpc_control` via `ProcessorEngineAdapter` for the gRPC service, and by `adapters/webrtc` for WebRTC data channel and live video processing.
 
 ### Domain Interfaces
 
@@ -509,15 +527,15 @@ All code in `cpp_accelerator/` compiles without warnings when `-Werror` is enabl
 
 ## C API Reference
 
-The library exposes a C API through `processor_api.h` for language-agnostic integration. All data exchange uses Protocol Buffer serialization. The shared library build target (`libcuda_processor.so`) has been removed; the C API header is retained for the `processor_engine` wrapper used by the gRPC client.
+The library previously exposed a C API through `processor_api.h`. The shared library build target (`libcuda_processor.so`) has been removed. The `processor_engine` wrapper in the application layer is now used directly by the gRPC and WebRTC adapters.
 
-**API Version**: The C API version is defined as `PROCESSOR_API_VERSION "2.1.0"` in `processor_api.h`. This is separate from the library version (4.0.2) and indicates the C interface contract.
+**API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.0.6).
 
 ## Adding New Filters
 
 1. **Adapters**: Implement CPU and CUDA filter classes in `adapters/compute/cpu/` and `adapters/compute/cuda/`
 2. **Application**: Filters are automatically usable via `FilterPipeline`
-3. **Ports**: Update adapters if new parameters are required
+3. **Protocol**: Add parameter parsing in `adapters/webrtc/protocol/filter_resolver` if new generic filter parameters are needed
 
 The FilterPipeline automatically handles filter composition and execution order.
 
@@ -542,15 +560,14 @@ bazel test //src/cpp_accelerator/adapters/compute/cpu:blur_filter_test
 bazel test //src/cpp_accelerator/adapters/image_io:image_loader_test
 bazel test //src/cpp_accelerator/adapters/image_io:image_writer_test
 bazel test //src/cpp_accelerator/adapters/config:config_manager_test
-bazel test //src/cpp_accelerator/ports/shared_lib:blur_e2e_test
-bazel test //src/cpp_accelerator/ports/grpc:data_channel_framing_test
+bazel test //src/cpp_accelerator/adapters/webrtc:data_channel_framing_test
 ```
 
 ## Building
 
 Build accelerator control client:
 ```bash
-bazel build //src/cpp_accelerator/ports/grpc:accelerator_control_client
+bazel build //src/cpp_accelerator/cmd/accelerator_control_client
 ```
 
 Build all:

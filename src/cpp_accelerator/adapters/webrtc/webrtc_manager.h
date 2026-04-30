@@ -18,6 +18,7 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/memory/cuda_memory_pool.h"
 #include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 #include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
+#include "src/cpp_accelerator/application/server_info/i_server_info_provider.h"
 #include "src/cpp_accelerator/ports/media/i_media_session.h"
 
 namespace jrb::application::engine {
@@ -70,6 +71,11 @@ public:
     std::shared_ptr<rtc::H264RtpPacketizer> outbound_packetizer;
     std::shared_ptr<rtc::RtcpSrReporter> outbound_sr_reporter;
     std::shared_ptr<rtc::RtcpNackResponder> outbound_nack_responder;
+    // Lifetime invariant: memory_pool MUST be declared before
+    // live_video_processor so the pool outlives the processor (members are
+    // destroyed in reverse declaration order, and the processor holds a raw
+    // pointer into the pool).
+    std::unique_ptr<jrb::infrastructure::cuda::CudaMemoryPool> memory_pool;
     std::unique_ptr<LiveVideoProcessor> live_video_processor;
     std::unique_ptr<ChunkReassembler> incoming_reassembler =
         std::make_unique<ChunkReassembler>();
@@ -84,12 +90,17 @@ public:
     std::condition_variable candidates_cv;
     std::chrono::steady_clock::time_point created_at;
     std::chrono::steady_clock::time_point last_heartbeat;
-    std::unique_ptr<jrb::infrastructure::cuda::CudaMemoryPool> memory_pool;
   };
 
   std::shared_ptr<SessionState> GetSession(const std::string& session_id);
   void RemoveSession(const std::string& session_id);
   void CleanupInactiveSessions(int timeout_seconds = 30);
+
+  // Close every data channel and the peer connection on `session`. Idempotent
+  // and exception-safe — single point of truth used by Shutdown(),
+  // CloseSession(), and CleanupInactiveSessions(). Caller is responsible for
+  // any necessary locking.
+  static void CloseSessionTransport(const std::string& session_id, SessionState& session);
   void RegisterSessionChannel(const std::string& session_id,
                               const std::shared_ptr<rtc::DataChannel>& data_channel);
   void UnregisterSessionChannel(const std::string& session_id);
@@ -160,6 +171,7 @@ public:
                          const cuda_learning::DetectionFrame& frame);
 
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
+  std::unique_ptr<jrb::application::server_info::IServerInfoProvider> server_info_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;
   std::mutex sessions_mutex_;

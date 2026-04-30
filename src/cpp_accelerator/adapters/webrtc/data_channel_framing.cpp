@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <span>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <spdlog/spdlog.h>
 
@@ -220,6 +222,18 @@ std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(
       in_flight_order_.end());
 
   return result;
+}
+
+void SendFramed(rtc::DataChannel& dc, const std::string& payload, uint32_t message_id) {
+  const auto span = std::span<const std::byte>(
+      reinterpret_cast<const std::byte*>(payload.data()), payload.size());
+  auto chunks = PackMessage(message_id, span);
+  for (auto& chunk : chunks) {
+    if (!dc.send(std::move(chunk))) {
+      spdlog::error("[framing] Failed to send chunk for message_id={}", message_id);
+      return;
+    }
+  }
 }
 
 }  // namespace jrb::adapters::webrtc

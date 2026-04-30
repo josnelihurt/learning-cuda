@@ -15,15 +15,29 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
-#include "src/cpp_accelerator/adapters/webrtc/webrtc_protocol.h"
+#include "src/cpp_accelerator/adapters/webrtc/channel_labels.h"
+#include "src/cpp_accelerator/adapters/webrtc/protocol/data_channel_envelope.h"
+#include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
+#include "src/cpp_accelerator/adapters/webrtc/sdp/sdp_utils.h"
+#include "src/cpp_accelerator/adapters/webrtc/session_routing.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
+#include "src/cpp_accelerator/application/server_info/accelerator_label.h"
+#include "src/cpp_accelerator/application/server_info/server_info_provider.h"
 
 namespace jrb::adapters::webrtc {
 
-using namespace internal;  // bring internal helpers into scope
+using jrb::adapters::webrtc::protocol::CopyProcessMetadata;
+using jrb::adapters::webrtc::protocol::ParseDataChannelRequest;
+using jrb::adapters::webrtc::protocol::ResolveGenericSelectionsInPlace;
+using jrb::adapters::webrtc::sdp::BuildManualCandidateSdp;
+using jrb::adapters::webrtc::sdp::FindOutboundVideoConfig;
+using jrb::adapters::webrtc::sdp::MakeSsrc;
+using jrb::adapters::webrtc::sdp::StripRtpHeaderExtensions;
+using jrb::adapters::webrtc::sdp::WaitForSdpAnswer;
 
 WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
     : engine_(std::move(config.engine)),
+      server_info_(std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
       initialized_(false),
       device_id_(std::move(config.device_id)),
       display_name_(std::move(config.display_name)),
@@ -99,20 +113,8 @@ void WebRTCManager::Shutdown() {
 
   std::lock_guard<std::mutex> lock(sessions_mutex_);
   for (auto& [session_id, session] : sessions_) {
-    try {
-      std::lock_guard<std::mutex> session_lock(session->mutex);
-      if (session->data_channel) {
-        session->data_channel->close();
-      }
-      if (session->stats_channel) {
-        session->stats_channel->close();
-      }
-      if (session->peer_connection) {
-        session->peer_connection->close();
-      }
-    } catch (const std::exception& e) {
-      spdlog::error("[WebRTC:{}] Error closing session during shutdown: {}", session_id, e.what());
-    }
+    std::lock_guard<std::mutex> session_lock(session->mutex);
+    CloseSessionTransport(session_id, *session);
   }
   sessions_.clear();
   {
@@ -469,11 +471,12 @@ bool WebRTCManager::SetupMediaTracks(const std::string& session_id,
     media.setBitrate(static_cast<int>(kProcessedVideoBitrate));
 
     const uint32_t ssrc = MakeSsrc(session_id);
-    media.addSSRC(ssrc, "processed-video", session_id, kProcessedVideoTrackLabel);
+    media.addSSRC(ssrc, kProcessedVideoTrackLabel, session_id, kProcessedVideoTrackLabel);
 
     session->outbound_video_track = session->peer_connection->addTrack(media);
     session->outbound_rtp_config = std::make_shared<rtc::RtpPacketizationConfig>(
-        ssrc, "processed-video", static_cast<uint8_t>(outbound_video_config->payload_type),
+        ssrc, kProcessedVideoTrackLabel,
+        static_cast<uint8_t>(outbound_video_config->payload_type),
         rtc::H264RtpPacketizer::ClockRate);
     session->outbound_packetizer = std::make_shared<rtc::H264RtpPacketizer>(
         rtc::NalUnit::Separator::StartSequence, session->outbound_rtp_config);
@@ -519,7 +522,7 @@ void WebRTCManager::SetupDataChannels(const std::string& session_id,
         if (!self) return;
 
         const std::string& label = dc->label();
-        if (label == "detections")       self->SetupDetectionChannel(session_id, session, dc);
+        if (label == kDetectionChannelLabel) self->SetupDetectionChannel(session_id, session, dc);
         else if (label == kControlChannelLabel) self->SetupControlChannel(session_id, session, dc);
         else if (label == kStatsChannelLabel)   self->SetupStatsChannel(session_id, session, dc);
         else                                    self->SetupMainChannel(session_id, session, dc);
@@ -698,7 +701,10 @@ void WebRTCManager::EmitProcessingStats(const std::string& session_id, SessionSt
   cuda_learning::ProcessingStatsFrame stats_frame;
   stats_frame.set_session_id(session_id);
   stats_frame.set_frame_id(frame_id);
-  stats_frame.set_capture_ts_unix_ms(CurrentUnixTimeMs());
+  stats_frame.set_capture_ts_unix_ms(
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count());
 
   auto* total_ms = stats_frame.add_metrics();
   total_ms->set_key("pipeline.total.ms");
@@ -772,13 +778,13 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
   switch (request.payload_case()) {
     case cuda_learning::ControlRequest::kListFilters: {
       cuda_learning::ListFiltersResponse list_resp;
-      PopulateListFiltersResponse(engine_.get(), request.list_filters(), &list_resp);
+      server_info_->PopulateListFiltersResponse(request.list_filters(), &list_resp);
       *response.mutable_list_filters() = std::move(list_resp);
       break;
     }
     case cuda_learning::ControlRequest::kGetVersion: {
       cuda_learning::GetVersionInfoResponse ver_resp;
-      PopulateGetVersionResponse(engine_.get(), &ver_resp);
+      server_info_->PopulateVersionResponse(&ver_resp);
       ver_resp.set_api_version(request.get_version().api_version());
       *response.mutable_get_version() = std::move(ver_resp);
       break;
@@ -800,7 +806,7 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       for (const auto type : accelerator_types) {
         auto* option = caps_resp->add_supported_options();
         option->set_type(type);
-        option->set_label(AcceleratorTypeLabel(type));
+        option->set_label(jrb::application::server_info::AcceleratorTypeLabel(type));
       }
       break;
     }
@@ -1001,22 +1007,7 @@ bool WebRTCManager::CloseSession(const std::string& session_id, std::string* err
       session->memory_pool->Clear();
       spdlog::info("[WebRTC:{}] CUDA memory pool cleared", session_id);
     }
-    if (session->data_channel) {
-      session->data_channel->close();
-      spdlog::info("[WebRTC:{}] Data channel closed", session_id);
-    }
-    if (session->stats_channel) {
-      session->stats_channel->close();
-      spdlog::info("[WebRTC:{}] Stats channel closed", session_id);
-    }
-    if (session->control_channel) {
-      session->control_channel->close();
-      spdlog::info("[WebRTC:{}] Control channel closed", session_id);
-    }
-    if (session->peer_connection) {
-      session->peer_connection->close();
-      spdlog::info("[WebRTC:{}] Peer connection closed", session_id);
-    }
+    CloseSessionTransport(session_id, *session);
 
     RemoveSession(session_id);
     spdlog::info("[WebRTC:{}] Session closed successfully", session_id);
@@ -1142,6 +1133,19 @@ void WebRTCManager::RemoveSession(const std::string& session_id) {
   spdlog::info("[WebRTC:{}] Session removed", session_id);
 }
 
+void WebRTCManager::CloseSessionTransport(const std::string& session_id,
+                                          SessionState& session) {
+  try {
+    if (session.data_channel)      session.data_channel->close();
+    if (session.detection_channel) session.detection_channel->close();
+    if (session.stats_channel)     session.stats_channel->close();
+    if (session.control_channel)   session.control_channel->close();
+    if (session.peer_connection)   session.peer_connection->close();
+  } catch (const std::exception& e) {
+    spdlog::error("[WebRTC:{}] Error closing session transport: {}", session_id, e.what());
+  }
+}
+
 void WebRTCManager::CleanupInactiveSessions(int timeout_seconds) {
   std::lock_guard<std::mutex> lock(sessions_mutex_);
   const auto now = std::chrono::steady_clock::now();
@@ -1155,13 +1159,7 @@ void WebRTCManager::CleanupInactiveSessions(int timeout_seconds) {
       spdlog::warn("[WebRTC:{}] Session inactive for {} seconds, closing", session_id,
                    std::chrono::duration_cast<std::chrono::seconds>(elapsed).count());
       sessions_to_remove.push_back(session_id);
-      try {
-        if (session->data_channel)    session->data_channel->close();
-        if (session->stats_channel)   session->stats_channel->close();
-        if (session->peer_connection) session->peer_connection->close();
-      } catch (const std::exception& e) {
-        spdlog::error("[WebRTC:{}] Error closing inactive session: {}", session_id, e.what());
-      }
+      CloseSessionTransport(session_id, *session);
     }
   }
 

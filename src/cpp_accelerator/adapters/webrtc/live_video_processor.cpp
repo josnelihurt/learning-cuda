@@ -1,11 +1,7 @@
 #include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
 
-#include <algorithm>
 #include <cerrno>
-#include <cctype>
 #include <cstring>
-#include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
 
@@ -20,9 +16,12 @@ extern "C" {
 
 #include <spdlog/spdlog.h>
 
+#include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 
 namespace jrb::adapters::webrtc {
+
+using jrb::adapters::webrtc::protocol::ResolveGenericSelectionsInPlace;
 
 namespace {
 
@@ -33,55 +32,6 @@ std::string AvErrorToString(int error_code) {
   char buffer[AV_ERROR_MAX_STRING_SIZE] = {0};
   av_strerror(error_code, buffer, sizeof(buffer));
   return std::string(buffer);
-}
-
-std::string NormalizeFilterId(const std::string& value) {
-  std::string normalized = value;
-  std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                 [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
-  return normalized;
-}
-
-std::optional<std::string> FirstGenericValue(
-    const cuda_learning::GenericFilterParameterSelection& selection) {
-  if (selection.values().empty()) {
-    return std::nullopt;
-  }
-  return selection.values(0);
-}
-
-cuda_learning::GrayscaleType MapStringToGrayscaleType(const std::string& value) {
-  const std::string normalized = NormalizeFilterId(value);
-  if (normalized == "bt709") {
-    return cuda_learning::GRAYSCALE_TYPE_BT709;
-  }
-  if (normalized == "average") {
-    return cuda_learning::GRAYSCALE_TYPE_AVERAGE;
-  }
-  if (normalized == "lightness") {
-    return cuda_learning::GRAYSCALE_TYPE_LIGHTNESS;
-  }
-  if (normalized == "luminosity") {
-    return cuda_learning::GRAYSCALE_TYPE_LUMINOSITY;
-  }
-  return cuda_learning::GRAYSCALE_TYPE_BT601;
-}
-
-cuda_learning::BorderMode MapStringToBorderMode(const std::string& value) {
-  const std::string normalized = NormalizeFilterId(value);
-  if (normalized == "clamp") {
-    return cuda_learning::BORDER_MODE_CLAMP;
-  }
-  if (normalized == "wrap") {
-    return cuda_learning::BORDER_MODE_WRAP;
-  }
-  return cuda_learning::BORDER_MODE_REFLECT;
-}
-
-bool ParseBool(const std::string& value) {
-  const std::string normalized = NormalizeFilterId(value);
-  return normalized == "1" || normalized == "true" || normalized == "yes" ||
-         normalized == "on";
 }
 
 bool IsFilterNone(const cuda_learning::FilterType filter) {
@@ -99,12 +49,12 @@ LiveVideoProcessor::LiveVideoProcessor(jrb::application::engine::ProcessorEngine
       encoder_context_(nullptr),
       decode_to_rgb_context_(nullptr),
       rgb_to_yuv_context_(nullptr),
-      decoded_frame_(av_frame_alloc()),
-      rgb_input_frame_(av_frame_alloc()),
-      rgb_output_frame_(av_frame_alloc()),
-      yuv_frame_(av_frame_alloc()),
-      decode_packet_(av_packet_alloc()),
-      encode_packet_(av_packet_alloc()),
+      decoded_frame_(nullptr),
+      rgb_input_frame_(nullptr),
+      rgb_output_frame_(nullptr),
+      yuv_frame_(nullptr),
+      decode_packet_(nullptr),
+      encode_packet_(nullptr),
       frame_width_(0),
       frame_height_(0),
       input_pixel_format_(-1),
@@ -138,6 +88,10 @@ bool LiveVideoProcessor::UpdateFilterState(const cuda_learning::ProcessImageRequ
   state->set_width(0);
   state->set_height(0);
   state->set_channels(0);
+
+  // Resolve generic_filters into the typed filters[] field once, here, so
+  // per-frame paths don't need to copy + re-resolve.
+  ResolveGenericSelectionsInPlace(state);
   return true;
 }
 
@@ -265,6 +219,19 @@ bool LiveVideoProcessor::EnsureDecoder(std::string* error_message) {
     return true;
   }
 
+  if (decoded_frame_ == nullptr) {
+    decoded_frame_ = av_frame_alloc();
+  }
+  if (decode_packet_ == nullptr) {
+    decode_packet_ = av_packet_alloc();
+  }
+  if (decoded_frame_ == nullptr || decode_packet_ == nullptr) {
+    if (error_message != nullptr) {
+      *error_message = "failed to allocate decoder frame/packet";
+    }
+    return false;
+  }
+
   const AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
   if (decoder == nullptr) {
     if (error_message != nullptr) {
@@ -311,6 +278,22 @@ bool LiveVideoProcessor::EnsureFrameResources(int width, int height, int input_f
   sws_freeContext(rgb_to_yuv_context_);
   decode_to_rgb_context_ = nullptr;
   rgb_to_yuv_context_ = nullptr;
+
+  if (rgb_input_frame_ == nullptr) {
+    rgb_input_frame_ = av_frame_alloc();
+  }
+  if (rgb_output_frame_ == nullptr) {
+    rgb_output_frame_ = av_frame_alloc();
+  }
+  if (yuv_frame_ == nullptr) {
+    yuv_frame_ = av_frame_alloc();
+  }
+  if (rgb_input_frame_ == nullptr || rgb_output_frame_ == nullptr || yuv_frame_ == nullptr) {
+    if (error_message != nullptr) {
+      *error_message = "failed to allocate scaler frames";
+    }
+    return false;
+  }
 
   av_frame_unref(rgb_input_frame_);
   av_frame_unref(rgb_output_frame_);
@@ -388,6 +371,16 @@ bool LiveVideoProcessor::EnsureEncoder(int width, int height, std::string* error
     return true;
   }
 
+  if (encode_packet_ == nullptr) {
+    encode_packet_ = av_packet_alloc();
+  }
+  if (encode_packet_ == nullptr) {
+    if (error_message != nullptr) {
+      *error_message = "failed to allocate encoder packet";
+    }
+    return false;
+  }
+
   avcodec_free_context(&encoder_context_);
 
   const AVCodec* encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
@@ -440,6 +433,8 @@ bool LiveVideoProcessor::BuildProcessingRequest(const cuda_learning::ProcessImag
     return false;
   }
 
+  // `state` was already resolved by UpdateFilterState, so we just need to
+  // attach the per-frame image data and dimensions.
   *request = state;
   request->set_image_data(rgb_buffer.data(), rgb_buffer.size());
   request->set_width(width);
@@ -449,181 +444,18 @@ bool LiveVideoProcessor::BuildProcessingRequest(const cuda_learning::ProcessImag
   if (request->accelerator() == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
     request->set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);
   }
-
-  if (request->generic_filters_size() > 0) {
-    return ResolveGenericSelections(request);
-  }
-
-  return true;
-}
-
-bool LiveVideoProcessor::ResolveGenericSelections(cuda_learning::ProcessImageRequest* request) const {
-  if (request == nullptr) {
-    return false;
-  }
-
-  std::vector<cuda_learning::FilterType> filters;
-  filters.reserve(static_cast<size_t>(request->filters_size()));
-  for (const int filter : request->filters()) {
-    filters.push_back(static_cast<cuda_learning::FilterType>(filter));
-  }
-  cuda_learning::GrayscaleType grayscale = request->grayscale_type();
-  cuda_learning::GaussianBlurParameters blur_params = request->blur_params();
-  bool has_blur_params = request->has_blur_params();
-
-  if (request->generic_filters_size() > 0) {
-    filters.clear();
-    for (const auto& selection : request->generic_filters()) {
-      const std::string filter_id = NormalizeFilterId(selection.filter_id());
-      if (filter_id.empty() || filter_id == "none") {
-        filters.push_back(cuda_learning::FILTER_TYPE_NONE);
-        continue;
-      }
-
-      if (filter_id == "grayscale") {
-        filters.push_back(cuda_learning::FILTER_TYPE_GRAYSCALE);
-        for (const auto& parameter : selection.parameters()) {
-          if (NormalizeFilterId(parameter.parameter_id()) != "algorithm") {
-            continue;
-          }
-          const auto value = FirstGenericValue(parameter);
-          if (value.has_value()) {
-            grayscale = MapStringToGrayscaleType(*value);
-          }
-        }
-        continue;
-      }
-
-      if (filter_id == "blur") {
-        filters.push_back(cuda_learning::FILTER_TYPE_BLUR);
-        for (const auto& parameter : selection.parameters()) {
-          const auto value = FirstGenericValue(parameter);
-          if (!value.has_value()) {
-            continue;
-          }
-
-          const std::string parameter_id = NormalizeFilterId(parameter.parameter_id());
-          if (parameter_id == "kernel_size") {
-            try {
-              int parsed = std::stoi(*value);
-              parsed = std::max(1, parsed);
-              if (parsed % 2 == 0) {
-                parsed += 1;
-              }
-              blur_params.set_kernel_size(parsed);
-              has_blur_params = true;
-            } catch (const std::exception&) {
-              spdlog::warn("Ignoring invalid blur kernel_size value: {}", *value);
-            }
-            continue;
-          }
-
-          if (parameter_id == "sigma") {
-            try {
-              const float parsed = std::stof(*value);
-              if (parsed >= 0.0F) {
-                blur_params.set_sigma(parsed);
-                has_blur_params = true;
-              }
-            } catch (const std::exception&) {
-              spdlog::warn("Ignoring invalid blur sigma value: {}", *value);
-            }
-            continue;
-          }
-
-          if (parameter_id == "border_mode") {
-            blur_params.set_border_mode(MapStringToBorderMode(*value));
-            has_blur_params = true;
-            continue;
-          }
-
-          if (parameter_id == "separable") {
-            blur_params.set_separable(ParseBool(*value));
-            has_blur_params = true;
-          }
-        }
-        continue;
-      }
-
-      if (filter_id == "model_inference") {
-        filters.push_back(cuda_learning::FILTER_TYPE_MODEL_INFERENCE);
-        auto* model_params = request->mutable_model_params();
-        if (model_params->model_id().empty()) {
-          model_params->set_model_id("yolov10n");
-        }
-        if (model_params->confidence_threshold() <= 0.0F) {
-          model_params->set_confidence_threshold(0.5F);
-        }
-        for (const auto& parameter : selection.parameters()) {
-          const auto value = FirstGenericValue(parameter);
-          if (!value.has_value()) {
-            continue;
-          }
-          const std::string parameter_id = NormalizeFilterId(parameter.parameter_id());
-          if (parameter_id == "model_id") {
-            if (!value->empty()) {
-              model_params->set_model_id(*value);
-            }
-          } else if (parameter_id == "confidence_threshold") {
-            try {
-              const float parsed = std::stof(*value);
-              if (parsed > 0.0F) {
-                model_params->set_confidence_threshold(parsed);
-              }
-            } catch (const std::exception&) {
-              spdlog::warn("Ignoring invalid model confidence_threshold: {}", *value);
-            }
-          }
-        }
-        continue;
-      }
-
-      spdlog::warn("Ignoring unsupported live generic filter: {}", selection.filter_id());
-    }
-  }
-
-  request->clear_filters();
-  for (const auto filter : filters) {
-    request->add_filters(filter);
-  }
-
-  if (grayscale == cuda_learning::GRAYSCALE_TYPE_UNSPECIFIED) {
-    grayscale = cuda_learning::GRAYSCALE_TYPE_BT601;
-  }
-  request->set_grayscale_type(grayscale);
-
-  if (has_blur_params) {
-    request->mutable_blur_params()->CopyFrom(blur_params);
-  }
-
   return true;
 }
 
 bool LiveVideoProcessor::HasActiveFilters(const cuda_learning::ProcessImageRequest& request) const {
-  cuda_learning::ProcessImageRequest resolved = request;
-  if (resolved.generic_filters_size() > 0) {
-    ResolveGenericSelections(&resolved);
-  }
-
-  bool has_effective_filter = false;
-  for (const int filter : resolved.filters()) {
+  // `request` is the already-resolved live filter state — checking the typed
+  // filters[] field is sufficient.
+  for (const int filter : request.filters()) {
     if (!IsFilterNone(static_cast<cuda_learning::FilterType>(filter))) {
-      has_effective_filter = true;
-      break;
+      return true;
     }
   }
-
-  if (!has_effective_filter && resolved.generic_filters_size() > 0) {
-    for (const auto& selection : resolved.generic_filters()) {
-      const std::string filter_id = NormalizeFilterId(selection.filter_id());
-      if (!filter_id.empty() && filter_id != "none") {
-        has_effective_filter = true;
-        break;
-      }
-    }
-  }
-
-  return has_effective_filter;
+  return false;
 }
 
 bool LiveVideoProcessor::CopyDecodedFrameToRgbBuffer(std::vector<uint8_t>* rgb_buffer,

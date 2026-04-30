@@ -1,0 +1,179 @@
+---
+# clang-uml configuration for cpp_accelerator
+# Generates Mermaid class diagrams from C++ source using Clang AST.
+#
+# Prerequisites:
+#   scripts/dev/install-clang-uml.sh   (one-time install)
+#   bazel run @hedron_compile_commands//:refresh_all  (keeps compile_commands.json fresh)
+#
+# Generate all diagrams:
+#   scripts/build/uml.sh
+#   scripts/build/uml.sh --diagram cpp_domain_layer   (single diagram)
+
+compilation_database_dir: .
+output_directory: docs/uml/generated
+
+# Drop flags clang-uml does not need (dependency tracking, random seeds).
+remove_compile_flags:
+  - -frandom-seed
+  - -MD
+  - -Wno-missing-requires
+
+add_compile_flags:
+  - --cuda-gpu-arch=sm_89
+  - --cuda-path=/usr/local/cuda-12.9
+
+# All diagrams share these defaults.
+generate_method_arguments: none
+include_relations_also_as_members: false
+
+# Link every element back to the GitHub source.
+generate_links:
+  link: "https://github.com/josnelihurt-code/learning-cuda/blob/{{ git.commit }}/{{ element.source.path }}#L{{ element.source.line }}"
+  tooltip: "{{ element.name }}"
+
+diagrams:
+  # ──────────────────────────────────────────────────────────────────────
+  # 1. Domain layer — pure abstractions, no infrastructure dependencies
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_domain_layer:
+    type: class
+    title: "Domain Layer — Interfaces & Models"
+    generate_packages: true
+    package_type: namespace
+    glob:
+      - src/cpp_accelerator/domain/**/*.h
+    include:
+      namespaces:
+        - jrb::domain
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 2. Application layer — engine, pipeline, factory registry
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_application_layer:
+    type: class
+    title: "Application Layer — Engine, Pipeline & Factory"
+    generate_packages: true
+    package_type: namespace
+    glob:
+      - src/cpp_accelerator/application/**/*.h
+    include:
+      namespaces:
+        - jrb::application
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 3. Ports — abstract hexagonal-architecture port interfaces
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_ports:
+    type: class
+    title: "Ports — Abstract Port Interfaces"
+    generate_packages: true
+    package_type: namespace
+    glob:
+      - src/cpp_accelerator/ports/**/*.h
+    include:
+      namespaces:
+        - jrb::ports
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 4. Compute adapters — CUDA, OpenCL, Vulkan, CPU backends
+  #    .cu kernel files are excluded (device code, not class structure)
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_compute_backends:
+    type: class
+    title: "Compute Adapters — CUDA / OpenCL / Vulkan / CPU Backends"
+    generate_packages: true
+    package_type: namespace
+    glob:
+      - src/cpp_accelerator/adapters/compute/cpu/*.h
+      - src/cpp_accelerator/adapters/compute/cuda/*.h
+      - src/cpp_accelerator/adapters/compute/cuda/filters/*.h
+      - src/cpp_accelerator/adapters/compute/cuda/memory/*.h
+      - src/cpp_accelerator/adapters/compute/cuda/tensorrt/*.h
+      - src/cpp_accelerator/adapters/compute/opencl/*.h
+      - src/cpp_accelerator/adapters/compute/opencl/filters/*.h
+      - src/cpp_accelerator/adapters/compute/vulkan/*.h
+      - src/cpp_accelerator/adapters/compute/vulkan/filters/*.h
+    include:
+      namespaces:
+        - jrb::adapters::compute
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb::adapters::compute
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 5. Control & media adapters — gRPC outbound client and WebRTC path
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_control_adapters:
+    type: class
+    title: "Control & Media Adapters — gRPC and WebRTC"
+    generate_packages: true
+    package_type: namespace
+    glob:
+      - src/cpp_accelerator/adapters/grpc_control/*.h
+      - src/cpp_accelerator/adapters/webrtc/*.h
+      - src/cpp_accelerator/adapters/webrtc/protocol/*.h
+      - src/cpp_accelerator/adapters/webrtc/sdp/*.h
+    include:
+      namespaces:
+        - jrb::adapters::grpc_control
+        - jrb::adapters::webrtc
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb::adapters
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 6. Core utilities — Logger, Telemetry, Result, SignalHandler
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_core:
+    type: class
+    title: "Core Utilities — Logger, Telemetry, Result"
+    generate_packages: true
+    package_type: namespace
+    glob:
+      - src/cpp_accelerator/core/*.h
+    include:
+      namespaces:
+        - jrb::core
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"

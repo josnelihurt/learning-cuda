@@ -446,6 +446,31 @@ cpp_accelerator/
 └── lessons_learned.md
 ```
 
+## UML Class Diagrams
+
+Mermaid class diagrams for each architectural layer are generated automatically from source using [clang-uml](https://github.com/bkryza/clang-uml) and the `compile_commands.json` produced by Bazel.
+
+| Diagram | Scope |
+|---------|-------|
+| [cpp_domain_layer](../../docs/uml/generated/cpp_domain_layer.mmd) | `jrb::domain` — interfaces & models |
+| [cpp_application_layer](../../docs/uml/generated/cpp_application_layer.mmd) | `jrb::application` — engine, pipeline, factories |
+| [cpp_ports](../../docs/uml/generated/cpp_ports.mmd) | `jrb::ports` — hexagonal port interfaces |
+| [cpp_compute_backends](../../docs/uml/generated/cpp_compute_backends.mmd) | `jrb::adapters::compute` — CUDA/OpenCL/Vulkan/CPU |
+| [cpp_control_adapters](../../docs/uml/generated/cpp_control_adapters.mmd) | gRPC control + WebRTC adapters |
+| [cpp_core](../../docs/uml/generated/cpp_core.mmd) | `jrb::core` — Logger, Telemetry, Result |
+
+**Regenerate diagrams** (after source changes):
+
+```bash
+# One-time install (Ubuntu 24.04)
+scripts/dev/install-clang-uml.sh
+
+# Generate / refresh
+scripts/build/uml.sh
+```
+
+See [docs/uml/README.md](../../docs/uml/README.md) for full documentation, viewing options, and troubleshooting.
+
 ## Sub-folder Documentation
 
 - **[adapters/compute/cuda/README.md](adapters/compute/cuda/README.md)** — Comprehensive CUDA tutorial covering kernel implementations, memory hierarchy, blur optimization variants, letterbox preprocessing, and TensorRT YOLO inference pipeline.

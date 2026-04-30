@@ -49,7 +49,7 @@ ensure_writable() {
 ensure_writable ".ignore/lib/cuda_learning"
 
 echo "Building CUDA shared library..."
-bazel build //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
+bazel build --config=cuda //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
 
 VERSION=$(cat src/cpp_accelerator/VERSION)
 TARGET_FILE=".ignore/lib/cuda_learning/accelerator_control_client_v${VERSION}"

@@ -13,7 +13,6 @@
 
 #include "src/cpp_accelerator/application/engine/filter_factory_registry.h"
 #include "src/cpp_accelerator/domain/interfaces/grayscale_algorithm.h"
-#include "src/cpp_accelerator/domain/interfaces/i_yolo_detector.h"
 
 namespace jrb::application::engine {
 
@@ -41,8 +40,6 @@ private:
 
   std::string component_name_;
   FilterFactoryRegistry factory_registry_;
-  std::unordered_map<std::string, std::shared_ptr<jrb::infrastructure::cuda::IYoloDetector>>
-      detector_cache_;
 };
 
 }  // namespace jrb::application::engine

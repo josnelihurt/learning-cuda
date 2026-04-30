@@ -137,7 +137,7 @@ run_optional_build() {
     fi
 
     echo "Building C++ accelerator client..."
-    bazel build //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
+    bazel build --config=cuda //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
 
     echo "Building backend with Go..."
     (cd src/go_api && make build)

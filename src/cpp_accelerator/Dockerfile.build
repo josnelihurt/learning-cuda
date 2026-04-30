@@ -63,6 +63,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     echo "${BUILD_START_MSG}" && \
     BUILD_START_TS=$(date +%s) && \
     LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
+      --config=cuda \
       --jobs=${JOBS} \
       ${COMMON_FLAGS} \
       ${ARCH_FLAGS} \

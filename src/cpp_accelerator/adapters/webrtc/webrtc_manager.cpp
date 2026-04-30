@@ -15,6 +15,7 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
+#include "src/cpp_accelerator/adapters/camera/gst_camera_source.h"
 #include "src/cpp_accelerator/adapters/webrtc/channel_labels.h"
 #include "src/cpp_accelerator/adapters/webrtc/protocol/data_channel_envelope.h"
 #include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
@@ -272,8 +273,126 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 }
 
 // ---------------------------------------------------------------------------
-// SetupPeerConnectionCallbacks
+// CreateCameraSession — like CreateSession but wires GstCameraSource output.
 // ---------------------------------------------------------------------------
+bool WebRTCManager::CreateCameraSession(const std::string& session_id,
+                                         const std::string& sdp_offer_str,
+                                         int sensor_id, int width, int height, int fps,
+                                         std::string* sdp_answer_str, std::string* error_message) {
+  if (!initialized_) {
+    if (error_message) *error_message = "WebRTC manager not initialized";
+    return false;
+  }
+  if (session_id.empty() || sdp_offer_str.empty()) {
+    if (error_message) *error_message = "session_id and sdp_offer are required";
+    return false;
+  }
+
+  std::lock_guard<std::mutex> lock(sessions_mutex_);
+  if (sessions_.count(session_id)) {
+    if (error_message) *error_message = "Session with ID " + session_id + " already exists";
+    return false;
+  }
+
+  try {
+    auto session = std::make_shared<SessionState>();
+    session->created_at = std::chrono::steady_clock::now();
+    session->last_heartbeat = std::chrono::steady_clock::now();
+    session->peer_connection = std::make_shared<rtc::PeerConnection>(*config_);
+
+    auto manual_candidate_ptr =
+        std::make_shared<std::string>(BuildManualCandidateSdp(session_id));
+
+    auto answer_future =
+        SetupPeerConnectionCallbacks(session_id, session, manual_candidate_ptr, sdp_answer_str);
+
+    SetupDataChannels(session_id, session);
+
+    const std::string sanitized_sdp = StripRtpHeaderExtensions(sdp_offer_str);
+    rtc::Description offer(sanitized_sdp, rtc::Description::Type::Offer);
+    try {
+      session->peer_connection->setRemoteDescription(offer);
+    } catch (const std::exception& e) {
+      if (error_message)
+        *error_message = std::string("Failed to set remote description: ") + e.what();
+      return false;
+    }
+
+    if (!SetupMediaTracks(session_id, session, offer, error_message)) {
+      return false;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    for (const auto& candidate : session->pending_candidates) {
+      session->peer_connection->addRemoteCandidate(candidate);
+    }
+    session->pending_candidates.clear();
+
+    try {
+      session->peer_connection->setLocalDescription(rtc::Description::Type::Answer);
+    } catch (const std::exception& e) {
+      spdlog::warn("[WebRTC:{}] setLocalDescription threw (may be non-fatal): {}", session_id,
+                   e.what());
+    }
+
+    if (!WaitForSdpAnswer(session_id, answer_future, *session->peer_connection, sdp_answer_str)) {
+      if (error_message) *error_message = "Timeout waiting for SDP answer";
+      return false;
+    }
+
+    session->gst_camera_source = std::make_unique<jrb::adapters::camera::GstCameraSource>();
+    session->gst_camera_source->SetFrameCallback(
+        [weak_self = weak_from_this(), sid = session_id](rtc::binary data, rtc::FrameInfo info) {
+          auto mgr = weak_self.lock();
+          if (!mgr) return;
+          auto s = mgr->GetSession(sid);
+          if (!s || !s->outbound_video_track) return;
+          if (!s->outbound_video_track->isOpen()) return;
+          try {
+            s->outbound_video_track->sendFrame(std::move(data), info);
+          } catch (const std::exception& e) {
+            spdlog::warn("[Camera:{}] Frame send failed: {}", sid, e.what());
+          }
+        });
+
+    std::string cam_err;
+    if (!session->gst_camera_source->Start(sensor_id, width, height, fps, &cam_err)) {
+      if (error_message) *error_message = "Failed to start camera: " + cam_err;
+      spdlog::error("[WebRTC:{}] Failed to start camera sensor_id={}: {}", session_id,
+                    sensor_id, cam_err);
+      return false;
+    }
+
+    spdlog::info("[WebRTC:{}] Camera session created (sensor_id={}, {}x{}@{}fps)",
+                 session_id, sensor_id, width, height, fps);
+
+    sessions_[session_id] = session;
+    return true;
+  } catch (const std::exception& e) {
+    if (error_message)
+      *error_message = "Failed to create camera WebRTC session: " + std::string(e.what());
+    spdlog::error("[WebRTC:{}] Failed to create camera session: {}", session_id, e.what());
+    RemoveSession(session_id);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// StopCameraSession
+// ---------------------------------------------------------------------------
+bool WebRTCManager::StopCameraSession(const std::string& session_id, std::string* error_message) {
+  auto session = GetSession(session_id);
+  if (!session) {
+    if (error_message) *error_message = "Session not found: " + session_id;
+    return false;
+  }
+  if (session->gst_camera_source) {
+    session->gst_camera_source->Stop();
+  }
+  return CloseSession(session_id, error_message);
+}
+
+
 std::shared_future<std::string> WebRTCManager::SetupPeerConnectionCallbacks(
     const std::string& session_id,
     std::shared_ptr<SessionState> session,
@@ -808,6 +927,53 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
         option->set_type(type);
         option->set_label(jrb::application::server_info::AcceleratorTypeLabel(type));
       }
+      break;
+    }
+    case cuda_learning::ControlRequest::kStartCameraStream: {
+      const auto& req = request.start_camera_stream();
+      spdlog::info("[WebRTC:{}] StartCameraStream sensor_id={} {}x{}@{}fps", session_id,
+                   req.sensor_id(), req.width(), req.height(), req.fps());
+      auto* resp = response.mutable_start_camera_stream();
+      if (state.gst_camera_source) {
+        state.gst_camera_source->Stop();
+        state.gst_camera_source.reset();
+      }
+      state.gst_camera_source = std::make_unique<jrb::adapters::camera::GstCameraSource>();
+      state.gst_camera_source->SetFrameCallback(
+          [weak_mgr = weak_from_this(), sid = session_id](rtc::binary data, rtc::FrameInfo info) {
+            auto mgr = weak_mgr.lock();
+            if (!mgr) return;
+            auto s = mgr->GetSession(sid);
+            if (!s || !s->outbound_video_track) return;
+            if (!s->outbound_video_track->isOpen()) return;
+            try {
+              s->outbound_video_track->sendFrame(std::move(data), info);
+            } catch (const std::exception& e) {
+              spdlog::warn("[Camera:{}] Frame send failed: {}", sid, e.what());
+            }
+          });
+      std::string cam_err;
+      const int w = req.width() > 0 ? req.width() : 1920;
+      const int h = req.height() > 0 ? req.height() : 1080;
+      const int f = req.fps() > 0 ? req.fps() : 60;
+      const bool ok = state.gst_camera_source->Start(req.sensor_id(), w, h, f, &cam_err);
+      resp->set_accepted(ok);
+      if (!ok) {
+        resp->set_reason(cam_err);
+        spdlog::error("[WebRTC:{}] Failed to start camera sensor_id={}: {}", session_id,
+                      req.sensor_id(), cam_err);
+        state.gst_camera_source.reset();
+      }
+      break;
+    }
+    case cuda_learning::ControlRequest::kStopCameraStream: {
+      spdlog::info("[WebRTC:{}] StopCameraStream", session_id);
+      if (state.gst_camera_source) {
+        state.gst_camera_source->Stop();
+        state.gst_camera_source.reset();
+      }
+      auto* resp = response.mutable_stop_camera_stream();
+      resp->set_stopped(true);
       break;
     }
     default: {

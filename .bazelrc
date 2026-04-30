@@ -15,6 +15,12 @@ build:full   --config=cuda
 build:full   --config=opencl
 build:full   --config=vulkan
 
+# USB camera support (x86 dev machines with V4L2 cameras + GStreamer + x264enc installed).
+# Requires: sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+#               libgstreamer-plugins-ugly1.0-dev gstreamer1.0-plugins-good
+# Mounts the arch-specific GLib config header path into the Bazel sandbox.
+build:v4l2-camera --//bazel/flags:v4l2_camera=true
+
 # Build settings
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23

@@ -24,6 +24,12 @@ bool_flag(
     visibility = ["//visibility:public"],
 )
 
+bool_flag(
+    name = "v4l2_camera",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
 config_setting(
     name = "cuda_enabled",
     flag_values = {":cuda": "true"},
@@ -39,5 +45,11 @@ config_setting(
 config_setting(
     name = "vulkan_enabled",
     flag_values = {":vulkan": "true"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "v4l2_camera_enabled",
+    flag_values = {":v4l2_camera": "true"},
     visibility = ["//visibility:public"],
 )

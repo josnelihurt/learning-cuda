@@ -1,4 +1,5 @@
 #include <memory>
+#include <sstream>
 #include <string>
 
 #pragma GCC diagnostic push
@@ -9,6 +10,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 
+#include "src/cpp_accelerator/adapters/camera/camera_detector.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/core/signal_handler.h"
 #include "src/cpp_accelerator/core/version.h"
@@ -30,6 +32,8 @@ ABSL_FLAG(std::string, client_key, ".secrets/dev-accelerator-client-key.pem",
 ABSL_FLAG(std::string, ca_cert, ".secrets/accelerator-ca.pem",
           "Path to CA certificate used to verify the server (PEM).");
 ABSL_FLAG(int, max_reconnect_delay_s, 60, "Maximum reconnect back-off in seconds.");
+ABSL_FLAG(std::string, cameras, "0,1",
+          "Comma-separated sensor IDs to probe and advertise as remote cameras.");
 
 // This is the main entry point for the accelerator control client.
 int main(int argc, char** argv) {
@@ -42,6 +46,7 @@ int main(int argc, char** argv) {
   spdlog::info("Control addr: {}", absl::GetFlag(FLAGS_control_addr));
   spdlog::info("Device ID:    {}", absl::GetFlag(FLAGS_device_id));
   spdlog::info("CUDA device:  {}", absl::GetFlag(FLAGS_cuda_device_id));
+  spdlog::info("Cameras:      {}", absl::GetFlag(FLAGS_cameras));
   spdlog::info("========================================");
 
   auto engine = std::make_shared<jrb::application::engine::ProcessorEngine>("accelerator-client");
@@ -75,6 +80,28 @@ int main(int argc, char** argv) {
   cfg.client_key_file = absl::GetFlag(FLAGS_client_key);
   cfg.ca_cert_file = absl::GetFlag(FLAGS_ca_cert);
   cfg.max_reconnect_delay_s = absl::GetFlag(FLAGS_max_reconnect_delay_s);
+
+  // Parse comma-separated sensor IDs and detect cameras.
+  {
+    const std::string cameras_flag = absl::GetFlag(FLAGS_cameras);
+    std::vector<int> sensor_ids;
+    std::stringstream ss(cameras_flag);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+      try {
+        const int id = std::stoi(token);
+        sensor_ids.push_back(id);
+      } catch (...) {
+        spdlog::warn("Invalid sensor ID in --cameras: '{}'", token);
+      }
+    }
+    cfg.cameras = jrb::adapters::camera::DetectCameras(sensor_ids);
+    spdlog::info("Detected {} camera(s):", cfg.cameras.size());
+    for (const auto& cam : cfg.cameras) {
+      spdlog::info("  sensor_id={} display_name='{}' model='{}'",
+                   cam.sensor_id(), cam.display_name(), cam.model());
+    }
+  }
 
   jrb::adapters::grpc_control::AcceleratorControlClient client(cfg, adapter, webrtc_manager);
 

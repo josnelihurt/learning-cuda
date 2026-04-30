@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -35,6 +36,8 @@ struct AcceleratorControlClientConfig {
   std::string ca_cert_file;
   // Backoff ceiling for reconnect attempts (seconds).
   int max_reconnect_delay_s{60};
+  // Cameras detected at startup, populated from CLI --cameras flag.
+  std::vector<cuda_learning::RemoteCameraInfo> cameras;
 };
 
 // AcceleratorControlClient dials the Go cloud control server, authenticates

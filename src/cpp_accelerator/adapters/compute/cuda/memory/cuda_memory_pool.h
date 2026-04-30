@@ -5,7 +5,7 @@
 #include <mutex>
 #include <unordered_map>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 class CudaMemoryPool {
 public:
@@ -34,4 +34,4 @@ private:
 // Each WebRTC processing thread gets its own isolated pool
 CudaMemoryPool& GetThreadLocalMemoryPool();
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

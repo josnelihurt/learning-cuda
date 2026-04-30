@@ -16,11 +16,11 @@ namespace {
 using jrb::domain::interfaces::FilterType;
 using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
-using jrb::infrastructure::cpu::BorderMode;
-using jrb::infrastructure::cpu::GaussianBlurFilter;
-using jrb::infrastructure::cpu::GrayscaleAlgorithm;
-using jrb::infrastructure::cpu::GrayscaleFilter;
-using jrb::infrastructure::image::ImageLoader;
+using jrb::adapters::compute::cpu::BorderMode;
+using jrb::adapters::compute::cpu::GaussianBlurFilter;
+using jrb::adapters::compute::cpu::GrayscaleAlgorithm;
+using jrb::adapters::compute::cpu::GrayscaleFilter;
+using jrb::adapters::image::ImageLoader;
 
 class FilterPipelineTest : public ::testing::Test {
 protected:

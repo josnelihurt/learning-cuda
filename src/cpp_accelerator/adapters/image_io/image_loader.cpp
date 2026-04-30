@@ -10,7 +10,7 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-namespace jrb::infrastructure::image {
+namespace jrb::adapters::image {
 
 ImageLoader::ImageLoader() : data_(nullptr), width_(0), height_(0), channels_(0) {
   data_ = stbi_load(kImagePath, &width_, &height_, &channels_, 0);
@@ -74,4 +74,4 @@ ImageLoader& ImageLoader::operator=(ImageLoader&& other) noexcept {
   return *this;
 }
 
-}  // namespace jrb::infrastructure::image
+}  // namespace jrb::adapters::image

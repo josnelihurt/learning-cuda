@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 struct Detection {
     float x, y, width, height;
@@ -11,4 +11,4 @@ struct Detection {
     float confidence;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

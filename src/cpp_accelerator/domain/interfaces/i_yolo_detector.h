@@ -4,7 +4,7 @@
 #include "src/cpp_accelerator/domain/models/detection.h"
 #include <vector>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 class IYoloDetector : public jrb::domain::interfaces::IFilter {
 public:
@@ -12,4 +12,4 @@ public:
     virtual const std::vector<Detection>& GetDetections() const = 0;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

@@ -153,7 +153,7 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     session->last_heartbeat = std::chrono::steady_clock::now();
     session->peer_connection = std::make_shared<rtc::PeerConnection>(*config_);
     // Create memory pool before LiveVideoProcessor so the pool pointer is valid.
-    session->memory_pool = std::make_unique<jrb::infrastructure::cuda::CudaMemoryPool>();
+    session->memory_pool = std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>();
     session->live_video_processor =
         std::make_unique<LiveVideoProcessor>(engine_.get(), session->memory_pool.get());
     session->live_filter_state.set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);

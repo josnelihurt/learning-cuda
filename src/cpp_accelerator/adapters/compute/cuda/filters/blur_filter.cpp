@@ -1,0 +1,121 @@
+#include "src/cpp_accelerator/adapters/compute/cuda/filters/blur_filter.h"
+
+#include <cmath>
+#include <string>
+#include <vector>
+
+#include "src/cpp_accelerator/core/telemetry.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/kernels/blur_kernel.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <spdlog/spdlog.h>
+#pragma GCC diagnostic pop
+
+namespace jrb::adapters::compute::cuda {
+
+constexpr float kSqrt2Pi = 2.506628274631000242F;
+
+GaussianBlurFilter::GaussianBlurFilter(int kernel_size, float sigma, BorderMode border_mode,
+                                               bool separable)
+    : kernel_size_(kernel_size), sigma_(sigma), border_mode_(border_mode), separable_(separable) {
+  InitializeKernel();
+}
+
+GaussianBlurFilter::~GaussianBlurFilter() = default;
+
+void GaussianBlurFilter::InitializeKernel() {
+  if (kernel_size_ % 2 == 0) {
+    kernel_size_++;
+  }
+
+  int radius = kernel_size_ / 2;
+  kernel_.resize(kernel_size_);
+
+  float sum = 0.0F;
+  for (int i = 0; i < kernel_size_; i++) {
+    float x = static_cast<float>(i - radius);
+    float value = std::exp(-0.5F * (x * x) / (sigma_ * sigma_)) / (sigma_ * kSqrt2Pi);
+    kernel_[i] = value;
+    sum += value;
+  }
+
+  for (int i = 0; i < kernel_size_; i++) {
+    kernel_[i] /= sum;
+  }
+}
+
+void GaussianBlurFilter::SetKernelSize(int size) {
+  kernel_size_ = size;
+  InitializeKernel();
+}
+
+void GaussianBlurFilter::SetSigma(float sigma) {
+  sigma_ = sigma;
+  InitializeKernel();
+}
+
+void GaussianBlurFilter::SetBorderMode(BorderMode mode) {
+  border_mode_ = mode;
+}
+
+FilterType GaussianBlurFilter::GetType() const {
+  return FilterType::BLUR;
+}
+
+bool GaussianBlurFilter::IsInPlace() const {
+  return false;
+}
+
+int GaussianBlurFilter::GetKernelSize() const {
+  return kernel_size_;
+}
+
+float GaussianBlurFilter::GetSigma() const {
+  return sigma_;
+}
+
+BorderMode GaussianBlurFilter::GetBorderMode() const {
+  return border_mode_;
+}
+
+bool GaussianBlurFilter::Apply(FilterContext& context) {
+  auto& telemetry = core::telemetry::TelemetryManager::GetInstance();
+  auto span = telemetry.CreateSpan("cuda-blur", "apply_gaussian_blur_cuda");
+  core::telemetry::ScopedSpan scoped_span(span);
+
+  scoped_span.SetAttribute("image.width", static_cast<int64_t>(context.input.width));
+  scoped_span.SetAttribute("image.height", static_cast<int64_t>(context.input.height));
+  scoped_span.SetAttribute("image.channels", static_cast<int64_t>(context.input.channels));
+  scoped_span.SetAttribute("kernel.size", static_cast<int64_t>(kernel_size_));
+  scoped_span.SetAttribute("kernel.sigma", static_cast<double>(sigma_));
+  scoped_span.SetAttribute("kernel.separable", separable_);
+
+  scoped_span.AddEvent(separable_ ? "Calling pure CUDA separable blur kernel"
+                                  : "Calling pure CUDA non-separable blur kernel");
+
+  cudaError_t error;
+  if (separable_) {
+    error = cuda_apply_gaussian_blur_separable(
+        context.input.data, context.output.data, context.input.width, context.input.height,
+        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_),
+        context.memory_pool);
+  } else {
+    error = cuda_apply_gaussian_blur_non_separable(
+        context.input.data, context.output.data, context.input.width, context.input.height,
+        context.input.channels, kernel_.data(), kernel_size_, static_cast<int>(border_mode_),
+        context.memory_pool);
+  }
+
+  if (error != cudaSuccess) {
+    std::string error_msg = std::string("CUDA blur kernel failed: ") + cudaGetErrorString(error);
+    spdlog::error(error_msg);
+    scoped_span.RecordError(error_msg);
+    return false;
+  }
+
+  scoped_span.AddEvent("CUDA blur kernel completed successfully");
+  return true;
+}
+
+}  // namespace jrb::adapters::compute::cuda

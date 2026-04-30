@@ -4,7 +4,7 @@
 
 #include "src/cpp_accelerator/adapters/compute/cuda/memory/cuda_memory_pool.h"
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 enum class BorderMode : int { CLAMP = 0, REFLECT = 1, WRAP = 2 };
 constexpr int K_MAX_KERNEL_SIZE = 63;
@@ -127,4 +127,4 @@ static cudaError_t AllocateMemoryPooled(int width, int height, int channels, int
   return cudaSuccess;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

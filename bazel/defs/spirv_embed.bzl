@@ -53,7 +53,7 @@ def _spirv_embed_blob_header(name, embed_cl = False):
         name = name + "_blob_h",
         outs = [name + "_blob.h"],
         cmd = "cat > $@ <<'SPIRV_IL_HDR_EOF'\n" + body + "\nSPIRV_IL_HDR_EOF",
-        visibility = ["//visibility:private"],
+        visibility = ["//visibility:public"],
     )
 
 def spirv_shader_embed_cpp(name, shader):
@@ -75,7 +75,7 @@ def spirv_shader_embed_cpp(name, shader):
         srcs = [shader],
         outs = [name + ".spv"],
         cmd = "glslc -c $< -o $@",
-        visibility = ["//visibility:private"],
+        visibility = ["//visibility:public"],
     )
     native.genrule(
         name = embed,
@@ -84,7 +84,7 @@ def spirv_shader_embed_cpp(name, shader):
         cmd = (
             "cp $(location :%s) %s.spv && xxd -i %s.spv > $@ && rm -f %s.spv" % (spir, name, name, name)
         ),
-        visibility = ["//visibility:private"],
+        visibility = ["//visibility:public"],
     )
     _spirv_embed_blob_header(name, embed_cl = False)
 
@@ -110,7 +110,7 @@ def spirv_bytes_embed_cpp(name, spv, embed_cl = False):
         cmd = (
             "cp $(location %s) %s.spv && xxd -i %s.spv > $@ && rm -f %s.spv" % (spv, name, name, name)
         ),
-        visibility = ["//visibility:private"],
+        visibility = ["//visibility:public"],
     )
     _spirv_embed_blob_header(name, embed_cl = embed_cl)
 
@@ -128,5 +128,5 @@ def text_bytes_embed_cpp(name, text_src, out_cpp):
             "cp $(location %s) %s && xxd -i %s > $@ && rm -f %s"
             % (text_src, text_src, text_src, text_src)
         ),
-        visibility = ["//visibility:private"],
+        visibility = ["//visibility:public"],
     )

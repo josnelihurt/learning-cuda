@@ -7,7 +7,7 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-namespace jrb::infrastructure::config {
+namespace jrb::adapters::config {
 
 core::Result<models::ProgramConfig> ConfigManager::parse(std::span<const char*> args) {
   // Convert span to argc/argv for Lyra
@@ -63,4 +63,4 @@ core::Result<models::ProgramConfig> ConfigManager::parse(std::span<const char*> 
                                                  "Configuration parsed successfully");
 }
 
-}  // namespace jrb::infrastructure::config
+}  // namespace jrb::adapters::config

@@ -8,7 +8,7 @@
 #include <mutex>
 #include <unordered_map>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 class ModelManager {
  public:
@@ -29,4 +29,4 @@ class ModelManager {
   bool initialized_ = false;
 };
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

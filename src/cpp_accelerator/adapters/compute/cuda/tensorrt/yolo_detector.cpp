@@ -46,7 +46,7 @@ static constexpr const char* kCocoClassNames[] = {"person",        "bicycle",   
 static_assert(sizeof(kCocoClassNames) / sizeof(kCocoClassNames[0]) == 80,
               "kCocoClassNames must have exactly 80 entries");
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 // TensorRT Logger
 class TRTLogger : public nvinfer1::ILogger {
@@ -508,7 +508,7 @@ namespace {
 
 // Thread-local storage for detection results — each WebRTC callback thread gets its own copy,
 // eliminating races between concurrent frame-processing threads.
-thread_local std::vector<jrb::infrastructure::cuda::Detection> tl_detections;
+thread_local std::vector<jrb::adapters::compute::cuda::Detection> tl_detections;
 
 void CopyInputToOutput(const jrb::domain::interfaces::FilterContext& context) {
   const int width = context.input.width;
@@ -576,4 +576,4 @@ const std::vector<Detection>& YOLODetector::GetDetections() const {
   return tl_detections;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

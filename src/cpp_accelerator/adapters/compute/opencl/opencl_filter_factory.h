@@ -2,7 +2,7 @@
 
 #include "src/cpp_accelerator/application/engine/i_filter_factory.h"
 
-namespace jrb::infrastructure::opencl {
+namespace jrb::adapters::compute::opencl {
 
 // Filter factory for the OpenCL accelerator.
 // Supports grayscale and Gaussian blur. No user-configurable parameters —
@@ -21,4 +21,4 @@ class OpenCLFilterFactory : public jrb::application::engine::IFilterFactory {
       const jrb::application::engine::FilterCreationParams& params) const override;
 };
 
-}  // namespace jrb::infrastructure::opencl
+}  // namespace jrb::adapters::compute::opencl

@@ -5,7 +5,7 @@
 #include "src/cpp_accelerator/core/result.h"
 #include "src/cpp_accelerator/adapters/config/models/program_config.h"
 
-namespace jrb::infrastructure::config {
+namespace jrb::adapters::config {
 
 class ConfigManager {
 public:
@@ -16,4 +16,4 @@ private:
   ConfigManager() = delete;
 };
 
-}  // namespace jrb::infrastructure::config
+}  // namespace jrb::adapters::config

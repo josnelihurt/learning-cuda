@@ -2,7 +2,7 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/tensorrt/yolo_factory.h"
 #include <spdlog/spdlog.h>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 ModelManager& ModelManager::GetInstance() {
   static ModelManager instance;
@@ -58,4 +58,4 @@ std::vector<std::string> ModelManager::GetAvailableModels() const {
   return model_ids;
 }
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

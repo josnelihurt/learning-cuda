@@ -2,7 +2,7 @@
 
 #include <cuda_runtime.h>
 
-namespace jrb::infrastructure::cuda {
+namespace jrb::adapters::compute::cuda {
 
 extern "C" cudaError_t cuda_apply_gaussian_blur_1d_horizontal(const unsigned char* input,
                                                               unsigned char* output, int width,
@@ -28,4 +28,4 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_non_separable(const unsigned cha
                                                               const float* kernel, int kernel_size,
                                                               int border_mode, void* pool = nullptr);
 
-}  // namespace jrb::infrastructure::cuda
+}  // namespace jrb::adapters::compute::cuda

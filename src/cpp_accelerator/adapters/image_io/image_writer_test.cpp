@@ -4,7 +4,7 @@
 #include <fstream>
 #include <vector>
 
-namespace jrb::infrastructure::image {
+namespace jrb::adapters::image {
 namespace {
 
 class ImageWriterTest : public ::testing::Test {
@@ -170,4 +170,4 @@ TEST_F(ImageWriterTest, InterfaceImplementation) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::image
+}  // namespace jrb::adapters::image

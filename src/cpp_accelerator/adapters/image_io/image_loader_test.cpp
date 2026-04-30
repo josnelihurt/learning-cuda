@@ -1,7 +1,7 @@
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
 #include <gtest/gtest.h>
 
-namespace jrb::infrastructure::image {
+namespace jrb::adapters::image {
 namespace {
 
 class ImageLoaderTest : public ::testing::Test {};
@@ -113,4 +113,4 @@ TEST_F(ImageLoaderTest, InterfaceImplementation) {
 }
 
 }  // namespace
-}  // namespace jrb::infrastructure::image
+}  // namespace jrb::adapters::image

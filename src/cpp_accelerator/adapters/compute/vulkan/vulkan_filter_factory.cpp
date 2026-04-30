@@ -1,11 +1,11 @@
 #include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_filter_factory.h"
 
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_blur_filter.h"
-#include "src/cpp_accelerator/adapters/compute/vulkan/vulkan_grayscale_filter.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/filters/blur_filter.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/filters/grayscale_filter.h"
 #include "src/cpp_accelerator/application/engine/filter_creation_dispatch.hpp"
 #include "src/cpp_accelerator/application/engine/filter_descriptor.h"
 
-namespace jrb::infrastructure::vulkan {
+namespace jrb::adapters::compute::vulkan {
 
 using jrb::application::engine::FilterCreationParams;
 using jrb::application::engine::FilterDescriptor;
@@ -26,8 +26,8 @@ std::vector<FilterDescriptor> VulkanFilterFactory::GetFilterDescriptors() const 
 std::unique_ptr<jrb::domain::interfaces::IFilter> VulkanFilterFactory::CreateFilter(
     FilterType type, const FilterCreationParams& /*params*/) const {
   return jrb::application::engine::DispatchCreateFilter(
-      type, []() { return std::make_unique<VulkanGrayscaleFilter>(); },
-      []() { return std::make_unique<VulkanBlurFilter>(); });
+      type, []() { return std::make_unique<GrayscaleFilter>(); },
+      []() { return std::make_unique<GaussianBlurFilter>(); });
 }
 
-}  // namespace jrb::infrastructure::vulkan
+}  // namespace jrb::adapters::compute::vulkan

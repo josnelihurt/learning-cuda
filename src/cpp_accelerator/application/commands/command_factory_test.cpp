@@ -15,38 +15,38 @@ TEST_F(CommandFactoryTest, FactoryIsConstructed) {
 }
 
 TEST_F(CommandFactoryTest, PassthroughTypeIsNotRegistered) {
-  auto program_type = infrastructure::config::models::ProgramType::Passthrough;
+  auto program_type = adapters::config::models::ProgramType::Passthrough;
   bool is_registered = uut.is_registered(program_type);
   EXPECT_FALSE(is_registered);
 }
 
 TEST_F(CommandFactoryTest, CudaImageFiltersTypeIsNotRegistered) {
-  auto program_type = infrastructure::config::models::ProgramType::CudaImageFilters;
+  auto program_type = adapters::config::models::ProgramType::CudaImageFilters;
   bool is_registered = uut.is_registered(program_type);
   EXPECT_FALSE(is_registered);
 }
 
 TEST_F(CommandFactoryTest, CpuImageFiltersTypeIsNotRegistered) {
-  auto program_type = infrastructure::config::models::ProgramType::CpuImageFilters;
+  auto program_type = adapters::config::models::ProgramType::CpuImageFilters;
   bool is_registered = uut.is_registered(program_type);
   EXPECT_FALSE(is_registered);
 }
 
 TEST_F(CommandFactoryTest, CreatePassthroughCommandReturnsNull) {
-  infrastructure::config::models::ProgramConfig config{
+  adapters::config::models::ProgramConfig config{
       .input_image_path = "data/static_images/lena.png",
       .output_image_path = "data/output.png",
-      .program_type = infrastructure::config::models::ProgramType::Passthrough};
+      .program_type = adapters::config::models::ProgramType::Passthrough};
 
   auto command = uut.create(config.program_type, config);
   ASSERT_EQ(command, nullptr);
 }
 
 TEST_F(CommandFactoryTest, CreateCudaImageFiltersCommandReturnsNull) {
-  infrastructure::config::models::ProgramConfig config{
+  adapters::config::models::ProgramConfig config{
       .input_image_path = "data/static_images/lena.png",
       .output_image_path = "/tmp/test_grayscale_output.png",
-      .program_type = infrastructure::config::models::ProgramType::CudaImageFilters};
+      .program_type = adapters::config::models::ProgramType::CudaImageFilters};
 
   auto command = uut.create(config.program_type, config);
   ASSERT_EQ(command, nullptr);

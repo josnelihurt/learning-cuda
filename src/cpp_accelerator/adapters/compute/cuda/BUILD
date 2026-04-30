@@ -6,7 +6,7 @@ cc_library(
     hdrs = ["cuda_filter_factory.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src/cpp_accelerator/adapters/compute/cuda/filters:blur_processor",
+        "//src/cpp_accelerator/adapters/compute/cuda/filters:blur_filter",
         "//src/cpp_accelerator/adapters/compute/cuda/filters:grayscale_filter",
         "//src/cpp_accelerator/application/engine:filter_interfaces",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",

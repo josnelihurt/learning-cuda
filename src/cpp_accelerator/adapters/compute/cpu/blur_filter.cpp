@@ -8,7 +8,7 @@
 #include "src/cpp_accelerator/domain/interfaces/i_pixel_getter.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::cpu {
+namespace jrb::adapters::compute::cpu {
 
 using jrb::domain::interfaces::FilterContext;
 using jrb::domain::interfaces::FilterType;
@@ -281,4 +281,4 @@ bool GaussianBlurFilter::Apply(FilterContext& context) {
   return true;
 }
 
-}  // namespace jrb::infrastructure::cpu
+}  // namespace jrb::adapters::compute::cpu

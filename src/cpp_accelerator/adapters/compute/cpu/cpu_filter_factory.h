@@ -2,7 +2,7 @@
 
 #include "src/cpp_accelerator/application/engine/i_filter_factory.h"
 
-namespace jrb::infrastructure::cpu {
+namespace jrb::adapters::compute::cpu {
 
 class CpuFilterFactory : public jrb::application::engine::IFilterFactory {
  public:
@@ -18,4 +18,4 @@ class CpuFilterFactory : public jrb::application::engine::IFilterFactory {
       const jrb::application::engine::FilterCreationParams& params) const override;
 };
 
-}  // namespace jrb::infrastructure::cpu
+}  // namespace jrb::adapters::compute::cpu

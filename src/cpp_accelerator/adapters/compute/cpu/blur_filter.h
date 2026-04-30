@@ -8,7 +8,7 @@
 #include "src/cpp_accelerator/domain/interfaces/i_pixel_getter.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
-namespace jrb::infrastructure::cpu {
+namespace jrb::adapters::compute::cpu {
 namespace internal {
 class BorderClamperFactory;
 }
@@ -73,4 +73,4 @@ private:
   std::unique_ptr<internal::BorderClamperFactory> border_clamper_factory_;
 };
 
-}  // namespace jrb::infrastructure::cpu
+}  // namespace jrb::adapters::compute::cpu

@@ -59,6 +59,26 @@ message AcceleratorMessage {
   }
 }
 
+// RemoteCameraMode describes a single sensor mode supported by a camera.
+message RemoteCameraMode {
+  int32 width = 1;
+  int32 height = 2;
+  double fps = 3;
+}
+
+// RemoteCameraInfo describes a camera sensor attached to the accelerator device.
+// Populated during registration so the cloud can surface it as a remote input.
+message RemoteCameraInfo {
+  // Argus sensor-id (0, 1, …).
+  int32 sensor_id = 1;
+  // Human-readable label, e.g. "IMX477 (CAM0)".
+  string display_name = 2;
+  // Sensor model string, e.g. "imx477".
+  string model = 3;
+  // All sensor modes reported by Argus at startup.
+  repeated RemoteCameraMode modes = 4;
+}
+
 // Register is the first message sent by the accelerator after Connect().
 // The server replies with RegisterAck.  If RegisterAck.accepted is false
 // the accelerator must close the stream and back off before retrying.
@@ -75,6 +95,8 @@ message Register {
   repeated AcceleratorType supported_accelerator_types = 5;
   // Free-form metadata reserved for v2 multi-device routing.
   map<string, string> labels = 6;
+  // Camera sensors detected on this device at startup.
+  repeated RemoteCameraInfo cameras = 7;
 }
 
 // RegisterAck is the server's response to Register.

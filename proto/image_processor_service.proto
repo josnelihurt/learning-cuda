@@ -18,6 +18,8 @@ message ControlRequest {
     ListFiltersRequest list_filters = 10 [json_name = "list_filters"];
     GetVersionInfoRequest get_version = 11 [json_name = "get_version"];
     GetAcceleratorCapabilitiesRequest get_accelerator_capabilities = 12 [json_name = "get_accelerator_capabilities"];
+    StartCameraStreamRequest start_camera_stream = 13 [json_name = "start_camera_stream"];
+    StopCameraStreamRequest stop_camera_stream = 14 [json_name = "stop_camera_stream"];
   }
 }
 
@@ -31,6 +33,8 @@ message ControlResponse {
     ListFiltersResponse list_filters = 10 [json_name = "list_filters"];
     GetVersionInfoResponse get_version = 11 [json_name = "get_version"];
     GetAcceleratorCapabilitiesResponse get_accelerator_capabilities = 12 [json_name = "get_accelerator_capabilities"];
+    StartCameraStreamResponse start_camera_stream = 13 [json_name = "start_camera_stream"];
+    StopCameraStreamResponse stop_camera_stream = 14 [json_name = "stop_camera_stream"];
     ControlError error = 99 [json_name = "error"];
   }
 }
@@ -280,6 +284,28 @@ message GetVersionInfoResponse {
   string build_commit = 11 [json_name = "build_commit"];
   TraceContext trace_context = 13 [json_name = "trace_context"];
   string api_version = 15 [json_name = "api_version"];
+}
+
+// StartCameraStreamRequest is sent by the browser over the WebRTC control
+// data channel to instruct the C++ accelerator to begin capturing a local
+// camera sensor and push processed video on the outbound video track.
+message StartCameraStreamRequest {
+  int32 sensor_id = 1 [json_name = "sensor_id"];
+  int32 width = 2 [json_name = "width"];
+  int32 height = 3 [json_name = "height"];
+  int32 fps = 4 [json_name = "fps"];
+}
+
+message StartCameraStreamResponse {
+  bool accepted = 1 [json_name = "accepted"];
+  string reason = 2 [json_name = "reason"];
+}
+
+// StopCameraStreamRequest halts the camera capture for this WebRTC session.
+message StopCameraStreamRequest {}
+
+message StopCameraStreamResponse {
+  bool stopped = 1 [json_name = "stopped"];
 }
 
 // VideoPlaybackService handles server-initiated playback of locally stored

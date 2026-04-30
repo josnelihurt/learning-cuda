@@ -48,7 +48,7 @@ Files at a glance:
 |---|---|
 | `memory/cuda_memory_pool.{h,cpp}` | Thread-local GPU allocation cache. Kills `cudaMalloc/Free` churn. |
 | `kernels/grayscale_kernel.cu` + `filters/grayscale_filter.{h,cpp}` | RGB → 1-channel luma, 5 algorithms. |
-| `kernels/blur/` + `filters/blur_processor*` | Gaussian blur, four flavors (full 2D, two 1D passes, separable+tiled). |
+| `kernels/blur/` + `filters/blur_filter*` | Gaussian blur, four flavors (full 2D, two 1D passes, separable+tiled). |
 | `kernels/letterbox_kernel.cu` | Aspect-preserving resize + pad + uint8→float NCHW for TRT input. |
 | `tensorrt/yolo_detector.{h,cpp}` + `tensorrt/model_*`, `tensorrt/yolo_factory*` | TensorRT-based YOLO inference + NMS post-process. |
 

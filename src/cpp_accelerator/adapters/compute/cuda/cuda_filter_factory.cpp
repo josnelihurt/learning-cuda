@@ -1,6 +1,6 @@
 #include "src/cpp_accelerator/adapters/compute/cuda/cuda_filter_factory.h"
 
-#include "src/cpp_accelerator/adapters/compute/cuda/filters/blur_processor.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/filters/blur_filter.h"
 #include "src/cpp_accelerator/adapters/compute/cuda/filters/grayscale_filter.h"
 #include "src/cpp_accelerator/application/engine/filter_creation_dispatch.hpp"
 #include "src/cpp_accelerator/application/engine/filter_descriptor.h"

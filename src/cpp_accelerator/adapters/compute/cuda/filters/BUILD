@@ -1,9 +1,9 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 cc_library(
-    name = "blur_processor",
-    srcs = ["blur_processor_wrapper.cpp"],
-    hdrs = ["blur_processor.h"],
+    name = "blur_filter",
+    srcs = ["blur_filter.cpp"],
+    hdrs = ["blur_filter.h"],
     visibility = ["//visibility:public"],
     deps = [
         "//src/cpp_accelerator/adapters/compute/cuda/kernels:kernels",
@@ -17,9 +17,9 @@ cc_library(
 
 cc_library(
     name = "cuda_wrappers",
-    hdrs = ["blur_processor.h"],
+    hdrs = ["blur_filter.h"],
     visibility = ["//visibility:public"],
-    deps = [":blur_processor"],
+    deps = [":blur_filter"],
 )
 
 cc_library(
@@ -37,11 +37,11 @@ cc_library(
 )
 
 cc_test(
-    name = "blur_processor_test",
-    srcs = ["blur_processor_test.cpp"],
+    name = "blur_filter_test",
+    srcs = ["blur_filter_test.cpp"],
     data = ["//data:static_images/lena.png"],
     deps = [
-        ":blur_processor",
+        ":blur_filter",
         "//src/cpp_accelerator/domain/interfaces",
         "//src/cpp_accelerator/domain/interfaces/filters:filters",
         "//src/cpp_accelerator/adapters/image_io:image_adapters",

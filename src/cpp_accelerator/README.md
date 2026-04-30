@@ -374,7 +374,7 @@ cpp_accelerator/
 │   │   │   │   ├── blur/       # Blur variants (non-separable, separable basic/tiled)
 │   │   │   │   ├── grayscale_kernel.cu
 │   │   │   │   └── letterbox_kernel.cu
-│   │   │   ├── filters/        # C++ wrappers: grayscale_filter, blur_processor
+│   │   │   ├── filters/        # C++ wrappers: grayscale_filter, blur_filter
 │   │   │   ├── memory/         # cuda_memory_pool (thread-local GPU alloc cache)
 │   │   │   └── tensorrt/       # TensorRT/YOLO inference
 │   │   │       ├── yolo_detector.h/cpp
@@ -596,7 +596,7 @@ bazel test //src/cpp_accelerator/application/pipeline:filter_pipeline_test
 bazel test //src/cpp_accelerator/application/commands:commands_test
 bazel test //src/cpp_accelerator/adapters/compute/filters:blur_equivalence_test
 bazel test //src/cpp_accelerator/adapters/compute/cuda/filters:grayscale_filter_test
-bazel test //src/cpp_accelerator/adapters/compute/cuda/filters:blur_processor_test
+bazel test //src/cpp_accelerator/adapters/compute/cuda/filters:blur_filter_test
 bazel test //src/cpp_accelerator/adapters/compute/cpu:grayscale_filter_test
 bazel test //src/cpp_accelerator/adapters/compute/cpu:blur_filter_test
 bazel test //src/cpp_accelerator/adapters/image_io:image_loader_test

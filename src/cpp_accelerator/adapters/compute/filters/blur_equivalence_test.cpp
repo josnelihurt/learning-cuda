@@ -1,5 +1,5 @@
 #include "src/cpp_accelerator/adapters/compute/cpu/blur_filter.h"
-#include "src/cpp_accelerator/adapters/compute/cuda/filters/blur_processor.h"
+#include "src/cpp_accelerator/adapters/compute/cuda/filters/blur_filter.h"
 
 #include <gtest/gtest.h>
 #include <cmath>

@@ -315,7 +315,7 @@ export class WebRTCService implements IWebRTCService {
       });
     }
 
-    if (sessionMode === 'camera-mediatrack') {
+    if (sessionMode === 'camera-mediatrack' || sessionMode === 'remote-camera') {
       peerConnection.addTransceiver('video', { direction: 'recvonly' });
       logger.info(`[WebRTC:${sessionId}] Added recvonly transceiver for processed camera video`);
     }

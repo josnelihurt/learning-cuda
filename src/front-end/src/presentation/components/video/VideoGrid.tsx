@@ -86,6 +86,14 @@ export function VideoGrid({ 'data-testid': dataTestId }: VideoGridProps): ReactE
                       onSourceResolutionUpdate(source.id, width, height)
                     }
                   />
+                ) : source.type === SOURCE_TYPES.REMOTE_CAMERA && source.remoteStream ? (
+                  <video
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    ref={(el) => { if (el) el.srcObject = source.remoteStream; }}
+                  />
                 ) : null}
               </VideoSourceCard>
             );

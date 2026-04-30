@@ -4,7 +4,7 @@ import type { Detection } from '@/gen/image_processor_service_pb';
 import { FilterData } from '@/domain/value-objects';
 import { AcceleratorType } from '@/gen/common_pb';
 
-export type GridSourceSessionMode = 'frame-processing' | 'camera-mediatrack';
+export type GridSourceSessionMode = 'frame-processing' | 'camera-mediatrack' | 'remote-camera';
 
 export type GridSource = {
   id: string;

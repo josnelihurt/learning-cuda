@@ -28,7 +28,12 @@ export function SourceDrawer({
   const [videoReloadKey, setVideoReloadKey] = useState(0);
   const filteredSources =
     activeTab === 'images'
-      ? availableSources.filter((source) => source.type === 'static' || source.type === 'camera')
+      ? availableSources.filter(
+          (source) =>
+            source.type === 'static' ||
+            source.type === 'camera' ||
+            source.type === 'remote_camera'
+        )
       : [];
 
   return (
@@ -93,10 +98,12 @@ export function SourceDrawer({
                       }
                     }}
                   >
-                    <div className="source-icon">{source.type === 'camera' ? '\u25cf' : '\u25a3'}</div>
+                    <div className="source-icon">
+                      {source.type === 'camera' || source.type === 'remote_camera' ? '\u25cf' : '\u25a3'}
+                    </div>
                     <div className="source-info">
                       <div className="source-name">{source.displayName}</div>
-                      <div className="source-type">{source.type}</div>
+                      <div className="source-type">{source.type === 'remote_camera' ? 'Remote Camera' : source.type}</div>
                     </div>
                     {source.isDefault ? <span className="source-badge">Default</span> : null}
                   </div>

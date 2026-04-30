@@ -3,6 +3,7 @@ import type { Dispatch, RefObject } from 'react';
 import type { InputSource } from '@/gen/config_service_pb';
 import type { IStatsDisplay, ICameraPreview, IToastDisplay } from '@/infrastructure/transport/transport-types';
 import { WebRTCFrameTransportService } from '@/infrastructure/transport/webrtc-frame-transport';
+import { StartCameraStreamRequest } from '@/gen/image_processor_service_pb';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { GridSource, GridSourceAction } from '@/presentation/utils/grid-source';
 import { GridSourceActionType } from '@/presentation/utils/grid-source';
@@ -12,6 +13,7 @@ import { filtersToFilterData } from '@/presentation/utils/grid-source';
 import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
 import { AcceleratorType } from '@/gen/common_pb';
+import { controlChannelService } from '@/infrastructure/transport/control-channel-service';
 
 type SourceTransportFactoryOptions = {
   nextNumberRef: RefObject<number>;
@@ -78,7 +80,13 @@ export function useSourceTransportFactory({
               uniqueId,
               statsManager as IStatsDisplay,
               cameraManager,
-              toastManager
+              toastManager,
+              inputSource.type === 'remote_camera' ? 'remote-camera' : 'frame-processing',
+              inputSource.type === 'remote_camera'
+                ? (remoteStream: MediaStream) => {
+                    dispatch({ type: GridSourceActionType.SET_REMOTE_STREAM, payload: { sourceId: uniqueId, remoteStream } });
+                  }
+                : undefined
             );
 
       if (transport) {
@@ -177,6 +185,21 @@ export function useSourceTransportFactory({
             dispatch({ type: GridSourceActionType.SET_CONNECTED, payload: { sourceId: uniqueId, connected: true } });
             transport.sendStartVideo(inputSource.id, filtersToFilterData(filters), selectedAccelerator);
           });
+        } else if (inputSource.type === 'remote_camera') {
+          waitForConnected(transport, () => {
+            dispatch({ type: GridSourceActionType.SET_CONNECTED, payload: { sourceId: uniqueId, connected: true } });
+            controlChannelService.startCameraStream(new StartCameraStreamRequest({
+              sensorId: inputSource.sensorId,
+              width: 1920,
+              height: 1080,
+              fps: 60,
+            })).catch((err: unknown) => {
+              container.getLogger().error('Failed to start camera stream', {
+                'error.message': err instanceof Error ? err.message : String(err),
+                'sensor_id': String(inputSource.sensorId),
+              });
+            });
+          });
         } else {
           waitForConnected(transport, () => {
             dispatch({ type: GridSourceActionType.SET_CONNECTED, payload: { sourceId: uniqueId, connected: true } });
@@ -195,7 +218,9 @@ export function useSourceTransportFactory({
         transport,
         remoteStream: null,
         sessionId: null,
-        sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack' : 'frame-processing',
+        sessionMode: inputSource.type === 'camera' ? 'camera-mediatrack'
+          : inputSource.type === 'remote_camera' ? 'remote-camera'
+          : 'frame-processing',
         filters,
         resolution: selectedResolution || 'original',
         accelerator: selectedAccelerator ?? AcceleratorType.CUDA,

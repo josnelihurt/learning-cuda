@@ -90,6 +90,9 @@ message GenericFilterSelection {
 message ListFiltersRequest {
   string api_version = 1 [json_name = "api_version"];
   TraceContext trace_context = 3 [json_name = "trace_context"];
+  // When set, returns only filters supported by this accelerator.
+  // When UNSPECIFIED (0), returns all filters across all accelerators.
+  AcceleratorType requested_accelerator = 5 [json_name = "requested_accelerator"];
 }
 
 message ListFiltersResponse {

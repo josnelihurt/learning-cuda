@@ -20,6 +20,20 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "cpu_filter_factory",
+    srcs = ["cpu_filter_factory.cpp"],
+    hdrs = ["cpu_filter_factory.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":blur_filter",
+        ":grayscale_filter",
+        "//src/cpp_accelerator/application/engine:filter_interfaces",
+        "//src/cpp_accelerator/domain/interfaces/filters:filters",
+        "//proto:common_cc_proto",
+    ],
+)
+
 cc_test(
     name = "blur_filter_test",
     srcs = ["blur_filter_test.cpp"],

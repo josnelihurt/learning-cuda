@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <memory>
 #include <vector>
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 #include "src/cpp_accelerator/domain/interfaces/i_pixel_getter.h"
@@ -19,23 +20,29 @@ using jrb::domain::interfaces::IPixelGetter;
 constexpr float kSqrt2Pi = 2.506628274631000242F;
 
 namespace {
-std::vector<float> GenerateGaussianKernel(int size, float sigma) {
-  if (size % 2 == 0) {
-    size++;
+struct GenerateGaussianKernelParams {
+  int size;
+  float sigma;
+};
+
+std::vector<float> GenerateGaussianKernel(GenerateGaussianKernelParams params) {
+  if (params.size % 2 == 0) {
+    params.size++;
   }
 
-  int radius = size / 2;
-  std::vector<float> kernel(size);
+  int radius = params.size / 2;
+  std::vector<float> kernel(params.size);
 
   float sum = 0.0F;
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < params.size; i++) {
     float x = static_cast<float>(i - radius);
-    float value = std::exp(-0.5F * (x * x) / (sigma * sigma)) / (sigma * kSqrt2Pi);
+    float value =
+        std::exp(-0.5F * (x * x) / (params.sigma * params.sigma)) / (params.sigma * kSqrt2Pi);
     kernel[i] = value;
     sum += value;
   }
 
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < params.size; i++) {
     kernel[i] /= sum;
   }
 
@@ -109,11 +116,11 @@ class BorderClamperFactory {
 public:
   const IBorderClamper& Get(BorderMode mode) const {
     switch (mode) {
-      case BorderMode::CLAMP:
+      case BorderMode::kClamp:
         return clamp_border_;
-      case BorderMode::REFLECT:
+      case BorderMode::kReflect:
         return reflect_border_;
-      case BorderMode::WRAP:
+      case BorderMode::kWrap:
         return wrap_border_;
       default:
         return clamp_border_;
@@ -128,16 +135,20 @@ private:
 }  // namespace internal
 
 namespace {
-enum class BlurDirection { HORIZONTAL, VERTICAL };
-
-float GetPixelChannelValue(const ImageBuffer& buffer, int x, int y, int channel_idx,
-                           const internal::IBorderClamper& clamper) {
-  int clamped_x = clamper.ClampX(x, buffer.width);
-  int clamped_y = clamper.ClampY(y, buffer.height);
+enum class BlurDirection { kHorizontal, kVertical };
+struct SampledPixelChannel {
+  int x;
+  int y;
+  int channel_idx;
+};
+float GetPixelChannelValue(const ImageBuffer& buffer, const internal::IBorderClamper& clamper,
+                           SampledPixelChannel sampled_pixel_channel) {
+  int clamped_x = clamper.ClampX(sampled_pixel_channel.x, buffer.width);
+  int clamped_y = clamper.ClampY(sampled_pixel_channel.y, buffer.height);
 
   int index = (clamped_y * buffer.width + clamped_x) * buffer.channels;
-  if (channel_idx < buffer.channels) {
-    return static_cast<float>(buffer.data[index + channel_idx]);
+  if (sampled_pixel_channel.channel_idx < buffer.channels) {
+    return static_cast<float>(buffer.data[index + sampled_pixel_channel.channel_idx]);
   }
   return 0.0F;
 }
@@ -152,10 +163,12 @@ void Apply1DBlur(const ImageBuffer& input, ImageBufferMut& output, const std::ve
       for (int c = 0; c < output.channels; c++) {
         float sum = 0.0F;
         for (int k = -radius; k <= radius; k++) {
-          int pixel_x = (Direction == BlurDirection::HORIZONTAL) ? x + k : x;
-          int pixel_y = (Direction == BlurDirection::HORIZONTAL) ? y : y + k;
+          int pixel_x = (Direction == BlurDirection::kHorizontal) ? x + k : x;
+          int pixel_y = (Direction == BlurDirection::kHorizontal) ? y : y + k;
           float weight = kernel[k + radius];
-          sum += GetPixelChannelValue(input, pixel_x, pixel_y, c, clamper) * weight;
+          sum +=
+              GetPixelChannelValue(input, clamper, {.x = pixel_x, .y = pixel_y, .channel_idx = c}) *
+              weight;
         }
         output.data[output_idx + c] = static_cast<unsigned char>(std::clamp(sum, 0.0F, 255.0F));
       }
@@ -168,7 +181,7 @@ void Apply1DBlur(const ImageBuffer& input, ImageBufferMut& output, const std::ve
 GaussianBlurFilter::GaussianBlurFilter(int kernel_size, float sigma, BorderMode border_mode,
                                        bool separable)
     : kernel_size_(kernel_size), sigma_(sigma), border_mode_(border_mode), separable_(separable) {
-  kernel_ = GenerateGaussianKernel(kernel_size_, sigma_);
+  kernel_ = GenerateGaussianKernel({.size = kernel_size, .sigma = sigma});
   border_clamper_factory_ = std::make_unique<internal::BorderClamperFactory>();
 }
 
@@ -176,12 +189,12 @@ GaussianBlurFilter::~GaussianBlurFilter() = default;
 
 void GaussianBlurFilter::SetKernelSize(int size) {
   kernel_size_ = size;
-  kernel_ = GenerateGaussianKernel(kernel_size_, sigma_);
+  kernel_ = GenerateGaussianKernel({.size = size, .sigma = sigma_});
 }
 
 void GaussianBlurFilter::SetSigma(float sigma) {
   sigma_ = sigma;
-  kernel_ = GenerateGaussianKernel(kernel_size_, sigma_);
+  kernel_ = GenerateGaussianKernel({.size = kernel_size_, .sigma = sigma});
 }
 
 void GaussianBlurFilter::SetBorderMode(BorderMode mode) {
@@ -210,19 +223,19 @@ BorderMode GaussianBlurFilter::GetBorderMode() const {
 
 float GaussianBlurFilter::GetPixelValue(const ImageBuffer& buffer, int x, int y) const {
   const internal::IBorderClamper& clamper = border_clamper_factory_->Get(border_mode_);
-  return GetPixelChannelValue(buffer, x, y, 0, clamper);
+  return GetPixelChannelValue(buffer, clamper, {.x = x, .y = y, .channel_idx = 0});
 }
 
 void GaussianBlurFilter::ApplyHorizontalBlur(const ImageBuffer& input, ImageBufferMut& output) {
   int radius = kernel_size_ / 2;
   const internal::IBorderClamper& clamper = border_clamper_factory_->Get(border_mode_);
-  Apply1DBlur<BlurDirection::HORIZONTAL>(input, output, kernel_, radius, clamper);
+  Apply1DBlur<BlurDirection::kHorizontal>(input, output, kernel_, radius, clamper);
 }
 
 void GaussianBlurFilter::ApplyVerticalBlur(const ImageBuffer& input, ImageBufferMut& output) {
   int radius = kernel_size_ / 2;
   const internal::IBorderClamper& clamper = border_clamper_factory_->Get(border_mode_);
-  Apply1DBlur<BlurDirection::VERTICAL>(input, output, kernel_, radius, clamper);
+  Apply1DBlur<BlurDirection::kVertical>(input, output, kernel_, radius, clamper);
 }
 
 void GaussianBlurFilter::ApplyFullBlur(const ImageBuffer& input, ImageBufferMut& output) {
@@ -240,7 +253,9 @@ void GaussianBlurFilter::ApplyFullBlur(const ImageBuffer& input, ImageBufferMut&
             float weight_y = kernel_[ky + radius];
             float weight_x = kernel_[kx + radius];
             float weight = weight_x * weight_y;
-            sum += GetPixelChannelValue(input, x + kx, y + ky, c, clamper) * weight;
+            sum +=
+                GetPixelChannelValue(input, clamper, {.x = x + kx, .y = y + ky, .channel_idx = c}) *
+                weight;
           }
         }
         output.data[output_idx + c] = static_cast<unsigned char>(std::clamp(sum, 0.0F, 255.0F));

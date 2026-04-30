@@ -27,7 +27,7 @@ function sidebarColumnReducer(state: SidebarColumnState, action: SidebarColumnAc
 }
 
 export function SidebarColumn(): ReactElement {
-  const { setActiveFilters, processorFilterEpoch, activeFilters, selectedSourceNumber, isWebRTCReady } = useDashboardState();
+  const { setActiveFilters, processorFilterEpoch, activeFilters, selectedSourceNumber, isWebRTCReady, selectedAccelerator } = useDashboardState();
   const [state, dispatch] = useReducer(sidebarColumnReducer, INITIAL_SIDEBAR_STATE);
 
   useEffect(() => {
@@ -80,6 +80,7 @@ export function SidebarColumn(): ReactElement {
               onFiltersChange={setActiveFilters}
               initialActiveFilters={activeFilters}
               disabled={!isWebRTCReady}
+              selectedAccelerator={selectedAccelerator}
             />
           </div>
         </div>

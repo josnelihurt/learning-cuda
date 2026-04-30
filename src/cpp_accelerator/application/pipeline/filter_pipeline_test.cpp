@@ -4,11 +4,11 @@
 #include <memory>
 #include <vector>
 
-#include "src/cpp_accelerator/application/pipeline/buffer_pool.h"
-#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 #include "src/cpp_accelerator/adapters/compute/cpu/blur_filter.h"
 #include "src/cpp_accelerator/adapters/compute/cpu/grayscale_filter.h"
 #include "src/cpp_accelerator/adapters/image_io/image_loader.h"
+#include "src/cpp_accelerator/application/pipeline/buffer_pool.h"
+#include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::application::pipeline {
 namespace {
@@ -60,7 +60,7 @@ TEST_F(FilterPipelineTest, MultipleFiltersApplyInSequence) {
   // Arrange
   FilterPipeline pipeline;
   auto grayscale = std::make_unique<GrayscaleFilter>(GrayscaleAlgorithm::BT601);
-  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::REFLECT, true);
+  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::kReflect, true);
   pipeline.AddFilter(std::move(grayscale));
   pipeline.AddFilter(std::move(blur));
 
@@ -100,7 +100,7 @@ TEST_F(FilterPipelineTest, EmptyPipelineReturnsFalse) {
 TEST_F(FilterPipelineTest, PipelinePreservesImageDimensions) {
   // Arrange
   FilterPipeline pipeline;
-  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::REFLECT, true);
+  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::kReflect, true);
   pipeline.AddFilter(std::move(blur));
 
   std::vector<unsigned char> output(image_loader_->width() * image_loader_->height() *
@@ -125,7 +125,7 @@ TEST_F(FilterPipelineTest, BufferPoolReusesBuffers) {
   auto buffer_pool = std::make_unique<BufferPool>(2);
   FilterPipeline pipeline(std::move(buffer_pool));
   auto grayscale = std::make_unique<GrayscaleFilter>(GrayscaleAlgorithm::BT601);
-  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::REFLECT, true);
+  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::kReflect, true);
   pipeline.AddFilter(std::move(grayscale));
   pipeline.AddFilter(std::move(blur));
 
@@ -173,7 +173,7 @@ TEST_F(FilterPipelineTest, PipelineWithThreeFiltersAppliesSuccessfully) {
   // Arrange
   FilterPipeline pipeline;
   auto grayscale1 = std::make_unique<GrayscaleFilter>(GrayscaleAlgorithm::BT601);
-  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::REFLECT, true);
+  auto blur = std::make_unique<GaussianBlurFilter>(5, 1.0F, BorderMode::kReflect, true);
   auto grayscale2 = std::make_unique<GrayscaleFilter>(GrayscaleAlgorithm::BT709);
   pipeline.AddFilter(std::move(grayscale1));
   pipeline.AddFilter(std::move(blur));

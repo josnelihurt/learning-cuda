@@ -4,6 +4,7 @@ import type {
   GenericFilterParameter,
   GenericFilterParameterOption,
 } from '@/gen/image_processor_service_pb';
+import { AcceleratorType } from '@/gen/common_pb';
 import { useFilters } from '@/presentation/hooks/useFilters';
 import { useToast } from '@/presentation/hooks/useToast';
 import styles from './FilterPanel.module.css';
@@ -20,6 +21,8 @@ interface FilterPanelProps {
   /** When incremented, refetches filter definitions from the backend (processor service updates). */
   processorFilterEpoch?: number;
   disabled?: boolean;
+  /** When set, only filters supported by this accelerator are fetched and displayed. */
+  selectedAccelerator?: AcceleratorType;
 }
 
 interface FilterState {
@@ -289,8 +292,9 @@ export function FilterPanel({
   initialActiveFilters,
   processorFilterEpoch,
   disabled,
+  selectedAccelerator,
 }: FilterPanelProps): ReactElement {
-  const { filters: availableFilters, refetch } = useFilters();
+  const { filters: availableFilters, refetch } = useFilters(selectedAccelerator);
   const filters = propFilters ?? availableFilters;
 
   useEffect(() => {

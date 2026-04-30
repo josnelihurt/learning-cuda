@@ -20,12 +20,12 @@ using jrb::domain::interfaces::ImageBuffer;
 using jrb::domain::interfaces::ImageBufferMut;
 using jrb::domain::interfaces::IPixelGetter;
 
-enum class BorderMode : std::uint8_t { CLAMP, REFLECT, WRAP };
+enum class BorderMode : std::uint8_t { kClamp, kReflect, kWrap };
 
 class GaussianBlurFilter : public IFilter, public IPixelGetter {
 public:
   explicit GaussianBlurFilter(int kernel_size = 5, float sigma = 1.0F,
-                              BorderMode border_mode = BorderMode::REFLECT, bool separable = true);
+                              BorderMode border_mode = BorderMode::kReflect, bool separable = true);
   ~GaussianBlurFilter() override;
 
   /**

@@ -100,27 +100,89 @@ diagrams:
         - "%%{ init: { 'theme': 'default' } }%%"
 
   # ──────────────────────────────────────────────────────────────────────
-  # 4. Compute adapters — CUDA, OpenCL, Vulkan, CPU backends
-  #    .cu kernel files are excluded (device code, not class structure)
+  # 4a. CPU backend
   # ──────────────────────────────────────────────────────────────────────
-  cpp_compute_backends:
+  cpp_compute_cpu:
     type: class
-    title: "Compute Adapters — CUDA / OpenCL / Vulkan / CPU Backends"
+    title: "Compute Adapter — CPU Backend"
     generate_packages: true
     package_type: namespace
     glob:
       - src/cpp_accelerator/adapters/compute/cpu/*.h
+    include:
+      namespaces:
+        - jrb::adapters::compute::cpu
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb::adapters::compute
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 4b. CUDA backend (headers only — .cu kernel files excluded)
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_compute_cuda:
+    type: class
+    title: "Compute Adapter — CUDA Backend"
+    generate_packages: true
+    package_type: namespace
+    glob:
       - src/cpp_accelerator/adapters/compute/cuda/*.h
       - src/cpp_accelerator/adapters/compute/cuda/filters/*.h
       - src/cpp_accelerator/adapters/compute/cuda/memory/*.h
       - src/cpp_accelerator/adapters/compute/cuda/tensorrt/*.h
+    include:
+      namespaces:
+        - jrb::adapters::compute::cuda
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb::adapters::compute
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 4c. OpenCL backend
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_compute_opencl:
+    type: class
+    title: "Compute Adapter — OpenCL Backend"
+    generate_packages: true
+    package_type: namespace
+    glob:
       - src/cpp_accelerator/adapters/compute/opencl/*.h
       - src/cpp_accelerator/adapters/compute/opencl/filters/*.h
+    include:
+      namespaces:
+        - jrb::adapters::compute::opencl
+    exclude:
+      namespaces:
+        - std
+    using_namespace:
+      - jrb::adapters::compute
+    mermaid:
+      before:
+        - "%%{ init: { 'theme': 'default' } }%%"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 4d. Vulkan backend
+  # ──────────────────────────────────────────────────────────────────────
+  cpp_compute_vulkan:
+    type: class
+    title: "Compute Adapter — Vulkan Backend"
+    generate_packages: true
+    package_type: namespace
+    glob:
       - src/cpp_accelerator/adapters/compute/vulkan/*.h
       - src/cpp_accelerator/adapters/compute/vulkan/filters/*.h
     include:
       namespaces:
-        - jrb::adapters::compute
+        - jrb::adapters::compute::vulkan
     exclude:
       namespaces:
         - std

@@ -455,9 +455,12 @@ Mermaid class diagrams for each architectural layer are generated automatically 
 | [cpp_domain_layer](../../docs/uml/generated/cpp_domain_layer.mmd) | `jrb::domain` — interfaces & models |
 | [cpp_application_layer](../../docs/uml/generated/cpp_application_layer.mmd) | `jrb::application` — engine, pipeline, factories |
 | [cpp_ports](../../docs/uml/generated/cpp_ports.mmd) | `jrb::ports` — hexagonal port interfaces |
-| [cpp_compute_backends](../../docs/uml/generated/cpp_compute_backends.mmd) | `jrb::adapters::compute` — CUDA/OpenCL/Vulkan/CPU |
-| [cpp_control_adapters](../../docs/uml/generated/cpp_control_adapters.mmd) | gRPC control + WebRTC adapters |
 | [cpp_core](../../docs/uml/generated/cpp_core.mmd) | `jrb::core` — Logger, Telemetry, Result |
+| [cpp_control_adapters](../../docs/uml/generated/cpp_control_adapters.mmd) | gRPC control + WebRTC adapters |
+| [cpp_compute_cpu](../../docs/uml/generated/cpp_compute_cpu.mmd) | `jrb::adapters::compute::cpu` |
+| [cpp_compute_cuda](../../docs/uml/generated/cpp_compute_cuda.mmd) | `jrb::adapters::compute::cuda` + TensorRT |
+| [cpp_compute_opencl](../../docs/uml/generated/cpp_compute_opencl.mmd) | `jrb::adapters::compute::opencl` |
+| [cpp_compute_vulkan](../../docs/uml/generated/cpp_compute_vulkan.mmd) | `jrb::adapters::compute::vulkan` |
 
 **Regenerate diagrams** (after source changes):
 

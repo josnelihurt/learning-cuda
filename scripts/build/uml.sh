@@ -152,13 +152,52 @@ EOF
 
 ---
 
-## 6. Compute Backends
+## 6. Compute Backend — CPU
 
-CUDA, OpenCL, Vulkan, and CPU — factories and filters.
+CPU filter implementations.
 
 EOF
         echo '```mermaid'
-        cat docs/uml/generated/cpp_compute_backends.mmd
+        cat docs/uml/generated/cpp_compute_cpu.mmd
+        echo '```'
+
+        cat << 'EOF'
+
+---
+
+## 7. Compute Backend — CUDA
+
+CUDA filters, memory pool, and TensorRT YOLO inference.
+
+EOF
+        echo '```mermaid'
+        cat docs/uml/generated/cpp_compute_cuda.mmd
+        echo '```'
+
+        cat << 'EOF'
+
+---
+
+## 8. Compute Backend — OpenCL
+
+OpenCL filter implementations.
+
+EOF
+        echo '```mermaid'
+        cat docs/uml/generated/cpp_compute_opencl.mmd
+        echo '```'
+
+        cat << 'EOF'
+
+---
+
+## 9. Compute Backend — Vulkan
+
+Vulkan filter implementations.
+
+EOF
+        echo '```mermaid'
+        cat docs/uml/generated/cpp_compute_vulkan.mmd
         echo '```'
 
     } > "$INDEX"

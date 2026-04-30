@@ -21,6 +21,7 @@ cd "$PROJECT_ROOT"
 
 BUILD_FIRST=false
 SHOW_HELP=false
+ACCELERATOR="cuda"
 GRPC_PID=
 GO_PID=
 VITE_PID=
@@ -61,15 +62,25 @@ update_launch_cpp_attach_process_id() {
 }
 
 parse_args() {
-    for arg in "$@"; do
-        case "$arg" in
+    while [ $# -gt 0 ]; do
+        case "$1" in
             --build|-b)
                 BUILD_FIRST=true
+                ;;
+            --accelerator=*)
+                ACCELERATOR="${1#--accelerator=}"
+                [ -z "$ACCELERATOR" ] && die "--accelerator= requires a value (cuda|opencl|vulkan|full|cpu)"
+                ;;
+            --accelerator|-a)
+                shift
+                [ -z "${1:-}" ] && die "--accelerator requires a value (cuda|opencl|vulkan|full|cpu)"
+                ACCELERATOR="$1"
                 ;;
             --help|-h)
                 SHOW_HELP=true
                 ;;
         esac
+        shift
     done
 }
 
@@ -89,12 +100,25 @@ print_help() {
     echo "Vite only (Go already running): cd src/front-end && npm run dev (needs .secrets/localhost+2*.pem)."
     echo ""
     echo "Options:"
-    echo "  --build, -b    Build C++ accelerator client (TensorRT) and Go backend before starting"
-    echo "  --help, -h     Show this help message"
+    echo "  --build, -b              Build C++ accelerator and Go backend before starting"
+    echo "  --accelerator, -a TYPE   Accelerator backend to build/run (default: cuda)"
+    echo "                           Supported values:"
+    echo "                             cpu     — CPU-only, no GPU (default Bazel build, no --config)"
+    echo "                             cuda    — CUDA + TensorRT (default)"
+    echo "                             opencl  — OpenCL compute filters"
+    echo "                             vulkan  — Vulkan compute filters (requires glslc on PATH)"
+    echo "                             full    — CUDA + OpenCL + Vulkan (--config=full)"
+    echo "                           Combine with commas for custom multi-backend builds:"
+    echo "                             cuda,vulkan   — CUDA + Vulkan"
+    echo "                             cuda,opencl,vulkan — all GPU backends"
+    echo "  --help, -h               Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/dev/start.sh         # Full stack (uses existing binary)"
-    echo "  ./scripts/dev/start.sh --build # Build with TensorRT + full stack"
+    echo "  ./scripts/dev/start.sh                              # Full stack, CUDA (existing binary)"
+    echo "  ./scripts/dev/start.sh --build                      # Build CUDA + TensorRT, then start"
+    echo "  ./scripts/dev/start.sh --build --accelerator vulkan # Build Vulkan backend, then start"
+    echo "  ./scripts/dev/start.sh --build -a cuda,vulkan       # Build CUDA + Vulkan, then start"
+    echo "  ./scripts/dev/start.sh --build -a cpu               # Build CPU-only, then start"
     exit 0
 }
 
@@ -127,6 +151,23 @@ truncate_dev_logs() {
     done
 }
 
+accelerator_to_bazel_configs() {
+    local accel="$1"
+    local configs=""
+    # "cpu" means default build — no --config flags needed
+    if [ "$accel" = "cpu" ]; then
+        echo ""
+        return
+    fi
+    # Split comma-separated list into individual --config=<name> flags
+    IFS=',' read -ra parts <<< "$accel"
+    for part in "${parts[@]}"; do
+        part="${part// /}"
+        [ -n "$part" ] && configs="$configs --config=${part}"
+    done
+    echo "$configs"
+}
+
 run_optional_build() {
     if [ "$BUILD_FIRST" != true ]; then
         return 0
@@ -136,8 +177,12 @@ run_optional_build() {
         ./scripts/build/protos.sh
     fi
 
-    echo "Building C++ accelerator client..."
-    bazel build --config=cuda //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
+    local bazel_configs
+    bazel_configs="$(accelerator_to_bazel_configs "$ACCELERATOR")"
+
+    echo "Building C++ accelerator client (accelerator: ${ACCELERATOR})..."
+    # shellcheck disable=SC2086
+    bazel build $bazel_configs //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
 
     echo "Building backend with Go..."
     (cd src/go_api && make build)
@@ -235,7 +280,7 @@ print_summary() {
     local_ip="$(get_local_ip)"
 
     echo "================================================"
-    echo "Dev stack:"
+    echo "Dev stack (accelerator: ${ACCELERATOR}):"
     echo "  UI (Vite):   https://${local_ip}:3000"
     echo "  API (HTTPS): https://${local_ip}:8443"
     echo "  Accelerator: → ${local_ip}:60062 (outbound)"

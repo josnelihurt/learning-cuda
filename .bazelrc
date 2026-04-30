@@ -6,12 +6,14 @@ build --repo_env=RULES_PYTHON_ENABLE_PYSTAR="1"
 
 # TensorRT is always enabled when CUDA is enabled (--config=cuda).
 
-# Accelerator profiles — combine as needed: --config=cuda --config=opencl
+# Accelerator profiles — combine as needed: --config=cuda --config=opencl --config=vulkan
 # CPU is always compiled in. Other accelerators are opt-in.
 build:cuda   --//bazel/flags:cuda=true
 build:opencl --//bazel/flags:opencl=true
+build:vulkan --//bazel/flags:vulkan=true
 build:full   --config=cuda
 build:full   --config=opencl
+build:full   --config=vulkan
 
 # Build settings
 build --cxxopt=-std=c++23

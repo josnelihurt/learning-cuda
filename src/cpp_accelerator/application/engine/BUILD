@@ -1,5 +1,3 @@
-load("@bazel_skylib//lib:selects.bzl", "selects")
-
 cc_library(
     name = "filter_interfaces",
     hdrs = [
@@ -55,18 +53,63 @@ cc_library(
     ],
 )
 
-selects.config_setting_group(
+cc_library(
+    name = "vulkan_platform_impl",
+    srcs = ["platform/vulkan/vulkan_platform.cpp"],
+    hdrs = ["platform/vulkan/vulkan_platform.h"],
+    linkopts = ["-lvulkan"],
+    deps = [
+        ":filter_factory_registry",
+        ":filter_interfaces",
+        "//src/cpp_accelerator/adapters/compute/vulkan:vulkan_filter_factory",
+        "//proto:common_cc_proto",
+    ],
+)
+
+config_setting(
     name = "cuda_and_opencl",
-    match_all = ["//bazel/flags:cuda_enabled", "//bazel/flags:opencl_enabled"],
+    flag_values = {
+        "//bazel/flags:cuda": "true",
+        "//bazel/flags:opencl": "true",
+    },
+)
+
+config_setting(
+    name = "cuda_and_vulkan",
+    flag_values = {
+        "//bazel/flags:cuda": "true",
+        "//bazel/flags:vulkan": "true",
+    },
+)
+
+config_setting(
+    name = "opencl_and_vulkan",
+    flag_values = {
+        "//bazel/flags:opencl": "true",
+        "//bazel/flags:vulkan": "true",
+    },
+)
+
+config_setting(
+    name = "cuda_opencl_and_vulkan",
+    flag_values = {
+        "//bazel/flags:cuda": "true",
+        "//bazel/flags:opencl": "true",
+        "//bazel/flags:vulkan": "true",
+    },
 )
 
 cc_library(
     name = "platform_support",
     hdrs = ["platform/platform_support.h"],
     srcs = select({
+        ":cuda_opencl_and_vulkan":      ["platform/platform_support_all.cpp"],
         ":cuda_and_opencl":             ["platform/platform_support_full.cpp"],
+        ":cuda_and_vulkan":             ["platform/platform_support_cuda_vulkan.cpp"],
+        ":opencl_and_vulkan":           ["platform/platform_support_opencl_vulkan.cpp"],
         "//bazel/flags:cuda_enabled":   ["platform/platform_support_cuda.cpp"],
         "//bazel/flags:opencl_enabled": ["platform/platform_support_opencl.cpp"],
+        "//bazel/flags:vulkan_enabled": ["platform/platform_support_vulkan.cpp"],
         "//conditions:default":         ["platform/platform_support_cpu.cpp"],
     }),
     deps = [
@@ -77,9 +120,13 @@ cc_library(
         "//proto:common_cc_proto",
         "//proto:image_processor_service_cc_proto",
     ] + select({
+        ":cuda_opencl_and_vulkan":      [":cuda_platform_impl", ":opencl_platform_impl", ":vulkan_platform_impl"],
         ":cuda_and_opencl":             [":cuda_platform_impl", ":opencl_platform_impl"],
+        ":cuda_and_vulkan":             [":cuda_platform_impl", ":vulkan_platform_impl"],
+        ":opencl_and_vulkan":           [":opencl_platform_impl", ":vulkan_platform_impl"],
         "//bazel/flags:cuda_enabled":   [":cuda_platform_impl"],
         "//bazel/flags:opencl_enabled": [":opencl_platform_impl"],
+        "//bazel/flags:vulkan_enabled": [":vulkan_platform_impl"],
         "//conditions:default":         [],
     }),
     visibility = ["//visibility:public"],

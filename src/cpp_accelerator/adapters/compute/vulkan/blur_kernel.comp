@@ -1,0 +1,46 @@
+#version 450
+
+// Separable 5-tap Gaussian blur, sigma~1.0, weights = [1,4,6,4,1]/16.
+// Supports any number of channels (1, 3, or 4).
+// Single shader dispatched twice: pass=0 horizontal, pass=1 vertical.
+// Caller: h-pass reads src (binding 0) → writes tmp (binding 1);
+//         v-pass reads tmp (binding 0) → writes dst (binding 1).
+//
+// Buffers hold one float per channel per pixel (widened from bytes by the host).
+// This avoids byte-packing races and keeps the shader logic simple.
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(set = 0, binding = 0) readonly buffer SrcBuffer { float src_data[]; };
+layout(set = 0, binding = 1) writeonly buffer DstBuffer { float dst_data[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint width;
+    uint height;
+    uint channels;
+    uint pass;  // 0 = horizontal, 1 = vertical
+};
+
+void main() {
+    uint x = gl_GlobalInvocationID.x;
+    uint y = gl_GlobalInvocationID.y;
+    if (x >= width || y >= height) return;
+
+    const float weights[5] = float[5](0.0625f, 0.25f, 0.375f, 0.25f, 0.0625f);
+
+    for (uint c = 0u; c < channels; ++c) {
+        float sum = 0.0f;
+        for (int k = -2; k <= 2; ++k) {
+            uint sx, sy;
+            if (pass == 0u) {
+                sx = uint(clamp(int(x) + k, 0, int(width)  - 1));
+                sy = y;
+            } else {
+                sx = x;
+                sy = uint(clamp(int(y) + k, 0, int(height) - 1));
+            }
+            sum += weights[k + 2] * src_data[(sy * width + sx) * channels + c];
+        }
+        dst_data[(y * width + x) * channels + c] = sum;
+    }
+}

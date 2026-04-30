@@ -105,7 +105,8 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	getSystemInfoUseCase := systemapp.NewGetSystemInfoUseCase(configRepo, buildInfoRepo, versionRepo)
 
 	videoRepo := video.NewFileVideoRepository(ctx, "data/videos", "data/video_previews")
-	listInputsUseCase := videoapp.NewListInputsUseCase(videoRepo)
+	cameraRepo := processor.NewRegistryCameraRepository(registry)
+	listInputsUseCase := videoapp.NewListInputsUseCase(videoRepo, cameraRepo)
 
 	staticImageRepo := filesystem.NewStaticImageRepository(cfg.StaticImages.Directory)
 	listAvailableImagesUseCase := imageapp.NewListAvailableImagesUseCase(staticImageRepo) //nolint:language

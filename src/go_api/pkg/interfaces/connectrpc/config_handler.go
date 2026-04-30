@@ -197,6 +197,7 @@ func (h *ConfigHandler) ListInputs(
 			IsDefault:        src.IsDefault,
 			VideoPath:        src.VideoPath,
 			PreviewImagePath: src.PreviewImagePath,
+			SensorId:         src.SensorID,
 		}
 	}
 

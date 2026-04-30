@@ -18,6 +18,7 @@ type AcceleratorSession struct {
 	AssignedSession string // server-minted UUID; matches RegisterAck.assigned_session_id
 	Capabilities    *gen.LibraryCapabilities
 	SupportedTypes  []gen.AcceleratorType
+	Cameras         []*gen.RemoteCameraInfo
 
 	stream  grpc.BidiStreamingServer[gen.ConnectRequest, gen.ConnectResponse]
 	sendMu  sync.Mutex // gRPC bidi requires single-writer; serialize sends.
@@ -45,6 +46,7 @@ func newAcceleratorSession(
 		AssignedSession: assignedID,
 		Capabilities:    reg.Capabilities,
 		SupportedTypes:  reg.SupportedAcceleratorTypes,
+		Cameras:         reg.Cameras,
 		stream:          stream,
 		lastSeen:        time.Now(),
 		pending:         newPendingMap(),

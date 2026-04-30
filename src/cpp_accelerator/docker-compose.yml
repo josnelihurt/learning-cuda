@@ -28,6 +28,20 @@ services:
       - --client_key=/secrets/client-key.pem
       - --ca_cert=/secrets/ca.pem
 
+    # Camera device pass-through for Jetson Argus camera framework.
+    # nvarguscamerasrc requires access to Tegra platform devices in addition to
+    # the V4L2 video nodes.  The exact set depends on JetPack version; this
+    # covers JetPack 6 / R36.
+    devices:
+      - /dev/video0:/dev/video0   # CAM0 — IMX477
+      - /dev/video1:/dev/video1   # CAM1 — IMX519
+      - /dev/nvhost-ctrl:/dev/nvhost-ctrl
+      - /dev/nvhost-ctrl-nvdec:/dev/nvhost-ctrl-nvdec
+      - /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu
+      - /dev/nvmap:/dev/nvmap
+      - /dev/nvgpu:/dev/nvgpu
+      - /dev/tegra_dc_ctrl:/dev/tegra_dc_ctrl
+
     volumes:
       - ${ACCELERATOR_SECRETS_DIR:-./secrets}:/secrets:ro
       - ${ACCELERATOR_LOGS_DIR:-./logs}:/tmp:rw

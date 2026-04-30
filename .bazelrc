@@ -13,6 +13,7 @@ build:opencl --//bazel/flags:opencl=true
 build:vulkan --//bazel/flags:vulkan=true
 build:full   --config=cuda
 build:full   --config=opencl
+build:full   --config=vulkan
 
 # Build settings
 build --cxxopt=-std=c++23

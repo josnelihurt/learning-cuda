@@ -1,5 +1,3 @@
-load("@bazel_skylib//lib:selects.bzl", "selects")
-
 cc_library(
     name = "filter_interfaces",
     hdrs = [
@@ -68,28 +66,37 @@ cc_library(
     ],
 )
 
-selects.config_setting_group(
+config_setting(
     name = "cuda_and_opencl",
-    match_all = ["//bazel/flags:cuda_enabled", "//bazel/flags:opencl_enabled"],
+    flag_values = {
+        "//bazel/flags:cuda": "true",
+        "//bazel/flags:opencl": "true",
+    },
 )
 
-selects.config_setting_group(
+config_setting(
     name = "cuda_and_vulkan",
-    match_all = ["//bazel/flags:cuda_enabled", "//bazel/flags:vulkan_enabled"],
+    flag_values = {
+        "//bazel/flags:cuda": "true",
+        "//bazel/flags:vulkan": "true",
+    },
 )
 
-selects.config_setting_group(
+config_setting(
     name = "opencl_and_vulkan",
-    match_all = ["//bazel/flags:opencl_enabled", "//bazel/flags:vulkan_enabled"],
+    flag_values = {
+        "//bazel/flags:opencl": "true",
+        "//bazel/flags:vulkan": "true",
+    },
 )
 
-selects.config_setting_group(
+config_setting(
     name = "cuda_opencl_and_vulkan",
-    match_all = [
-        "//bazel/flags:cuda_enabled",
-        "//bazel/flags:opencl_enabled",
-        "//bazel/flags:vulkan_enabled",
-    ],
+    flag_values = {
+        "//bazel/flags:cuda": "true",
+        "//bazel/flags:opencl": "true",
+        "//bazel/flags:vulkan": "true",
+    },
 )
 
 cc_library(

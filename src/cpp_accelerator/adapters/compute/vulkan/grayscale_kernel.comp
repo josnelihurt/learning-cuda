@@ -1,0 +1,30 @@
+#version 450
+
+// BT.601 grayscale: L = 0.299R + 0.587G + 0.114B
+// Input:  float buffer, one float per byte-channel, packed as R0 G0 B0 R1 G1 B1 ...
+// Output: float buffer, one float per pixel (gray value)
+// Host responsibility: widen input bytes to floats before upload, narrow output floats
+// to bytes after readback. This avoids byte-packing races in the shader.
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(set = 0, binding = 0) readonly buffer InputBuffer  { float in_data[];  };
+layout(set = 0, binding = 1) writeonly buffer OutputBuffer { float out_data[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint width;
+    uint height;
+};
+
+void main() {
+    uint x = gl_GlobalInvocationID.x;
+    uint y = gl_GlobalInvocationID.y;
+    if (x >= width || y >= height) return;
+
+    uint pixel = y * width + x;
+    float r = in_data[pixel * 3u + 0u];
+    float g = in_data[pixel * 3u + 1u];
+    float b = in_data[pixel * 3u + 2u];
+
+    out_data[pixel] = 0.299f * r + 0.587f * g + 0.114f * b;
+}

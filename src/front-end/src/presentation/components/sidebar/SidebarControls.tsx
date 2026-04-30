@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useDashboardState } from '@/presentation/context/dashboard-state-context';
 import { useAcceleratorCapabilities } from '@/presentation/hooks/useAcceleratorCapabilities';
 import { AcceleratorType } from '@/gen/common_pb';
@@ -13,6 +14,16 @@ export function SidebarControls() {
     setResolution,
   } = useDashboardState();
   const { options, loading } = useAcceleratorCapabilities();
+
+  // Auto-select the first available accelerator when capabilities load and the
+  // current selection isn't in the list (e.g. default CUDA with a Vulkan build).
+  useEffect(() => {
+    if (loading || options.length === 0) return;
+    const isCurrentValid = options.some((o) => o.value === selectedAccelerator);
+    if (!isCurrentValid) {
+      setAccelerator(options[0].value);
+    }
+  }, [loading, options, selectedAccelerator, setAccelerator]);
 
   return (
     <div className={styles.shell}>

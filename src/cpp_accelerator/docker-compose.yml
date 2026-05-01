@@ -35,12 +35,16 @@ services:
     devices:
       - /dev/video0:/dev/video0   # CAM0 — IMX477
       - /dev/video1:/dev/video1   # CAM1 — IMX519
-      - /dev/nvhost-ctrl:/dev/nvhost-ctrl
-      - /dev/nvhost-ctrl-nvdec:/dev/nvhost-ctrl-nvdec
       - /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu
+      - /dev/nvhost-ctrl-isp:/dev/nvhost-ctrl-isp
+      - /dev/nvhost-ctrl-isp-thi:/dev/nvhost-ctrl-isp-thi
+      - /dev/nvhost-ctrl-nvcsi:/dev/nvhost-ctrl-nvcsi
+      - /dev/nvhost-ctrl-vi0:/dev/nvhost-ctrl-vi0
+      - /dev/nvhost-ctrl-vi0-thi:/dev/nvhost-ctrl-vi0-thi
+      - /dev/nvhost-ctrl-vi1:/dev/nvhost-ctrl-vi1
+      - /dev/nvhost-ctrl-vi1-thi:/dev/nvhost-ctrl-vi1-thi
       - /dev/nvmap:/dev/nvmap
       - /dev/nvgpu:/dev/nvgpu
-      - /dev/tegra_dc_ctrl:/dev/tegra_dc_ctrl
 
     volumes:
       - ${ACCELERATOR_SECRETS_DIR:-./secrets}:/secrets:ro

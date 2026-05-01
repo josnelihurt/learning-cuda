@@ -18,6 +18,12 @@ services:
       - WEBRTC_PUBLIC_IP=73.71.7.90
       - WEBRTC_PUBLIC_PORT=10000
       - WEBRTC_PUBLIC_TCP_PORT=60060
+      # nvarguscamerasrc wbmode override (1=auto,2=incandescent,3=fluorescent,
+      # 4=warm-fluorescent,5=daylight,6=cloudy-daylight). Auto-WB on the stock
+      # Arducam IMX477 ISP tuning produces a cyan cast in mixed indoor light;
+      # locking to a fixed preset corrects it. Override per-deploy without
+      # rebuilding the image.
+      - NVARGUS_WBMODE=${NVARGUS_WBMODE:-4}
 
     command:
       - accelerator_control_client

@@ -374,14 +374,20 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
             "video/x-h264,stream-format=byte-stream,alignment=au ! "
           : "";
 
-  char pipeline_str[896];
+  // AWB workaround for Arducam IMX477: stock ISP tuning + wbmode=auto produces
+  // a strong cyan cast on mixed indoor/window-light scenes. Lock to a fixed
+  // preset. Override per-deploy with NVARGUS_WBMODE; default 4 (warm-fluorescent).
+  const char* wbmode_env = std::getenv("NVARGUS_WBMODE");
+  const int wbmode = wbmode_env ? std::atoi(wbmode_env) : 4;
+
+  char pipeline_str[1024];
   snprintf(pipeline_str, sizeof(pipeline_str),
-           "nvarguscamerasrc sensor-id=%d ! "
+           "nvarguscamerasrc sensor-id=%d wbmode=%d ! "
            "video/x-raw(memory:NVMM),width=%d,height=%d,framerate=%d/1,format=NV12 ! "
            "%s"
            "%s"
            "appsink name=sink emit-signals=true max-buffers=2 drop=true",
-           sensor_id, effective_width, effective_height, effective_fps,
+           sensor_id, wbmode, effective_width, effective_height, effective_fps,
            encoder_segment,
            parse_segment);
 

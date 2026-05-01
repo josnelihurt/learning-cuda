@@ -335,6 +335,10 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     return webrtcService.getDataChannel(this.sessionId)?.readyState === 'open';
   }
 
+  getSessionId(): string | null {
+    return this.sessionId;
+  }
+
   getConnectionStatus(): { state: 'connected' | 'disconnected' | 'connecting' | 'error'; lastRequest: string | null; lastRequestTime: Date | null } {
     return {
       state: this.connectionState,

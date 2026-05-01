@@ -22,6 +22,7 @@ type CameraPreviewProps = {
   onStreamReady?: (stream: MediaStream) => void;
   onCameraStatus: (status: string, type: 'success' | 'error' | 'warning' | 'inactive') => void;
   onCameraError: (title: string, message: string) => void;
+  onCameraPermissionDenied?: () => void;
   onFpsUpdate?: (fps: number) => void;
   onResolutionUpdate?: (width: number, height: number) => void;
 };
@@ -38,6 +39,7 @@ export function CameraPreview({
   onStreamReady,
   onCameraStatus,
   onCameraError,
+  onCameraPermissionDenied,
   onFpsUpdate,
   onResolutionUpdate,
 }: CameraPreviewProps): ReactElement {

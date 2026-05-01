@@ -38,6 +38,7 @@ using jrb::adapters::webrtc::sdp::WaitForSdpAnswer;
 
 WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
     : engine_(std::move(config.engine)),
+      camera_hub_(std::move(config.camera_hub)),
       server_info_(std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
       initialized_(false),
       device_id_(std::move(config.device_id)),
@@ -934,44 +935,45 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       spdlog::info("[WebRTC:{}] StartCameraStream sensor_id={} {}x{}@{}fps", session_id,
                    req.sensor_id(), req.width(), req.height(), req.fps());
       auto* resp = response.mutable_start_camera_stream();
-      if (state.gst_camera_source) {
-        state.gst_camera_source->Stop();
-        state.gst_camera_source.reset();
+      if (!camera_hub_) {
+        resp->set_accepted(false);
+        resp->set_reason("camera hub unavailable");
+        spdlog::error("[WebRTC:{}] StartCameraStream: camera hub unavailable", session_id);
+        break;
       }
-      state.gst_camera_source = std::make_unique<jrb::adapters::camera::GstCameraSource>();
-      state.gst_camera_source->SetFrameCallback(
-          [weak_mgr = weak_from_this(), sid = session_id](rtc::binary data, rtc::FrameInfo info) {
-            auto mgr = weak_mgr.lock();
-            if (!mgr) return;
-            auto s = mgr->GetSession(sid);
-            if (!s || !s->outbound_video_track) return;
-            if (!s->outbound_video_track->isOpen()) return;
-            try {
-              s->outbound_video_track->sendFrame(std::move(data), info);
-            } catch (const std::exception& e) {
-              spdlog::warn("[Camera:{}] Frame send failed: {}", sid, e.what());
-            }
-          });
+      // Drop any existing subscription before resubscribing.
+      state.camera_subscription.Reset();
+
+      const std::string sid = session_id;
+      auto weak_mgr = weak_from_this();
+      auto frame_cb = [weak_mgr, sid](const rtc::binary& data, const rtc::FrameInfo& info) {
+        auto mgr = weak_mgr.lock();
+        if (!mgr) return;
+        auto s = mgr->GetSession(sid);
+        if (!s) return;
+        // Route the camera's H.264 access unit through the live video processor
+        // (decode → apply filters → re-encode) before sending on the outbound
+        // track. This mirrors HandleVideoFrame so filters apply uniformly.
+        mgr->HandleVideoFrame(sid, *s, data, info);
+      };
+
       std::string cam_err;
-      const int w = req.width() > 0 ? req.width() : 1920;
-      const int h = req.height() > 0 ? req.height() : 1080;
-      const int f = req.fps() > 0 ? req.fps() : 60;
-      const bool ok = state.gst_camera_source->Start(req.sensor_id(), w, h, f, &cam_err);
+      auto subscription = camera_hub_->Subscribe(req.sensor_id(), req.width(), req.height(),
+                                                 req.fps(), std::move(frame_cb), &cam_err);
+      const bool ok = subscription.IsActive();
       resp->set_accepted(ok);
       if (!ok) {
         resp->set_reason(cam_err);
-        spdlog::error("[WebRTC:{}] Failed to start camera sensor_id={}: {}", session_id,
+        spdlog::error("[WebRTC:{}] Failed to subscribe to sensor_id={}: {}", session_id,
                       req.sensor_id(), cam_err);
-        state.gst_camera_source.reset();
+      } else {
+        state.camera_subscription = std::move(subscription);
       }
       break;
     }
     case cuda_learning::ControlRequest::kStopCameraStream: {
       spdlog::info("[WebRTC:{}] StopCameraStream", session_id);
-      if (state.gst_camera_source) {
-        state.gst_camera_source->Stop();
-        state.gst_camera_source.reset();
-      }
+      state.camera_subscription.Reset();
       auto* resp = response.mutable_stop_camera_stream();
       resp->set_stopped(true);
       break;

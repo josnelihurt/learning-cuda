@@ -11,6 +11,7 @@
 #include "absl/flags/parse.h"
 
 #include "src/cpp_accelerator/adapters/camera/camera_detector.h"
+#include "src/cpp_accelerator/adapters/camera/camera_hub.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/core/signal_handler.h"
 #include "src/cpp_accelerator/core/version.h"
@@ -60,8 +61,10 @@ int main(int argc, char** argv) {
   }
 
   auto adapter = std::make_shared<jrb::adapters::grpc_control::ProcessorEngineAdapter>(engine);
+  auto camera_hub = jrb::adapters::camera::CameraHub::Create();
   jrb::adapters::webrtc::WebRTCManagerConfig webrtc_cfg;
   webrtc_cfg.engine = engine;
+  webrtc_cfg.camera_hub = camera_hub;
   webrtc_cfg.device_id = absl::GetFlag(FLAGS_device_id);
   webrtc_cfg.display_name = absl::GetFlag(FLAGS_display_name);
   auto webrtc_manager = std::make_shared<jrb::adapters::webrtc::WebRTCManager>(webrtc_cfg);

@@ -69,3 +69,15 @@ cc_library(
         "//conditions:default": [],
     }),
 )
+
+cc_library(
+    name = "camera_hub",
+    srcs = ["camera_hub.cpp"],
+    hdrs = ["camera_hub.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":gst_camera_source",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+        "@spdlog",
+    ],
+)

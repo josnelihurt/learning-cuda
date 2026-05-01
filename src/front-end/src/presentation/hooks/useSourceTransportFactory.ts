@@ -14,6 +14,7 @@ import { frameResponseToDataUrl } from '@/presentation/utils/image-utils';
 import { statsFrameToMetrics } from '@/presentation/utils/metric-point';
 import { AcceleratorType } from '@/gen/common_pb';
 import { controlChannelService } from '@/infrastructure/transport/control-channel-service';
+import { gridSourceDisplayName } from '@/presentation/utils/input-source-defaults';
 
 type SourceTransportFactoryOptions = {
   nextNumberRef: RefObject<number>;
@@ -59,10 +60,16 @@ export function useSourceTransportFactory({
       nextNumberRef.current += 1;
 
       const uniqueId = `${inputSource.id}-${number}`;
+      // Live sources (local/remote camera) render their own <video> as the card
+      // child. Leaving imagePath populated here causes VideoSourceCard to also
+      // render a placeholder <img>, which then fights for space inside the flex
+      // container and hides parts of the live stream.
       const sourceImagePath =
         inputSource.type === 'video'
           ? inputSource.previewImagePath || ''
-          : inputSource.imagePath;
+          : inputSource.type === 'camera' || inputSource.type === 'remote_camera'
+            ? ''
+            : inputSource.imagePath;
 
       const activeFilters = activeFiltersRef.current;
       const selectedResolution = selectedResolutionRef.current;
@@ -188,11 +195,15 @@ export function useSourceTransportFactory({
         } else if (inputSource.type === 'remote_camera') {
           waitForConnected(transport, () => {
             dispatch({ type: GridSourceActionType.SET_CONNECTED, payload: { sourceId: uniqueId, connected: true } });
+            const sessionId = transport.getSessionId();
+            if (sessionId) {
+              dispatch({
+                type: GridSourceActionType.SET_SESSION,
+                payload: { sourceId: uniqueId, sessionId, sessionMode: 'remote-camera' },
+              });
+            }
             controlChannelService.startCameraStream(new StartCameraStreamRequest({
               sensorId: inputSource.sensorId,
-              width: 1920,
-              height: 1080,
-              fps: 60,
             })).catch((err: unknown) => {
               container.getLogger().error('Failed to start camera stream', {
                 'error.message': err instanceof Error ? err.message : String(err),
@@ -210,7 +221,7 @@ export function useSourceTransportFactory({
       return {
         id: uniqueId,
         number,
-        name: inputSource.displayName,
+        name: gridSourceDisplayName(inputSource),
         type: inputSource.type,
         imagePath: sourceImagePath,
         originalImageSrc: sourceImagePath,

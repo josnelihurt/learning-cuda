@@ -85,6 +85,15 @@ struct GstCameraSource::Impl {
       gst_message_unref(msg);
     }
     gst_object_unref(bus);
+
+    // Async errors (V4L2 caps negotiation, device-busy, etc.) fire after Start()
+    // has already returned ok. If we leave the pipeline in PLAYING/PAUSED state
+    // here, v4l2src keeps the device file descriptor open indefinitely and the
+    // next StartCameraStream attempt fails with "Device or resource busy". Drop
+    // to NULL state from this thread so the FD is released immediately.
+    if (pipeline) {
+      gst_element_set_state(pipeline, GST_STATE_NULL);
+    }
   }
 };
 
@@ -108,15 +117,37 @@ bool GstCameraSource::Start(int sensor_id, int width, int height, int fps,
 
   const std::string device_path = "/dev/video" + std::to_string(sensor_id);
 
-  char pipeline_str[512];
+  // Most USB webcams expose MJPG at high resolutions and only raw YUY2 at low
+  // resolutions. We force MJPG negotiation so v4l2src lets the camera pick its
+  // best supported size when width/height/fps are 0 (auto). jpegdec then
+  // produces raw frames for x264enc.
+  std::string mjpg_caps = "image/jpeg";
+  if (width > 0 && height > 0) {
+    char buf[96];
+    snprintf(buf, sizeof(buf), "image/jpeg,width=%d,height=%d", width, height);
+    mjpg_caps = buf;
+  }
+  if (fps > 0) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), ",framerate=%d/1", fps);
+    mjpg_caps += buf;
+  }
+  const int key_int = fps > 0 ? fps : 30;
+
+  // Output caps pin Annex-B byte-stream + AU alignment so libdatachannel's
+  // H264RtpPacketizer (configured with NalUnit::Separator::StartSequence) can
+  // packetize directly. This also removes the need for h264parse, which lives
+  // in gstreamer1.0-plugins-bad and may not be installed.
+  char pipeline_str[768];
   snprintf(pipeline_str, sizeof(pipeline_str),
-           "v4l2src device=%s ! "
-           "video/x-raw,width=%d,height=%d,framerate=%d/1 ! "
-           "videoconvert ! "
-           "x264enc tune=zerolatency key-int-max=%d bitrate=2000 ! "
-           "h264parse config-interval=-1 ! "
+           "v4l2src device=%s ! %s ! "
+           "jpegdec ! videoconvert ! video/x-raw,format=I420 ! "
+           "x264enc tune=zerolatency speed-preset=ultrafast "
+           "key-int-max=%d bitrate=2000 ! "
+           "video/x-h264,profile=constrained-baseline,"
+           "stream-format=byte-stream,alignment=au ! "
            "appsink name=sink emit-signals=true max-buffers=2 drop=true",
-           device_path.c_str(), width, height, fps, fps);
+           device_path.c_str(), mjpg_caps.c_str(), key_int);
 
   spdlog::info("[GstCameraSource] Launching V4L2 pipeline: {}", pipeline_str);
 

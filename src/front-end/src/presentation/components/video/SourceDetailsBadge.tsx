@@ -46,7 +46,7 @@ function formatDimensions(width?: number, height?: number): string {
 
 function sourceTypeLabel(sourceType: SourceType): string {
   const normalizedType = normalizeSourceType(sourceType);
-  if (normalizedType === SOURCE_TYPES.CAMERA) return 'Webcam';
+  if (normalizedType === SOURCE_TYPES.CAMERA) return 'Camera';
   if (normalizedType === SOURCE_TYPES.REMOTE_CAMERA) return 'Remote Camera';
   if (normalizedType === SOURCE_TYPES.VIDEO) return 'Video';
   if (normalizedType === SOURCE_TYPES.STATIC) return 'Static';
@@ -77,7 +77,7 @@ export function SourceDetailsBadge({
       { label: 'resolution', value: dimensions },
     ];
 
-    if (normalizedType === SOURCE_TYPES.VIDEO || normalizedType === SOURCE_TYPES.CAMERA) {
+    if (normalizedType === SOURCE_TYPES.VIDEO || normalizedType === SOURCE_TYPES.CAMERA || normalizedType === SOURCE_TYPES.REMOTE_CAMERA) {
       rows.unshift({ label: 'fps', value: fps.toFixed(1) });
     }
 

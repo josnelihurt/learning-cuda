@@ -131,7 +131,7 @@ describe('VideoSourceCard', () => {
     expect(sourceDetails).toHaveTextContent('fps:');
     expect(sourceDetails).toHaveTextContent('30.0');
     expect(sourceDetails).toHaveTextContent('640x480');
-    expect(sourceDetails).toHaveTextContent('Webcam');
+    expect(sourceDetails).toHaveTextContent('Camera');
   });
 
   it('shows resolution fallback when unavailable', () => {

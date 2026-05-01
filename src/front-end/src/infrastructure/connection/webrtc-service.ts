@@ -364,8 +364,9 @@ export class WebRTCService implements IWebRTCService {
       // the SCTP stream to close within milliseconds of opening. Detections
       // for frame-processing mode travel inside ProcessImageResponse, so the
       // auxiliary channel is only required when video frames flow via an
-      // RTP media track (camera-mediatrack) and responses are async.
-      if (sessionMode === 'camera-mediatrack') {
+      // RTP media track (camera-mediatrack / remote-camera) and responses are
+      // async.
+      if (sessionMode === 'camera-mediatrack' || sessionMode === 'remote-camera') {
         const detectionChannel = this.createDataChannel(peerConnection, 'detections');
         if (detectionChannel) {
           detectionChannel.binaryType = 'arraybuffer';

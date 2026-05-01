@@ -11,6 +11,10 @@ RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         ffmpeg \
+        gstreamer1.0-tools \
+        gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-ugly \
         libavcodec60 \
         libavutil58 \
         libswscale7 \

@@ -363,7 +363,17 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
             "bitrate=2000 key-int-max=30 ! "
             "video/x-h264,profile=baseline ! ";
 
-  char pipeline_str[768];
+  // Pin Annex-B byte-stream / AU alignment after the parser. Without this,
+  // h264parse may negotiate to stream-format=avc (length-prefixed NALs),
+  // which the downstream libavcodec decoder in live_video_processor cannot
+  // parse — producing "No start code is found" / "Invalid NAL unit 0".
+  const char* parse_segment =
+      has_h264parse
+          ? "h264parse config-interval=-1 ! "
+            "video/x-h264,stream-format=byte-stream,alignment=au ! "
+          : "";
+
+  char pipeline_str[896];
   snprintf(pipeline_str, sizeof(pipeline_str),
            "nvarguscamerasrc sensor-id=%d ! "
            "video/x-raw(memory:NVMM),width=%d,height=%d,framerate=%d/1,format=NV12 ! "
@@ -372,7 +382,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
            "appsink name=sink emit-signals=true max-buffers=2 drop=true",
            sensor_id, effective_width, effective_height, effective_fps,
            encoder_segment,
-           has_h264parse ? "h264parse config-interval=-1 ! " : "");
+           parse_segment);
 
   spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline_str);
 

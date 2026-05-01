@@ -37,6 +37,15 @@ bool IsNvargusAvailable(std::string* reason) {
   return true;
 }
 
+bool HasGstElement(const char* element_name) {
+  GstElementFactory* factory = gst_element_factory_find(element_name);
+  if (!factory) {
+    return false;
+  }
+  gst_object_unref(factory);
+  return true;
+}
+
 bool ProbeSensor(int sensor_id) {
   char pipeline_str[256];
   snprintf(pipeline_str, sizeof(pipeline_str),
@@ -261,15 +270,23 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
         width, height, fps, sensor_id, effective_width, effective_height, effective_fps);
   }
 
+  const bool has_h264parse = HasGstElement("h264parse");
+  if (!has_h264parse) {
+    spdlog::warn(
+        "[NvidiaArgusBackend] GStreamer element 'h264parse' not found; "
+        "continuing without parser in Argus pipeline");
+  }
+
   char pipeline_str[512];
   snprintf(pipeline_str, sizeof(pipeline_str),
            "nvarguscamerasrc sensor-id=%d ! "
            "video/x-raw(memory:NVMM),width=%d,height=%d,framerate=%d/1,format=NV12 ! "
            "nvvidconv ! "
            "nvv4l2h264enc insert-sps-pps=true bitrate=2000000 ! "
-           "h264parse config-interval=-1 ! "
+           "%s"
            "appsink name=sink emit-signals=true max-buffers=2 drop=true",
-           sensor_id, effective_width, effective_height, effective_fps);
+           sensor_id, effective_width, effective_height, effective_fps,
+           has_h264parse ? "h264parse config-interval=-1 ! " : "");
 
   spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline_str);
 

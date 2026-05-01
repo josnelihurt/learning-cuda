@@ -35,6 +35,11 @@ services:
     devices:
       - /dev/video0:/dev/video0   # CAM0 — IMX477
       - /dev/video1:/dev/video1   # CAM1 — IMX519
+      - /dev/v4l-subdev0:/dev/v4l-subdev0
+      - /dev/v4l-subdev1:/dev/v4l-subdev1
+      - /dev/v4l-subdev2:/dev/v4l-subdev2
+      - /dev/v4l-subdev3:/dev/v4l-subdev3
+      - /dev/media0:/dev/media0
       - /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu
       - /dev/nvhost-ctrl-isp:/dev/nvhost-ctrl-isp
       - /dev/nvhost-ctrl-isp-thi:/dev/nvhost-ctrl-isp-thi
@@ -43,12 +48,14 @@ services:
       - /dev/nvhost-ctrl-vi0-thi:/dev/nvhost-ctrl-vi0-thi
       - /dev/nvhost-ctrl-vi1:/dev/nvhost-ctrl-vi1
       - /dev/nvhost-ctrl-vi1-thi:/dev/nvhost-ctrl-vi1-thi
+      - /dev/nvhost-nvsched_ctrl_fifo-gpu:/dev/nvhost-nvsched_ctrl_fifo-gpu
       - /dev/nvmap:/dev/nvmap
       - /dev/nvgpu:/dev/nvgpu
 
     volumes:
       - ${ACCELERATOR_SECRETS_DIR:-./secrets}:/secrets:ro
       - ${ACCELERATOR_LOGS_DIR:-./logs}:/tmp:rw
+      - /tmp/argus_socket:/tmp/argus_socket
       - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1:ro
       - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so:ro
       - /usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:/usr/local/cuda-12.6/targets/aarch64-linux/lib/libcudla.so.1.0.0:ro

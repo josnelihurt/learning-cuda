@@ -4,9 +4,9 @@ High-performance image processing library implementing Clean Architecture princi
 
 ## Library Description
 
-The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters. The architecture uses a **pluggable filter factory** pattern: `ProcessorEngine` is decoupled from concrete filter implementations via `IFilterFactory`, with one factory registered per accelerator backend (CUDA, CPU, OpenCL). New backends are added by implementing `IFilterFactory` and registering it at startup — no engine changes required.
+The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters. The architecture uses a **pluggable filter factory** pattern: `ProcessorEngine` is decoupled from concrete filter implementations via `IFilterFactory`, with one factory registered per accelerator backend (CUDA, CPU, OpenCL). New backends are added by implementing `IFilterFactory` and registering it at startup — no engine changes required. The library also includes remote camera capture via GStreamer/Jetson camera sources, streamed over WebRTC peer connections.
 
-**Version**: See `VERSION` file (currently 4.0.9)
+**Version**: See `VERSION` file (currently 4.1.0)
 
 **Features**:
 - Multi-backend GPU acceleration: **CUDA**, **OpenCL**, and CPU fallback
@@ -15,6 +15,7 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 - WebRTC signaling support for real-time video streaming
 - **YOLO object detection** via TensorRT with GPU-accelerated inference
 - **Data channel framing** for structured detection result transport over WebRTC
+- **Remote camera streaming** via GStreamer/Jetson camera sources and CameraHub
 - Extensible filter pipeline architecture
 - Thread-safe concurrent processing
 - Buffer pooling and CUDA memory pooling for memory efficiency
@@ -24,7 +25,7 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 
 ### Component Overview
 
-The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream used exclusively for registration, WebRTC signaling, and keepalives. All image processing occurs over **WebRTC peer connections** established through that signaling. The Go server negotiates WebRTC sessions; once connected, video frames flow over RTP media tracks while still-image processing, detection results, and control requests flow over dedicated data channels. All processing converges at the `ProcessorEngine` which orchestrates image processing through the filter pipeline.
+The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream used exclusively for registration, WebRTC signaling, and keepalives. All image processing occurs over **WebRTC peer connections** established through that signaling. The Go server negotiates WebRTC sessions; once connected, video frames flow over RTP media tracks while still-image processing, detection results, and control requests flow over dedicated data channels. Remote camera streams from Jetson-attached sensors flow through `CameraHub` → `GstCameraSource` → WebRTC outbound track. All processing converges at the `ProcessorEngine` which orchestrates image processing through the filter pipeline.
 
 ```mermaid
 graph TB
@@ -43,6 +44,12 @@ graph TB
         LiveVP[LiveVideoProcessor<br/>H264 decode/encode]
         DataChannels[Data Channels<br/>control / detections / stats]
         MediaTracks[Media Tracks<br/>inbound/outbound H264 RTP]
+    end
+
+    subgraph "Camera Adapter"
+        CameraHub[CameraHub]
+        GstSource[GstCameraSource<br/>nvarguscamerasrc]
+        CameraDetector[CameraDetector<br/>Probe + advertise]
     end
 
     subgraph "C++ Core Processing"
@@ -74,7 +81,10 @@ graph TB
     WebRTCMgr --> LiveVP
     WebRTCMgr --> DataChannels
     WebRTCMgr --> MediaTracks
+    WebRTCMgr --> CameraHub
     LiveVP --> ProcessorEngine
+    CameraHub --> GstSource
+    GstSource -->|H264 AUs| WebRTCMgr
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -111,6 +121,8 @@ graph TB
         WebRTCPort[adapters/webrtc<br/>WebRTCManager]
         DataChannelFraming[DataChannelFraming]
         LiveVideoProcessor[LiveVideoProcessor]
+        CameraAdapter[adapters/camera<br/>CameraHub + GstCameraSource]
+        CameraDetector[CameraDetector]
     end
 
     subgraph "C++ Application Layer"
@@ -152,6 +164,9 @@ graph TB
     Provider --> ProcessorEngine
     AccelClient --> WebRTCPort
     WebRTCPort --> ServerInfo
+    WebRTCPort --> CameraAdapter
+    CameraAdapter --> GstSource[GstCameraSource]
+    AccelClient --> CameraDetector
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -180,10 +195,13 @@ sequenceDiagram
     participant Engine as ProcessorEngine
     participant TM as TelemetryManager
     participant Provider as ProcessorEngineAdapter
+    participant CameraHub as CameraHub
+    participant CameraDet as CameraDetector
     participant WebRTC as WebRTCManager
+    participant Signal as SignalHandler
     participant Client as AcceleratorControlClient
 
-    Main->>Flags: Parse flags (control_addr, device_id, mTLS paths)
+    Main->>Flags: Parse flags (control_addr, device_id, mTLS paths, cameras)
     Flags-->>Main: Configuration
 
     Main->>Engine: Create ProcessorEngine("accelerator-client")
@@ -193,15 +211,21 @@ sequenceDiagram
     Engine-->>Main: InitResponse{code: 0}
 
     Main->>Provider: Create ProcessorEngineAdapter(engine)
-    Main->>WebRTC: Create WebRTCManager
+    Main->>CameraHub: CameraHub::Create()
+    Main->>CameraDet: DetectCameras(sensor_ids)
+    CameraDet-->>Main: vector<RemoteCameraInfo>
+    Main->>WebRTC: Create WebRTCManager(engine, camera_hub, device_id, display_name)
+    Main->>WebRTC: Initialize()
+    WebRTC-->>Main: ready
     Main->>Client: Create AcceleratorControlClient(config, provider, webrtc)
+    Main->>Signal: Initialize(shutdown callback → client.Stop())
     Main->>Client: Run()
 
     Client->>Client: Load mTLS credentials
     Client->>Client: Create mTLS gRPC channel
     Client->>Client: Dial Go control server
     Client->>Client: Connect() - open bidi stream
-    Client->>Client: Send Register(device_id, caps, version)
+    Client->>Client: Send Register(device_id, caps, version, cameras)
     Client-->>Client: Receive RegisterAck(session_id)
 
     Note over Client: Connected and registered<br/>Ready to receive commands
@@ -338,6 +362,7 @@ cpp_accelerator/
 │   │   ├── i_filter_factory.h       # IFilterFactory — one per accelerator backend
 │   │   ├── filter_descriptor.h      # FilterDescriptor, FilterCreationParams, BlurBorderMode
 │   │   ├── filter_factory_registry.h/cpp  # Registry: AcceleratorType → IFilterFactory
+│   │   ├── filter_creation_dispatch.hpp   # Shared Strategy Pattern dispatch helper
 │   │   └── BUILD
 │   ├── pipeline/
 │   │   ├── filter_pipeline.h/cpp
@@ -369,6 +394,13 @@ cpp_accelerator/
 │   │   │   └── data_channel_envelope.h/cpp   # DataChannelRequest protobuf envelope parsing
 │   │   └── sdp/                  # SDP utilities
 │   │       └── sdp_utils.h/cpp               # Codec negotiation, extmap strip, ICE injection
+│   ├── camera/                 # Camera capture and streaming
+│   │   ├── camera_hub.h/cpp                 # Owns GstCameraSource per sensor, fans out H264 AUs
+│   │   ├── camera_detector.h/cpp            # Probe sensors via nvarguscamerasrc, advertise cameras
+│   │   ├── gst_camera_source.h              # GStreamer nvarguscamerasrc capture interface
+│   │   ├── gst_camera_source_jetson.cpp      # Jetson platform implementation
+│   │   ├── gst_camera_source_v4l2.cpp        # V4L2 platform implementation
+│   │   └── gst_camera_source_stub.cpp        # Stub for builds without GStreamer
 │   ├── compute/
 │   │   ├── cpu/                # CPU filter implementations
 │   │   │   ├── grayscale_filter.h/cpp
@@ -588,6 +620,18 @@ The library includes YOLO object detection via TensorRT for GPU-accelerated infe
 - **ModelRegistry** (`adapters/compute/cuda/tensorrt/model_registry.h/cpp`): Model path resolution
 - **LetterboxKernel** (`adapters/compute/cuda/kernels/letterbox_kernel.cu/h`): GPU-accelerated resize + pad + NCHW conversion
 
+### Camera Adapter
+
+The camera adapter provides Jetson-attached camera capture and streaming over WebRTC. Camera sources are probed at startup via `CameraDetector` and advertised as remote cameras in the registration message.
+
+**Components**:
+
+- **CameraHub** (`adapters/camera/camera_hub.h/cpp`): Owns one `GstCameraSource` per sensor ID. Fans out encoded H.264 access units to multiple WebRTC session subscribers via RAII `Subscription` handles. Devices are lazily opened on first subscribe and held open until process shutdown to avoid `EBUSY` on rapid open/close cycles.
+- **GstCameraSource** (`adapters/camera/gst_camera_source.h`): GStreamer `nvarguscamerasrc` capture interface. Platform-specific implementations: `gst_camera_source_jetson.cpp` (Jetson), `gst_camera_source_v4l2.cpp` (V4L2), `gst_camera_source_stub.cpp` (no-op for builds without GStreamer).
+- **CameraDetector** (`adapters/camera/camera_detector.h/cpp`): Probes sensor IDs via `nvarguscamerasrc` and returns `RemoteCameraInfo` protobuf for each detected camera. On non-Jetson platforms returns an empty list.
+
+**Integration**: `WebRTCManager` receives a `CameraHub` instance and uses `CreateCameraSession()` to establish a WebRTC peer connection that streams H.264 from a `GstCameraSource` to the remote peer. The camera registration data flows through `AcceleratorControlClient` → `Register` message → Go server.
+
 ### Command Pattern
 
 The command pattern infrastructure (`application/commands/`) is maintained for potential future use. All processing is currently handled directly by `FilterPipeline` which orchestrates filter chains without the command pattern abstraction layer.
@@ -637,7 +681,7 @@ All code in `cpp_accelerator/` compiles without warnings when `-Werror` is enabl
 
 The library previously exposed a C API through `processor_api.h`. The shared library build target (`libcuda_processor.so`) has been removed. The `processor_engine` wrapper in the application layer is now used directly by the gRPC and WebRTC adapters.
 
-**API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.0.6).
+**API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.1.0).
 
 ## Adding New Filters or Backends
 

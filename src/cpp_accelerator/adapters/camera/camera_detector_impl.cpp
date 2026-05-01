@@ -28,6 +28,15 @@ CameraDetectorImpl::CameraDetectorImpl() {
 
   // Stub is always available as fallback
   backends_.push_back(std::make_unique<StubBackend>());
+
+  std::string backend_list;
+  for (size_t i = 0; i < backends_.size(); ++i) {
+    if (i > 0) {
+      backend_list += ", ";
+    }
+    backend_list += backends_[i]->GetBackendName();
+  }
+  spdlog::info("[CameraDetector] Backends initialized: {}", backend_list);
 }
 
 CameraDetectorImpl::~CameraDetectorImpl() = default;
@@ -45,6 +54,8 @@ std::vector<cuda_learning::RemoteCameraInfo> CameraDetectorImpl::DetectCameras(
 
     spdlog::info("[CameraDetector] Trying backend: {}", backend->GetBackendName());
     auto cameras = backend->DetectCameras(sensor_ids);
+    spdlog::info("[CameraDetector] Backend {} detected {} camera(s)",
+                 backend->GetBackendName(), cameras.size());
     all_cameras.insert(all_cameras.end(),
                        std::make_move_iterator(cameras.begin()),
                        std::make_move_iterator(cameras.end()));

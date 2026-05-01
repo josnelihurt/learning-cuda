@@ -1,8 +1,8 @@
 #include "src/cpp_accelerator/adapters/camera/backends/nvidia_argus_backend.h"
 
-#include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <unistd.h>
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
@@ -12,20 +12,29 @@ namespace jrb::adapters::camera {
 
 namespace {
 
-bool IsNvargusAvailable() {
-  FILE* fp = popen("gst-inspect-1.0 nvarguscamerasrc 2>&1", "r");
-  if (!fp) return false;
-  char buf[256];
-  bool found = false;
-  while (fgets(buf, sizeof(buf), fp)) {
-    std::string line(buf);
-    if (line.find("NvArgusCameraSrc") != std::string::npos) {
-      found = true;
-      break;
+bool IsNvargusAvailable(std::string* reason) {
+  gst_init(nullptr, nullptr);
+
+  GstElementFactory* factory = gst_element_factory_find("nvarguscamerasrc");
+  if (!factory) {
+    if (reason) {
+      *reason = "GStreamer element 'nvarguscamerasrc' is not registered";
     }
+    return false;
   }
-  pclose(fp);
-  return found;
+  gst_object_unref(factory);
+
+  if (access("/tmp/argus_socket", F_OK) != 0) {
+    if (reason) {
+      *reason = "Argus socket '/tmp/argus_socket' is not accessible inside container";
+    }
+    return false;
+  }
+
+  if (reason) {
+    reason->clear();
+  }
+  return true;
 }
 
 bool ProbeSensor(int sensor_id) {
@@ -179,24 +188,29 @@ NvidiaArgusBackend::~NvidiaArgusBackend() {
 }
 
 bool NvidiaArgusBackend::IsAvailable() const {
-  return IsNvargusAvailable();
+  std::string reason;
+  const bool available = IsNvargusAvailable(&reason);
+  if (!available) {
+    spdlog::warn("[NvidiaArgusBackend] Backend unavailable: {}", reason);
+  }
+  return available;
 }
 
 std::vector<cuda_learning::RemoteCameraInfo> NvidiaArgusBackend::DetectCameras(
     const std::vector<int>& sensor_ids) {
   std::vector<cuda_learning::RemoteCameraInfo> result;
 
-  gst_init(nullptr, nullptr);
-
-  if (!IsNvargusAvailable()) {
-    spdlog::debug("[NvidiaArgusBackend] nvarguscamerasrc not found");
+  std::string availability_reason;
+  if (!IsNvargusAvailable(&availability_reason)) {
+    spdlog::warn("[NvidiaArgusBackend] Skipping detection: {}", availability_reason);
     return result;
   }
 
   for (int sensor_id : sensor_ids) {
     try {
+      spdlog::info("[NvidiaArgusBackend] Probing sensor-id={}", sensor_id);
       if (!ProbeSensor(sensor_id)) {
-        spdlog::debug("[NvidiaArgusBackend] sensor-id={} not detected", sensor_id);
+        spdlog::warn("[NvidiaArgusBackend] sensor-id={} probe failed", sensor_id);
         continue;
       }
 

@@ -26,13 +26,12 @@ void StubBackend::SetFrameCallback(FrameCallback /*cb*/) {}
 bool StubBackend::Start(int sensor_id, int /*width*/, int /*height*/,
                         int /*fps*/, std::string* error_message) {
   spdlog::warn(
-      "[StubBackend] Camera streaming not available. "
-      "No camera backends are enabled. "
-      "Enable with: --//bazel/flags:v4l2_camera=true or "
-      "--//bazel/flags:nvidia_argus_camera=true (sensor_id={})",
+      "[StubBackend] No video from Stub fallback (sensor_id={}); "
+      "hardware camera backends failed or were unavailable — see prior logs",
       sensor_id);
   if (error_message) {
-    *error_message = "No camera backends enabled. Enable v4l2_camera or nvidia_argus_camera flags.";
+    *error_message =
+        "Stub backend cannot stream video; Argus/V4L2 backends did not start.";
   }
   return false;
 }

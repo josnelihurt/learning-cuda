@@ -46,6 +46,58 @@ bool HasGstElement(const char* element_name) {
   return true;
 }
 
+constexpr GstClockTime kArgusPlayingWait = 10 * GST_SECOND;
+
+// Best-effort: pull the next ERROR posted to the pipeline bus (Jetson pipelines
+// often fail asynchronously during preroll; the reason is only on the bus).
+std::string ConsumeNextBusError(GstElement* pipeline, GstClockTime timeout) {
+  GstBus* bus = gst_element_get_bus(pipeline);
+  if (!bus) {
+    return {};
+  }
+
+  GstMessage* msg =
+      gst_bus_timed_pop_filtered(bus, timeout, GST_MESSAGE_ERROR);
+  gst_object_unref(bus);
+  if (!msg) {
+    return {};
+  }
+
+  GError* err = nullptr;
+  gchar* debug = nullptr;
+  gst_message_parse_error(msg, &err, &debug);
+  std::string out;
+  if (err && err->message) {
+    out += err->message;
+  }
+  if (debug && debug[0] != '\0') {
+    if (!out.empty()) {
+      out += " — ";
+    }
+    out += debug;
+  }
+  if (err) {
+    g_error_free(err);
+  }
+  if (debug) {
+    g_free(debug);
+  }
+  gst_message_unref(msg);
+  return out;
+}
+
+void CleanupFailedPipeline(GstElement** pipeline, GstElement** appsink) {
+  if (appsink && *appsink) {
+    gst_object_unref(*appsink);
+    *appsink = nullptr;
+  }
+  if (pipeline && *pipeline) {
+    gst_element_set_state(*pipeline, GST_STATE_NULL);
+    gst_object_unref(*pipeline);
+    *pipeline = nullptr;
+  }
+}
+
 bool ProbeSensor(int sensor_id) {
   char pipeline_str[256];
   snprintf(pipeline_str, sizeof(pipeline_str),
@@ -319,21 +371,51 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
 
   GstStateChangeReturn ret = gst_element_set_state(impl_->pipeline, GST_STATE_PLAYING);
   if (ret == GST_STATE_CHANGE_FAILURE) {
-    if (error_message) *error_message = "Failed to set pipeline to PLAYING state";
-    spdlog::error("[NvidiaArgusBackend] Failed to start pipeline for sensor-id={}", sensor_id);
-    gst_object_unref(impl_->appsink);
-    impl_->appsink = nullptr;
-    gst_element_set_state(impl_->pipeline, GST_STATE_NULL);
-    gst_object_unref(impl_->pipeline);
-    impl_->pipeline = nullptr;
+    std::string bus_detail = ConsumeNextBusError(impl_->pipeline, GST_SECOND);
+    std::string msg = "Failed to set pipeline to PLAYING state";
+    if (!bus_detail.empty()) {
+      msg += ": ";
+      msg += bus_detail;
+    }
+    if (error_message) {
+      *error_message = msg;
+    }
+    spdlog::error("[NvidiaArgusBackend] {} (sensor-id={})", msg, sensor_id);
+    CleanupFailedPipeline(&impl_->pipeline, &impl_->appsink);
+    return false;
+  }
+
+  GstState state = GST_STATE_NULL;
+  GstState pending = GST_STATE_VOID_PENDING;
+  const GstStateChangeReturn waited =
+      gst_element_get_state(impl_->pipeline, &state, &pending, kArgusPlayingWait);
+  if (waited == GST_STATE_CHANGE_FAILURE || state != GST_STATE_PLAYING) {
+    std::string bus_detail = ConsumeNextBusError(impl_->pipeline, 2 * GST_SECOND);
+    std::string msg = "Pipeline did not reach PLAYING";
+    if (waited == GST_STATE_CHANGE_FAILURE) {
+      msg += " (get_state failure)";
+    } else {
+      msg += " (state=" + std::string(gst_element_state_get_name(state)) +
+             ", pending=" + std::string(gst_element_state_get_name(pending)) + ")";
+    }
+    if (!bus_detail.empty()) {
+      msg += ": ";
+      msg += bus_detail;
+    }
+    if (error_message) {
+      *error_message = msg;
+    }
+    spdlog::error("[NvidiaArgusBackend] {} (sensor-id={})", msg, sensor_id);
+    CleanupFailedPipeline(&impl_->pipeline, &impl_->appsink);
     return false;
   }
 
   impl_->running = true;
   impl_->bus_thread = std::thread([this]() { impl_->BusLoop(); });
 
-  spdlog::info("[NvidiaArgusBackend] Started camera sensor-id={} {}x{}@{}fps",
-               sensor_id, width, height, fps);
+  spdlog::info(
+      "[NvidiaArgusBackend] Started camera sensor-id={} {}x{}@{}fps",
+      sensor_id, effective_width, effective_height, effective_fps);
   return true;
 }
 

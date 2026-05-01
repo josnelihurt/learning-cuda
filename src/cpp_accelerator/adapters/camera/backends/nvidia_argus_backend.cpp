@@ -329,15 +329,44 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
         "continuing without parser in Argus pipeline");
   }
 
-  char pipeline_str[512];
+  // Orin Nano has no NVENC; nvv4l2h264enc opens /dev/v4l2-nvenc which doesn't
+  // exist on that SKU. Probe and fall back to software x264enc when needed.
+  const bool has_nvenc = HasGstElement("nvv4l2h264enc");
+  const bool has_x264 = HasGstElement("x264enc");
+  if (!has_nvenc) {
+    spdlog::warn(
+        "[NvidiaArgusBackend] 'nvv4l2h264enc' not available (expected on Orin "
+        "Nano: no NVENC hardware); falling back to software 'x264enc'");
+  }
+  if (!has_nvenc && !has_x264) {
+    const std::string msg =
+        "No H.264 encoder available: neither nvv4l2h264enc nor x264enc are "
+        "registered with GStreamer";
+    if (error_message) *error_message = msg;
+    spdlog::error("[NvidiaArgusBackend] {}", msg);
+    return false;
+  }
+
+  // Hardware path keeps NVMM all the way to the encoder; software path needs a
+  // download to system memory (I420) before x264enc.
+  const char* encoder_segment =
+      has_nvenc
+          ? "nvvidconv ! "
+            "nvv4l2h264enc insert-sps-pps=true bitrate=2000000 ! "
+          : "nvvidconv ! video/x-raw,format=I420 ! "
+            "x264enc tune=zerolatency speed-preset=ultrafast "
+            "bitrate=2000 key-int-max=30 ! "
+            "video/x-h264,profile=baseline ! ";
+
+  char pipeline_str[768];
   snprintf(pipeline_str, sizeof(pipeline_str),
            "nvarguscamerasrc sensor-id=%d ! "
            "video/x-raw(memory:NVMM),width=%d,height=%d,framerate=%d/1,format=NV12 ! "
-           "nvvidconv ! "
-           "nvv4l2h264enc insert-sps-pps=true bitrate=2000000 ! "
+           "%s"
            "%s"
            "appsink name=sink emit-signals=true max-buffers=2 drop=true",
            sensor_id, effective_width, effective_height, effective_fps,
+           encoder_segment,
            has_h264parse ? "h264parse config-interval=-1 ! " : "");
 
   spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline_str);

@@ -151,9 +151,27 @@ dpkg -l | grep libnvinfer
 bazel build //src/cpp_accelerator/...
 ```
 
+### x86 USB camera support (for testing remote camera feature locally)
+
+Requires GStreamer dev headers and plugins:
+```bash
+sudo apt-get install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly
+```
+
+Build and run with v4l2 camera support enabled:
+```bash
+./scripts/dev/start.sh --build --accelerator=full,v4l2-camera
+```
+
+Without `--config=v4l2-camera` the camera streaming stub is used — cameras are
+detected and listed in the UI, but `StartCameraStream` logs a warning and returns
+false (no video).
+
 ### Dev stack
 ```bash
-./scripts/dev/start.sh --build   # builds then starts all services
+./scripts/dev/start.sh --build   # builds then starts all services (stub camera)
+./scripts/dev/start.sh --build --accelerator=full,v4l2-camera  # with USB cameras
 ```
 
 ### Jetson Nano Orin / JetPack 6

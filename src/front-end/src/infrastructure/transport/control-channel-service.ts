@@ -7,6 +7,10 @@ import {
   GetVersionInfoResponse,
   ListFiltersRequest,
   ListFiltersResponse,
+  StartCameraStreamRequest,
+  StartCameraStreamResponse,
+  StopCameraStreamRequest,
+  StopCameraStreamResponse,
 } from '@/gen/image_processor_service_pb';
 import { TraceContext } from '@/gen/common_pb';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
@@ -92,6 +96,35 @@ class ControlChannelService {
     }
     if (response.payload.case !== 'getAcceleratorCapabilities') {
       throw new Error(`GetAcceleratorCapabilities: unexpected response case ${String(response.payload.case)}`);
+    }
+    return response.payload.value;
+  }
+
+  async startCameraStream(req: StartCameraStreamRequest): Promise<StartCameraStreamResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: { case: 'startCameraStream', value: req },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`StartCameraStream failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'startCameraStream') {
+      throw new Error(`StartCameraStream: unexpected response case ${String(response.payload.case)}`);
+    }
+    if (!response.payload.value.accepted) {
+      throw new Error(`StartCameraStream rejected: ${response.payload.value.reason}`);
+    }
+    return response.payload.value;
+  }
+
+  async stopCameraStream(): Promise<StopCameraStreamResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: { case: 'stopCameraStream', value: new StopCameraStreamRequest({}) },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`StopCameraStream failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'stopCameraStream') {
+      throw new Error(`StopCameraStream: unexpected response case ${String(response.payload.case)}`);
     }
     return response.payload.value;
   }

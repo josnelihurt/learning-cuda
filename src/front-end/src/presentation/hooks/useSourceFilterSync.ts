@@ -80,7 +80,7 @@ export function useSourceFilterSync({
       return;
     }
 
-    if (selectedSource.type === 'camera') {
+    if (selectedSource.type === 'camera' || selectedSource.type === 'remote_camera') {
       if (!selectedSource.sessionId) {
         logger.warn('Camera filter update skipped - no sessionId', {
           'source.id': selectedSource.id,

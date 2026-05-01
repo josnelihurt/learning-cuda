@@ -189,6 +189,123 @@ export class AcceleratorMessage extends Message<AcceleratorMessage> {
 }
 
 /**
+ * RemoteCameraMode describes a single sensor mode supported by a camera.
+ *
+ * @generated from message cuda_learning.RemoteCameraMode
+ */
+export class RemoteCameraMode extends Message<RemoteCameraMode> {
+  /**
+   * @generated from field: int32 width = 1;
+   */
+  width = 0;
+
+  /**
+   * @generated from field: int32 height = 2;
+   */
+  height = 0;
+
+  /**
+   * @generated from field: double fps = 3;
+   */
+  fps = 0;
+
+  constructor(data?: PartialMessage<RemoteCameraMode>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.RemoteCameraMode";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "fps", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoteCameraMode {
+    return new RemoteCameraMode().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoteCameraMode {
+    return new RemoteCameraMode().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoteCameraMode {
+    return new RemoteCameraMode().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoteCameraMode | PlainMessage<RemoteCameraMode> | undefined, b: RemoteCameraMode | PlainMessage<RemoteCameraMode> | undefined): boolean {
+    return proto3.util.equals(RemoteCameraMode, a, b);
+  }
+}
+
+/**
+ * RemoteCameraInfo describes a camera sensor attached to the accelerator device.
+ * Populated during registration so the cloud can surface it as a remote input.
+ *
+ * @generated from message cuda_learning.RemoteCameraInfo
+ */
+export class RemoteCameraInfo extends Message<RemoteCameraInfo> {
+  /**
+   * Argus sensor-id (0, 1, …).
+   *
+   * @generated from field: int32 sensor_id = 1;
+   */
+  sensorId = 0;
+
+  /**
+   * Human-readable label, e.g. "IMX477 (CAM0)".
+   *
+   * @generated from field: string display_name = 2;
+   */
+  displayName = "";
+
+  /**
+   * Sensor model string, e.g. "imx477".
+   *
+   * @generated from field: string model = 3;
+   */
+  model = "";
+
+  /**
+   * All sensor modes reported by Argus at startup.
+   *
+   * @generated from field: repeated cuda_learning.RemoteCameraMode modes = 4;
+   */
+  modes: RemoteCameraMode[] = [];
+
+  constructor(data?: PartialMessage<RemoteCameraInfo>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.RemoteCameraInfo";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "sensor_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "model", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "modes", kind: "message", T: RemoteCameraMode, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoteCameraInfo {
+    return new RemoteCameraInfo().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoteCameraInfo {
+    return new RemoteCameraInfo().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoteCameraInfo {
+    return new RemoteCameraInfo().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoteCameraInfo | PlainMessage<RemoteCameraInfo> | undefined, b: RemoteCameraInfo | PlainMessage<RemoteCameraInfo> | undefined): boolean {
+    return proto3.util.equals(RemoteCameraInfo, a, b);
+  }
+}
+
+/**
  * Register is the first message sent by the accelerator after Connect().
  * The server replies with RegisterAck.  If RegisterAck.accepted is false
  * the accelerator must close the stream and back off before retrying.
@@ -238,6 +355,13 @@ export class Register extends Message<Register> {
    */
   labels: { [key: string]: string } = {};
 
+  /**
+   * Camera sensors detected on this device at startup.
+   *
+   * @generated from field: repeated cuda_learning.RemoteCameraInfo cameras = 7;
+   */
+  cameras: RemoteCameraInfo[] = [];
+
   constructor(data?: PartialMessage<Register>) {
     super();
     proto3.util.initPartial(data, this);
@@ -252,6 +376,7 @@ export class Register extends Message<Register> {
     { no: 4, name: "capabilities", kind: "message", T: LibraryCapabilities },
     { no: 5, name: "supported_accelerator_types", kind: "enum", T: proto3.getEnumType(AcceleratorType), repeated: true },
     { no: 6, name: "labels", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+    { no: 7, name: "cameras", kind: "message", T: RemoteCameraInfo, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Register {

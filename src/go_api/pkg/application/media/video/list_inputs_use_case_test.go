@@ -15,7 +15,7 @@ func TestNewListInputsUseCase(t *testing.T) {
 	mockRepo := new(MockVideoRepository)
 
 	// Act
-	sut := NewListInputsUseCase(mockRepo)
+	sut := NewListInputsUseCase(mockRepo, nil)
 
 	// Assert
 	require.NotNil(t, sut)
@@ -80,7 +80,7 @@ func TestListInputsUseCase_Execute(t *testing.T) {
 			// Arrange
 			mockRepo := new(MockVideoRepository)
 			mockRepo.On("List", mock.Anything).Return([]domain.Video{}, nil)
-			sut := NewListInputsUseCase(mockRepo)
+			sut := NewListInputsUseCase(mockRepo, nil)
 			ctx := context.Background()
 
 			// Act

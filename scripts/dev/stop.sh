@@ -32,6 +32,7 @@ kill_from_pid_file "$DEV_PID_GO" " Go server"
 kill_from_pid_file "$DEV_PID_VITE" " Vite"
 
 pkill -f "accelerator_control_client" 2>/dev/null && echo "accelerator client stopped (fallback)" || true
+pkill -9 -f "accelerator_control_client" 2>/dev/null && echo "accelerator client stopped (fallback)" || true
 
 # Go server may be named bin/server; PID file can be stale after crash.
 pkill -f "${PROJECT_ROOT}/bin/server" 2>/dev/null && echo "Go server stopped (fallback)" || true

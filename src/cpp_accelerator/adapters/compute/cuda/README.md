@@ -6,7 +6,7 @@ The code is split into four focused subfolders:
 
 | Subfolder | Contents |
 |---|---|
-| `kernels/` | Raw `.cu` kernel files — no C++ class wrappers, just the CUDA math. |
+| `kernels/` | Kernel launcher headers (`.h`) and raw CUDA source (`.cu`). The `blur/` sub-subfolder holds the four blur variants plus shared device utilities. |
 | `filters/` | `IFilter`-implementing C++ classes that invoke the kernels. |
 | `memory/` | Thread-local GPU allocation pool (`CudaMemoryPool`). |
 | `tensorrt/` | TensorRT-based YOLO inference pipeline. |
@@ -26,9 +26,9 @@ graph TB
 
     subgraph Device[Device / GPU]
         POOL[memory/CudaMemoryPool<br/>thread-local cache]
-        K1[kernels/grayscale_kernel.cu]
-        K2[kernels/blur/<br/>1D / 2D / separable / tiled]
-        K3[kernels/letterbox_kernel.cu]
+        K1[kernels/grayscale_kernel.cu<br/>via grayscale_kernel.h launcher]
+        K2[kernels/blur/<br/>non_separable / separable_basic / separable_tiled<br/>via blur_kernel.h launcher]
+        K3[kernels/letterbox_kernel.cu<br/>via letterbox_kernel.h launcher]
         TRT[tensorrt/ TensorRT YOLO engine]
     end
 
@@ -47,9 +47,10 @@ Files at a glance:
 | File | Purpose |
 |---|---|
 | `memory/cuda_memory_pool.{h,cpp}` | Thread-local GPU allocation cache. Kills `cudaMalloc/Free` churn. |
-| `kernels/grayscale_kernel.cu` + `filters/grayscale_filter.{h,cpp}` | RGB → 1-channel luma, 5 algorithms. |
-| `kernels/blur/` + `filters/blur_filter*` | Gaussian blur, four flavors (full 2D, two 1D passes, separable+tiled). |
-| `kernels/letterbox_kernel.cu` | Aspect-preserving resize + pad + uint8→float NCHW for TRT input. |
+| `kernels/grayscale_kernel.{h,cu}` + `filters/grayscale_filter.{h,cpp}` | RGB → 1-channel luma, 5 algorithms. |
+| `kernels/blur_kernel.h` + `kernels/blur/` + `filters/blur_filter*` | Gaussian blur: launcher header, four kernel variants, C++ wrapper. |
+| `kernels/blur/device_utils.cuh` | Shared device-side helpers: `ClampX`, `ClampY`, border modes. |
+| `kernels/letterbox_kernel.{h,cu}` | Aspect-preserving resize + pad + uint8→float NCHW for TRT input. |
 | `tensorrt/yolo_detector.{h,cpp}` + `tensorrt/model_*`, `tensorrt/yolo_factory*` | TensorRT-based YOLO inference + NMS post-process. |
 
 Domain interfaces that define the contracts implemented here live outside this folder:

@@ -18,7 +18,8 @@ import {
   AcceleratorType,
   TraceContext,
 } from '@/gen/common_pb';
-import type { IStatsDisplay, IToastDisplay, ICameraPreview } from './transport-types';
+import type { WebRTCSessionMode } from '@/domain/value-objects/webrtc-session';
+
 import { ChunkReassembler, nextMessageId, packMessage } from './data-channel-framing';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
 import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
@@ -138,7 +139,9 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     private sourceId: string,
     private statsManager: IStatsDisplay,
     private cameraManager: ICameraPreview,
-    private toastManager: IToastDisplay
+    private toastManager: IToastDisplay,
+    private sessionMode: WebRTCSessionMode = 'frame-processing',
+    private onRemoteStream?: (stream: MediaStream) => void
   ) {
     this.client = createPromiseClient(VideoPlaybackService, createGrpcConnectTransport());
   }
@@ -332,6 +335,10 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     return webrtcService.getDataChannel(this.sessionId)?.readyState === 'open';
   }
 
+  getSessionId(): string | null {
+    return this.sessionId;
+  }
+
   getConnectionStatus(): { state: 'connected' | 'disconnected' | 'connecting' | 'error'; lastRequest: string | null; lastRequestTime: Date | null } {
     return {
       state: this.connectionState,
@@ -353,7 +360,10 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
 
     this.connectPromise = (async () => {
       const ensureMark = markStart('transport.ensure-connected');
-      const session = await webrtcService.createSession(this.sourceId);
+      const session = await webrtcService.createSession(this.sourceId, {
+        mode: this.sessionMode,
+        onRemoteStream: this.onRemoteStream,
+      });
       this.sessionId = session.getId();
       // waitForTransportReady waits until readyState === 'open' AND the
       // underlying SCTP association is 'connected'. Without the second wait

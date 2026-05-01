@@ -62,6 +62,8 @@ message InputSource {
   bool is_default = 9 [json_name = "is_default"];
   string video_path = 11 [json_name = "video_path"];
   string preview_image_path = 13 [json_name = "preview_image_path"];
+  // For type="remote_camera": Argus sensor_id on the accelerator device.
+  int32 sensor_id = 15 [json_name = "sensor_id"];
 }
 
 message ListInputsRequest {

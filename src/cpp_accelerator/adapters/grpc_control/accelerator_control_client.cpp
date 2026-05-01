@@ -357,6 +357,10 @@ cuda_learning::AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage
   reg.set_display_name(config_.display_name);
   reg.set_accelerator_version(config_.accelerator_version);
 
+  for (const auto& cam : config_.cameras) {
+    *reg.add_cameras() = cam;
+  }
+
   if (engine_) {
     cuda_learning::GetCapabilitiesResponse caps_resp;
     if (engine_->GetCapabilities(&caps_resp)) {

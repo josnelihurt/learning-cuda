@@ -11,3 +11,7 @@ type videoRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Video, error)
 	Save(ctx context.Context, video *domain.Video) error
 }
+
+type cameraRepository interface {
+	ListCameras(ctx context.Context) ([]RemoteCamera, error)
+}

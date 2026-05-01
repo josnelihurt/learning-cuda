@@ -15,6 +15,8 @@
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
+#include "src/cpp_accelerator/adapters/camera/camera_hub.h"
+#include "src/cpp_accelerator/adapters/camera/gst_camera_source.h"
 #include "src/cpp_accelerator/adapters/compute/cuda/memory/cuda_memory_pool.h"
 #include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 #include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
@@ -29,6 +31,7 @@ namespace jrb::adapters::webrtc {
 
 struct WebRTCManagerConfig {
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine;
+  std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub;
   std::string device_id;
   std::string display_name;
 };
@@ -47,7 +50,13 @@ public:
   bool CreateSession(const std::string& session_id, const std::string& sdp_offer,
                      std::string* sdp_answer, std::string* error_message);
 
+  bool CreateCameraSession(const std::string& session_id, const std::string& sdp_offer,
+                           int sensor_id, int width, int height, int fps,
+                           std::string* sdp_answer, std::string* error_message);
+
   bool CloseSession(const std::string& session_id, std::string* error_message);
+
+  bool StopCameraSession(const std::string& session_id, std::string* error_message);
 
   bool HandleRemoteCandidate(const std::string& session_id, const std::string& candidate,
                              const std::string& sdp_mid, int sdp_mline_index,
@@ -77,6 +86,8 @@ public:
     // pointer into the pool).
     std::unique_ptr<jrb::adapters::compute::cuda::CudaMemoryPool> memory_pool;
     std::unique_ptr<LiveVideoProcessor> live_video_processor;
+    std::unique_ptr<jrb::adapters::camera::GstCameraSource> gst_camera_source;
+    jrb::adapters::camera::CameraHub::Subscription camera_subscription;
     std::unique_ptr<ChunkReassembler> incoming_reassembler =
         std::make_unique<ChunkReassembler>();
     std::atomic<uint32_t> outgoing_message_id{0};
@@ -171,6 +182,7 @@ public:
                          const cuda_learning::DetectionFrame& frame);
 
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
+  std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub_;
   std::unique_ptr<jrb::application::server_info::IServerInfoProvider> server_info_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;

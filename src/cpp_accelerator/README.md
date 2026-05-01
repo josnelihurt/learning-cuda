@@ -4,9 +4,9 @@ High-performance image processing library implementing Clean Architecture princi
 
 ## Library Description
 
-The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters. The architecture uses a **pluggable filter factory** pattern: `ProcessorEngine` is decoupled from concrete filter implementations via `IFilterFactory`, with one factory registered per accelerator backend (CUDA, CPU, OpenCL). New backends are added by implementing `IFilterFactory` and registering it at startup — no engine changes required.
+The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters. The architecture uses a **pluggable filter factory** pattern: `ProcessorEngine` is decoupled from concrete filter implementations via `IFilterFactory`, with one factory registered per accelerator backend (CUDA, CPU, OpenCL). New backends are added by implementing `IFilterFactory` and registering it at startup — no engine changes required. The library also includes remote camera capture via GStreamer/Jetson camera sources, streamed over WebRTC peer connections.
 
-**Version**: See `VERSION` file (currently 4.0.6)
+**Version**: See `VERSION` file (currently 4.1.0)
 
 **Features**:
 - Multi-backend GPU acceleration: **CUDA**, **OpenCL**, and CPU fallback
@@ -15,6 +15,7 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 - WebRTC signaling support for real-time video streaming
 - **YOLO object detection** via TensorRT with GPU-accelerated inference
 - **Data channel framing** for structured detection result transport over WebRTC
+- **Remote camera streaming** via GStreamer/Jetson camera sources and CameraHub
 - Extensible filter pipeline architecture
 - Thread-safe concurrent processing
 - Buffer pooling and CUDA memory pooling for memory efficiency
@@ -24,7 +25,7 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 
 ### Component Overview
 
-The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream used exclusively for registration, WebRTC signaling, and keepalives. All image processing occurs over **WebRTC peer connections** established through that signaling. The Go server negotiates WebRTC sessions; once connected, video frames flow over RTP media tracks while still-image processing, detection results, and control requests flow over dedicated data channels. All processing converges at the `ProcessorEngine` which orchestrates image processing through the filter pipeline.
+The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream used exclusively for registration, WebRTC signaling, and keepalives. All image processing occurs over **WebRTC peer connections** established through that signaling. The Go server negotiates WebRTC sessions; once connected, video frames flow over RTP media tracks while still-image processing, detection results, and control requests flow over dedicated data channels. Remote camera streams from Jetson-attached sensors flow through `CameraHub` → `GstCameraSource` → WebRTC outbound track. All processing converges at the `ProcessorEngine` which orchestrates image processing through the filter pipeline.
 
 ```mermaid
 graph TB
@@ -45,6 +46,12 @@ graph TB
         MediaTracks[Media Tracks<br/>inbound/outbound H264 RTP]
     end
 
+    subgraph "Camera Adapter"
+        CameraHub[CameraHub]
+        GstSource[GstCameraSource<br/>nvarguscamerasrc]
+        CameraDetector[CameraDetector<br/>Probe + advertise]
+    end
+
     subgraph "C++ Core Processing"
         ProcessorEngine[ProcessorEngine]
         FilterPipeline[FilterPipeline]
@@ -60,6 +67,7 @@ graph TB
         CudaFactory[CUDA FilterFactory]
         CpuFactory[CPU FilterFactory]
         OpenCLFactory[OpenCL FilterFactory]
+        VulkanFactory[Vulkan FilterFactory]
         YOLODetector[YOLO Detector<br/>TensorRT]
         ModelManager[Model Manager]
     end
@@ -73,7 +81,10 @@ graph TB
     WebRTCMgr --> LiveVP
     WebRTCMgr --> DataChannels
     WebRTCMgr --> MediaTracks
+    WebRTCMgr --> CameraHub
     LiveVP --> ProcessorEngine
+    CameraHub --> GstSource
+    GstSource -->|H264 AUs| WebRTCMgr
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -81,9 +92,11 @@ graph TB
     ProcessorEngine -->|FilterFactoryRegistry| CudaFactory
     ProcessorEngine -->|FilterFactoryRegistry| CpuFactory
     ProcessorEngine -->|FilterFactoryRegistry| OpenCLFactory
+    ProcessorEngine -->|FilterFactoryRegistry| VulkanFactory
     CudaFactory --> IFilter
     CpuFactory --> IFilter
     OpenCLFactory --> IFilter
+    VulkanFactory --> IFilter
     CudaFactory --> YOLODetector
     YOLODetector --> ModelManager
     FilterPipeline --> ImageBuffer
@@ -108,6 +121,8 @@ graph TB
         WebRTCPort[adapters/webrtc<br/>WebRTCManager]
         DataChannelFraming[DataChannelFraming]
         LiveVideoProcessor[LiveVideoProcessor]
+        CameraAdapter[adapters/camera<br/>CameraHub + GstCameraSource]
+        CameraDetector[CameraDetector]
     end
 
     subgraph "C++ Application Layer"
@@ -130,6 +145,7 @@ graph TB
         CudaFactory[compute/cuda<br/>CudaFilterFactory]
         CpuFactory[compute/cpu<br/>CpuFilterFactory]
         OpenCLFactory[compute/opencl<br/>OpenCLFilterFactory]
+        VulkanFactory[compute/vulkan<br/>VulkanFilterFactory]
         TRTInference[cuda/tensorrt<br/>YOLO + TensorRT]
         ImageIO[image_io<br/>Image I/O]
         ConfigManager[config<br/>ConfigManager]
@@ -148,6 +164,9 @@ graph TB
     Provider --> ProcessorEngine
     AccelClient --> WebRTCPort
     WebRTCPort --> ServerInfo
+    WebRTCPort --> CameraAdapter
+    CameraAdapter --> GstSource[GstCameraSource]
+    AccelClient --> CameraDetector
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -156,9 +175,11 @@ graph TB
     FactoryRegistry --> CudaFactory
     FactoryRegistry --> CpuFactory
     FactoryRegistry --> OpenCLFactory
+    FactoryRegistry --> VulkanFactory
     CudaFactory --> IFilter
     CpuFactory --> IFilter
     OpenCLFactory --> IFilter
+    VulkanFactory --> IFilter
     CudaFactory --> TRTInference
     CommandFactory --> ConfigManager
     ProcessorEngine --> Logger
@@ -174,10 +195,13 @@ sequenceDiagram
     participant Engine as ProcessorEngine
     participant TM as TelemetryManager
     participant Provider as ProcessorEngineAdapter
+    participant CameraHub as CameraHub
+    participant CameraDet as CameraDetector
     participant WebRTC as WebRTCManager
+    participant Signal as SignalHandler
     participant Client as AcceleratorControlClient
 
-    Main->>Flags: Parse flags (control_addr, device_id, mTLS paths)
+    Main->>Flags: Parse flags (control_addr, device_id, mTLS paths, cameras)
     Flags-->>Main: Configuration
 
     Main->>Engine: Create ProcessorEngine("accelerator-client")
@@ -187,15 +211,21 @@ sequenceDiagram
     Engine-->>Main: InitResponse{code: 0}
 
     Main->>Provider: Create ProcessorEngineAdapter(engine)
-    Main->>WebRTC: Create WebRTCManager
+    Main->>CameraHub: CameraHub::Create()
+    Main->>CameraDet: DetectCameras(sensor_ids)
+    CameraDet-->>Main: vector<RemoteCameraInfo>
+    Main->>WebRTC: Create WebRTCManager(engine, camera_hub, device_id, display_name)
+    Main->>WebRTC: Initialize()
+    WebRTC-->>Main: ready
     Main->>Client: Create AcceleratorControlClient(config, provider, webrtc)
+    Main->>Signal: Initialize(shutdown callback → client.Stop())
     Main->>Client: Run()
 
     Client->>Client: Load mTLS credentials
     Client->>Client: Create mTLS gRPC channel
     Client->>Client: Dial Go control server
     Client->>Client: Connect() - open bidi stream
-    Client->>Client: Send Register(device_id, caps, version)
+    Client->>Client: Send Register(device_id, caps, version, cameras)
     Client-->>Client: Receive RegisterAck(session_id)
 
     Note over Client: Connected and registered<br/>Ready to receive commands
@@ -332,6 +362,7 @@ cpp_accelerator/
 │   │   ├── i_filter_factory.h       # IFilterFactory — one per accelerator backend
 │   │   ├── filter_descriptor.h      # FilterDescriptor, FilterCreationParams, BlurBorderMode
 │   │   ├── filter_factory_registry.h/cpp  # Registry: AcceleratorType → IFilterFactory
+│   │   ├── filter_creation_dispatch.hpp   # Shared Strategy Pattern dispatch helper
 │   │   └── BUILD
 │   ├── pipeline/
 │   │   ├── filter_pipeline.h/cpp
@@ -341,7 +372,7 @@ cpp_accelerator/
 │   │   ├── server_info_provider.h/cpp   # Implementation (reads VERSION, queries engine caps)
 │   │   ├── filter_parameter_mapping.h/cpp  # Engine FilterParameter → wire GenericFilterParameter
 │   │   └── accelerator_label.h/cpp         # AcceleratorType → human-readable label
-│   └── commands/               # Placeholder command pattern (unused)
+│   └── commands/               # CommandFactory (not wired into main pipeline)
 ├── ports/                      # Abstract port interfaces ONLY
 │   ├── control/
 │   │   └── i_control_port.h    # IControlPort — Run/Stop interface
@@ -363,6 +394,13 @@ cpp_accelerator/
 │   │   │   └── data_channel_envelope.h/cpp   # DataChannelRequest protobuf envelope parsing
 │   │   └── sdp/                  # SDP utilities
 │   │       └── sdp_utils.h/cpp               # Codec negotiation, extmap strip, ICE injection
+│   ├── camera/                 # Camera capture and streaming
+│   │   ├── camera_hub.h/cpp                 # Owns GstCameraSource per sensor, fans out H264 AUs
+│   │   ├── camera_detector.h/cpp            # Probe sensors via nvarguscamerasrc, advertise cameras
+│   │   ├── gst_camera_source.h              # GStreamer nvarguscamerasrc capture interface
+│   │   ├── gst_camera_source_jetson.cpp      # Jetson platform implementation
+│   │   ├── gst_camera_source_v4l2.cpp        # V4L2 platform implementation
+│   │   └── gst_camera_source_stub.cpp        # Stub for builds without GStreamer
 │   ├── compute/
 │   │   ├── cpu/                # CPU filter implementations
 │   │   │   ├── grayscale_filter.h/cpp
@@ -370,10 +408,15 @@ cpp_accelerator/
 │   │   │   └── cpu_filter_factory.h/cpp    # IFilterFactory for CPU
 │   │   ├── cuda/
 │   │   │   ├── cuda_filter_factory.h/cpp   # IFilterFactory for CUDA
-│   │   │   ├── kernels/        # Raw CUDA .cu kernels
-│   │   │   │   ├── blur/       # Blur variants (non-separable, separable basic/tiled)
-│   │   │   │   ├── grayscale_kernel.cu
-│   │   │   │   └── letterbox_kernel.cu
+│   │   │   ├── kernels/        # Kernel launchers (.h) and CUDA source (.cu)
+│   │   │   │   ├── grayscale_kernel.h/cu
+│   │   │   │   ├── letterbox_kernel.h/cu
+│   │   │   │   ├── blur_kernel.h           # Launcher header for blur variants
+│   │   │   │   └── blur/       # Blur kernel implementations
+│   │   │   │       ├── device_utils.cuh    # Shared border-clamp helpers
+│   │   │   │       ├── non_separable.cu    # Naïve 2D convolution (reference)
+│   │   │   │       ├── separable_basic.cu  # Two 1D passes (algorithmic win)
+│   │   │   │       └── separable_tiled.cu  # Tiled + constant mem (production)
 │   │   │   ├── filters/        # C++ wrappers: grayscale_filter, blur_filter
 │   │   │   ├── memory/         # cuda_memory_pool (thread-local GPU alloc cache)
 │   │   │   └── tensorrt/       # TensorRT/YOLO inference
@@ -382,10 +425,26 @@ cpp_accelerator/
 │   │   │       ├── model_manager.h/cpp
 │   │   │       └── model_registry.h/cpp
 │   │   ├── opencl/              # OpenCL filter implementations
-│   │   │   ├── opencl_context.h/cpp         # OpenCL platform/device initialization
-│   │   │   ├── opencl_grayscale_filter.h/cpp
-│   │   │   ├── opencl_blur_filter.h/cpp
+│   │   │   ├── context/
+│   │   │   │   └── context.h/cpp            # OpenCL platform/device initialization
+│   │   │   ├── filters/
+│   │   │   │   ├── grayscale_filter.h/cpp
+│   │   │   │   └── blur_filter.h/cpp
+│   │   │   ├── kernels/
+│   │   │   │   ├── cl_grayscale.cl          # Grayscale OpenCL kernel source
+│   │   │   │   └── cl_blur.cl               # Blur OpenCL kernel source
 │   │   │   └── opencl_filter_factory.h/cpp  # IFilterFactory for OpenCL
+│   │   ├── vulkan/              # Vulkan compute filter implementations
+│   │   │   ├── context/
+│   │   │   │   ├── context.h/cpp            # Vulkan instance/device initialization
+│   │   │   │   └── compute_utils.h
+│   │   │   ├── filters/
+│   │   │   │   ├── grayscale_filter.h/cpp
+│   │   │   │   └── blur_filter.h/cpp
+│   │   │   ├── kernels/
+│   │   │   │   ├── grayscale.comp           # Grayscale GLSL compute shader
+│   │   │   │   └── blur.comp                # Blur GLSL compute shader
+│   │   │   └── vulkan_filter_factory.h/cpp  # IFilterFactory for Vulkan
 │   │   └── filters/            # Cross-backend equivalence tests
 │   ├── image_io/               # Image file I/O (stb-based)
 │   │   ├── image_loader.h/cpp
@@ -393,6 +452,25 @@ cpp_accelerator/
 │   └── config/                 # Configuration management
 │       ├── config_manager.h/cpp
 │       └── models/program_config.h
+├── composition/                # Bazel-flag-driven platform wiring
+│   └── platform/
+│       ├── platform_support.h              # Common registration interface
+│       ├── platform_support_cpu.cpp        # CPU-only build
+│       ├── platform_support_cuda.cpp       # CUDA-only build
+│       ├── platform_support_opencl.cpp     # OpenCL-only build
+│       ├── platform_support_vulkan.cpp     # Vulkan-only build
+│       ├── platform_support_full.cpp       # All backends
+│       ├── platform_support_all.cpp        # Alias: all backends
+│       ├── platform_support_cuda_vulkan.cpp
+│       ├── platform_support_opencl_vulkan.cpp
+│       ├── cpu/
+│       │   └── cpu_platform.h/cpp          # CPU platform registration
+│       ├── cuda/
+│       │   └── cuda_platform.h/cpp         # CUDA platform registration
+│       ├── opencl/
+│       │   └── opencl_platform.h/cpp       # OpenCL platform registration
+│       └── vulkan/
+│           └── vulkan_platform.h/cpp       # Vulkan platform registration
 ├── docker-cuda-runtime/
 ├── yolo-model-gen/
 ├── Dockerfile.build
@@ -400,9 +478,39 @@ cpp_accelerator/
 └── lessons_learned.md
 ```
 
+## UML Class Diagrams
+
+Mermaid class diagrams for each architectural layer are generated automatically from source using [clang-uml](https://github.com/bkryza/clang-uml) and the `compile_commands.json` produced by Bazel.
+
+| Diagram | Scope |
+|---------|-------|
+| [cpp_domain_layer](../../docs/uml/generated/cpp_domain_layer.mmd) | `jrb::domain` — interfaces & models |
+| [cpp_application_layer](../../docs/uml/generated/cpp_application_layer.mmd) | `jrb::application` — engine, pipeline, factories |
+| [cpp_ports](../../docs/uml/generated/cpp_ports.mmd) | `jrb::ports` — hexagonal port interfaces |
+| [cpp_core](../../docs/uml/generated/cpp_core.mmd) | `jrb::core` — Logger, Telemetry, Result |
+| [cpp_control_adapters](../../docs/uml/generated/cpp_control_adapters.mmd) | gRPC control + WebRTC adapters |
+| [cpp_compute_cpu](../../docs/uml/generated/cpp_compute_cpu.mmd) | `jrb::adapters::compute::cpu` |
+| [cpp_compute_cuda](../../docs/uml/generated/cpp_compute_cuda.mmd) | `jrb::adapters::compute::cuda` + TensorRT |
+| [cpp_compute_opencl](../../docs/uml/generated/cpp_compute_opencl.mmd) | `jrb::adapters::compute::opencl` |
+| [cpp_compute_vulkan](../../docs/uml/generated/cpp_compute_vulkan.mmd) | `jrb::adapters::compute::vulkan` |
+
+**Regenerate diagrams** (after source changes):
+
+```bash
+# One-time install (Ubuntu 24.04)
+scripts/dev/install-clang-uml.sh
+
+# Generate / refresh
+scripts/build/uml.sh
+```
+
+See [docs/uml/README.md](../../docs/uml/README.md) for full documentation, viewing options, and troubleshooting.
+
 ## Sub-folder Documentation
 
 - **[adapters/compute/cuda/README.md](adapters/compute/cuda/README.md)** — Comprehensive CUDA tutorial covering kernel implementations, memory hierarchy, blur optimization variants, letterbox preprocessing, and TensorRT YOLO inference pipeline.
+
+- **[application/engine/README.md](application/engine/README.md)** — Describes the Strategy Pattern dispatch used in `IFilterFactory::CreateFilter` and the `DispatchCreateFilter` shared helper.
 
 ## Hello World Examples
 
@@ -512,6 +620,18 @@ The library includes YOLO object detection via TensorRT for GPU-accelerated infe
 - **ModelRegistry** (`adapters/compute/cuda/tensorrt/model_registry.h/cpp`): Model path resolution
 - **LetterboxKernel** (`adapters/compute/cuda/kernels/letterbox_kernel.cu/h`): GPU-accelerated resize + pad + NCHW conversion
 
+### Camera Adapter
+
+The camera adapter provides Jetson-attached camera capture and streaming over WebRTC. Camera sources are probed at startup via `CameraDetector` and advertised as remote cameras in the registration message.
+
+**Components**:
+
+- **CameraHub** (`adapters/camera/camera_hub.h/cpp`): Owns one `GstCameraSource` per sensor ID. Fans out encoded H.264 access units to multiple WebRTC session subscribers via RAII `Subscription` handles. Devices are lazily opened on first subscribe and held open until process shutdown to avoid `EBUSY` on rapid open/close cycles.
+- **GstCameraSource** (`adapters/camera/gst_camera_source.h`): GStreamer `nvarguscamerasrc` capture interface. Platform-specific implementations: `gst_camera_source_jetson.cpp` (Jetson), `gst_camera_source_v4l2.cpp` (V4L2), `gst_camera_source_stub.cpp` (no-op for builds without GStreamer).
+- **CameraDetector** (`adapters/camera/camera_detector.h/cpp`): Probes sensor IDs via `nvarguscamerasrc` and returns `RemoteCameraInfo` protobuf for each detected camera. On non-Jetson platforms returns an empty list.
+
+**Integration**: `WebRTCManager` receives a `CameraHub` instance and uses `CreateCameraSession()` to establish a WebRTC peer connection that streams H.264 from a `GstCameraSource` to the remote peer. The camera registration data flows through `AcceleratorControlClient` → `Register` message → Go server.
+
 ### Command Pattern
 
 The command pattern infrastructure (`application/commands/`) is maintained for potential future use. All processing is currently handled directly by `FilterPipeline` which orchestrates filter chains without the command pattern abstraction layer.
@@ -525,7 +645,7 @@ The engine uses a **pluggable factory pattern** to decouple from concrete filter
 - **`FilterDescriptor`** (`application/engine/filter_descriptor.h`): Declarative filter metadata (id, name, parameters with validation rules). Each factory returns its supported filters.
 - **`FilterCreationParams`**: Runtime parameter struct passed to `CreateFilter()` — factories read what they need.
 
-Registered factories: `CudaFilterFactory`, `CpuFilterFactory`, `OpenCLFilterFactory`.
+Registered factories: `CudaFilterFactory`, `CpuFilterFactory`, `OpenCLFilterFactory`, `VulkanFilterFactory`.
 
 `GetCapabilities()` accepts an optional `requested_accelerator` — when specified, only that backend's filter descriptors are returned. When unspecified, all factories contribute (backward compatible).
 
@@ -561,7 +681,7 @@ All code in `cpp_accelerator/` compiles without warnings when `-Werror` is enabl
 
 The library previously exposed a C API through `processor_api.h`. The shared library build target (`libcuda_processor.so`) has been removed. The `processor_engine` wrapper in the application layer is now used directly by the gRPC and WebRTC adapters.
 
-**API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.0.6).
+**API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.1.0).
 
 ## Adding New Filters or Backends
 

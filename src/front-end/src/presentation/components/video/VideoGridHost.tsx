@@ -23,6 +23,7 @@ import { ImageSelectorModal } from '@/presentation/components/video/ImageSelecto
 import { AcceleratorStatusFab } from '@/presentation/components/video/AcceleratorStatusFab';
 import { StatsPanel as ReactStatsPanel } from '@/presentation/components/app/StatsPanel';
 import { filtersToFilterData, GridSourceActionType, type GridSource } from '@/presentation/utils/grid-source';
+import { pickDefaultSource } from '@/presentation/utils/input-source-defaults';
 
 const MAX_SOURCES = 9;
 
@@ -124,14 +125,18 @@ export function VideoGridHost(): React.ReactNode {
 
   useEffect(() => {
     if (!ready || defaultSourceInitializedRef.current) return;
-    const defaultSource = container.getInputSourceService().getDefaultSource();
-    if (defaultSource && sourcesRef.current.length === 0) {
-      defaultSourceInitializedRef.current = true;
-      const source = buildSource(defaultSource);
+    if (sourcesRef.current.length > 0) return;
+    defaultSourceInitializedRef.current = true;
+
+    const sources = container.getInputSourceService().getSources();
+    void pickDefaultSource(sources).then((picked) => {
+      if (!picked) return;
+      if (sourcesRef.current.length > 0) return;
+      const source = buildSource(picked);
       dispatch({ type: GridSourceActionType.ADD_SOURCE, payload: source });
       setSelectedSourceId(source.id);
       syncSelectionToDashboard(source);
-    }
+    });
   }, [buildSource, container, dispatch, ready, setSelectedSourceId, sourcesRef, syncSelectionToDashboard]);
 
   const addSource = useCallback(
@@ -354,3 +359,4 @@ export function VideoGridHost(): React.ReactNode {
     </VideoGridProvider>
   );
 }
+

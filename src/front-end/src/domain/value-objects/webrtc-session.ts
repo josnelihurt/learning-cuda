@@ -1,6 +1,6 @@
 import { Uuid } from './uuid';
 
-export type WebRTCSessionMode = 'frame-processing' | 'video-playback' | 'camera-mediatrack';
+export type WebRTCSessionMode = 'frame-processing' | 'video-playback' | 'camera-mediatrack' | 'remote-camera';
 
 export class WebRTCSession {
   private readonly sessionId: string;

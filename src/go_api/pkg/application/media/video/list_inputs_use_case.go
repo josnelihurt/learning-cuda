@@ -2,6 +2,7 @@ package video
 
 import (
 	"context"
+	"fmt"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,6 +17,14 @@ type InputSource struct {
 	IsDefault        bool
 	VideoPath        string
 	PreviewImagePath string
+	SensorID         int32
+}
+
+// RemoteCamera holds camera info for use by the ListInputsUseCase.
+type RemoteCamera struct {
+	SensorID    int32
+	DisplayName string
+	Model       string
 }
 
 type ListInputsUseCaseInput struct{}
@@ -25,12 +34,14 @@ type ListInputsUseCaseOutput struct {
 }
 
 type ListInputsUseCase struct {
-	videoRepository videoRepository
+	videoRepository  videoRepository
+	cameraRepository cameraRepository
 }
 
-func NewListInputsUseCase(videoRepository videoRepository) *ListInputsUseCase {
+func NewListInputsUseCase(videoRepository videoRepository, cameraRepository cameraRepository) *ListInputsUseCase {
 	return &ListInputsUseCase{
-		videoRepository: videoRepository,
+		videoRepository:  videoRepository,
+		cameraRepository: cameraRepository,
 	}
 }
 
@@ -72,9 +83,25 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context, _ ListInputsUseCaseInp
 		}
 	}
 
+	if uc.cameraRepository != nil {
+		cameras, camErr := uc.cameraRepository.ListCameras(ctx)
+		if camErr == nil {
+			for _, cam := range cameras {
+				sources = append(sources, InputSource{
+					ID:          fmt.Sprintf("remote-camera-%d", cam.SensorID),
+					DisplayName: cam.DisplayName,
+					Type:        "remote_camera",
+					SensorID:    cam.SensorID,
+					IsDefault:   false,
+				})
+			}
+		}
+	}
+
 	staticCount := 0
 	cameraCount := 0
 	videoCount := 0
+	remoteCameraCount := 0
 	for _, src := range sources {
 		switch src.Type {
 		case "static":
@@ -83,6 +110,8 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context, _ ListInputsUseCaseInp
 			cameraCount++
 		case "video":
 			videoCount++
+		case "remote_camera":
+			remoteCameraCount++
 		}
 	}
 
@@ -91,6 +120,7 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context, _ ListInputsUseCaseInp
 		attribute.Int("input_sources.static_count", staticCount),
 		attribute.Int("input_sources.camera_count", cameraCount),
 		attribute.Int("input_sources.video_count", videoCount),
+		attribute.Int("input_sources.remote_camera_count", remoteCameraCount),
 	)
 
 	return ListInputsUseCaseOutput{Inputs: sources}, nil

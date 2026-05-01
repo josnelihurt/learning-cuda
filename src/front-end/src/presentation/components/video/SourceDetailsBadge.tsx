@@ -3,6 +3,7 @@ import styles from './SourceDetailsBadge.module.css';
 
 export const SOURCE_TYPES = {
   CAMERA: 'camera',
+  REMOTE_CAMERA: 'remote_camera',
   VIDEO: 'video',
   STATIC: 'static',
   OTHER: 'other',
@@ -27,6 +28,7 @@ type SourceDetailsBadgeProps = {
 export function normalizeSourceType(value: string): SourceType {
   if (
     value === SOURCE_TYPES.CAMERA ||
+    value === SOURCE_TYPES.REMOTE_CAMERA ||
     value === SOURCE_TYPES.VIDEO ||
     value === SOURCE_TYPES.STATIC
   ) {
@@ -44,7 +46,8 @@ function formatDimensions(width?: number, height?: number): string {
 
 function sourceTypeLabel(sourceType: SourceType): string {
   const normalizedType = normalizeSourceType(sourceType);
-  if (normalizedType === SOURCE_TYPES.CAMERA) return 'Webcam';
+  if (normalizedType === SOURCE_TYPES.CAMERA) return 'Camera';
+  if (normalizedType === SOURCE_TYPES.REMOTE_CAMERA) return 'Remote Camera';
   if (normalizedType === SOURCE_TYPES.VIDEO) return 'Video';
   if (normalizedType === SOURCE_TYPES.STATIC) return 'Static';
   return 'Other';
@@ -74,7 +77,7 @@ export function SourceDetailsBadge({
       { label: 'resolution', value: dimensions },
     ];
 
-    if (normalizedType === SOURCE_TYPES.VIDEO || normalizedType === SOURCE_TYPES.CAMERA) {
+    if (normalizedType === SOURCE_TYPES.VIDEO || normalizedType === SOURCE_TYPES.CAMERA || normalizedType === SOURCE_TYPES.REMOTE_CAMERA) {
       rows.unshift({ label: 'fps', value: fps.toFixed(1) });
     }
 

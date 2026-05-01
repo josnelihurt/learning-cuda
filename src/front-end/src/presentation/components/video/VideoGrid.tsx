@@ -1,5 +1,6 @@
 import { type ReactElement } from 'react';
 import { CameraPreview } from './CameraPreview';
+import { RemoteCameraVideo } from './RemoteCameraVideo';
 import { VideoSourceCard } from './VideoSourceCard';
 import { SOURCE_TYPES } from './SourceDetailsBadge';
 import { useVideoGridContext } from '@/presentation/context/video-grid-context';
@@ -85,6 +86,14 @@ export function VideoGrid({ 'data-testid': dataTestId }: VideoGridProps): ReactE
                     onResolutionUpdate={(width, height) =>
                       onSourceResolutionUpdate(source.id, width, height)
                     }
+                  />
+                ) : source.type === SOURCE_TYPES.REMOTE_CAMERA && source.remoteStream ? (
+                  <RemoteCameraVideo
+                    stream={source.remoteStream}
+                    onResolutionUpdate={(width, height) =>
+                      onSourceResolutionUpdate(source.id, width, height)
+                    }
+                    onFpsUpdate={(fps) => onSourceFpsUpdate(source.id, fps)}
                   />
                 ) : null}
               </VideoSourceCard>

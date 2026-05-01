@@ -22,6 +22,8 @@ cd "$PROJECT_ROOT"
 BUILD_FIRST=false
 SHOW_HELP=false
 ACCELERATOR="cuda"
+V4L2_CAMERA=false
+NVIDIA_ARGUS_CAMERA=false
 GRPC_PID=
 GO_PID=
 VITE_PID=
@@ -76,6 +78,12 @@ parse_args() {
                 [ -z "${1:-}" ] && die "--accelerator requires a value (cuda|opencl|vulkan|full|cpu)"
                 ACCELERATOR="$1"
                 ;;
+            --v4l2-camera)
+                V4L2_CAMERA=true
+                ;;
+            --nvidia-argus-camera)
+                NVIDIA_ARGUS_CAMERA=true
+                ;;
             --help|-h)
                 SHOW_HELP=true
                 ;;
@@ -111,6 +119,8 @@ print_help() {
     echo "                           Combine with commas for custom multi-backend builds:"
     echo "                             cuda,vulkan   — CUDA + Vulkan"
     echo "                             cuda,opencl,vulkan — all GPU backends"
+    echo "  --v4l2-camera            Enable V4L2 camera backend (USB cameras, x86/Jetson)"
+    echo "  --nvidia-argus-camera    Enable NVIDIA Argus camera backend (MIPI CSI-2, Jetson only)"
     echo "  --help, -h               Show this help message"
     echo ""
     echo "Examples:"
@@ -119,6 +129,9 @@ print_help() {
     echo "  ./scripts/dev/start.sh --build --accelerator vulkan # Build Vulkan backend, then start"
     echo "  ./scripts/dev/start.sh --build -a cuda,vulkan       # Build CUDA + Vulkan, then start"
     echo "  ./scripts/dev/start.sh --build -a cpu               # Build CPU-only, then start"
+    echo "  ./scripts/dev/start.sh --build --v4l2-camera        # Build with V4L2 USB camera support"
+    echo "  ./scripts/dev/start.sh --build --nvidia-argus-camera # Build with Jetson Argus camera support"
+    echo "  ./scripts/dev/start.sh --build --v4l2-camera --nvidia-argus-camera # Build with both backends"
     exit 0
 }
 
@@ -155,16 +168,17 @@ accelerator_to_bazel_configs() {
     local accel="$1"
     local configs=""
     # "cpu" means default build — no --config flags needed
-    if [ "$accel" = "cpu" ]; then
-        echo ""
-        return
+    if [ "$accel" != "cpu" ]; then
+        # Split comma-separated list into individual --config=<name> flags
+        IFS=',' read -ra parts <<< "$accel"
+        for part in "${parts[@]}"; do
+            part="${part// /}"
+            [ -n "$part" ] && configs="$configs --config=${part}"
+        done
     fi
-    # Split comma-separated list into individual --config=<name> flags
-    IFS=',' read -ra parts <<< "$accel"
-    for part in "${parts[@]}"; do
-        part="${part// /}"
-        [ -n "$part" ] && configs="$configs --config=${part}"
-    done
+    # Add camera backend configs
+    [ "$V4L2_CAMERA" = true ] && configs="$configs --config=v4l2-camera"
+    [ "$NVIDIA_ARGUS_CAMERA" = true ] && configs="$configs --config=nvidia-argus-camera"
     echo "$configs"
 }
 
@@ -278,12 +292,18 @@ get_local_ip() {
 print_summary() {
     local local_ip
     local_ip="$(get_local_ip)"
+    
+    local camera_backends=""
+    [ "$V4L2_CAMERA" = true ] && camera_backends="${camera_backends}V4L2"
+    [ "$NVIDIA_ARGUS_CAMERA" = true ] && camera_backends="${camera_backends}${camera_backends:+, }Argus"
+    [ -z "$camera_backends" ] && camera_backends="(none)"
 
     echo "================================================"
     echo "Dev stack (accelerator: ${ACCELERATOR}):"
     echo "  UI (Vite):   https://${local_ip}:3000"
     echo "  API (HTTPS): https://${local_ip}:8443"
     echo "  Accelerator: → ${local_ip}:60062 (outbound)"
+    echo "  Cameras:     ${camera_backends}"
     echo "================================================"
     echo ""
     echo "  Accelerator PID: $GRPC_PID ($DEV_PID_GRPC)"

@@ -90,6 +90,18 @@ export class ControlRequest extends Message<ControlRequest> {
      */
     value: GetAcceleratorCapabilitiesRequest;
     case: "getAcceleratorCapabilities";
+  } | {
+    /**
+     * @generated from field: cuda_learning.StartCameraStreamRequest start_camera_stream = 13 [json_name = "start_camera_stream"];
+     */
+    value: StartCameraStreamRequest;
+    case: "startCameraStream";
+  } | {
+    /**
+     * @generated from field: cuda_learning.StopCameraStreamRequest stop_camera_stream = 14 [json_name = "stop_camera_stream"];
+     */
+    value: StopCameraStreamRequest;
+    case: "stopCameraStream";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ControlRequest>) {
@@ -105,6 +117,8 @@ export class ControlRequest extends Message<ControlRequest> {
     { no: 10, name: "list_filters", jsonName: "list_filters", kind: "message", T: ListFiltersRequest, oneof: "payload" },
     { no: 11, name: "get_version", jsonName: "get_version", kind: "message", T: GetVersionInfoRequest, oneof: "payload" },
     { no: 12, name: "get_accelerator_capabilities", jsonName: "get_accelerator_capabilities", kind: "message", T: GetAcceleratorCapabilitiesRequest, oneof: "payload" },
+    { no: 13, name: "start_camera_stream", jsonName: "start_camera_stream", kind: "message", T: StartCameraStreamRequest, oneof: "payload" },
+    { no: 14, name: "stop_camera_stream", jsonName: "stop_camera_stream", kind: "message", T: StopCameraStreamRequest, oneof: "payload" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ControlRequest {
@@ -164,6 +178,18 @@ export class ControlResponse extends Message<ControlResponse> {
     case: "getAcceleratorCapabilities";
   } | {
     /**
+     * @generated from field: cuda_learning.StartCameraStreamResponse start_camera_stream = 13 [json_name = "start_camera_stream"];
+     */
+    value: StartCameraStreamResponse;
+    case: "startCameraStream";
+  } | {
+    /**
+     * @generated from field: cuda_learning.StopCameraStreamResponse stop_camera_stream = 14 [json_name = "stop_camera_stream"];
+     */
+    value: StopCameraStreamResponse;
+    case: "stopCameraStream";
+  } | {
+    /**
      * @generated from field: cuda_learning.ControlError error = 99;
      */
     value: ControlError;
@@ -183,6 +209,8 @@ export class ControlResponse extends Message<ControlResponse> {
     { no: 10, name: "list_filters", jsonName: "list_filters", kind: "message", T: ListFiltersResponse, oneof: "payload" },
     { no: 11, name: "get_version", jsonName: "get_version", kind: "message", T: GetVersionInfoResponse, oneof: "payload" },
     { no: 12, name: "get_accelerator_capabilities", jsonName: "get_accelerator_capabilities", kind: "message", T: GetAcceleratorCapabilitiesResponse, oneof: "payload" },
+    { no: 13, name: "start_camera_stream", jsonName: "start_camera_stream", kind: "message", T: StartCameraStreamResponse, oneof: "payload" },
+    { no: 14, name: "stop_camera_stream", jsonName: "stop_camera_stream", kind: "message", T: StopCameraStreamResponse, oneof: "payload" },
     { no: 99, name: "error", kind: "message", T: ControlError, oneof: "payload" },
   ]);
 
@@ -1966,6 +1994,178 @@ export class GetVersionInfoResponse extends Message<GetVersionInfoResponse> {
 
   static equals(a: GetVersionInfoResponse | PlainMessage<GetVersionInfoResponse> | undefined, b: GetVersionInfoResponse | PlainMessage<GetVersionInfoResponse> | undefined): boolean {
     return proto3.util.equals(GetVersionInfoResponse, a, b);
+  }
+}
+
+/**
+ * StartCameraStreamRequest is sent by the browser over the WebRTC control
+ * data channel to instruct the C++ accelerator to begin capturing a local
+ * camera sensor and push processed video on the outbound video track.
+ *
+ * @generated from message cuda_learning.StartCameraStreamRequest
+ */
+export class StartCameraStreamRequest extends Message<StartCameraStreamRequest> {
+  /**
+   * @generated from field: int32 sensor_id = 1 [json_name = "sensor_id"];
+   */
+  sensorId = 0;
+
+  /**
+   * @generated from field: int32 width = 2;
+   */
+  width = 0;
+
+  /**
+   * @generated from field: int32 height = 3;
+   */
+  height = 0;
+
+  /**
+   * @generated from field: int32 fps = 4;
+   */
+  fps = 0;
+
+  constructor(data?: PartialMessage<StartCameraStreamRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StartCameraStreamRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "sensor_id", jsonName: "sensor_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "fps", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartCameraStreamRequest {
+    return new StartCameraStreamRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartCameraStreamRequest {
+    return new StartCameraStreamRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartCameraStreamRequest {
+    return new StartCameraStreamRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartCameraStreamRequest | PlainMessage<StartCameraStreamRequest> | undefined, b: StartCameraStreamRequest | PlainMessage<StartCameraStreamRequest> | undefined): boolean {
+    return proto3.util.equals(StartCameraStreamRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.StartCameraStreamResponse
+ */
+export class StartCameraStreamResponse extends Message<StartCameraStreamResponse> {
+  /**
+   * @generated from field: bool accepted = 1;
+   */
+  accepted = false;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<StartCameraStreamResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StartCameraStreamResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "accepted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartCameraStreamResponse {
+    return new StartCameraStreamResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartCameraStreamResponse {
+    return new StartCameraStreamResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartCameraStreamResponse {
+    return new StartCameraStreamResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartCameraStreamResponse | PlainMessage<StartCameraStreamResponse> | undefined, b: StartCameraStreamResponse | PlainMessage<StartCameraStreamResponse> | undefined): boolean {
+    return proto3.util.equals(StartCameraStreamResponse, a, b);
+  }
+}
+
+/**
+ * StopCameraStreamRequest halts the camera capture for this WebRTC session.
+ *
+ * @generated from message cuda_learning.StopCameraStreamRequest
+ */
+export class StopCameraStreamRequest extends Message<StopCameraStreamRequest> {
+  constructor(data?: PartialMessage<StopCameraStreamRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StopCameraStreamRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StopCameraStreamRequest {
+    return new StopCameraStreamRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StopCameraStreamRequest {
+    return new StopCameraStreamRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StopCameraStreamRequest {
+    return new StopCameraStreamRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StopCameraStreamRequest | PlainMessage<StopCameraStreamRequest> | undefined, b: StopCameraStreamRequest | PlainMessage<StopCameraStreamRequest> | undefined): boolean {
+    return proto3.util.equals(StopCameraStreamRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.StopCameraStreamResponse
+ */
+export class StopCameraStreamResponse extends Message<StopCameraStreamResponse> {
+  /**
+   * @generated from field: bool stopped = 1;
+   */
+  stopped = false;
+
+  constructor(data?: PartialMessage<StopCameraStreamResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.StopCameraStreamResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "stopped", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StopCameraStreamResponse {
+    return new StopCameraStreamResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StopCameraStreamResponse {
+    return new StopCameraStreamResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StopCameraStreamResponse {
+    return new StopCameraStreamResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StopCameraStreamResponse | PlainMessage<StopCameraStreamResponse> | undefined, b: StopCameraStreamResponse | PlainMessage<StopCameraStreamResponse> | undefined): boolean {
+    return proto3.util.equals(StopCameraStreamResponse, a, b);
   }
 }
 

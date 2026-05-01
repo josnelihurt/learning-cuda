@@ -57,9 +57,9 @@ export function VideoSourceCard({
         <SourceDetailsBadge
           sourceType={sourceType}
           fps={source.fps}
-            width={sourceDetailsWidth}
-            height={sourceDetailsHeight}
-            metrics={source.metrics}
+          width={sourceDetailsWidth}
+          height={sourceDetailsHeight}
+          metrics={source.metrics}
           className={styles.sourceDetails}
           stopPropagationOnToggle={true}
           testId={`source-fps-${source.number}`}
@@ -126,7 +126,7 @@ export function VideoSourceCard({
                       height={detection.height}
                       fill="none"
                       stroke={color}
-                      strokeWidth={Math.max(2, source.detectionImageWidth / 320)}
+                      strokeWidth="1.5"
                       vectorEffect="non-scaling-stroke"
                     />
                     <text

@@ -14,6 +14,8 @@ RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
         libavcodec60 \
         libavutil58 \
         libswscale7 \
+        libgstreamer1.0-0 \
+        libgstreamer-plugins-base1.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # TensorRT runtime libraries. Required for YOLO inference with the TRT-enabled

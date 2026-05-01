@@ -1,9 +1,12 @@
-#include "src/cpp_accelerator/adapters/camera/gst_camera_source.h"
+#include "src/cpp_accelerator/adapters/camera/backends/v4l2_backend.h"
 
-#include <atomic>
 #include <cstdio>
-#include <string>
-#include <thread>
+#include <cstring>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <linux/videodev2.h>
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
@@ -11,8 +14,33 @@
 
 namespace jrb::adapters::camera {
 
-struct GstCameraSource::Impl {
-  GstCameraSource::FrameCallback cb;
+namespace {
+
+// Returns the card name from V4L2 capability query, or empty string on failure.
+std::string QueryV4L2DeviceName(const std::string& device_path) {
+  int fd = open(device_path.c_str(), O_RDWR | O_NONBLOCK);
+  if (fd < 0) return "";
+
+  v4l2_capability cap{};
+  if (ioctl(fd, VIDIOC_QUERYCAP, &cap) < 0) {
+    close(fd);
+    return "";
+  }
+
+  // Only interested in video capture devices.
+  if (!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+    close(fd);
+    return "";
+  }
+
+  close(fd);
+  return reinterpret_cast<const char*>(cap.card);
+}
+
+}  // namespace
+
+struct V4L2Backend::Impl {
+  FrameCallback cb;
   std::atomic<bool> running{false};
   GstElement* pipeline{nullptr};
   GstElement* appsink{nullptr};
@@ -53,7 +81,7 @@ struct GstCameraSource::Impl {
       try {
         impl->cb(std::move(data), info);
       } catch (const std::exception& e) {
-        spdlog::warn("[GstCameraSource] Frame callback threw: {}", e.what());
+        spdlog::warn("[V4L2Backend] Frame callback threw: {}", e.what());
       }
     }
     return GST_FLOW_OK;
@@ -72,14 +100,14 @@ struct GstCameraSource::Impl {
         GError* err = nullptr;
         gchar* debug = nullptr;
         gst_message_parse_error(msg, &err, &debug);
-        spdlog::error("[GstCameraSource] Pipeline error: {} ({})",
+        spdlog::error("[V4L2Backend] Pipeline error: {} ({})",
                       err ? err->message : "unknown",
                       debug ? debug : "");
         if (err) g_error_free(err);
         if (debug) g_free(debug);
         running = false;
       } else if (type == GST_MESSAGE_EOS) {
-        spdlog::info("[GstCameraSource] Pipeline EOS");
+        spdlog::info("[V4L2Backend] Pipeline EOS");
         running = false;
       }
       gst_message_unref(msg);
@@ -97,22 +125,55 @@ struct GstCameraSource::Impl {
   }
 };
 
-GstCameraSource::GstCameraSource() : impl_(std::make_unique<Impl>()) {}
+V4L2Backend::V4L2Backend() : impl_(std::make_unique<Impl>()) {}
 
-GstCameraSource::~GstCameraSource() {
+V4L2Backend::~V4L2Backend() {
   Stop();
 }
 
-void GstCameraSource::SetFrameCallback(FrameCallback cb) {
+bool V4L2Backend::IsAvailable() const {
+  // V4L2 is a Linux kernel API, always available on Linux
+  return true;
+}
+
+std::vector<cuda_learning::RemoteCameraInfo> V4L2Backend::DetectCameras(
+    const std::vector<int>& sensor_ids) {
+  std::vector<cuda_learning::RemoteCameraInfo> result;
+
+  for (int sensor_id : sensor_ids) {
+    const std::string device_path = "/dev/video" + std::to_string(sensor_id);
+
+    const std::string card_name = QueryV4L2DeviceName(device_path);
+    if (card_name.empty()) {
+      spdlog::debug("[V4L2Backend] {} not a V4L2 capture device — skipping", device_path);
+      continue;
+    }
+
+    cuda_learning::RemoteCameraInfo info;
+    info.set_sensor_id(sensor_id);
+    const std::string display_name =
+        "V4L2: " + card_name + " (" + device_path + ")";
+    info.set_display_name(display_name);
+    info.set_model(card_name);
+
+    auto* mode = info.add_modes();
+    mode->set_width(1920);
+    mode->set_height(1080);
+    mode->set_fps(30.0);
+
+    spdlog::info("[V4L2Backend] Detected camera at {}: {}", device_path, display_name);
+    result.push_back(std::move(info));
+  }
+
+  return result;
+}
+
+void V4L2Backend::SetFrameCallback(FrameCallback cb) {
   impl_->cb = std::move(cb);
 }
 
-bool GstCameraSource::IsRunning() const {
-  return impl_->running.load();
-}
-
-bool GstCameraSource::Start(int sensor_id, int width, int height, int fps,
-                             std::string* error_message) {
+bool V4L2Backend::Start(int sensor_id, int width, int height, int fps,
+                        std::string* error_message) {
   gst_init(nullptr, nullptr);
 
   const std::string device_path = "/dev/video" + std::to_string(sensor_id);
@@ -149,7 +210,7 @@ bool GstCameraSource::Start(int sensor_id, int width, int height, int fps,
            "appsink name=sink emit-signals=true max-buffers=2 drop=true",
            device_path.c_str(), mjpg_caps.c_str(), key_int);
 
-  spdlog::info("[GstCameraSource] Launching V4L2 pipeline: {}", pipeline_str);
+  spdlog::info("[V4L2Backend] Launching pipeline: {}", pipeline_str);
 
   GError* err = nullptr;
   impl_->pipeline = gst_parse_launch(pipeline_str, &err);
@@ -158,7 +219,7 @@ bool GstCameraSource::Start(int sensor_id, int width, int height, int fps,
                                 : "Failed to parse pipeline (unknown error)";
     if (err) g_error_free(err);
     if (error_message) *error_message = msg;
-    spdlog::error("[GstCameraSource] {} — is gstreamer1.0-plugins-ugly installed?", msg);
+    spdlog::error("[V4L2Backend] {} — is gstreamer1.0-plugins-ugly installed?", msg);
     return false;
   }
   if (err) {
@@ -168,7 +229,7 @@ bool GstCameraSource::Start(int sensor_id, int width, int height, int fps,
   impl_->appsink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "sink");
   if (!impl_->appsink) {
     if (error_message) *error_message = "Failed to find appsink element";
-    spdlog::error("[GstCameraSource] appsink element not found");
+    spdlog::error("[V4L2Backend] appsink element not found");
     gst_object_unref(impl_->pipeline);
     impl_->pipeline = nullptr;
     return false;
@@ -181,7 +242,7 @@ bool GstCameraSource::Start(int sensor_id, int width, int height, int fps,
   GstStateChangeReturn ret = gst_element_set_state(impl_->pipeline, GST_STATE_PLAYING);
   if (ret == GST_STATE_CHANGE_FAILURE) {
     if (error_message) *error_message = "Failed to set pipeline to PLAYING state";
-    spdlog::error("[GstCameraSource] Failed to start V4L2 pipeline for {}", device_path);
+    spdlog::error("[V4L2Backend] Failed to start pipeline for {}", device_path);
     gst_object_unref(impl_->appsink);
     impl_->appsink = nullptr;
     gst_element_set_state(impl_->pipeline, GST_STATE_NULL);
@@ -193,12 +254,12 @@ bool GstCameraSource::Start(int sensor_id, int width, int height, int fps,
   impl_->running = true;
   impl_->bus_thread = std::thread([this]() { impl_->BusLoop(); });
 
-  spdlog::info("[GstCameraSource] Started V4L2 camera {} {}x{}@{}fps",
+  spdlog::info("[V4L2Backend] Started camera {} {}x{}@{}fps",
                device_path, width, height, fps);
   return true;
 }
 
-void GstCameraSource::Stop() {
+void V4L2Backend::Stop() {
   if (!impl_->running.load() && impl_->pipeline == nullptr) return;
 
   impl_->running = false;
@@ -215,8 +276,16 @@ void GstCameraSource::Stop() {
     }
     gst_object_unref(impl_->pipeline);
     impl_->pipeline = nullptr;
-    spdlog::info("[GstCameraSource] V4L2 pipeline stopped and released");
+    spdlog::info("[V4L2Backend] Pipeline stopped and released");
   }
+}
+
+bool V4L2Backend::IsRunning() const {
+  return impl_->running.load();
+}
+
+std::string V4L2Backend::GetBackendName() const {
+  return "V4L2";
 }
 
 }  // namespace jrb::adapters::camera

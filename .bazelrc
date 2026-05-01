@@ -21,6 +21,12 @@ build:full   --config=vulkan
 # Mounts the arch-specific GLib config header path into the Bazel sandbox.
 build:v4l2-camera --//bazel/flags:v4l2_camera=true
 
+# NVIDIA Argus camera support (Jetson Nano Orin with nvarguscamerasrc + GStreamer)
+build:nvidia-argus-camera --//bazel/flags:nvidia_argus_camera=true
+
+# Enable all supported camera backends
+build:cameras --//bazel/flags:v4l2_camera=true --//bazel/flags:nvidia_argus_camera=true
+
 # Build settings
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23

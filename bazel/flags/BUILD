@@ -30,6 +30,12 @@ bool_flag(
     visibility = ["//visibility:public"],
 )
 
+bool_flag(
+    name = "nvidia_argus_camera",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
 config_setting(
     name = "cuda_enabled",
     flag_values = {":cuda": "true"},
@@ -51,5 +57,11 @@ config_setting(
 config_setting(
     name = "v4l2_camera_enabled",
     flag_values = {":v4l2_camera": "true"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "nvidia_argus_camera_enabled",
+    flag_values = {":nvidia_argus_camera": "true"},
     visibility = ["//visibility:public"],
 )

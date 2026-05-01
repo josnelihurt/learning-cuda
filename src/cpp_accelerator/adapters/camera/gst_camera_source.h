@@ -8,9 +8,10 @@
 
 namespace jrb::adapters::camera {
 
-// GstCameraSource captures from a Jetson camera sensor via GStreamer
-// nvarguscamerasrc and delivers encoded H.264 access units via callback.
-// On non-Jetson platforms (no nvarguscamerasrc) Start() returns false.
+// GstCameraSource captures video from cameras via GStreamer.
+// Tries multiple backends (V4L2, NVIDIA Argus) in priority order until one succeeds.
+// Delivers encoded H.264 access units via callback.
+// Returns false if no camera backends are enabled or if all backends fail to start.
 class GstCameraSource {
  public:
   using FrameCallback = std::function<void(rtc::binary data, rtc::FrameInfo info)>;
@@ -25,8 +26,9 @@ class GstCameraSource {
   // Sets the callback invoked for each encoded access unit.
   void SetFrameCallback(FrameCallback cb);
 
-  // Starts the GStreamer pipeline for the given sensor.
-  // Returns false if nvarguscamerasrc is unavailable or pipeline fails.
+  // Starts the camera streaming pipeline for the given sensor.
+  // Tries each enabled backend in priority order until one succeeds.
+  // Returns false if no backends are available or all backends fail to start.
   bool Start(int sensor_id, int width, int height, int fps, std::string* error_message);
 
   // Stops and tears down the pipeline. Safe to call multiple times.
@@ -35,8 +37,7 @@ class GstCameraSource {
   bool IsRunning() const;
 
  private:
-  struct Impl;
-  std::unique_ptr<Impl> impl_;
+  std::unique_ptr<void, void(*)(void*)> impl_;
 };
 
 }  // namespace jrb::adapters::camera

@@ -6,6 +6,11 @@ FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH}
 
 WORKDIR /build
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY MODULE.bazel MODULE.bazel.lock WORKSPACE.bazel BUILD.bazel ./
 COPY .bazelrc .bazeliskrc ./
 COPY bazel/ ./bazel/

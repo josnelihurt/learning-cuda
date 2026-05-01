@@ -360,7 +360,8 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
             "nvv4l2h264enc insert-sps-pps=true bitrate=2000000 ! "
           : "nvvidconv ! video/x-raw,format=I420 ! "
             "x264enc tune=zerolatency speed-preset=ultrafast "
-            "bitrate=2000 key-int-max=30 ! "
+            "bitrate=2000 vbv-buf-capacity=400 "
+            "intra-refresh=true key-int-max=60 ! "
             "video/x-h264,profile=baseline ! ";
 
   // Pin Annex-B byte-stream / AU alignment after the parser. Without this,

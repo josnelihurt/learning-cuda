@@ -15,6 +15,7 @@ RUN apt-get update --allow-releaseinfo-change || apt-get update || true && \
         gstreamer1.0-plugins-base \
         gstreamer1.0-plugins-good \
         gstreamer1.0-plugins-ugly \
+        libegl1 \
         libavcodec60 \
         libavutil58 \
         libswscale7 \

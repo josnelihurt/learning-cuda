@@ -329,14 +329,19 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
         "continuing without parser in Argus pipeline");
   }
 
-  // Orin Nano has no NVENC; nvv4l2h264enc opens /dev/v4l2-nvenc which doesn't
-  // exist on that SKU. Probe and fall back to software x264enc when needed.
-  const bool has_nvenc = HasGstElement("nvv4l2h264enc");
+  // Orin Nano has no NVENC: the nvv4l2h264enc plugin is registered in the L4T
+  // image, but it opens /dev/v4l2-nvenc, which the kernel never creates on
+  // SKUs without an encoder. So check the device node, not just the factory.
+  const bool nvenc_plugin = HasGstElement("nvv4l2h264enc");
+  const bool nvenc_device = (access("/dev/v4l2-nvenc", F_OK) == 0);
+  const bool has_nvenc = nvenc_plugin && nvenc_device;
   const bool has_x264 = HasGstElement("x264enc");
   if (!has_nvenc) {
     spdlog::warn(
-        "[NvidiaArgusBackend] 'nvv4l2h264enc' not available (expected on Orin "
-        "Nano: no NVENC hardware); falling back to software 'x264enc'");
+        "[NvidiaArgusBackend] Hardware H.264 encoder unavailable "
+        "(plugin_registered={}, device_present={}); falling back to software "
+        "'x264enc' (expected on Orin Nano: no NVENC hardware)",
+        nvenc_plugin, nvenc_device);
   }
   if (!has_nvenc && !has_x264) {
     const std::string msg =

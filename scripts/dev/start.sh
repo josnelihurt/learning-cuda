@@ -196,7 +196,9 @@ run_optional_build() {
 
     echo "Building C++ accelerator client (accelerator: ${ACCELERATOR})..."
     # shellcheck disable=SC2086
+    echo "bazel build $bazel_configs //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client"
     bazel build $bazel_configs //src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client
+    echo off
 
     echo "Building backend with Go..."
     (cd src/go_api && make build)

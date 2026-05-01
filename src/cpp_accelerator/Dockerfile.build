@@ -42,6 +42,7 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
 RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
     CACHE_FLAGS="" && \
+    CAMERA_FLAGS="" && \
     COMMON_FLAGS="--show_timestamps --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) --local_cpu_resources=$(($NPROC - 1)) --experimental_repository_cache_hardlinks --disk_cache=/tmp/bazel-cache" && \
     BUILD_TARGETS="//src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client" && \
     JOBS="$NPROC" && \
@@ -57,6 +58,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     fi && \
     if [ "$TARGETARCH" = "arm64" ]; then \
         JOBS=$(($NPROC > 4 ? 4 : $NPROC)); \
+        CAMERA_FLAGS="--config=nvidia-argus-camera"; \
         BUILD_DONE_MSG="ARM64 build completed"; \
         BUILD_START_MSG="Building ARM64 with optimized settings (CPUs: $NPROC, RAM: ${MEM_GB}GB)"; \
     fi && \
@@ -64,6 +66,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     BUILD_START_TS=$(date +%s) && \
     LIBRARY_GIT_HASH="${COMMIT_HASH}" bazel --batch build \
       --config=cuda \
+      ${CAMERA_FLAGS} \
       --jobs=${JOBS} \
       ${COMMON_FLAGS} \
       ${ARCH_FLAGS} \

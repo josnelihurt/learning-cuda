@@ -19,38 +19,40 @@ The binary supports four accelerator backends and one camera feature flag. **CPU
 
 These flags can be combined freely with the camera flag below.
 
-### Camera Feature Flag: `--config=v4l2-camera`
+### Camera Feature Flags: `--config=v4l2-camera` and `--config=nvidia-argus-camera`
 
-Controls which camera capture implementation is compiled on **x86** machines. This flag is separate from the compute backend flags — it selects the camera source, not the filter pipeline.
+Camera backends are now enabled explicitly via Bazel flags. These flags are separate from compute backend flags (`cuda`, `opencl`, `vulkan`) and only control camera capture backends.
 
-| Platform | `--config=v4l2-camera`? | Source file compiled | Behavior |
+| Platform | Camera config | Backends compiled | Behavior |
 |---|---|---|---|
-| Jetson (aarch64) | *ignored* | `gst_camera_source_jetson.cpp` | Always uses `nvarguscamerasrc` |
-| x86 | not set | `gst_camera_source_stub.cpp` | Camera detection works; streaming logs a warning at runtime |
-| x86 | set | `gst_camera_source_v4l2.cpp` | Full V4L2 + GStreamer capture and H.264 encoding via `x264enc` |
+| Jetson (aarch64) | `--config=nvidia-argus-camera` | `NVIDIA Argus` (+ `Stub`) | Uses `nvarguscamerasrc` for CSI cameras |
+| Jetson (aarch64) | *(none)* | `Stub` only | No camera backend available at runtime |
+| x86 | `--config=v4l2-camera` | `V4L2` (+ `Stub`) | USB cameras via GStreamer |
+| x86 | *(none)* | `Stub` only | Camera detection returns no cameras; streaming warns |
+| any | `--config=cameras` | `V4L2` + `NVIDIA Argus` (+ `Stub`) | Enables all camera backends |
 
-**Prerequisites** (x86 only):
+**Prerequisites**:
 
 ```bash
 sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
     libgstreamer-plugins-ugly1.0-dev gstreamer1.0-plugins-good
 ```
 
-The `select()` in `adapters/camera/BUILD` uses `@platforms//cpu:aarch64` to detect Jetson automatically — no flag needed on Jetson. On x86, the `v4l2_camera_enabled` config_setting controls whether the real GStreamer source or the stub is compiled:
+`adapters/camera/BUILD` enables camera backends through `config_setting` labels. If neither `v4l2_camera_enabled` nor `nvidia_argus_camera_enabled` is active, only the stub backend is linked:
 
 ```python
 # adapters/camera/BUILD
 cc_library(
-    name = "gst_camera_source",
-    srcs = select({
-        "@platforms//cpu:aarch64":             ["gst_camera_source_jetson.cpp"],
-        "//bazel/flags:v4l2_camera_enabled":   ["gst_camera_source_v4l2.cpp"],
-        "//conditions:default":                ["gst_camera_source_stub.cpp"],
-    }),
-    linkopts = select({
-        "@platforms//cpu:aarch64":             ["-lgstreamer-1.0", "-lgstapp-1.0", ...],
-        "//bazel/flags:v4l2_camera_enabled":   ["-lgstreamer-1.0", "-lgstapp-1.0", ...],
-        "//conditions:default":                [],
+    name = "backends",
+    deps = [
+        ":camera_backend",
+        ":stub_backend",
+    ] + select({
+        "//bazel/flags:v4l2_camera_enabled": ["//src/cpp_accelerator/adapters/camera/backends:v4l2_backend"],
+        "//conditions:default": [],
+    }) + select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["//src/cpp_accelerator/adapters/camera/backends:nvidia_argus_backend"],
+        "//conditions:default": [],
     }),
 )
 ```
@@ -72,8 +74,11 @@ bazel build --config=full //src/cpp_accelerator/cmd/accelerator_control_client
 # CUDA + USB camera streaming (typical x86 dev setup)
 bazel build --config=cuda --config=v4l2-camera //src/cpp_accelerator/cmd/accelerator_control_client
 
-# Full backends + USB camera
-bazel build --config=full --config=v4l2-camera //src/cpp_accelerator/cmd/accelerator_control_client
+# CUDA + Jetson CSI camera streaming (Jetson/Nano Orin)
+bazel build --config=cuda --config=nvidia-argus-camera //src/cpp_accelerator/cmd/accelerator_control_client
+
+# Full compute + all camera backends
+bazel build --config=full --config=cameras //src/cpp_accelerator/cmd/accelerator_control_client
 ```
 
 ---
@@ -385,6 +390,6 @@ No existing source files are modified — only `BUILD` files and new `.cpp` file
 | `adapters/camera/BUILD` | `select()` blocks choosing camera source per platform |
 | `adapters/camera/gst_camera_source_stub.cpp` | No-op camera source (x86 default) |
 | `adapters/camera/gst_camera_source_v4l2.cpp` | V4L2 + GStreamer source (`--config=v4l2-camera`) |
-| `adapters/camera/gst_camera_source_jetson.cpp` | Jetson Argus source (aarch64 automatic) |
+| `adapters/camera/backends/nvidia_argus_backend.cpp` | Jetson Argus backend (`--config=nvidia-argus-camera`) |
 | `application/engine/processor_engine.cpp` | Calls `RegisterPlatformAccelerators()` in constructor |
 | `application/engine/filter_factory_registry.h` | `Register()` / `GetFactory()` map |

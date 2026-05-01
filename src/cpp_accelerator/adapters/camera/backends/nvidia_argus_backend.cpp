@@ -247,6 +247,20 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
                                std::string* error_message) {
   gst_init(nullptr, nullptr);
 
+  constexpr int kDefaultWidth = 1920;
+  constexpr int kDefaultHeight = 1080;
+  constexpr int kDefaultFps = 30;
+  const int effective_width = width > 0 ? width : kDefaultWidth;
+  const int effective_height = height > 0 ? height : kDefaultHeight;
+  const int effective_fps = fps > 0 ? fps : kDefaultFps;
+
+  if (width <= 0 || height <= 0 || fps <= 0) {
+    spdlog::warn(
+        "[NvidiaArgusBackend] Invalid camera params {}x{}@{}fps for sensor-id={}; "
+        "using defaults {}x{}@{}fps",
+        width, height, fps, sensor_id, effective_width, effective_height, effective_fps);
+  }
+
   char pipeline_str[512];
   snprintf(pipeline_str, sizeof(pipeline_str),
            "nvarguscamerasrc sensor-id=%d ! "
@@ -255,7 +269,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
            "nvv4l2h264enc insert-sps-pps=true bitrate=2000000 ! "
            "h264parse config-interval=-1 ! "
            "appsink name=sink emit-signals=true max-buffers=2 drop=true",
-           sensor_id, width, height, fps);
+           sensor_id, effective_width, effective_height, effective_fps);
 
   spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline_str);
 

@@ -46,7 +46,7 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     COMMON_FLAGS="--show_timestamps --local_ram_resources=$(($MEM_GB * 1024 * 1024 * 7 / 10)) --local_cpu_resources=$(($NPROC - 1)) --experimental_repository_cache_hardlinks --disk_cache=/tmp/bazel-cache" && \
     BUILD_TARGETS="//src/cpp_accelerator/cmd/accelerator_control_client:accelerator_control_client" && \
     JOBS="$NPROC" && \
-    ARCH_FLAGS="--announce_rc --verbose_failures --subcommands --linkopt=-Wl,--verbose --linkopt=-Wl,--stats" && \
+    ARCH_FLAGS="--announce_rc --verbose_failures" && \
     BUILD_START_MSG="Building AMD64 with verbose output" && \
     BUILD_DONE_MSG="AMD64 build completed" && \
     if [ -n "${BAZEL_REMOTE_CACHE}" ]; then \
@@ -71,14 +71,18 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
       ${COMMON_FLAGS} \
       ${ARCH_FLAGS} \
       ${CACHE_FLAGS} \
-      ${BUILD_TARGETS} 2>&1 | tee /tmp/bazel-build.log && \
+      ${BUILD_TARGETS} > /tmp/bazel-build.log 2>&1 || { \
+        echo "Bazel build failed. Last log lines:"; \
+        tail -n 200 /tmp/bazel-build.log; \
+        exit 1; \
+      } && \
     BUILD_END_TS=$(date +%s) && \
     BUILD_DURATION_SEC=$(($BUILD_END_TS - $BUILD_START_TS)) && \
     BUILD_DURATION_MMSS=$(printf "%02d:%02d" $(($BUILD_DURATION_SEC / 60)) $(($BUILD_DURATION_SEC % 60))) && \
-    echo "${BUILD_DONE_MSG}. Duration: ${BUILD_DURATION_MMSS}. Log: $(wc -l < /tmp/bazel-build.log) lines"
+    echo "${BUILD_DONE_MSG}. Duration: ${BUILD_DURATION_MMSS}. Log: $(wc -l < /tmp/bazel-build.log) lines" && \
+    tail -n 60 /tmp/bazel-build.log
 
-RUN VERSION=$(cat src/cpp_accelerator/VERSION) && \
-    mkdir -p /artifacts/lib /artifacts/bin && \
+RUN mkdir -p /artifacts/lib /artifacts/bin && \
     cp -L bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client /artifacts/bin/accelerator_control_client
 
 FROM ${CUDA_RUNTIME_REGISTRY}/base:cuda-runtime-${CUDA_RUNTIME_VERSION}-${TARGETARCH} AS cpp-accelerator

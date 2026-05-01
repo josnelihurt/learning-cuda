@@ -1,0 +1,18 @@
+FROM --platform=linux/arm64 ubuntu:24.04 AS deps
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    pkg-config \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM deps AS build
+
+WORKDIR /build
+COPY main.cpp .
+RUN g++ -std=c++23 -Wall -Wextra -O2 \
+    $(pkg-config --cflags gstreamer-1.0 gstreamer-app-1.0) \
+    -o hello-world-nvidia-argus main.cpp \
+    $(pkg-config --libs gstreamer-1.0 gstreamer-app-1.0)

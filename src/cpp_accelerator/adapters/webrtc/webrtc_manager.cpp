@@ -44,7 +44,7 @@ WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
       device_id_(std::move(config.device_id)),
       display_name_(std::move(config.display_name)),
       cleanup_running_(false) {
-  rtc::InitLogger(rtc::LogLevel::Info);
+  rtc::InitLogger(rtc::LogLevel::Error);
 }
 
 WebRTCManager::~WebRTCManager() {
@@ -1114,8 +1114,14 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
   std::lock_guard<std::mutex> media_lock(state.media_mutex);
 
   const int frame_num = ++state.frame_count;
-  if (frame_num <= 5 || frame_num % 30 == 0) {
+  if (frame_num <= 5) {
     spdlog::info(
+        "[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}", session_id,
+        frame_num, frame.size(), state.live_video_processor != nullptr,
+        state.outbound_video_track != nullptr,
+        state.outbound_video_track ? state.outbound_video_track->isOpen() : false);
+  } else {
+    SPDLOG_TRACE(
         "[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}", session_id,
         frame_num, frame.size(), state.live_video_processor != nullptr,
         state.outbound_video_track != nullptr,
@@ -1136,8 +1142,11 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
     return;
   }
 
-  if (frame_num <= 5 || frame_num % 30 == 0) {
+  if (frame_num <= 5) {
     spdlog::info("[WebRTC:{}] Frame #{} processed OK, {} encoded units", session_id, frame_num,
+                 encoded_units.size());
+  } else {
+    SPDLOG_TRACE("[WebRTC:{}] Frame #{} processed OK, {} encoded units", session_id, frame_num,
                  encoded_units.size());
   }
 

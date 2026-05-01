@@ -19,8 +19,7 @@ bool IsNvargusAvailable() {
   bool found = false;
   while (fgets(buf, sizeof(buf), fp)) {
     std::string line(buf);
-    if (line.find("nvarguscamerasrc") != std::string::npos &&
-        line.find("Factory Details") != std::string::npos) {
+    if (line.find("NvArgusCameraSrc") != std::string::npos) {
       found = true;
       break;
     }
@@ -55,12 +54,16 @@ bool ProbeSensor(int sensor_id) {
 
   GstBus* bus = gst_element_get_bus(pipeline);
   bool success = false;
-  GstMessage* msg = gst_bus_timed_pop_filtered(
-      bus,
-      3 * GST_SECOND,
-      static_cast<GstMessageType>(GST_MESSAGE_STATE_CHANGED | GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+  bool done = false;
 
-  if (msg) {
+  while (!done) {
+    GstMessage* msg = gst_bus_timed_pop_filtered(
+        bus,
+        5 * GST_SECOND,
+        static_cast<GstMessageType>(GST_MESSAGE_STATE_CHANGED | GST_MESSAGE_ERROR |
+                                    GST_MESSAGE_EOS));
+    if (!msg) break;
+
     GstMessageType type = GST_MESSAGE_TYPE(msg);
     if (type == GST_MESSAGE_STATE_CHANGED) {
       GstState old_state, new_state, pending;
@@ -68,21 +71,20 @@ bool ProbeSensor(int sensor_id) {
       if (GST_MESSAGE_SRC(msg) == GST_OBJECT(pipeline) &&
           new_state == GST_STATE_PLAYING) {
         success = true;
+        done = true;
       }
+    } else if (type == GST_MESSAGE_EOS) {
+      success = true;
+      done = true;
     } else if (type == GST_MESSAGE_ERROR) {
       GError* gerr = nullptr;
       gchar* debug = nullptr;
       gst_message_parse_error(msg, &gerr, &debug);
       if (gerr) g_error_free(gerr);
       if (debug) g_free(debug);
+      done = true;
     }
     gst_message_unref(msg);
-  } else {
-    GstState state;
-    GstStateChangeReturn sr = gst_element_get_state(pipeline, &state, nullptr, 100 * GST_MSECOND);
-    if (sr != GST_STATE_CHANGE_FAILURE && state == GST_STATE_PLAYING) {
-      success = true;
-    }
   }
 
   gst_object_unref(bus);

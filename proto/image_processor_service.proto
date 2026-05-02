@@ -20,6 +20,7 @@ message ControlRequest {
     GetAcceleratorCapabilitiesRequest get_accelerator_capabilities = 12 [json_name = "get_accelerator_capabilities"];
     StartCameraStreamRequest start_camera_stream = 13 [json_name = "start_camera_stream"];
     StopCameraStreamRequest stop_camera_stream = 14 [json_name = "stop_camera_stream"];
+    CaptureFrameRequest capture_frame = 15 [json_name = "capture_frame"];
   }
 }
 
@@ -35,6 +36,7 @@ message ControlResponse {
     GetAcceleratorCapabilitiesResponse get_accelerator_capabilities = 12 [json_name = "get_accelerator_capabilities"];
     StartCameraStreamResponse start_camera_stream = 13 [json_name = "start_camera_stream"];
     StopCameraStreamResponse stop_camera_stream = 14 [json_name = "stop_camera_stream"];
+    CaptureFrameResponse capture_frame = 15 [json_name = "capture_frame"];
     ControlError error = 99 [json_name = "error"];
   }
 }
@@ -306,6 +308,16 @@ message StopCameraStreamRequest {}
 
 message StopCameraStreamResponse {
   bool stopped = 1 [json_name = "stopped"];
+}
+
+// CaptureFrameRequest instructs the accelerator to save the next processed
+// output frame as a BMP file under its captures directory.
+message CaptureFrameRequest {}
+
+message CaptureFrameResponse {
+  bool   captured = 1 [json_name = "captured"];
+  string filename = 2 [json_name = "filename"];
+  string reason   = 3 [json_name = "reason"];
 }
 
 // VideoPlaybackService handles server-initiated playback of locally stored

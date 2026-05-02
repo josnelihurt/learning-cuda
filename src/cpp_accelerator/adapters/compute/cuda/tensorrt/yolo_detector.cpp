@@ -392,8 +392,8 @@ private:
         });
       }
       if (detections.empty() && best_conf > 0.0f) {
-        spdlog::info("YOLO: best raw score was {:.3f} ({}) — below threshold {:.2f}",
-                     best_conf, kCocoClassNames[std::min(best_class, 79)], confidence_threshold_);
+        spdlog::debug("YOLO: best raw score was {:.3f} ({}) — below threshold {:.2f}",
+                      best_conf, kCocoClassNames[std::min(best_class, 79)], confidence_threshold_);
       }
       return detections;
     }
@@ -499,7 +499,7 @@ private:
 YOLODetector::YOLODetector(const std::string& model_path, float confidence_threshold)
     : impl_(std::make_unique<Impl>(model_path, confidence_threshold)),
       confidence_threshold_(confidence_threshold) {
-  spdlog::info("YOLODetector initialized with model: {}", model_path);
+  spdlog::debug("YOLODetector initialized with model: {}", model_path);
 }
 
 YOLODetector::~YOLODetector() = default;

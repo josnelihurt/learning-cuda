@@ -21,11 +21,14 @@
 #include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 #include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
 #include "src/cpp_accelerator/application/server_info/i_server_info_provider.h"
-#include "src/cpp_accelerator/domain/interfaces/image_sink.h"
 #include "src/cpp_accelerator/ports/media/i_media_session.h"
 
 namespace jrb::application::engine {
 class ProcessorEngine;
+}
+
+namespace jrb::domain::interfaces {
+class IImageSink;
 }
 
 namespace jrb::adapters::webrtc {
@@ -33,6 +36,7 @@ namespace jrb::adapters::webrtc {
 struct WebRTCManagerConfig {
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine;
   std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub;
+  std::shared_ptr<jrb::domain::interfaces::IImageSink> image_sink;
   std::string device_id;
   std::string display_name;
   std::string captures_dir{"/tmp/cuda-captures"};
@@ -186,7 +190,7 @@ public:
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
   std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub_;
   std::unique_ptr<jrb::application::server_info::IServerInfoProvider> server_info_;
-  std::unique_ptr<jrb::domain::interfaces::IImageSink> image_writer_;
+  std::shared_ptr<jrb::domain::interfaces::IImageSink> image_sink_;
   std::string captures_dir_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;

@@ -24,6 +24,8 @@ SHOW_HELP=false
 ACCELERATOR="cuda"
 V4L2_CAMERA=false
 NVIDIA_ARGUS_CAMERA=false
+BIRD_WATCH_ENABLED=true
+BIRD_WATCH_CONFIDENCE=0.4
 GRPC_PID=
 GO_PID=
 VITE_PID=
@@ -84,6 +86,15 @@ parse_args() {
             --nvidia-argus-camera)
                 NVIDIA_ARGUS_CAMERA=true
                 ;;
+            --bird-watch)
+                BIRD_WATCH_ENABLED=true
+                ;;
+            --no-bird-watch)
+                BIRD_WATCH_ENABLED=false
+                ;;
+            --bird-watch-threshold=*)
+                BIRD_WATCH_CONFIDENCE="${1#--bird-watch-threshold=}"
+                ;;
             --help|-h)
                 SHOW_HELP=true
                 ;;
@@ -121,6 +132,9 @@ print_help() {
     echo "                             cuda,opencl,vulkan — all GPU backends"
     echo "  --v4l2-camera            Enable V4L2 camera backend (USB cameras, x86/Jetson)"
     echo "  --nvidia-argus-camera    Enable NVIDIA Argus camera backend (MIPI CSI-2, Jetson only)"
+    echo "  --no-bird-watch          Disable background bird detection (on by default for dev)"
+    echo "  --bird-watch             Force-enable bird detection (default is already on)"
+    echo "  --bird-watch-threshold=N YOLO confidence threshold for bird watch (default 0.4)"
     echo "  --help, -h               Show this help message"
     echo ""
     echo "Examples:"
@@ -132,6 +146,8 @@ print_help() {
     echo "  ./scripts/dev/start.sh --build --v4l2-camera        # Build with V4L2 USB camera support"
     echo "  ./scripts/dev/start.sh --build --nvidia-argus-camera # Build with Jetson Argus camera support"
     echo "  ./scripts/dev/start.sh --build --v4l2-camera --nvidia-argus-camera # Build with both backends"
+    echo "  ./scripts/dev/start.sh --no-bird-watch               # Turn off background bird captures"
+    echo "  ./scripts/dev/start.sh --bird-watch-threshold=0.35   # Bird watch with custom YOLO threshold"
     exit 0
 }
 
@@ -219,12 +235,19 @@ start_grpc() {
     local captures_dir="${ACCELERATOR_CAPTURES_DIR:-${PROJECT_ROOT}/captures}"
     mkdir -p "$captures_dir"
     echo "  Captures dir: $captures_dir"
+    local bird_flags=""
+    if [ "$BIRD_WATCH_ENABLED" = "true" ]; then
+        bird_flags="--bird_watch_enabled=true --bird_watch_confidence=${BIRD_WATCH_CONFIDENCE}"
+    else
+        bird_flags="--bird_watch_enabled=false"
+    fi
     "$GRPC_SERVER_BIN" \
         --control_addr=localhost:60062 \
         --client_cert="${PROJECT_ROOT}/.secrets/dev-accelerator-client.pem" \
         --client_key="${PROJECT_ROOT}/.secrets/dev-accelerator-client-key.pem" \
         --ca_cert="${PROJECT_ROOT}/.secrets/accelerator-ca.pem" \
         --captures_dir="$captures_dir" \
+        $bird_flags \
         >"$DEV_LOG_GRPC" 2>&1 &
     GRPC_PID=$!
     echo "$GRPC_PID" >"$DEV_PID_GRPC"
@@ -310,6 +333,7 @@ print_summary() {
     echo "  API (HTTPS): https://${local_ip}:8443"
     echo "  Accelerator: → ${local_ip}:60062 (outbound)"
     echo "  Cameras:     ${camera_backends}"
+    echo "  Bird watch:  ${BIRD_WATCH_ENABLED} (threshold ${BIRD_WATCH_CONFIDENCE})"
     echo "================================================"
     echo ""
     echo "  Accelerator PID: $GRPC_PID ($DEV_PID_GRPC)"

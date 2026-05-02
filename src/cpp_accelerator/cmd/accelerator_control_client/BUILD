@@ -7,7 +7,9 @@ cc_binary(
     deps = [
         "//src/cpp_accelerator/adapters/camera:camera_detector",
         "//src/cpp_accelerator/adapters/camera:camera_hub",
+        "//src/cpp_accelerator/adapters/image_io:image_adapters",
         "//src/cpp_accelerator/adapters/grpc_control:accelerator_control_client",
+        "//src/cpp_accelerator/application/bird_watch:bird_watcher",
         "//src/cpp_accelerator/adapters/grpc_control:processor_engine_adapter",
         "//src/cpp_accelerator/adapters/webrtc:webrtc_manager",
         "//src/cpp_accelerator/application/engine:engine",

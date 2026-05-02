@@ -34,6 +34,13 @@ services:
       - --client_key=/secrets/client-key.pem
       - --ca_cert=/secrets/ca.pem
       - --captures_dir=/app/captures
+      - "--bird_watch_enabled=${BIRD_WATCH_ENABLED:-true}"
+      - "--bird_watch_confidence=${BIRD_WATCH_CONFIDENCE:-0.4}"
+      - "--bird_watch_idle_interval_s=${BIRD_WATCH_IDLE_INTERVAL_S:-3}"
+      - "--bird_watch_alert_frames=${BIRD_WATCH_ALERT_FRAMES:-5}"
+      - "--bird_watch_max_per_minute=${BIRD_WATCH_MAX_PER_MINUTE:-5}"
+      - "--bird_watch_min_interval_s=${BIRD_WATCH_MIN_INTERVAL_S:-5}"
+      - "--bird_watch_camera_id=${BIRD_WATCH_CAMERA_ID:-0}"
 
     # Camera device pass-through for Jetson Argus camera framework.
     # nvarguscamerasrc requires access to Tegra platform devices in addition to

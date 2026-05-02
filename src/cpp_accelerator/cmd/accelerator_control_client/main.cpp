@@ -12,6 +12,8 @@
 
 #include "src/cpp_accelerator/adapters/camera/camera_detector.h"
 #include "src/cpp_accelerator/adapters/camera/camera_hub.h"
+#include "src/cpp_accelerator/adapters/image_io/image_writer.h"
+#include "src/cpp_accelerator/application/bird_watch/bird_watcher.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/core/signal_handler.h"
 #include "src/cpp_accelerator/core/version.h"
@@ -37,6 +39,14 @@ ABSL_FLAG(std::string, cameras, "0,1",
           "Comma-separated sensor IDs to probe and advertise as remote cameras.");
 ABSL_FLAG(std::string, captures_dir, "/tmp/cuda-captures",
           "Directory where captured BMP frames are saved.");
+ABSL_FLAG(bool, bird_watch_enabled, true,
+          "Background bird detection (CameraHub subscriber; runs with or without UI)");
+ABSL_FLAG(double, bird_watch_confidence, 0.4, "YOLO confidence threshold for bird");
+ABSL_FLAG(int, bird_watch_idle_interval_s, 3, "Seconds between idle YOLO checks");
+ABSL_FLAG(int, bird_watch_alert_frames, 5, "Consecutive frames to trigger capture / reset to idle");
+ABSL_FLAG(int, bird_watch_max_per_minute, 5, "Max BMP saves per minute");
+ABSL_FLAG(int, bird_watch_min_interval_s, 5, "Min seconds between saves");
+ABSL_FLAG(int, bird_watch_camera_id, 0, "Sensor ID to watch");
 
 using jrb::application::engine::ProcessorEngine;
 using jrb::adapters::grpc_control::ProcessorEngineAdapter;
@@ -46,6 +56,9 @@ using jrb::adapters::webrtc::WebRTCManager;
 using jrb::adapters::grpc_control::AcceleratorControlClientConfig;
 using jrb::adapters::grpc_control::AcceleratorControlClient;
 using jrb::adapters::camera::DetectCameras;
+using jrb::adapters::image::ImageWriter;
+using jrb::application::bird_watch::BirdWatcher;
+using jrb::application::bird_watch::BirdWatcherConfig;
 using jrb::core::SignalHandler;
 using cuda_learning::InitRequest;
 using cuda_learning::InitResponse;
@@ -63,6 +76,7 @@ int main(int argc, char** argv) {
   spdlog::info("CUDA device:  {}", absl::GetFlag(FLAGS_cuda_device_id));
   spdlog::info("Cameras:      {}", absl::GetFlag(FLAGS_cameras));
   spdlog::info("Captures dir: {}", absl::GetFlag(FLAGS_captures_dir));
+  spdlog::info("Bird watch:   {}", absl::GetFlag(FLAGS_bird_watch_enabled) ? "enabled" : "disabled");
   spdlog::info("========================================");
 
   auto engine = std::make_shared<ProcessorEngine>("accelerator-client");
@@ -77,9 +91,11 @@ int main(int argc, char** argv) {
 
   auto adapter = std::make_shared<ProcessorEngineAdapter>(engine);
   auto camera_hub = CameraHub::Create();
+  auto image_sink = std::make_shared<ImageWriter>();
   WebRTCManagerConfig webrtc_cfg;
   webrtc_cfg.engine = engine;
   webrtc_cfg.camera_hub = camera_hub;
+  webrtc_cfg.image_sink = image_sink;
   webrtc_cfg.device_id = absl::GetFlag(FLAGS_device_id);
   webrtc_cfg.display_name = absl::GetFlag(FLAGS_display_name);
   webrtc_cfg.captures_dir = absl::GetFlag(FLAGS_captures_dir);
@@ -88,6 +104,29 @@ int main(int argc, char** argv) {
     spdlog::warn("WebRTCManager failed to initialize — signaling will be unavailable");
   } else {
     spdlog::info("WebRTCManager ready");
+  }
+
+  std::unique_ptr<BirdWatcher> bird_watcher;
+  if (absl::GetFlag(FLAGS_bird_watch_enabled)) {
+    BirdWatcherConfig bw_cfg;
+    bw_cfg.enabled = true;
+    bw_cfg.confidence_threshold = static_cast<float>(absl::GetFlag(FLAGS_bird_watch_confidence));
+    bw_cfg.idle_interval_s = absl::GetFlag(FLAGS_bird_watch_idle_interval_s);
+    bw_cfg.alert_frames = absl::GetFlag(FLAGS_bird_watch_alert_frames);
+    bw_cfg.max_per_minute = absl::GetFlag(FLAGS_bird_watch_max_per_minute);
+    bw_cfg.min_save_interval_s = absl::GetFlag(FLAGS_bird_watch_min_interval_s);
+    bw_cfg.camera_sensor_id = absl::GetFlag(FLAGS_bird_watch_camera_id);
+    bw_cfg.captures_dir = absl::GetFlag(FLAGS_captures_dir);
+    bird_watcher = std::make_unique<BirdWatcher>(bw_cfg, camera_hub, engine.get(), image_sink.get());
+    bird_watcher->Start();
+    if (bird_watcher->IsSubscribed()) {
+      spdlog::info("[BirdWatcher] Started (camera={}, threshold={:.2f})", bw_cfg.camera_sensor_id,
+                   bw_cfg.confidence_threshold);
+    } else {
+      spdlog::warn(
+          "[BirdWatcher] Disabled: camera hub did not start (build with --config=v4l2-camera or "
+          "Argus, or check device). Bird watch flag remains on but no frames will be processed.");
+    }
   }
 
   AcceleratorControlClientConfig cfg;
@@ -131,6 +170,10 @@ int main(int argc, char** argv) {
   });
 
   client.Run();
+
+  if (bird_watcher) {
+    bird_watcher->Stop();
+  }
 
   signal_handler.Shutdown();
 

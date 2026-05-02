@@ -1,8 +1,10 @@
 #include "src/cpp_accelerator/core/logger.h"
 
 #include <cstdlib>
+#include <cctype>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #pragma GCC diagnostic push
@@ -18,6 +20,28 @@ namespace jrb::core {
 
 // Build-time constant to verify library reloading
 constexpr const char* kLoggerBuildTimestamp = __DATE__ " " __TIME__;
+
+namespace {
+
+spdlog::level::level_enum ParseLogLevel(const char* s) {
+  if (s == nullptr || *s == '\0') {
+    return spdlog::level::info;
+  }
+  std::string v(s);
+  for (char& c : v) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  if (v == "trace") return spdlog::level::trace;
+  if (v == "debug") return spdlog::level::debug;
+  if (v == "info") return spdlog::level::info;
+  if (v == "warn" || v == "warning") return spdlog::level::warn;
+  if (v == "error" || v == "err") return spdlog::level::err;
+  if (v == "critical" || v == "fatal") return spdlog::level::critical;
+  if (v == "off") return spdlog::level::off;
+  return spdlog::level::info;
+}
+
+}  // namespace
 
 void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
                        const std::string& environment) {
@@ -78,11 +102,16 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
     // Create logger with all sinks
     logger = std::make_shared<spdlog::logger>("cpp_accelerator", sinks.begin(), sinks.end());
 
-    logger->set_level(spdlog::level::info);
-    logger->flush_on(spdlog::level::info);
+    const char* level_env = std::getenv("CUDA_ACCELERATOR_LOG_LEVEL");
+    if (level_env == nullptr || *level_env == '\0') {
+      level_env = std::getenv("SPDLOG_LEVEL");
+    }
+    const spdlog::level::level_enum log_level = ParseLogLevel(level_env);
+    logger->set_level(log_level);
+    logger->flush_on(log_level);
 
     spdlog::set_default_logger(logger);
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(log_level);
 
     // Use stdout for initialization message to ensure visibility
     std::cout << "Logger initialized successfully [BUILD: " << kLoggerBuildTimestamp

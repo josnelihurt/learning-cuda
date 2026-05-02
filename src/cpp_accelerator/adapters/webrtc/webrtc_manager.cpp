@@ -59,7 +59,8 @@ WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
     : engine_(std::move(config.engine)),
       camera_hub_(std::move(config.camera_hub)),
       server_info_(std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
-      image_writer_(std::make_unique<ImageWriter>()),
+      image_sink_(config.image_sink ? std::move(config.image_sink)
+                                    : std::make_shared<ImageWriter>()),
       captures_dir_(std::move(config.captures_dir)),
       initialized_(false),
       device_id_(std::move(config.device_id)),
@@ -179,7 +180,7 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     session->memory_pool = std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>();
     session->live_video_processor =
         std::make_unique<LiveVideoProcessor>(engine_.get(), session->memory_pool.get(),
-                                              image_writer_.get());
+                                              image_sink_.get());
     session->live_filter_state.set_accelerator(ACCELERATOR_TYPE_CUDA);
     session->live_filter_state.add_filters(FILTER_TYPE_NONE);
     session->live_filter_state.set_api_version("1.1");
@@ -1100,7 +1101,7 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
         std::vector<uint8_t> img_data;
         int w = 0;
         int h = 0;
-        if (!image_writer_->readAsPng(filepath.c_str(), &img_data, &w, &h,
+        if (!image_sink_->readAsPng(filepath.c_str(), &img_data, &w, &h,
                                       req.max_width(), req.max_height())) {
           resp->set_found(false);
           resp->set_reason("image not found or conversion failed: " + req.id());
@@ -1235,7 +1236,7 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
         response.width() > 0 && response.height() > 0) {
       const auto& img = response.image_data();
       const int channels = response.channels() > 0 ? response.channels() : 3;
-      image_writer_->writeBmp(capture_path.c_str(),
+      image_sink_->writeBmp(capture_path.c_str(),
                               reinterpret_cast<const uint8_t*>(img.data()),
                               response.width(), response.height(), channels);
       spdlog::info("[WebRTC:{}] CaptureFrame(static) saved: {}", session_id, capture_path);

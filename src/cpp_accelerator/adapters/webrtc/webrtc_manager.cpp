@@ -1,6 +1,8 @@
 #include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <ctime>
 #include <exception>
 #include <filesystem>
@@ -1029,6 +1031,71 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       resp->set_captured(true);
       resp->set_filename(filename);
       spdlog::info("[WebRTC:{}] CaptureFrame queued: {}", session_id, filename);
+      break;
+    }
+    case cuda_learning::ControlRequest::kListCapturedImages: {
+      auto* resp = response.mutable_list_captured_images();
+      const auto& req = request.list_captured_images();
+      const int page_size = req.page_size() > 0 ? req.page_size() : 20;
+      const int page = req.page();
+
+      std::vector<std::filesystem::path> files;
+      std::error_code ec;
+      for (const auto& entry : std::filesystem::directory_iterator(captures_dir_, ec)) {
+        const auto fname = entry.path().filename().string();
+        if (entry.path().extension() == ".bmp" && fname.rfind("capture_", 0) == 0) {
+          files.push_back(entry.path());
+        }
+      }
+      if (ec) {
+        spdlog::warn("[WebRTC:{}] ListCapturedImages: directory_iterator error: {}", session_id,
+                     ec.message());
+      }
+      std::sort(files.rbegin(), files.rend());
+
+      const int total = static_cast<int>(files.size());
+      const int start = page * page_size;
+      resp->set_total_count(total);
+      resp->set_has_more(start + page_size < total);
+
+      const int end = std::min(start + page_size, total);
+      for (int i = start; i < end; ++i) {
+        auto* info = resp->add_images();
+        info->set_id(files[static_cast<size_t>(i)].stem().string());
+        info->set_filename(files[static_cast<size_t>(i)].filename().string());
+        std::error_code mtime_ec;
+        auto mtime = std::filesystem::last_write_time(files[static_cast<size_t>(i)], mtime_ec);
+        if (!mtime_ec) {
+          auto sctp = std::chrono::time_point_cast<std::chrono::milliseconds>(
+              std::chrono::file_clock::to_sys(mtime));
+          info->set_captured_at_ms(sctp.time_since_epoch().count());
+        }
+      }
+      spdlog::info("[WebRTC:{}] ListCapturedImages page={} count={} total={}", session_id, page,
+                   end - start, total);
+      break;
+    }
+    case cuda_learning::ControlRequest::kGetCapturedImage: {
+      auto* resp = response.mutable_get_captured_image();
+      const auto& req = request.get_captured_image();
+      const std::string filepath = captures_dir_ + "/" + req.id() + ".bmp";
+
+      std::vector<uint8_t> png_data;
+      int w = 0;
+      int h = 0;
+      if (!image_writer_->readAsPng(filepath.c_str(), &png_data, &w, &h,
+                                    req.max_width(), req.max_height())) {
+        resp->set_found(false);
+        resp->set_reason("image not found or conversion failed: " + req.id());
+        spdlog::warn("[WebRTC:{}] GetCapturedImage not found: {}", session_id, req.id());
+        break;
+      }
+      resp->set_found(true);
+      resp->set_png_data(png_data.data(), png_data.size());
+      resp->set_width(w);
+      resp->set_height(h);
+      spdlog::info("[WebRTC:{}] GetCapturedImage {} → {}×{} {} bytes", session_id, req.id(), w, h,
+                   png_data.size());
       break;
     }
     default: {

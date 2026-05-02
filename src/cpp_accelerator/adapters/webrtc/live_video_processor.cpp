@@ -21,6 +21,14 @@ extern "C" {
 
 namespace jrb::adapters::webrtc {
 
+using cuda_learning::ACCELERATOR_TYPE_CUDA;
+using cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED;
+using cuda_learning::DetectionFrame;
+using cuda_learning::FILTER_TYPE_NONE;
+using cuda_learning::FILTER_TYPE_UNSPECIFIED;
+using cuda_learning::FilterType;
+using cuda_learning::ProcessImageRequest;
+using cuda_learning::ProcessImageResponse;
 using jrb::adapters::webrtc::protocol::ResolveGenericSelectionsInPlace;
 using jrb::domain::interfaces::IImageSink;
 
@@ -35,16 +43,14 @@ std::string AvErrorToString(int error_code) {
   return std::string(buffer);
 }
 
-bool IsFilterNone(const cuda_learning::FilterType filter) {
-  return filter == cuda_learning::FILTER_TYPE_NONE ||
-         filter == cuda_learning::FILTER_TYPE_UNSPECIFIED;
+bool IsFilterNone(const FilterType filter) {
+  return filter == FILTER_TYPE_NONE || filter == FILTER_TYPE_UNSPECIFIED;
 }
 
 }  // namespace
 
 LiveVideoProcessor::LiveVideoProcessor(jrb::application::engine::ProcessorEngine* engine,
-                                       void* cuda_memory_pool,
-                                       IImageSink* image_sink)
+                                           void* cuda_memory_pool, IImageSink* image_sink)
     : engine_(engine),
       cuda_memory_pool_(cuda_memory_pool),
       image_sink_(image_sink),
@@ -84,8 +90,8 @@ void LiveVideoProcessor::RequestCapture(std::string filepath) {
   capture_pending_.store(true);
 }
 
-bool LiveVideoProcessor::UpdateFilterState(const cuda_learning::ProcessImageRequest& request,
-                                           cuda_learning::ProcessImageRequest* state,
+bool LiveVideoProcessor::UpdateFilterState(const ProcessImageRequest& request,
+                                           ProcessImageRequest* state,
                                            std::string* error_message) const {
   if (state == nullptr) {
     if (error_message != nullptr) {
@@ -108,9 +114,9 @@ bool LiveVideoProcessor::UpdateFilterState(const cuda_learning::ProcessImageRequ
 
 bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
                                            const rtc::FrameInfo& frame_info,
-                                           const cuda_learning::ProcessImageRequest& state,
+                                           const ProcessImageRequest& state,
                                            std::vector<EncodedAccessUnit>* encoded_units,
-                                           cuda_learning::DetectionFrame* detection_frame,
+                                           DetectionFrame* detection_frame,
                                            std::string* error_message) {
   if (encoded_units == nullptr) {
     if (error_message != nullptr) {
@@ -137,8 +143,7 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
   }
 
   av_packet_unref(decode_packet_);
-  decode_packet_->data = const_cast<uint8_t*>(
-      reinterpret_cast<const uint8_t*>(access_unit.data()));
+  decode_packet_->data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(access_unit.data()));
   decode_packet_->size = static_cast<int>(access_unit.size());
 
   const int send_packet_result = avcodec_send_packet(decoder_context_, decode_packet_);
@@ -158,8 +163,7 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
     }
     if (receive_frame_result < 0) {
       if (error_message != nullptr) {
-        *error_message =
-            "failed to decode H264 frame: " + AvErrorToString(receive_frame_result);
+        *error_message = "failed to decode H264 frame: " + AvErrorToString(receive_frame_result);
       }
       return false;
     }
@@ -176,7 +180,7 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
     }
 
     std::vector<uint8_t> processed_rgb_buffer = decoded_rgb_buffer;
-    cuda_learning::ProcessImageRequest processing_request;
+    ProcessImageRequest processing_request;
     if (HasActiveFilters(state)) {
       if (!BuildProcessingRequest(state, decoded_frame_->width, decoded_frame_->height,
                                   decoded_rgb_buffer, &processing_request)) {
@@ -187,20 +191,19 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
         return false;
       }
 
-      cuda_learning::ProcessImageResponse processing_response;
+      ProcessImageResponse processing_response;
       if (!engine_->ProcessImage(processing_request, &processing_response, cuda_memory_pool_) ||
           processing_response.code() != 0) {
         if (error_message != nullptr) {
-          *error_message = "processor engine failed for live camera frame: " +
-                           processing_response.message();
+          *error_message =
+              "processor engine failed for live camera frame: " + processing_response.message();
         }
         av_frame_unref(decoded_frame_);
         return false;
       }
 
       if (!CopyResponseToRgbBuffer(processing_response, decoded_frame_->width,
-                                   decoded_frame_->height, &processed_rgb_buffer,
-                                   error_message)) {
+                                   decoded_frame_->height, &processed_rgb_buffer, error_message)) {
         av_frame_unref(decoded_frame_);
         return false;
       }
@@ -223,8 +226,8 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
         path = capture_filepath_;
       }
       if (image_sink_ != nullptr && !path.empty()) {
-        image_sink_->writeBmp(path.c_str(), processed_rgb_buffer.data(),
-                              decoded_frame_->width, decoded_frame_->height, 3);
+        image_sink_->writeBmp(path.c_str(), processed_rgb_buffer.data(), decoded_frame_->width,
+                              decoded_frame_->height, 3);
       }
     }
 
@@ -291,8 +294,8 @@ bool LiveVideoProcessor::EnsureFrameResources(int width, int height, int input_f
     return false;
   }
 
-  const bool needs_recreate = width != frame_width_ || height != frame_height_ ||
-                              input_format != input_pixel_format_;
+  const bool needs_recreate =
+      width != frame_width_ || height != frame_height_ || input_format != input_pixel_format_;
   if (!needs_recreate) {
     return true;
   }
@@ -328,8 +331,7 @@ bool LiveVideoProcessor::EnsureFrameResources(int width, int height, int input_f
   const int rgb_input_alloc = av_frame_get_buffer(rgb_input_frame_, 32);
   if (rgb_input_alloc < 0) {
     if (error_message != nullptr) {
-      *error_message =
-          "failed to allocate RGB input frame: " + AvErrorToString(rgb_input_alloc);
+      *error_message = "failed to allocate RGB input frame: " + AvErrorToString(rgb_input_alloc);
     }
     return false;
   }
@@ -340,8 +342,7 @@ bool LiveVideoProcessor::EnsureFrameResources(int width, int height, int input_f
   const int rgb_output_alloc = av_frame_get_buffer(rgb_output_frame_, 32);
   if (rgb_output_alloc < 0) {
     if (error_message != nullptr) {
-      *error_message =
-          "failed to allocate RGB output frame: " + AvErrorToString(rgb_output_alloc);
+      *error_message = "failed to allocate RGB output frame: " + AvErrorToString(rgb_output_alloc);
     }
     return false;
   }
@@ -357,9 +358,9 @@ bool LiveVideoProcessor::EnsureFrameResources(int width, int height, int input_f
     return false;
   }
 
-  decode_to_rgb_context_ = sws_getCachedContext(
-      nullptr, width, height, static_cast<AVPixelFormat>(input_format), width, height,
-      AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
+  decode_to_rgb_context_ =
+      sws_getCachedContext(nullptr, width, height, static_cast<AVPixelFormat>(input_format), width,
+                           height, AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
   if (decode_to_rgb_context_ == nullptr) {
     if (error_message != nullptr) {
       *error_message = "failed to create decode-to-RGB scaler";
@@ -367,9 +368,9 @@ bool LiveVideoProcessor::EnsureFrameResources(int width, int height, int input_f
     return false;
   }
 
-  rgb_to_yuv_context_ = sws_getCachedContext(nullptr, width, height, AV_PIX_FMT_RGB24, width,
-                                             height, AV_PIX_FMT_YUV420P, SWS_BILINEAR, nullptr,
-                                             nullptr, nullptr);
+  rgb_to_yuv_context_ =
+      sws_getCachedContext(nullptr, width, height, AV_PIX_FMT_RGB24, width, height,
+                           AV_PIX_FMT_YUV420P, SWS_BILINEAR, nullptr, nullptr, nullptr);
   if (rgb_to_yuv_context_ == nullptr) {
     if (error_message != nullptr) {
       *error_message = "failed to create RGB-to-YUV scaler";
@@ -448,10 +449,9 @@ bool LiveVideoProcessor::EnsureEncoder(int width, int height, std::string* error
   return true;
 }
 
-bool LiveVideoProcessor::BuildProcessingRequest(const cuda_learning::ProcessImageRequest& state,
-                                                int width, int height,
-                                                const std::vector<uint8_t>& rgb_buffer,
-                                                cuda_learning::ProcessImageRequest* request) const {
+bool LiveVideoProcessor::BuildProcessingRequest(const ProcessImageRequest& state, int width,
+                                                int height, const std::vector<uint8_t>& rgb_buffer,
+                                                ProcessImageRequest* request) const {
   if (request == nullptr) {
     return false;
   }
@@ -464,17 +464,17 @@ bool LiveVideoProcessor::BuildProcessingRequest(const cuda_learning::ProcessImag
   request->set_height(height);
   request->set_channels(3);
 
-  if (request->accelerator() == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
-    request->set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);
+  if (request->accelerator() == ACCELERATOR_TYPE_UNSPECIFIED) {
+    request->set_accelerator(ACCELERATOR_TYPE_CUDA);
   }
   return true;
 }
 
-bool LiveVideoProcessor::HasActiveFilters(const cuda_learning::ProcessImageRequest& request) const {
+bool LiveVideoProcessor::HasActiveFilters(const ProcessImageRequest& request) const {
   // `request` is the already-resolved live filter state — checking the typed
   // filters[] field is sufficient.
   for (const int filter : request.filters()) {
-    if (!IsFilterNone(static_cast<cuda_learning::FilterType>(filter))) {
+    if (!IsFilterNone(static_cast<FilterType>(filter))) {
       return true;
     }
   }
@@ -519,9 +519,9 @@ bool LiveVideoProcessor::CopyDecodedFrameToRgbBuffer(std::vector<uint8_t>* rgb_b
   return true;
 }
 
-bool LiveVideoProcessor::CopyResponseToRgbBuffer(
-    const cuda_learning::ProcessImageResponse& response, int width, int height,
-    std::vector<uint8_t>* rgb_buffer, std::string* error_message) const {
+bool LiveVideoProcessor::CopyResponseToRgbBuffer(const ProcessImageResponse& response, int width,
+                                                 int height, std::vector<uint8_t>* rgb_buffer,
+                                                 std::string* error_message) const {
   if (rgb_buffer == nullptr) {
     if (error_message != nullptr) {
       *error_message = "processed rgb buffer target is required";
@@ -590,8 +590,7 @@ bool LiveVideoProcessor::FillRgbFrame(const std::vector<uint8_t>& rgb_buffer, AV
   const int writable_result = av_frame_make_writable(frame);
   if (writable_result < 0) {
     if (error_message != nullptr) {
-      *error_message =
-          "failed to make RGB frame writable: " + AvErrorToString(writable_result);
+      *error_message = "failed to make RGB frame writable: " + AvErrorToString(writable_result);
     }
     return false;
   }
@@ -617,15 +616,14 @@ bool LiveVideoProcessor::EncodeRgbBuffer(const std::vector<uint8_t>& rgb_buffer,
   const int writable_result = av_frame_make_writable(yuv_frame_);
   if (writable_result < 0) {
     if (error_message != nullptr) {
-      *error_message = "failed to make encoder frame writable: " +
-                       AvErrorToString(writable_result);
+      *error_message = "failed to make encoder frame writable: " + AvErrorToString(writable_result);
     }
     return false;
   }
 
-  const int scale_result = sws_scale(rgb_to_yuv_context_, rgb_output_frame_->data,
-                                     rgb_output_frame_->linesize, 0, rgb_output_frame_->height,
-                                     yuv_frame_->data, yuv_frame_->linesize);
+  const int scale_result =
+      sws_scale(rgb_to_yuv_context_, rgb_output_frame_->data, rgb_output_frame_->linesize, 0,
+                rgb_output_frame_->height, yuv_frame_->data, yuv_frame_->linesize);
   if (scale_result <= 0) {
     if (error_message != nullptr) {
       *error_message = "failed to convert processed RGB frame to YUV";
@@ -637,8 +635,7 @@ bool LiveVideoProcessor::EncodeRgbBuffer(const std::vector<uint8_t>& rgb_buffer,
   const int send_result = avcodec_send_frame(encoder_context_, yuv_frame_);
   if (send_result < 0) {
     if (error_message != nullptr) {
-      *error_message = "failed to submit frame to H264 encoder: " +
-                       AvErrorToString(send_result);
+      *error_message = "failed to submit frame to H264 encoder: " + AvErrorToString(send_result);
     }
     return false;
   }
@@ -650,15 +647,16 @@ bool LiveVideoProcessor::EncodeRgbBuffer(const std::vector<uint8_t>& rgb_buffer,
     }
     if (receive_result < 0) {
       if (error_message != nullptr) {
-        *error_message = "failed to read H264 packet from encoder: " +
-                         AvErrorToString(receive_result);
+        *error_message =
+            "failed to read H264 packet from encoder: " + AvErrorToString(receive_result);
       }
       return false;
     }
 
     EncodedAccessUnit encoded_unit{
-        rtc::binary(reinterpret_cast<const std::byte*>(encode_packet_->data),
-                    reinterpret_cast<const std::byte*>(encode_packet_->data + encode_packet_->size)),
+        rtc::binary(
+            reinterpret_cast<const std::byte*>(encode_packet_->data),
+            reinterpret_cast<const std::byte*>(encode_packet_->data + encode_packet_->size)),
         frame_info.timestampSeconds.has_value() ? rtc::FrameInfo(*frame_info.timestampSeconds)
                                                 : rtc::FrameInfo(frame_info.timestamp),
     };

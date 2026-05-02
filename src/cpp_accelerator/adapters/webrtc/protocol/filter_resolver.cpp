@@ -10,6 +10,26 @@
 
 namespace jrb::adapters::webrtc::protocol {
 
+using cuda_learning::GenericFilterParameterSelection;
+using cuda_learning::GrayscaleType;
+using cuda_learning::GRAYSCALE_TYPE_BT709;
+using cuda_learning::GRAYSCALE_TYPE_AVERAGE;
+using cuda_learning::GRAYSCALE_TYPE_LIGHTNESS;
+using cuda_learning::GRAYSCALE_TYPE_LUMINOSITY;
+using cuda_learning::GRAYSCALE_TYPE_BT601;
+using cuda_learning::BorderMode;
+using cuda_learning::BORDER_MODE_CLAMP;
+using cuda_learning::BORDER_MODE_WRAP;
+using cuda_learning::BORDER_MODE_REFLECT;
+using cuda_learning::ProcessImageRequest;
+using cuda_learning::FilterType;
+using cuda_learning::GaussianBlurParameters;
+using cuda_learning::FILTER_TYPE_NONE;
+using cuda_learning::FILTER_TYPE_GRAYSCALE;
+using cuda_learning::FILTER_TYPE_BLUR;
+using cuda_learning::FILTER_TYPE_MODEL_INFERENCE;
+using cuda_learning::GRAYSCALE_TYPE_UNSPECIFIED;
+
 std::string NormalizeFilterId(const std::string& value) {
   std::string normalized = value;
   std::transform(normalized.begin(), normalized.end(), normalized.begin(),
@@ -18,25 +38,25 @@ std::string NormalizeFilterId(const std::string& value) {
 }
 
 std::optional<std::string> FirstGenericValue(
-    const cuda_learning::GenericFilterParameterSelection& selection) {
+    const GenericFilterParameterSelection& selection) {
   if (selection.values().empty()) return std::nullopt;
   return selection.values(0);
 }
 
-cuda_learning::GrayscaleType MapStringToGrayscaleType(const std::string& value) {
+GrayscaleType MapStringToGrayscaleType(const std::string& value) {
   const std::string normalized = NormalizeFilterId(value);
-  if (normalized == "bt709")      return cuda_learning::GRAYSCALE_TYPE_BT709;
-  if (normalized == "average")    return cuda_learning::GRAYSCALE_TYPE_AVERAGE;
-  if (normalized == "lightness")  return cuda_learning::GRAYSCALE_TYPE_LIGHTNESS;
-  if (normalized == "luminosity") return cuda_learning::GRAYSCALE_TYPE_LUMINOSITY;
-  return cuda_learning::GRAYSCALE_TYPE_BT601;
+  if (normalized == "bt709")      return GRAYSCALE_TYPE_BT709;
+  if (normalized == "average")    return GRAYSCALE_TYPE_AVERAGE;
+  if (normalized == "lightness")  return GRAYSCALE_TYPE_LIGHTNESS;
+  if (normalized == "luminosity") return GRAYSCALE_TYPE_LUMINOSITY;
+  return GRAYSCALE_TYPE_BT601;
 }
 
-cuda_learning::BorderMode MapStringToBorderMode(const std::string& value) {
+BorderMode MapStringToBorderMode(const std::string& value) {
   const std::string normalized = NormalizeFilterId(value);
-  if (normalized == "clamp") return cuda_learning::BORDER_MODE_CLAMP;
-  if (normalized == "wrap")  return cuda_learning::BORDER_MODE_WRAP;
-  return cuda_learning::BORDER_MODE_REFLECT;
+  if (normalized == "clamp") return BORDER_MODE_CLAMP;
+  if (normalized == "wrap")  return BORDER_MODE_WRAP;
+  return BORDER_MODE_REFLECT;
 }
 
 bool ParseBool(const std::string& value) {
@@ -44,23 +64,23 @@ bool ParseBool(const std::string& value) {
   return normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on";
 }
 
-void ResolveGenericSelectionsInPlace(cuda_learning::ProcessImageRequest* request) {
+void ResolveGenericSelectionsInPlace(ProcessImageRequest* request) {
   if (request == nullptr || request->generic_filters_size() == 0) return;
 
-  std::vector<cuda_learning::FilterType> filters;
-  cuda_learning::GrayscaleType grayscale = request->grayscale_type();
-  cuda_learning::GaussianBlurParameters blur_params = request->blur_params();
+  std::vector<FilterType> filters;
+  GrayscaleType grayscale = request->grayscale_type();
+  GaussianBlurParameters blur_params = request->blur_params();
   bool has_blur_params = request->has_blur_params();
 
   for (const auto& selection : request->generic_filters()) {
     const std::string filter_id = NormalizeFilterId(selection.filter_id());
     if (filter_id.empty() || filter_id == "none") {
-      filters.push_back(cuda_learning::FILTER_TYPE_NONE);
+      filters.push_back(FILTER_TYPE_NONE);
       continue;
     }
 
     if (filter_id == "grayscale") {
-      filters.push_back(cuda_learning::FILTER_TYPE_GRAYSCALE);
+      filters.push_back(FILTER_TYPE_GRAYSCALE);
       for (const auto& parameter : selection.parameters()) {
         if (NormalizeFilterId(parameter.parameter_id()) != "algorithm") continue;
         const auto value = FirstGenericValue(parameter);
@@ -72,7 +92,7 @@ void ResolveGenericSelectionsInPlace(cuda_learning::ProcessImageRequest* request
     }
 
     if (filter_id == "blur") {
-      filters.push_back(cuda_learning::FILTER_TYPE_BLUR);
+      filters.push_back(FILTER_TYPE_BLUR);
       for (const auto& parameter : selection.parameters()) {
         const auto value = FirstGenericValue(parameter);
         if (!value.has_value()) continue;
@@ -115,7 +135,7 @@ void ResolveGenericSelectionsInPlace(cuda_learning::ProcessImageRequest* request
     }
 
     if (filter_id == "model_inference") {
-      filters.push_back(cuda_learning::FILTER_TYPE_MODEL_INFERENCE);
+      filters.push_back(FILTER_TYPE_MODEL_INFERENCE);
       auto* model_params = request->mutable_model_params();
       if (model_params->model_id().empty()) {
         model_params->set_model_id("yolov10n");
@@ -150,8 +170,8 @@ void ResolveGenericSelectionsInPlace(cuda_learning::ProcessImageRequest* request
     request->add_filters(filter);
   }
 
-  if (grayscale == cuda_learning::GRAYSCALE_TYPE_UNSPECIFIED) {
-    grayscale = cuda_learning::GRAYSCALE_TYPE_BT601;
+  if (grayscale == GRAYSCALE_TYPE_UNSPECIFIED) {
+    grayscale = GRAYSCALE_TYPE_BT601;
   }
   request->set_grayscale_type(grayscale);
 

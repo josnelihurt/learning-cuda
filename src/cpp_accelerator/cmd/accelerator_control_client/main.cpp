@@ -38,6 +38,18 @@ ABSL_FLAG(std::string, cameras, "0,1",
 ABSL_FLAG(std::string, captures_dir, "/tmp/cuda-captures",
           "Directory where captured BMP frames are saved.");
 
+using jrb::application::engine::ProcessorEngine;
+using jrb::adapters::grpc_control::ProcessorEngineAdapter;
+using jrb::adapters::camera::CameraHub;
+using jrb::adapters::webrtc::WebRTCManagerConfig;
+using jrb::adapters::webrtc::WebRTCManager;
+using jrb::adapters::grpc_control::AcceleratorControlClientConfig;
+using jrb::adapters::grpc_control::AcceleratorControlClient;
+using jrb::adapters::camera::DetectCameras;
+using jrb::core::SignalHandler;
+using cuda_learning::InitRequest;
+using cuda_learning::InitResponse;
+
 // This is the main entry point for the accelerator control client.
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
@@ -53,32 +65,32 @@ int main(int argc, char** argv) {
   spdlog::info("Captures dir: {}", absl::GetFlag(FLAGS_captures_dir));
   spdlog::info("========================================");
 
-  auto engine = std::make_shared<jrb::application::engine::ProcessorEngine>("accelerator-client");
+  auto engine = std::make_shared<ProcessorEngine>("accelerator-client");
 
-  cuda_learning::InitRequest init_req;
+  InitRequest init_req;
   init_req.set_cuda_device_id(absl::GetFlag(FLAGS_cuda_device_id));
-  cuda_learning::InitResponse init_resp;
+  InitResponse init_resp;
   if (!engine->Initialize(init_req, &init_resp) || init_resp.code() != 0) {
     spdlog::error("Failed to initialize processor engine: {}", init_resp.message());
     return 1;
   }
 
-  auto adapter = std::make_shared<jrb::adapters::grpc_control::ProcessorEngineAdapter>(engine);
-  auto camera_hub = jrb::adapters::camera::CameraHub::Create();
-  jrb::adapters::webrtc::WebRTCManagerConfig webrtc_cfg;
+  auto adapter = std::make_shared<ProcessorEngineAdapter>(engine);
+  auto camera_hub = CameraHub::Create();
+  WebRTCManagerConfig webrtc_cfg;
   webrtc_cfg.engine = engine;
   webrtc_cfg.camera_hub = camera_hub;
   webrtc_cfg.device_id = absl::GetFlag(FLAGS_device_id);
   webrtc_cfg.display_name = absl::GetFlag(FLAGS_display_name);
   webrtc_cfg.captures_dir = absl::GetFlag(FLAGS_captures_dir);
-  auto webrtc_manager = std::make_shared<jrb::adapters::webrtc::WebRTCManager>(webrtc_cfg);
+  auto webrtc_manager = std::make_shared<WebRTCManager>(webrtc_cfg);
   if (!webrtc_manager->Initialize()) {
     spdlog::warn("WebRTCManager failed to initialize — signaling will be unavailable");
   } else {
     spdlog::info("WebRTCManager ready");
   }
 
-  jrb::adapters::grpc_control::AcceleratorControlClientConfig cfg;
+  AcceleratorControlClientConfig cfg;
   cfg.control_addr = absl::GetFlag(FLAGS_control_addr);
   cfg.device_id = absl::GetFlag(FLAGS_device_id);
   cfg.display_name = absl::GetFlag(FLAGS_display_name);
@@ -102,7 +114,7 @@ int main(int argc, char** argv) {
         spdlog::warn("Invalid sensor ID in --cameras: '{}'", token);
       }
     }
-    cfg.cameras = jrb::adapters::camera::DetectCameras(sensor_ids);
+    cfg.cameras = DetectCameras(sensor_ids);
     spdlog::info("Detected {} camera(s):", cfg.cameras.size());
     for (const auto& cam : cfg.cameras) {
       spdlog::info("  sensor_id={} display_name='{}' model='{}'",
@@ -110,9 +122,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  jrb::adapters::grpc_control::AcceleratorControlClient client(cfg, adapter, webrtc_manager);
+  AcceleratorControlClient client(cfg, adapter, webrtc_manager);
 
-  auto& signal_handler = jrb::core::SignalHandler::GetInstance();
+  auto& signal_handler = SignalHandler::GetInstance();
   signal_handler.Initialize([&client]() {
     spdlog::warn("Shutdown signal received — stopping accelerator client");
     client.Stop();

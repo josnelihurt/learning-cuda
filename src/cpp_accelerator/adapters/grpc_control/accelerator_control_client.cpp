@@ -20,6 +20,15 @@
 
 namespace jrb::adapters::grpc_control {
 
+using cuda_learning::AcceleratorControlService;
+using cuda_learning::ConnectResponse;
+using cuda_learning::AcceleratorMessage;
+using cuda_learning::ConnectRequest;
+using cuda_learning::SignalingMessage;
+using cuda_learning::Register;
+using cuda_learning::GetCapabilitiesResponse;
+using cuda_learning::AcceleratorType;
+
 namespace {
 
 std::string ReadFile(const std::string& path) {
@@ -115,7 +124,7 @@ bool AcceleratorControlClient::RunOnce() {
   }
 
   auto channel = grpc::CreateChannel(config_.control_addr, creds);
-  auto stub = cuda_learning::AcceleratorControlService::NewStub(channel);
+  auto stub = AcceleratorControlService::NewStub(channel);
 
   grpc::ClientContext ctx;
   auto stream = stub->Connect(&ctx);
@@ -146,7 +155,7 @@ bool AcceleratorControlClient::RunOnce() {
   }
 
   // Wait for RegisterAck.
-  cuda_learning::ConnectResponse ack_resp;
+  ConnectResponse ack_resp;
   if (!stream->Read(&ack_resp)) {
     spdlog::error("[AcceleratorControl] Stream closed before RegisterAck");
     cleanup();
@@ -177,7 +186,7 @@ bool AcceleratorControlClient::RunOnce() {
   });
 
   // Dispatch loop.
-  cuda_learning::ConnectResponse resp;
+  ConnectResponse resp;
   while (!stop_requested_ && stream->Read(&resp)) {
     Dispatch(resp.message());
   }
@@ -195,7 +204,7 @@ bool AcceleratorControlClient::RunOnce() {
   return stop_requested_;
 }
 
-bool AcceleratorControlClient::Send(cuda_learning::AcceleratorMessage msg) {
+bool AcceleratorControlClient::Send(AcceleratorMessage msg) {
   if (msg.command_id().empty()) {
     msg.set_command_id(NewCommandId());
   }
@@ -203,18 +212,18 @@ bool AcceleratorControlClient::Send(cuda_learning::AcceleratorMessage msg) {
   if (!stream_) {
     return false;
   }
-  cuda_learning::ConnectRequest req;
+  ConnectRequest req;
   *req.mutable_message() = std::move(msg);
   return stream_->Write(req);
 }
 
-void AcceleratorControlClient::Dispatch(const cuda_learning::AcceleratorMessage& msg) {
+void AcceleratorControlClient::Dispatch(const AcceleratorMessage& msg) {
   const std::string& cmd_id = msg.command_id();
   switch (msg.payload_case()) {
-    case cuda_learning::AcceleratorMessage::kSignalingMessage:
+    case AcceleratorMessage::kSignalingMessage:
       HandleSignalingMessage(cmd_id, msg.signaling_message());
       break;
-    case cuda_learning::AcceleratorMessage::kKeepalive:
+    case AcceleratorMessage::kKeepalive:
       spdlog::debug("[AcceleratorControl] Keepalive received");
       break;
     default:
@@ -225,16 +234,16 @@ void AcceleratorControlClient::Dispatch(const cuda_learning::AcceleratorMessage&
 }
 
 void AcceleratorControlClient::HandleSignalingMessage(
-    const std::string& command_id, const cuda_learning::SignalingMessage& msg) {
+    const std::string& command_id, const SignalingMessage& msg) {
   if (!webrtc_manager_ || !webrtc_manager_->IsInitialized()) {
     spdlog::warn("[AcceleratorControl] WebRTCManager unavailable — dropping signaling message");
     return;
   }
 
-  cuda_learning::SignalingMessage response;
+  SignalingMessage response;
 
   switch (msg.message_case()) {
-    case cuda_learning::SignalingMessage::kStartSession: {
+    case SignalingMessage::kStartSession: {
       const auto& req = msg.start_session();
       std::string answer;
       std::string error;
@@ -261,7 +270,7 @@ void AcceleratorControlClient::HandleSignalingMessage(
       break;
     }
 
-    case cuda_learning::SignalingMessage::kIceCandidate: {
+    case SignalingMessage::kIceCandidate: {
       const auto& req = msg.ice_candidate();
       std::string error;
       const bool ok = webrtc_manager_->HandleRemoteCandidate(
@@ -277,7 +286,7 @@ void AcceleratorControlClient::HandleSignalingMessage(
       break;
     }
 
-    case cuda_learning::SignalingMessage::kCloseSession: {
+    case SignalingMessage::kCloseSession: {
       const auto& req = msg.close_session();
       std::string error;
       webrtc_manager_->CloseSession(req.session_id(), &error);
@@ -300,7 +309,7 @@ void AcceleratorControlClient::HandleSignalingMessage(
       break;
     }
 
-    case cuda_learning::SignalingMessage::kKeepAlive:
+    case SignalingMessage::kKeepAlive:
       spdlog::debug("[AcceleratorControl] Signaling keepalive");
       return;
 
@@ -310,7 +319,7 @@ void AcceleratorControlClient::HandleSignalingMessage(
       return;
   }
 
-  cuda_learning::AcceleratorMessage out;
+  AcceleratorMessage out;
   out.set_command_id(command_id);
   *out.mutable_signaling_message() = std::move(response);
   if (!Send(std::move(out))) {
@@ -333,14 +342,14 @@ void AcceleratorControlClient::CandidatePumpLoop() {
   for (const auto& session_id : session_ids) {
     auto candidates = webrtc_manager_->GetPendingLocalCandidates(session_id);
     for (const auto& candidate : candidates) {
-      cuda_learning::SignalingMessage signaling;
+      SignalingMessage signaling;
       auto* ice = signaling.mutable_ice_candidate();
       ice->set_session_id(session_id);
       ice->mutable_candidate()->set_candidate(candidate.candidate());
       ice->mutable_candidate()->set_sdp_mid(candidate.mid());
       ice->mutable_candidate()->set_sdp_mline_index(0);
 
-      cuda_learning::AcceleratorMessage out;
+      AcceleratorMessage out;
       *out.mutable_signaling_message() = std::move(signaling);
       if (!Send(std::move(out))) {
         spdlog::warn("[AcceleratorControl] Failed to send local candidate for session {}",
@@ -351,8 +360,8 @@ void AcceleratorControlClient::CandidatePumpLoop() {
   }
 }
 
-cuda_learning::AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage() const {
-  cuda_learning::Register reg;
+AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage() const {
+  Register reg;
   reg.set_device_id(config_.device_id);
   reg.set_display_name(config_.display_name);
   reg.set_accelerator_version(config_.accelerator_version);
@@ -362,7 +371,7 @@ cuda_learning::AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage
   }
 
   if (engine_) {
-    cuda_learning::GetCapabilitiesResponse caps_resp;
+    GetCapabilitiesResponse caps_resp;
     if (engine_->GetCapabilities(&caps_resp)) {
       *reg.mutable_capabilities() = caps_resp.capabilities();
       for (const auto& f : caps_resp.capabilities().filters()) {
@@ -376,14 +385,14 @@ cuda_learning::AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage
           }
           if (!already_added) {
             reg.add_supported_accelerator_types(
-                static_cast<cuda_learning::AcceleratorType>(acc));
+                static_cast<AcceleratorType>(acc));
           }
         }
       }
     }
   }
 
-  cuda_learning::AcceleratorMessage msg;
+  AcceleratorMessage msg;
   msg.set_command_id(NewCommandId());
   *msg.mutable_register_() = std::move(reg);
   return msg;

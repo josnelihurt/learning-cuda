@@ -20,14 +20,39 @@
 namespace jrb::application::engine {
 
 using jrb::domain::interfaces::GrayscaleAlgorithm;
+using cuda_learning::BorderMode;
+using cuda_learning::BORDER_MODE_CLAMP;
+using cuda_learning::BORDER_MODE_WRAP;
+using cuda_learning::InitRequest;
+using cuda_learning::InitResponse;
+using cuda_learning::ProcessImageRequest;
+using cuda_learning::ProcessImageResponse;
+using cuda_learning::GetCapabilitiesResponse;
+using cuda_learning::AcceleratorType;
+using cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED;
+using cuda_learning::GrayscaleType;
+using cuda_learning::GRAYSCALE_TYPE_BT601;
+using cuda_learning::GRAYSCALE_TYPE_BT709;
+using cuda_learning::GRAYSCALE_TYPE_AVERAGE;
+using cuda_learning::GRAYSCALE_TYPE_LIGHTNESS;
+using cuda_learning::GRAYSCALE_TYPE_LUMINOSITY;
+using cuda_learning::ACCELERATOR_TYPE_CUDA;
+using cuda_learning::GRAYSCALE_TYPE_UNSPECIFIED;
+using cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED;
+using cuda_learning::AcceleratorType_Name;
+using cuda_learning::GrayscaleType_Name;
+using cuda_learning::FILTER_TYPE_NONE;
+using cuda_learning::FILTER_TYPE_GRAYSCALE;
+using cuda_learning::FILTER_TYPE_BLUR;
+using cuda_learning::FILTER_TYPE_MODEL_INFERENCE;
 
 namespace {
 
-BlurBorderMode ProtoToBlurBorderMode(cuda_learning::BorderMode mode) {
+BlurBorderMode ProtoToBlurBorderMode(BorderMode mode) {
   switch (mode) {
-    case cuda_learning::BORDER_MODE_CLAMP:
+    case BORDER_MODE_CLAMP:
       return BlurBorderMode::CLAMP;
-    case cuda_learning::BORDER_MODE_WRAP:
+    case BORDER_MODE_WRAP:
       return BlurBorderMode::WRAP;
     default:
       return BlurBorderMode::REFLECT;
@@ -41,8 +66,8 @@ ProcessorEngine::ProcessorEngine(std::string component_name)
   RegisterPlatformAccelerators(factory_registry_);
 }
 
-bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
-                                 cuda_learning::InitResponse* response) {
+bool ProcessorEngine::Initialize(const InitRequest& request,
+                                  InitResponse* response) {
   static bool logger_initialized = false;
   if (!logger_initialized) {
     jrb::core::initialize_logger();
@@ -78,17 +103,17 @@ bool ProcessorEngine::Initialize(const cuda_learning::InitRequest& request,
   return true;
 }
 
-bool ProcessorEngine::ProcessImage(const cuda_learning::ProcessImageRequest& request,
-                                   cuda_learning::ProcessImageResponse* response,
-                                   void* memory_pool) {
+bool ProcessorEngine::ProcessImage(const ProcessImageRequest& request,
+                                    ProcessImageResponse* response,
+                                    void* memory_pool) {
   if (!response) {
     return false;
   }
   return ApplyFilters(request, response, memory_pool);
 }
 
-bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* response,
-                                      cuda_learning::AcceleratorType requested_accelerator) {
+bool ProcessorEngine::GetCapabilities(GetCapabilitiesResponse* response,
+                                       AcceleratorType requested_accelerator) {
   if (!response) {
     return false;
   }
@@ -130,7 +155,7 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
     }
   };
 
-  if (requested_accelerator != cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
+  if (requested_accelerator != ACCELERATOR_TYPE_UNSPECIFIED) {
     populate_from_factory(factory_registry_.GetFactory(requested_accelerator));
   } else {
     for (auto acc : factory_registry_.GetRegisteredTypes()) {
@@ -141,34 +166,34 @@ bool ProcessorEngine::GetCapabilities(cuda_learning::GetCapabilitiesResponse* re
   return true;
 }
 
-GrayscaleAlgorithm ProcessorEngine::ProtoToAlgorithm(cuda_learning::GrayscaleType type) const {
+GrayscaleAlgorithm ProcessorEngine::ProtoToAlgorithm(GrayscaleType type) const {
   switch (type) {
-    case cuda_learning::GRAYSCALE_TYPE_BT601:
+    case GRAYSCALE_TYPE_BT601:
       return GrayscaleAlgorithm::BT601;
-    case cuda_learning::GRAYSCALE_TYPE_BT709:
+    case GRAYSCALE_TYPE_BT709:
       return GrayscaleAlgorithm::BT709;
-    case cuda_learning::GRAYSCALE_TYPE_AVERAGE:
+    case GRAYSCALE_TYPE_AVERAGE:
       return GrayscaleAlgorithm::Average;
-    case cuda_learning::GRAYSCALE_TYPE_LIGHTNESS:
+    case GRAYSCALE_TYPE_LIGHTNESS:
       return GrayscaleAlgorithm::Lightness;
-    case cuda_learning::GRAYSCALE_TYPE_LUMINOSITY:
+    case GRAYSCALE_TYPE_LUMINOSITY:
       return GrayscaleAlgorithm::Luminosity;
     default:
       return GrayscaleAlgorithm::BT601;
   }
 }
 
-bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& request,
-                                   cuda_learning::ProcessImageResponse* response,
-                                   void* memory_pool) {
-  cuda_learning::AcceleratorType accelerator = request.accelerator();
-  if (accelerator == cuda_learning::ACCELERATOR_TYPE_UNSPECIFIED) {
-    accelerator = cuda_learning::ACCELERATOR_TYPE_CUDA;
+bool ProcessorEngine::ApplyFilters(const ProcessImageRequest& request,
+                                    ProcessImageResponse* response,
+                                    void* memory_pool) {
+  AcceleratorType accelerator = request.accelerator();
+  if (accelerator == ACCELERATOR_TYPE_UNSPECIFIED) {
+    accelerator = ACCELERATOR_TYPE_CUDA;
   }
 
-  cuda_learning::GrayscaleType grayscale_type = request.grayscale_type();
-  if (grayscale_type == cuda_learning::GRAYSCALE_TYPE_UNSPECIFIED) {
-    grayscale_type = cuda_learning::GRAYSCALE_TYPE_BT601;
+  GrayscaleType grayscale_type = request.grayscale_type();
+  if (grayscale_type == GRAYSCALE_TYPE_UNSPECIFIED) {
+    grayscale_type = GRAYSCALE_TYPE_BT601;
   }
 
   auto& telemetry = jrb::core::telemetry::TelemetryManager::GetInstance();
@@ -180,8 +205,8 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
   scoped_span.SetAttribute("image.width", static_cast<int64_t>(request.width()));
   scoped_span.SetAttribute("image.height", static_cast<int64_t>(request.height()));
   scoped_span.SetAttribute("image.channels", static_cast<int64_t>(request.channels()));
-  scoped_span.SetAttribute("accelerator", cuda_learning::AcceleratorType_Name(accelerator));
-  scoped_span.SetAttribute("grayscale_type", cuda_learning::GrayscaleType_Name(grayscale_type));
+  scoped_span.SetAttribute("accelerator", AcceleratorType_Name(accelerator));
+  scoped_span.SetAttribute("grayscale_type", GrayscaleType_Name(grayscale_type));
   scoped_span.SetAttribute("filters_count", static_cast<int64_t>(request.filters_size()));
 
   try {
@@ -194,11 +219,11 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
 
     for (int i = 0; i < request.filters_size(); i++) {
       const auto filter = request.filters(i);
-      if (filter == cuda_learning::FILTER_TYPE_NONE) {
+      if (filter == FILTER_TYPE_NONE) {
         continue;
       }
 
-      if (filter == cuda_learning::FILTER_TYPE_GRAYSCALE) {
+      if (filter == FILTER_TYPE_GRAYSCALE) {
         FilterCreationParams params;
         params.grayscale_algorithm = ProtoToAlgorithm(grayscale_type);
         if (factory) {
@@ -208,10 +233,10 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
             pipeline.AddFilter(std::move(f));
           } else {
             spdlog::warn("Grayscale filter not supported by accelerator {}",
-                         cuda_learning::AcceleratorType_Name(accelerator));
+                         AcceleratorType_Name(accelerator));
           }
         }
-      } else if (filter == cuda_learning::FILTER_TYPE_BLUR) {
+      } else if (filter == FILTER_TYPE_BLUR) {
         FilterCreationParams params;
         if (request.has_blur_params()) {
           const auto& bp = request.blur_params();
@@ -227,10 +252,10 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
             pipeline.AddFilter(std::move(f));
           } else {
             spdlog::warn("Blur filter not supported by accelerator {}",
-                         cuda_learning::AcceleratorType_Name(accelerator));
+                         AcceleratorType_Name(accelerator));
           }
         }
-      } else if (filter == cuda_learning::FILTER_TYPE_MODEL_INFERENCE) {
+      } else if (filter == FILTER_TYPE_MODEL_INFERENCE) {
         inference_requested = true;
         if (request.has_model_params()) {
           if (!request.model_params().model_id().empty()) {
@@ -259,7 +284,7 @@ bool ProcessorEngine::ApplyFilters(const cuda_learning::ProcessImageRequest& req
 
     int output_channels = request.channels();
     for (int i = 0; i < request.filters_size(); i++) {
-      if (request.filters(i) == cuda_learning::FILTER_TYPE_GRAYSCALE) {
+      if (request.filters(i) == FILTER_TYPE_GRAYSCALE) {
         output_channels = 1;
         break;
       }

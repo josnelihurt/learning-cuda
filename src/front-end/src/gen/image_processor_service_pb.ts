@@ -102,6 +102,12 @@ export class ControlRequest extends Message<ControlRequest> {
      */
     value: StopCameraStreamRequest;
     case: "stopCameraStream";
+  } | {
+    /**
+     * @generated from field: cuda_learning.CaptureFrameRequest capture_frame = 15 [json_name = "capture_frame"];
+     */
+    value: CaptureFrameRequest;
+    case: "captureFrame";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ControlRequest>) {
@@ -119,6 +125,7 @@ export class ControlRequest extends Message<ControlRequest> {
     { no: 12, name: "get_accelerator_capabilities", jsonName: "get_accelerator_capabilities", kind: "message", T: GetAcceleratorCapabilitiesRequest, oneof: "payload" },
     { no: 13, name: "start_camera_stream", jsonName: "start_camera_stream", kind: "message", T: StartCameraStreamRequest, oneof: "payload" },
     { no: 14, name: "stop_camera_stream", jsonName: "stop_camera_stream", kind: "message", T: StopCameraStreamRequest, oneof: "payload" },
+    { no: 15, name: "capture_frame", jsonName: "capture_frame", kind: "message", T: CaptureFrameRequest, oneof: "payload" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ControlRequest {
@@ -190,6 +197,12 @@ export class ControlResponse extends Message<ControlResponse> {
     case: "stopCameraStream";
   } | {
     /**
+     * @generated from field: cuda_learning.CaptureFrameResponse capture_frame = 15 [json_name = "capture_frame"];
+     */
+    value: CaptureFrameResponse;
+    case: "captureFrame";
+  } | {
+    /**
      * @generated from field: cuda_learning.ControlError error = 99;
      */
     value: ControlError;
@@ -211,6 +224,7 @@ export class ControlResponse extends Message<ControlResponse> {
     { no: 12, name: "get_accelerator_capabilities", jsonName: "get_accelerator_capabilities", kind: "message", T: GetAcceleratorCapabilitiesResponse, oneof: "payload" },
     { no: 13, name: "start_camera_stream", jsonName: "start_camera_stream", kind: "message", T: StartCameraStreamResponse, oneof: "payload" },
     { no: 14, name: "stop_camera_stream", jsonName: "stop_camera_stream", kind: "message", T: StopCameraStreamResponse, oneof: "payload" },
+    { no: 15, name: "capture_frame", jsonName: "capture_frame", kind: "message", T: CaptureFrameResponse, oneof: "payload" },
     { no: 99, name: "error", kind: "message", T: ControlError, oneof: "payload" },
   ]);
 
@@ -2166,6 +2180,89 @@ export class StopCameraStreamResponse extends Message<StopCameraStreamResponse> 
 
   static equals(a: StopCameraStreamResponse | PlainMessage<StopCameraStreamResponse> | undefined, b: StopCameraStreamResponse | PlainMessage<StopCameraStreamResponse> | undefined): boolean {
     return proto3.util.equals(StopCameraStreamResponse, a, b);
+  }
+}
+
+/**
+ * CaptureFrameRequest instructs the accelerator to save the next processed
+ * output frame as a BMP file under its captures directory.
+ *
+ * @generated from message cuda_learning.CaptureFrameRequest
+ */
+export class CaptureFrameRequest extends Message<CaptureFrameRequest> {
+  constructor(data?: PartialMessage<CaptureFrameRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.CaptureFrameRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CaptureFrameRequest {
+    return new CaptureFrameRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CaptureFrameRequest {
+    return new CaptureFrameRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CaptureFrameRequest {
+    return new CaptureFrameRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CaptureFrameRequest | PlainMessage<CaptureFrameRequest> | undefined, b: CaptureFrameRequest | PlainMessage<CaptureFrameRequest> | undefined): boolean {
+    return proto3.util.equals(CaptureFrameRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.CaptureFrameResponse
+ */
+export class CaptureFrameResponse extends Message<CaptureFrameResponse> {
+  /**
+   * @generated from field: bool captured = 1;
+   */
+  captured = false;
+
+  /**
+   * @generated from field: string filename = 2;
+   */
+  filename = "";
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<CaptureFrameResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.CaptureFrameResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "captured", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CaptureFrameResponse {
+    return new CaptureFrameResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CaptureFrameResponse {
+    return new CaptureFrameResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CaptureFrameResponse {
+    return new CaptureFrameResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CaptureFrameResponse | PlainMessage<CaptureFrameResponse> | undefined, b: CaptureFrameResponse | PlainMessage<CaptureFrameResponse> | undefined): boolean {
+    return proto3.util.equals(CaptureFrameResponse, a, b);
   }
 }
 

@@ -21,6 +21,7 @@
 #include "src/cpp_accelerator/adapters/webrtc/data_channel_framing.h"
 #include "src/cpp_accelerator/adapters/webrtc/live_video_processor.h"
 #include "src/cpp_accelerator/application/server_info/i_server_info_provider.h"
+#include "src/cpp_accelerator/domain/interfaces/image_sink.h"
 #include "src/cpp_accelerator/ports/media/i_media_session.h"
 
 namespace jrb::application::engine {
@@ -34,6 +35,7 @@ struct WebRTCManagerConfig {
   std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub;
   std::string device_id;
   std::string display_name;
+  std::string captures_dir{"/tmp/cuda-captures"};
 };
 
 class WebRTCManager : public std::enable_shared_from_this<WebRTCManager>,
@@ -184,6 +186,8 @@ public:
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
   std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub_;
   std::unique_ptr<jrb::application::server_info::IServerInfoProvider> server_info_;
+  std::unique_ptr<jrb::domain::interfaces::IImageSink> image_writer_;
+  std::string captures_dir_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;
   std::mutex sessions_mutex_;

@@ -35,6 +35,8 @@ ABSL_FLAG(std::string, ca_cert, ".secrets/accelerator-ca.pem",
 ABSL_FLAG(int, max_reconnect_delay_s, 60, "Maximum reconnect back-off in seconds.");
 ABSL_FLAG(std::string, cameras, "0,1",
           "Comma-separated sensor IDs to probe and advertise as remote cameras.");
+ABSL_FLAG(std::string, captures_dir, "/tmp/cuda-captures",
+          "Directory where captured BMP frames are saved.");
 
 // This is the main entry point for the accelerator control client.
 int main(int argc, char** argv) {
@@ -48,6 +50,7 @@ int main(int argc, char** argv) {
   spdlog::info("Device ID:    {}", absl::GetFlag(FLAGS_device_id));
   spdlog::info("CUDA device:  {}", absl::GetFlag(FLAGS_cuda_device_id));
   spdlog::info("Cameras:      {}", absl::GetFlag(FLAGS_cameras));
+  spdlog::info("Captures dir: {}", absl::GetFlag(FLAGS_captures_dir));
   spdlog::info("========================================");
 
   auto engine = std::make_shared<jrb::application::engine::ProcessorEngine>("accelerator-client");
@@ -67,6 +70,7 @@ int main(int argc, char** argv) {
   webrtc_cfg.camera_hub = camera_hub;
   webrtc_cfg.device_id = absl::GetFlag(FLAGS_device_id);
   webrtc_cfg.display_name = absl::GetFlag(FLAGS_display_name);
+  webrtc_cfg.captures_dir = absl::GetFlag(FLAGS_captures_dir);
   auto webrtc_manager = std::make_shared<jrb::adapters::webrtc::WebRTCManager>(webrtc_cfg);
   if (!webrtc_manager->Initialize()) {
     spdlog::warn("WebRTCManager failed to initialize — signaling will be unavailable");

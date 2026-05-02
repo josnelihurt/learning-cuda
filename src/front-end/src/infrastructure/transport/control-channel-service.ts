@@ -1,4 +1,6 @@
 import {
+  CaptureFrameRequest,
+  CaptureFrameResponse,
   ControlRequest,
   ControlResponse,
   GetAcceleratorCapabilitiesRequest,
@@ -125,6 +127,19 @@ class ControlChannelService {
     }
     if (response.payload.case !== 'stopCameraStream') {
       throw new Error(`StopCameraStream: unexpected response case ${String(response.payload.case)}`);
+    }
+    return response.payload.value;
+  }
+
+  async captureFrame(): Promise<CaptureFrameResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: { case: 'captureFrame', value: new CaptureFrameRequest({}) },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`CaptureFrame failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'captureFrame') {
+      throw new Error(`CaptureFrame: unexpected response case ${String(response.payload.case)}`);
     }
     return response.payload.value;
   }

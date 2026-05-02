@@ -68,6 +68,7 @@ cc_library(
         "//proto:image_processor_service_cc_proto",
         "//src/cpp_accelerator/adapters/camera:camera_hub",
         "//src/cpp_accelerator/adapters/camera:gst_camera_source",
+        "//src/cpp_accelerator/adapters/image_io:image_adapters",
         "//src/cpp_accelerator/adapters/compute/cuda/memory:cuda_memory_pool",
         "//src/cpp_accelerator/adapters/webrtc/protocol:data_channel_envelope",
         "//src/cpp_accelerator/adapters/webrtc/protocol:filter_resolver",

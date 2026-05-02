@@ -22,6 +22,7 @@ extern "C" {
 namespace jrb::adapters::webrtc {
 
 using jrb::adapters::webrtc::protocol::ResolveGenericSelectionsInPlace;
+using jrb::domain::interfaces::IImageSink;
 
 namespace {
 
@@ -42,9 +43,11 @@ bool IsFilterNone(const cuda_learning::FilterType filter) {
 }  // namespace
 
 LiveVideoProcessor::LiveVideoProcessor(jrb::application::engine::ProcessorEngine* engine,
-                                       void* cuda_memory_pool)
+                                       void* cuda_memory_pool,
+                                       IImageSink* image_sink)
     : engine_(engine),
       cuda_memory_pool_(cuda_memory_pool),
+      image_sink_(image_sink),
       decoder_context_(nullptr),
       encoder_context_(nullptr),
       decode_to_rgb_context_(nullptr),
@@ -71,6 +74,14 @@ LiveVideoProcessor::~LiveVideoProcessor() {
   sws_freeContext(rgb_to_yuv_context_);
   avcodec_free_context(&decoder_context_);
   avcodec_free_context(&encoder_context_);
+}
+
+void LiveVideoProcessor::RequestCapture(std::string filepath) {
+  {
+    std::lock_guard<std::mutex> lk(capture_mutex_);
+    capture_filepath_ = std::move(filepath);
+  }
+  capture_pending_.store(true);
 }
 
 bool LiveVideoProcessor::UpdateFilterState(const cuda_learning::ProcessImageRequest& request,
@@ -202,6 +213,18 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
         for (const auto& d : processing_response.detections()) {
           *detection_frame->add_detections() = d;
         }
+      }
+    }
+
+    if (capture_pending_.exchange(false)) {
+      std::string path;
+      {
+        std::lock_guard<std::mutex> lk(capture_mutex_);
+        path = capture_filepath_;
+      }
+      if (image_sink_ != nullptr && !path.empty()) {
+        image_sink_->writeBmp(path.c_str(), processed_rgb_buffer.data(),
+                              decoded_frame_->width, decoded_frame_->height, 3);
       }
     }
 

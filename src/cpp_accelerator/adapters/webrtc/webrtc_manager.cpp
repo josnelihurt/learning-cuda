@@ -1,7 +1,9 @@
 #include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 
 #include <chrono>
+#include <ctime>
 #include <exception>
+#include <filesystem>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -16,6 +18,7 @@
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #include "src/cpp_accelerator/adapters/camera/gst_camera_source.h"
+#include "src/cpp_accelerator/adapters/image_io/image_writer.h"
 #include "src/cpp_accelerator/adapters/webrtc/channel_labels.h"
 #include "src/cpp_accelerator/adapters/webrtc/protocol/data_channel_envelope.h"
 #include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
@@ -35,11 +38,14 @@ using jrb::adapters::webrtc::sdp::FindOutboundVideoConfig;
 using jrb::adapters::webrtc::sdp::MakeSsrc;
 using jrb::adapters::webrtc::sdp::StripRtpHeaderExtensions;
 using jrb::adapters::webrtc::sdp::WaitForSdpAnswer;
+using jrb::adapters::image::ImageWriter;
 
 WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
     : engine_(std::move(config.engine)),
       camera_hub_(std::move(config.camera_hub)),
       server_info_(std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
+      image_writer_(std::make_unique<ImageWriter>()),
+      captures_dir_(std::move(config.captures_dir)),
       initialized_(false),
       device_id_(std::move(config.device_id)),
       display_name_(std::move(config.display_name)),
@@ -157,7 +163,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     // Create memory pool before LiveVideoProcessor so the pool pointer is valid.
     session->memory_pool = std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>();
     session->live_video_processor =
-        std::make_unique<LiveVideoProcessor>(engine_.get(), session->memory_pool.get());
+        std::make_unique<LiveVideoProcessor>(engine_.get(), session->memory_pool.get(),
+                                              image_writer_.get());
     session->live_filter_state.set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);
     session->live_filter_state.add_filters(cuda_learning::FILTER_TYPE_NONE);
     session->live_filter_state.set_api_version("1.1");
@@ -976,6 +983,40 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       state.camera_subscription.Reset();
       auto* resp = response.mutable_stop_camera_stream();
       resp->set_stopped(true);
+      break;
+    }
+    case cuda_learning::ControlRequest::kCaptureFrame: {
+      auto* resp = response.mutable_capture_frame();
+      if (state.live_video_processor == nullptr) {
+        resp->set_captured(false);
+        resp->set_reason("no active video processor for this session");
+        spdlog::warn("[WebRTC:{}] CaptureFrame: no active live video processor", session_id);
+        break;
+      }
+      auto now = std::chrono::system_clock::now();
+      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()) % 1000;
+      std::time_t t = std::chrono::system_clock::to_time_t(now);
+      std::tm tm_info{};
+      localtime_r(&t, &tm_info);
+      char ts[32];
+      std::strftime(ts, sizeof(ts), "%Y%m%d_%H%M%S", &tm_info);
+      std::string filename = std::string("capture_") + ts + "_" +
+                             std::to_string(ms.count()) + ".bmp";
+      std::error_code ec;
+      std::filesystem::create_directories(captures_dir_, ec);
+      if (ec) {
+        resp->set_captured(false);
+        resp->set_reason(std::string("failed to create captures directory: ") + ec.message());
+        spdlog::error("[WebRTC:{}] CaptureFrame: mkdir {} failed: {}", session_id, captures_dir_,
+                      ec.message());
+        break;
+      }
+      std::string filepath = captures_dir_ + "/" + filename;
+      state.live_video_processor->RequestCapture(filepath);
+      resp->set_captured(true);
+      resp->set_filename(filename);
+      spdlog::info("[WebRTC:{}] CaptureFrame queued: {}", session_id, filename);
       break;
     }
     default: {

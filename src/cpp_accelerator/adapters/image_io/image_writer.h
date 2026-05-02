@@ -14,6 +14,9 @@ public:
 
   bool write(const char* filepath, const unsigned char* data, int width, int height,
              int channels) override;
+
+  bool writeBmp(const char* filepath, const unsigned char* data, int width, int height,
+                int channels) override;
 };
 
 }  // namespace jrb::adapters::image

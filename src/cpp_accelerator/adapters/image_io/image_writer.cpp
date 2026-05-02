@@ -34,4 +34,22 @@ bool ImageWriter::write(const char* filepath, const unsigned char* data, int wid
   return true;
 }
 
+bool ImageWriter::writeBmp(const char* filepath, const unsigned char* data, int width, int height,
+                           int channels) {
+  if (data == nullptr || width <= 0 || height <= 0 || channels <= 0) {
+    spdlog::error("Invalid image data for BMP writing");
+    return false;
+  }
+
+  int result = stbi_write_bmp(filepath, width, height, channels, data);
+
+  if (result == 0) {
+    spdlog::error("Failed to write BMP to {}", filepath);
+    return false;
+  }
+
+  spdlog::info("Wrote BMP capture: {}", filepath);
+  return true;
+}
+
 }  // namespace jrb::adapters::image

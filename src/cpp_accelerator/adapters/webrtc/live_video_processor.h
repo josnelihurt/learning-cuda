@@ -1,13 +1,16 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include <rtc/rtc.hpp>
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
+#include "src/cpp_accelerator/domain/interfaces/image_sink.h"
 
 namespace jrb::application::engine {
 class ProcessorEngine;
@@ -27,8 +30,9 @@ struct EncodedAccessUnit {
 
 class LiveVideoProcessor {
  public:
-  explicit LiveVideoProcessor(jrb::application::engine::ProcessorEngine* engine,
-                              void* cuda_memory_pool = nullptr);
+  LiveVideoProcessor(jrb::application::engine::ProcessorEngine* engine,
+                     void* cuda_memory_pool,
+                     jrb::domain::interfaces::IImageSink* image_sink);
   ~LiveVideoProcessor();
 
   bool UpdateFilterState(const cuda_learning::ProcessImageRequest& request,
@@ -40,6 +44,8 @@ class LiveVideoProcessor {
                          std::vector<EncodedAccessUnit>* encoded_units,
                          cuda_learning::DetectionFrame* detection_frame,
                          std::string* error_message);
+
+  void RequestCapture(std::string filepath);
 
  private:
   bool EnsureDecoder(std::string* error_message);
@@ -63,6 +69,10 @@ class LiveVideoProcessor {
 
   jrb::application::engine::ProcessorEngine* engine_;
   void* cuda_memory_pool_;
+  jrb::domain::interfaces::IImageSink* image_sink_;
+  std::atomic<bool> capture_pending_{false};
+  std::string capture_filepath_;
+  std::mutex capture_mutex_;
   AVCodecContext* decoder_context_;
   AVCodecContext* encoder_context_;
   SwsContext* decode_to_rgb_context_;

@@ -33,6 +33,7 @@ services:
       - --client_cert=/secrets/client.pem
       - --client_key=/secrets/client-key.pem
       - --ca_cert=/secrets/ca.pem
+      - --captures_dir=/app/captures
 
     # Camera device pass-through for Jetson Argus camera framework.
     # nvarguscamerasrc requires access to Tegra platform devices in addition to
@@ -70,5 +71,6 @@ services:
       - /usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:/usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:ro
       - ${ACCELERATOR_MODELS_DIR:-./models}:/opt/cuda/grpc/data/models:rw
+      - ${ACCELERATOR_CAPTURES_DIR:-./captures}:/app/captures:rw
 
 volumes: {}

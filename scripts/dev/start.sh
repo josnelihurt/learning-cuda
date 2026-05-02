@@ -216,11 +216,14 @@ require_grpc_binary() {
 start_grpc() {
     GRPC_SERVER_BIN="${PROJECT_ROOT}/bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client"
     echo "Starting C++ accelerator client..."
+    local captures_dir="${ACCELERATOR_CAPTURES_DIR:-${PROJECT_ROOT}/captures}"
+    mkdir -p "$captures_dir"
     "$GRPC_SERVER_BIN" \
         --control_addr=localhost:60062 \
         --client_cert="${PROJECT_ROOT}/.secrets/dev-accelerator-client.pem" \
         --client_key="${PROJECT_ROOT}/.secrets/dev-accelerator-client-key.pem" \
         --ca_cert="${PROJECT_ROOT}/.secrets/accelerator-ca.pem" \
+        --captures_dir="$captures_dir" \
         >"$DEV_LOG_GRPC" 2>&1 &
     GRPC_PID=$!
     echo "$GRPC_PID" >"$DEV_PID_GRPC"

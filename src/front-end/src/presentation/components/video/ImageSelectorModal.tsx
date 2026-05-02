@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { CapturedImageInfo } from '@/gen/image_processor_service_pb';
+import { CapturedImageFormat } from '@/gen/image_processor_service_pb';
 import type { StaticImage } from '@/gen/common_pb';
 import { controlChannelService } from '@/infrastructure/transport/control-channel-service';
 import './video-grid.css';
@@ -25,8 +26,8 @@ function CapturedThumb({ id }: CapturedThumbProps): React.ReactElement {
     let cancelled = false;
     controlChannelService.getCapturedImage(id).then((resp) => {
       if (cancelled) return;
-      if (resp.found && resp.pngData.length > 0) {
-        const blob = new Blob([resp.pngData], { type: 'image/png' });
+      if (resp.found && resp.imageData.length > 0) {
+        const blob = new Blob([resp.imageData], { type: 'image/png' });
         const url = URL.createObjectURL(blob);
         blobUrlRef.current = url;
         setSrc(url);
@@ -77,6 +78,33 @@ export function ImageSelectorModal({
       setCapturedLoading(false);
     }
   }, [capturedLoading]);
+
+  const handleDownload = useCallback(async (id: string, filename: string): Promise<void> => {
+    try {
+      const resp = await controlChannelService.getCapturedImage(id, 0, 0, CapturedImageFormat.BMP);
+      if (!resp.found) return;
+      const blob = new Blob([resp.imageData], { type: 'image/bmp' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // download failed silently
+    }
+  }, []);
+
+  const handleDelete = useCallback(async (id: string): Promise<void> => {
+    try {
+      const resp = await controlChannelService.deleteCapturedImage(id);
+      if (resp.deleted) {
+        setCapturedImages((prev) => prev.filter((img) => img.id !== id));
+      }
+    } catch {
+      // delete failed silently
+    }
+  }, []);
 
   // Load first page when tab becomes active (and we have no data yet)
   useEffect(() => {
@@ -167,7 +195,29 @@ export function ImageSelectorModal({
                 <div className="image-grid">
                   {capturedImages.map((img) => (
                     <div key={img.id} className="image-item image-item--captured" data-testid={`captured-item-${img.id}`}>
-                      <CapturedThumb id={img.id} />
+                      <div className="image-item-thumb">
+                        <CapturedThumb id={img.id} />
+                        <div className="image-item-actions">
+                          <button
+                            type="button"
+                            className="image-action-btn"
+                            title="Download BMP"
+                            onClick={() => { void handleDownload(img.id, img.filename); }}
+                            data-testid={`download-${img.id}`}
+                          >
+                            ⬇
+                          </button>
+                          <button
+                            type="button"
+                            className="image-action-btn image-action-btn--danger"
+                            title="Delete"
+                            onClick={() => { void handleDelete(img.id); }}
+                            data-testid={`delete-${img.id}`}
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </div>
                       <div className="image-name" title={img.filename}>{img.id}</div>
                     </div>
                   ))}

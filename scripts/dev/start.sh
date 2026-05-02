@@ -218,6 +218,7 @@ start_grpc() {
     echo "Starting C++ accelerator client..."
     local captures_dir="${ACCELERATOR_CAPTURES_DIR:-${PROJECT_ROOT}/captures}"
     mkdir -p "$captures_dir"
+    echo "  Captures dir: $captures_dir"
     "$GRPC_SERVER_BIN" \
         --control_addr=localhost:60062 \
         --client_cert="${PROJECT_ROOT}/.secrets/dev-accelerator-client.pem" \

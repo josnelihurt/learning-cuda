@@ -255,6 +255,49 @@
   cursor: default;
 }
 
+.react-image-modal-host .image-item-thumb {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.react-image-modal-host .image-item-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.react-image-modal-host .image-item:hover .image-item-actions {
+  opacity: 1;
+}
+
+.react-image-modal-host .image-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.react-image-modal-host .image-action-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.react-image-modal-host .image-action-btn--danger:hover {
+  background: rgba(200, 30, 30, 0.85);
+}
+
 .react-image-modal-host .image-thumb-skeleton {
   width: 120px;
   height: 120px;

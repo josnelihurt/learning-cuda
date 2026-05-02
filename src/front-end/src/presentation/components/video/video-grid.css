@@ -227,3 +227,61 @@
   object-fit: cover;
   border-radius: 4px;
 }
+
+.react-image-modal-host .modal-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  padding: 0 24px;
+}
+
+.react-image-modal-host .modal-tab {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.react-image-modal-host .modal-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.react-image-modal-host .image-item--captured {
+  cursor: default;
+}
+
+.react-image-modal-host .image-thumb-skeleton {
+  width: 120px;
+  height: 120px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--background-secondary) 25%, var(--border-color) 50%, var(--background-secondary) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.react-image-modal-host .captured-loading {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.react-image-modal-host .scroll-sentinel {
+  height: 1px;
+}
+
+.react-image-modal-host .empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-secondary);
+}

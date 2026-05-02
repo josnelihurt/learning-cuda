@@ -23,7 +23,7 @@ services:
       # Arducam IMX477 ISP tuning produces a cyan cast in mixed indoor light;
       # locking to a fixed preset corrects it. Override per-deploy without
       # rebuilding the image.
-      - NVARGUS_WBMODE=${NVARGUS_WBMODE:-4}
+      - NVARGUS_WBMODE=1
 
     command:
       - accelerator_control_client

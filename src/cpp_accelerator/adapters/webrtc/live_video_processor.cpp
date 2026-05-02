@@ -90,6 +90,12 @@ void LiveVideoProcessor::RequestCapture(std::string filepath) {
   capture_pending_.store(true);
 }
 
+std::string LiveVideoProcessor::ConsumePendingCapture() {
+  if (!capture_pending_.exchange(false)) return {};
+  std::lock_guard<std::mutex> lk(capture_mutex_);
+  return capture_filepath_;
+}
+
 bool LiveVideoProcessor::UpdateFilterState(const ProcessImageRequest& request,
                                            ProcessImageRequest* state,
                                            std::string* error_message) const {

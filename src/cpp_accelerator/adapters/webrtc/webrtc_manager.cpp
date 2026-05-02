@@ -6,6 +6,7 @@
 #include <ctime>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -1080,22 +1081,57 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       const auto& req = request.get_captured_image();
       const std::string filepath = captures_dir_ + "/" + req.id() + ".bmp";
 
-      std::vector<uint8_t> png_data;
-      int w = 0;
-      int h = 0;
-      if (!image_writer_->readAsPng(filepath.c_str(), &png_data, &w, &h,
-                                    req.max_width(), req.max_height())) {
-        resp->set_found(false);
-        resp->set_reason("image not found or conversion failed: " + req.id());
-        spdlog::warn("[WebRTC:{}] GetCapturedImage not found: {}", session_id, req.id());
-        break;
+      if (req.format() == cuda_learning::CAPTURED_IMAGE_FORMAT_BMP) {
+        std::ifstream f(filepath, std::ios::binary);
+        if (!f) {
+          resp->set_found(false);
+          resp->set_reason("image not found: " + req.id());
+          spdlog::warn("[WebRTC:{}] GetCapturedImage(BMP) not found: {}", session_id, req.id());
+          break;
+        }
+        const std::string bytes((std::istreambuf_iterator<char>(f)),
+                                 std::istreambuf_iterator<char>());
+        resp->set_found(true);
+        resp->set_image_data(bytes);
+        resp->set_format(cuda_learning::CAPTURED_IMAGE_FORMAT_BMP);
+        spdlog::info("[WebRTC:{}] GetCapturedImage(BMP) {} {} bytes", session_id, req.id(),
+                     bytes.size());
+      } else {
+        std::vector<uint8_t> img_data;
+        int w = 0;
+        int h = 0;
+        if (!image_writer_->readAsPng(filepath.c_str(), &img_data, &w, &h,
+                                      req.max_width(), req.max_height())) {
+          resp->set_found(false);
+          resp->set_reason("image not found or conversion failed: " + req.id());
+          spdlog::warn("[WebRTC:{}] GetCapturedImage(PNG) not found: {}", session_id, req.id());
+          break;
+        }
+        resp->set_found(true);
+        resp->set_image_data(img_data.data(), img_data.size());
+        resp->set_width(w);
+        resp->set_height(h);
+        resp->set_format(cuda_learning::CAPTURED_IMAGE_FORMAT_PNG);
+        spdlog::info("[WebRTC:{}] GetCapturedImage(PNG) {} {}×{} {} bytes", session_id, req.id(),
+                     w, h, img_data.size());
       }
-      resp->set_found(true);
-      resp->set_png_data(png_data.data(), png_data.size());
-      resp->set_width(w);
-      resp->set_height(h);
-      spdlog::info("[WebRTC:{}] GetCapturedImage {} → {}×{} {} bytes", session_id, req.id(), w, h,
-                   png_data.size());
+      break;
+    }
+    case cuda_learning::ControlRequest::kDeleteCapturedImage: {
+      auto* resp = response.mutable_delete_captured_image();
+      const auto& req = request.delete_captured_image();
+      const std::string filepath = captures_dir_ + "/" + req.id() + ".bmp";
+      std::error_code ec;
+      const bool removed = std::filesystem::remove(filepath, ec);
+      if (!removed || ec) {
+        resp->set_deleted(false);
+        resp->set_reason(ec ? ec.message() : "file not found: " + req.id());
+        spdlog::warn("[WebRTC:{}] DeleteCapturedImage failed: {} — {}", session_id, req.id(),
+                     ec ? ec.message() : "not found");
+      } else {
+        resp->set_deleted(true);
+        spdlog::info("[WebRTC:{}] DeleteCapturedImage ok: {}", session_id, req.id());
+      }
       break;
     }
     default: {
@@ -1189,6 +1225,22 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
                  response.code(), response.message());
   }
   response.set_frame_id(request.frame_id());
+
+  // Capture from static-image pipeline: consume any pending capture and write the
+  // processed frame as a BMP. The live-camera path writes captures inside ProcessAccessUnit;
+  // static images never call ProcessAccessUnit so the capture would otherwise be lost.
+  if (state.live_video_processor != nullptr) {
+    const std::string capture_path = state.live_video_processor->ConsumePendingCapture();
+    if (!capture_path.empty() && !response.image_data().empty() &&
+        response.width() > 0 && response.height() > 0) {
+      const auto& img = response.image_data();
+      const int channels = response.channels() > 0 ? response.channels() : 3;
+      image_writer_->writeBmp(capture_path.c_str(),
+                              reinterpret_cast<const uint8_t*>(img.data()),
+                              response.width(), response.height(), channels);
+      spdlog::info("[WebRTC:{}] CaptureFrame(static) saved: {}", session_id, capture_path);
+    }
+  }
 
   std::string output;
   if (!response.SerializeToString(&output)) {

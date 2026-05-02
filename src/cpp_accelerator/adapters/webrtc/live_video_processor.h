@@ -46,6 +46,9 @@ class LiveVideoProcessor {
                          std::string* error_message);
 
   void RequestCapture(std::string filepath);
+  // Returns the pending capture path and clears the pending flag.
+  // Returns an empty string if no capture is pending.
+  std::string ConsumePendingCapture();
 
  private:
   bool EnsureDecoder(std::string* error_message);

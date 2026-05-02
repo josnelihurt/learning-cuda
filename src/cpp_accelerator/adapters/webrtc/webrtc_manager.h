@@ -27,13 +27,19 @@ namespace jrb::application::engine {
 class ProcessorEngine;
 }
 
+namespace jrb::domain::interfaces {
+class IImageSink;
+}
+
 namespace jrb::adapters::webrtc {
 
 struct WebRTCManagerConfig {
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine;
   std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub;
+  std::shared_ptr<jrb::domain::interfaces::IImageSink> image_sink;
   std::string device_id;
   std::string display_name;
+  std::string captures_dir{"/tmp/cuda-captures"};
 };
 
 class WebRTCManager : public std::enable_shared_from_this<WebRTCManager>,
@@ -184,6 +190,8 @@ public:
   std::shared_ptr<jrb::application::engine::ProcessorEngine> engine_;
   std::shared_ptr<jrb::adapters::camera::CameraHub> camera_hub_;
   std::unique_ptr<jrb::application::server_info::IServerInfoProvider> server_info_;
+  std::shared_ptr<jrb::domain::interfaces::IImageSink> image_sink_;
+  std::string captures_dir_;
   bool initialized_;
   std::unique_ptr<rtc::Configuration> config_;
   std::mutex sessions_mutex_;

@@ -19,6 +19,8 @@ import { normalizeSourceType } from '@/presentation/components/video/SourceDetai
 import { VideoGrid } from '@/presentation/components/video/VideoGrid';
 import { SourceDrawer } from '@/presentation/components/video/SourceDrawer';
 import { AddSourceFab } from '@/presentation/components/video/AddSourceFab';
+import { CaptureFab } from '@/presentation/components/video/CaptureFab';
+import { controlChannelService } from '@/infrastructure/transport/control-channel-service';
 import { ImageSelectorModal } from '@/presentation/components/video/ImageSelectorModal';
 import { AcceleratorStatusFab } from '@/presentation/components/video/AcceleratorStatusFab';
 import { StatsPanel as ReactStatsPanel } from '@/presentation/components/app/StatsPanel';
@@ -335,12 +337,25 @@ export function VideoGridHost(): React.ReactNode {
     ]
   );
 
+  const handleCapture = useCallback((): void => {
+    controlChannelService.captureFrame().then((resp) => {
+      if (resp.captured) {
+        toast.success(`Captured: ${resp.filename}`);
+      } else {
+        toast.error(`Capture failed: ${resp.reason}`);
+      }
+    }).catch((err: unknown) => {
+      toast.error(`Capture failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }, [toast]);
+
   return (
     <VideoGridProvider value={contextValue}>
       <>
         <VideoGrid />
         <ReactStatsPanel />
         <AddSourceFab onClick={openDrawer} />
+        <CaptureFab onClick={handleCapture} />
         <AcceleratorStatusFab />
         <SourceDrawer
           isOpen={isDrawerOpen}

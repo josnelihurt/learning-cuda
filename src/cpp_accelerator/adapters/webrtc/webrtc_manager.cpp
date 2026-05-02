@@ -1,7 +1,12 @@
 #include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <ctime>
 #include <exception>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -16,6 +21,7 @@
 
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #include "src/cpp_accelerator/adapters/camera/gst_camera_source.h"
+#include "src/cpp_accelerator/adapters/image_io/image_writer.h"
 #include "src/cpp_accelerator/adapters/webrtc/channel_labels.h"
 #include "src/cpp_accelerator/adapters/webrtc/protocol/data_channel_envelope.h"
 #include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
@@ -35,11 +41,27 @@ using jrb::adapters::webrtc::sdp::FindOutboundVideoConfig;
 using jrb::adapters::webrtc::sdp::MakeSsrc;
 using jrb::adapters::webrtc::sdp::StripRtpHeaderExtensions;
 using jrb::adapters::webrtc::sdp::WaitForSdpAnswer;
+using jrb::adapters::image::ImageWriter;
+using cuda_learning::ProcessingStatsFrame;
+using cuda_learning::DetectionFrame;
+using cuda_learning::ControlRequest;
+using cuda_learning::ControlResponse;
+using cuda_learning::ListFiltersResponse;
+using cuda_learning::GetVersionInfoResponse;
+using cuda_learning::AcceleratorType;
+using cuda_learning::GetCapabilitiesResponse;
+using cuda_learning::ACCELERATOR_TYPE_CUDA;
+using cuda_learning::FILTER_TYPE_NONE;
+using cuda_learning::ProcessImageRequest;
+using cuda_learning::ProcessImageResponse;
 
 WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
     : engine_(std::move(config.engine)),
       camera_hub_(std::move(config.camera_hub)),
       server_info_(std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
+      image_sink_(config.image_sink ? std::move(config.image_sink)
+                                    : std::make_shared<ImageWriter>()),
+      captures_dir_(std::move(config.captures_dir)),
       initialized_(false),
       device_id_(std::move(config.device_id)),
       display_name_(std::move(config.display_name)),
@@ -157,9 +179,10 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     // Create memory pool before LiveVideoProcessor so the pool pointer is valid.
     session->memory_pool = std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>();
     session->live_video_processor =
-        std::make_unique<LiveVideoProcessor>(engine_.get(), session->memory_pool.get());
-    session->live_filter_state.set_accelerator(cuda_learning::ACCELERATOR_TYPE_CUDA);
-    session->live_filter_state.add_filters(cuda_learning::FILTER_TYPE_NONE);
+        std::make_unique<LiveVideoProcessor>(engine_.get(), session->memory_pool.get(),
+                                              image_sink_.get());
+    session->live_filter_state.set_accelerator(ACCELERATOR_TYPE_CUDA);
+    session->live_filter_state.add_filters(FILTER_TYPE_NONE);
     session->live_filter_state.set_api_version("1.1");
     spdlog::info("[WebRTC:{}] Created dedicated CUDA memory pool for session", session_id);
 
@@ -818,7 +841,7 @@ void WebRTCManager::EmitProcessingStats(const std::string& session_id, SessionSt
   }
   if (!stats_ch || !stats_ch->isOpen()) return;
 
-  cuda_learning::ProcessingStatsFrame stats_frame;
+  ProcessingStatsFrame stats_frame;
   stats_frame.set_session_id(session_id);
   stats_frame.set_frame_id(frame_id);
   stats_frame.set_capture_ts_unix_ms(
@@ -849,7 +872,7 @@ void WebRTCManager::EmitProcessingStats(const std::string& session_id, SessionSt
 // ForwardDetections
 // ---------------------------------------------------------------------------
 void WebRTCManager::ForwardDetections(const std::string& session_id, SessionState& state,
-                                      const cuda_learning::DetectionFrame& frame) {
+                                       const DetectionFrame& frame) {
   if (frame.detections_size() == 0) return;
 
   std::shared_ptr<rtc::DataChannel> det_ch;
@@ -882,44 +905,44 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
   }
   const auto& assembled = maybe_payload.value();
 
-  cuda_learning::ControlRequest request;
+  ControlRequest request;
   if (!request.ParseFromArray(assembled.data(), static_cast<int>(assembled.size()))) {
     spdlog::warn("[WebRTC:{}] Control: failed to parse ControlRequest ({} bytes)", session_id,
                  assembled.size());
     return;
   }
 
-  cuda_learning::ControlResponse response;
+  ControlResponse response;
   response.set_request_id(request.request_id());
   if (request.has_trace_context()) {
     *response.mutable_trace_context() = request.trace_context();
   }
 
   switch (request.payload_case()) {
-    case cuda_learning::ControlRequest::kListFilters: {
-      cuda_learning::ListFiltersResponse list_resp;
+    case ControlRequest::kListFilters: {
+      ListFiltersResponse list_resp;
       server_info_->PopulateListFiltersResponse(request.list_filters(), &list_resp);
       *response.mutable_list_filters() = std::move(list_resp);
       break;
     }
-    case cuda_learning::ControlRequest::kGetVersion: {
-      cuda_learning::GetVersionInfoResponse ver_resp;
+    case ControlRequest::kGetVersion: {
+      GetVersionInfoResponse ver_resp;
       server_info_->PopulateVersionResponse(&ver_resp);
       ver_resp.set_api_version(request.get_version().api_version());
       *response.mutable_get_version() = std::move(ver_resp);
       break;
     }
-    case cuda_learning::ControlRequest::kGetAcceleratorCapabilities: {
+    case ControlRequest::kGetAcceleratorCapabilities: {
       auto* caps_resp = response.mutable_get_accelerator_capabilities();
       caps_resp->set_device_id(device_id_);
       caps_resp->set_display_name(display_name_);
 
-      std::set<cuda_learning::AcceleratorType> accelerator_types;
-      cuda_learning::GetCapabilitiesResponse engine_caps;
+      std::set<AcceleratorType> accelerator_types;
+      GetCapabilitiesResponse engine_caps;
       if (engine_ && engine_->GetCapabilities(&engine_caps)) {
         for (const auto& filter : engine_caps.capabilities().filters()) {
           for (const auto accelerator : filter.supported_accelerators()) {
-            accelerator_types.insert(static_cast<cuda_learning::AcceleratorType>(accelerator));
+            accelerator_types.insert(static_cast<AcceleratorType>(accelerator));
           }
         }
       }
@@ -930,7 +953,7 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       }
       break;
     }
-    case cuda_learning::ControlRequest::kStartCameraStream: {
+    case ControlRequest::kStartCameraStream: {
       const auto& req = request.start_camera_stream();
       spdlog::info("[WebRTC:{}] StartCameraStream sensor_id={} {}x{}@{}fps", session_id,
                    req.sensor_id(), req.width(), req.height(), req.fps());
@@ -971,11 +994,145 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       }
       break;
     }
-    case cuda_learning::ControlRequest::kStopCameraStream: {
+    case ControlRequest::kStopCameraStream: {
       spdlog::info("[WebRTC:{}] StopCameraStream", session_id);
       state.camera_subscription.Reset();
       auto* resp = response.mutable_stop_camera_stream();
       resp->set_stopped(true);
+      break;
+    }
+    case cuda_learning::ControlRequest::kCaptureFrame: {
+      auto* resp = response.mutable_capture_frame();
+      if (state.live_video_processor == nullptr) {
+        resp->set_captured(false);
+        resp->set_reason("no active video processor for this session");
+        spdlog::warn("[WebRTC:{}] CaptureFrame: no active live video processor", session_id);
+        break;
+      }
+      auto now = std::chrono::system_clock::now();
+      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()) % 1000;
+      std::time_t t = std::chrono::system_clock::to_time_t(now);
+      std::tm tm_info{};
+      localtime_r(&t, &tm_info);
+      char ts[32];
+      std::strftime(ts, sizeof(ts), "%Y%m%d_%H%M%S", &tm_info);
+      std::string filename = std::string("capture_") + ts + "_" +
+                             std::to_string(ms.count()) + ".bmp";
+      std::error_code ec;
+      std::filesystem::create_directories(captures_dir_, ec);
+      if (ec) {
+        resp->set_captured(false);
+        resp->set_reason(std::string("failed to create captures directory: ") + ec.message());
+        spdlog::error("[WebRTC:{}] CaptureFrame: mkdir {} failed: {}", session_id, captures_dir_,
+                      ec.message());
+        break;
+      }
+      std::string filepath = captures_dir_ + "/" + filename;
+      state.live_video_processor->RequestCapture(filepath);
+      resp->set_captured(true);
+      resp->set_filename(filename);
+      spdlog::info("[WebRTC:{}] CaptureFrame queued: {}", session_id, filename);
+      break;
+    }
+    case cuda_learning::ControlRequest::kListCapturedImages: {
+      auto* resp = response.mutable_list_captured_images();
+      const auto& req = request.list_captured_images();
+      const int page_size = req.page_size() > 0 ? req.page_size() : 20;
+      const int page = req.page();
+
+      std::vector<std::filesystem::path> files;
+      std::error_code ec;
+      for (const auto& entry : std::filesystem::directory_iterator(captures_dir_, ec)) {
+        const auto fname = entry.path().filename().string();
+        if (entry.path().extension() == ".bmp" && fname.rfind("capture_", 0) == 0) {
+          files.push_back(entry.path());
+        }
+      }
+      if (ec) {
+        spdlog::warn("[WebRTC:{}] ListCapturedImages: directory_iterator error: {}", session_id,
+                     ec.message());
+      }
+      std::sort(files.rbegin(), files.rend());
+
+      const int total = static_cast<int>(files.size());
+      const int start = page * page_size;
+      resp->set_total_count(total);
+      resp->set_has_more(start + page_size < total);
+
+      const int end = std::min(start + page_size, total);
+      for (int i = start; i < end; ++i) {
+        auto* info = resp->add_images();
+        info->set_id(files[static_cast<size_t>(i)].stem().string());
+        info->set_filename(files[static_cast<size_t>(i)].filename().string());
+        std::error_code mtime_ec;
+        auto mtime = std::filesystem::last_write_time(files[static_cast<size_t>(i)], mtime_ec);
+        if (!mtime_ec) {
+          auto sctp = std::chrono::time_point_cast<std::chrono::milliseconds>(
+              std::chrono::file_clock::to_sys(mtime));
+          info->set_captured_at_ms(sctp.time_since_epoch().count());
+        }
+      }
+      spdlog::info("[WebRTC:{}] ListCapturedImages page={} count={} total={}", session_id, page,
+                   end - start, total);
+      break;
+    }
+    case cuda_learning::ControlRequest::kGetCapturedImage: {
+      auto* resp = response.mutable_get_captured_image();
+      const auto& req = request.get_captured_image();
+      const std::string filepath = captures_dir_ + "/" + req.id() + ".bmp";
+
+      if (req.format() == cuda_learning::CAPTURED_IMAGE_FORMAT_BMP) {
+        std::ifstream f(filepath, std::ios::binary);
+        if (!f) {
+          resp->set_found(false);
+          resp->set_reason("image not found: " + req.id());
+          spdlog::warn("[WebRTC:{}] GetCapturedImage(BMP) not found: {}", session_id, req.id());
+          break;
+        }
+        const std::string bytes((std::istreambuf_iterator<char>(f)),
+                                 std::istreambuf_iterator<char>());
+        resp->set_found(true);
+        resp->set_image_data(bytes);
+        resp->set_format(cuda_learning::CAPTURED_IMAGE_FORMAT_BMP);
+        spdlog::info("[WebRTC:{}] GetCapturedImage(BMP) {} {} bytes", session_id, req.id(),
+                     bytes.size());
+      } else {
+        std::vector<uint8_t> img_data;
+        int w = 0;
+        int h = 0;
+        if (!image_sink_->readAsPng(filepath.c_str(), &img_data, &w, &h,
+                                      req.max_width(), req.max_height())) {
+          resp->set_found(false);
+          resp->set_reason("image not found or conversion failed: " + req.id());
+          spdlog::warn("[WebRTC:{}] GetCapturedImage(PNG) not found: {}", session_id, req.id());
+          break;
+        }
+        resp->set_found(true);
+        resp->set_image_data(img_data.data(), img_data.size());
+        resp->set_width(w);
+        resp->set_height(h);
+        resp->set_format(cuda_learning::CAPTURED_IMAGE_FORMAT_PNG);
+        spdlog::info("[WebRTC:{}] GetCapturedImage(PNG) {} {}×{} {} bytes", session_id, req.id(),
+                     w, h, img_data.size());
+      }
+      break;
+    }
+    case cuda_learning::ControlRequest::kDeleteCapturedImage: {
+      auto* resp = response.mutable_delete_captured_image();
+      const auto& req = request.delete_captured_image();
+      const std::string filepath = captures_dir_ + "/" + req.id() + ".bmp";
+      std::error_code ec;
+      const bool removed = std::filesystem::remove(filepath, ec);
+      if (!removed || ec) {
+        resp->set_deleted(false);
+        resp->set_reason(ec ? ec.message() : "file not found: " + req.id());
+        spdlog::warn("[WebRTC:{}] DeleteCapturedImage failed: {} — {}", session_id, req.id(),
+                     ec ? ec.message() : "not found");
+      } else {
+        resp->set_deleted(true);
+        spdlog::info("[WebRTC:{}] DeleteCapturedImage ok: {}", session_id, req.id());
+      }
       break;
     }
     default: {
@@ -1025,7 +1182,7 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
   }
   const auto& assembled = maybe_payload.value();
 
-  cuda_learning::ProcessImageRequest request;
+  ProcessImageRequest request;
   bool is_keepalive = false;
   if (!ParseDataChannelRequest(assembled, &request, &is_keepalive)) {
     spdlog::warn("[WebRTC:{}] Failed to parse DataChannelRequest ({} bytes)", session_id,
@@ -1056,10 +1213,10 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
     return;
   }
 
-  cuda_learning::ProcessImageRequest resolved = request;
+  ProcessImageRequest resolved = request;
   ResolveGenericSelectionsInPlace(&resolved);
 
-  cuda_learning::ProcessImageResponse response;
+  ProcessImageResponse response;
   CopyProcessMetadata(resolved, &response);
 
   const auto process_started = std::chrono::steady_clock::now();
@@ -1069,6 +1226,22 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
                  response.code(), response.message());
   }
   response.set_frame_id(request.frame_id());
+
+  // Capture from static-image pipeline: consume any pending capture and write the
+  // processed frame as a BMP. The live-camera path writes captures inside ProcessAccessUnit;
+  // static images never call ProcessAccessUnit so the capture would otherwise be lost.
+  if (state.live_video_processor != nullptr) {
+    const std::string capture_path = state.live_video_processor->ConsumePendingCapture();
+    if (!capture_path.empty() && !response.image_data().empty() &&
+        response.width() > 0 && response.height() > 0) {
+      const auto& img = response.image_data();
+      const int channels = response.channels() > 0 ? response.channels() : 3;
+      image_sink_->writeBmp(capture_path.c_str(),
+                              reinterpret_cast<const uint8_t*>(img.data()),
+                              response.width(), response.height(), channels);
+      spdlog::info("[WebRTC:{}] CaptureFrame(static) saved: {}", session_id, capture_path);
+    }
+  }
 
   std::string output;
   if (!response.SerializeToString(&output)) {
@@ -1089,7 +1262,7 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
   EmitProcessingStats(session_id, state, elapsed_ms, response.detections_size(),
                       request.frame_id());
 
-  cuda_learning::DetectionFrame det_frame;
+  DetectionFrame det_frame;
   det_frame.set_frame_id(request.frame_id());
   det_frame.set_image_width(request.width());
   det_frame.set_image_height(request.height());
@@ -1133,7 +1306,7 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
 
   const auto process_started = std::chrono::steady_clock::now();
   std::vector<EncodedAccessUnit> encoded_units;
-  cuda_learning::DetectionFrame detection_frame;
+  DetectionFrame detection_frame;
   std::string error_msg;
   const bool ok = state.live_video_processor->ProcessAccessUnit(
       frame, info, state.live_filter_state, &encoded_units, &detection_frame, &error_msg);

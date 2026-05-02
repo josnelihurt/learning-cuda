@@ -101,11 +101,11 @@ bool ApplyInference(const std::string& model_id, float confidence, bool pipeline
   yolo_detector->Apply(det_context);
 
   const auto& detections = yolo_detector->GetDetections();
-  spdlog::info("YOLO: {} detection(s) for {}x{} image (confidence threshold {})", detections.size(),
-               input_buffer.width, input_buffer.height, confidence);
+  spdlog::debug("YOLO: {} detection(s) for {}x{} image (confidence threshold {})", detections.size(),
+                input_buffer.width, input_buffer.height, confidence);
   for (const auto& det : detections) {
-    spdlog::info("  → {} ({:.0f}%) at [{:.0f},{:.0f} {}x{}]", det.class_name,
-                 det.confidence * 100.0f, det.x, det.y, det.width, det.height);
+    spdlog::debug("  → {} ({:.0f}%) at [{:.0f},{:.0f} {}x{}]", det.class_name,
+                  det.confidence * 100.0f, det.x, det.y, det.width, det.height);
     auto* msg = response->add_detections();
     msg->set_x(det.x);
     msg->set_y(det.y);

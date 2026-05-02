@@ -1,10 +1,19 @@
 import {
+  CaptureFrameRequest,
+  CaptureFrameResponse,
+  CapturedImageFormat,
   ControlRequest,
   ControlResponse,
+  DeleteCapturedImageRequest,
+  DeleteCapturedImageResponse,
   GetAcceleratorCapabilitiesRequest,
   GetAcceleratorCapabilitiesResponse,
+  GetCapturedImageRequest,
+  GetCapturedImageResponse,
   GetVersionInfoRequest,
   GetVersionInfoResponse,
+  ListCapturedImagesRequest,
+  ListCapturedImagesResponse,
   ListFiltersRequest,
   ListFiltersResponse,
   StartCameraStreamRequest,
@@ -125,6 +134,72 @@ class ControlChannelService {
     }
     if (response.payload.case !== 'stopCameraStream') {
       throw new Error(`StopCameraStream: unexpected response case ${String(response.payload.case)}`);
+    }
+    return response.payload.value;
+  }
+
+  async captureFrame(): Promise<CaptureFrameResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: { case: 'captureFrame', value: new CaptureFrameRequest({}) },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`CaptureFrame failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'captureFrame') {
+      throw new Error(`CaptureFrame: unexpected response case ${String(response.payload.case)}`);
+    }
+    return response.payload.value;
+  }
+
+  async listCapturedImages(page: number, pageSize = 20): Promise<ListCapturedImagesResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: {
+        case: 'listCapturedImages',
+        value: new ListCapturedImagesRequest({ page, pageSize }),
+      },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`ListCapturedImages failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'listCapturedImages') {
+      throw new Error(`ListCapturedImages: unexpected response case ${String(response.payload.case)}`);
+    }
+    return response.payload.value;
+  }
+
+  async getCapturedImage(
+    id: string,
+    maxWidth = 320,
+    maxHeight = 180,
+    format: CapturedImageFormat = CapturedImageFormat.UNSPECIFIED,
+  ): Promise<GetCapturedImageResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: {
+        case: 'getCapturedImage',
+        value: new GetCapturedImageRequest({ id, maxWidth, maxHeight, format }),
+      },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`GetCapturedImage failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'getCapturedImage') {
+      throw new Error(`GetCapturedImage: unexpected response case ${String(response.payload.case)}`);
+    }
+    return response.payload.value;
+  }
+
+  async deleteCapturedImage(id: string): Promise<DeleteCapturedImageResponse> {
+    const response = await this.sendRequest(new ControlRequest({
+      payload: {
+        case: 'deleteCapturedImage',
+        value: new DeleteCapturedImageRequest({ id }),
+      },
+    }));
+    if (response.payload.case === 'error') {
+      throw new Error(`DeleteCapturedImage failed: ${response.payload.value.message}`);
+    }
+    if (response.payload.case !== 'deleteCapturedImage') {
+      throw new Error(`DeleteCapturedImage: unexpected response case ${String(response.payload.case)}`);
     }
     return response.payload.value;
   }

@@ -52,6 +52,34 @@ proto3.util.setEnumType(GenericFilterParameterType, "cuda_learning.GenericFilter
 ]);
 
 /**
+ * @generated from enum cuda_learning.CapturedImageFormat
+ */
+export enum CapturedImageFormat {
+  /**
+   * treated as PNG
+   *
+   * @generated from enum value: CAPTURED_IMAGE_FORMAT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CAPTURED_IMAGE_FORMAT_PNG = 1;
+   */
+  PNG = 1,
+
+  /**
+   * @generated from enum value: CAPTURED_IMAGE_FORMAT_BMP = 2;
+   */
+  BMP = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(CapturedImageFormat)
+proto3.util.setEnumType(CapturedImageFormat, "cuda_learning.CapturedImageFormat", [
+  { no: 0, name: "CAPTURED_IMAGE_FORMAT_UNSPECIFIED" },
+  { no: 1, name: "CAPTURED_IMAGE_FORMAT_PNG" },
+  { no: 2, name: "CAPTURED_IMAGE_FORMAT_BMP" },
+]);
+
+/**
  * ControlRequest is the envelope sent from the browser to the C++ accelerator
  * over the WebRTC "control" data channel. Each request carries a unique
  * request_id so the response can be correlated.
@@ -102,6 +130,30 @@ export class ControlRequest extends Message<ControlRequest> {
      */
     value: StopCameraStreamRequest;
     case: "stopCameraStream";
+  } | {
+    /**
+     * @generated from field: cuda_learning.CaptureFrameRequest capture_frame = 15 [json_name = "capture_frame"];
+     */
+    value: CaptureFrameRequest;
+    case: "captureFrame";
+  } | {
+    /**
+     * @generated from field: cuda_learning.ListCapturedImagesRequest list_captured_images = 16 [json_name = "list_captured_images"];
+     */
+    value: ListCapturedImagesRequest;
+    case: "listCapturedImages";
+  } | {
+    /**
+     * @generated from field: cuda_learning.GetCapturedImageRequest get_captured_image = 17 [json_name = "get_captured_image"];
+     */
+    value: GetCapturedImageRequest;
+    case: "getCapturedImage";
+  } | {
+    /**
+     * @generated from field: cuda_learning.DeleteCapturedImageRequest delete_captured_image = 18 [json_name = "delete_captured_image"];
+     */
+    value: DeleteCapturedImageRequest;
+    case: "deleteCapturedImage";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ControlRequest>) {
@@ -119,6 +171,10 @@ export class ControlRequest extends Message<ControlRequest> {
     { no: 12, name: "get_accelerator_capabilities", jsonName: "get_accelerator_capabilities", kind: "message", T: GetAcceleratorCapabilitiesRequest, oneof: "payload" },
     { no: 13, name: "start_camera_stream", jsonName: "start_camera_stream", kind: "message", T: StartCameraStreamRequest, oneof: "payload" },
     { no: 14, name: "stop_camera_stream", jsonName: "stop_camera_stream", kind: "message", T: StopCameraStreamRequest, oneof: "payload" },
+    { no: 15, name: "capture_frame", jsonName: "capture_frame", kind: "message", T: CaptureFrameRequest, oneof: "payload" },
+    { no: 16, name: "list_captured_images", jsonName: "list_captured_images", kind: "message", T: ListCapturedImagesRequest, oneof: "payload" },
+    { no: 17, name: "get_captured_image", jsonName: "get_captured_image", kind: "message", T: GetCapturedImageRequest, oneof: "payload" },
+    { no: 18, name: "delete_captured_image", jsonName: "delete_captured_image", kind: "message", T: DeleteCapturedImageRequest, oneof: "payload" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ControlRequest {
@@ -190,6 +246,30 @@ export class ControlResponse extends Message<ControlResponse> {
     case: "stopCameraStream";
   } | {
     /**
+     * @generated from field: cuda_learning.CaptureFrameResponse capture_frame = 15 [json_name = "capture_frame"];
+     */
+    value: CaptureFrameResponse;
+    case: "captureFrame";
+  } | {
+    /**
+     * @generated from field: cuda_learning.ListCapturedImagesResponse list_captured_images = 16 [json_name = "list_captured_images"];
+     */
+    value: ListCapturedImagesResponse;
+    case: "listCapturedImages";
+  } | {
+    /**
+     * @generated from field: cuda_learning.GetCapturedImageResponse get_captured_image = 17 [json_name = "get_captured_image"];
+     */
+    value: GetCapturedImageResponse;
+    case: "getCapturedImage";
+  } | {
+    /**
+     * @generated from field: cuda_learning.DeleteCapturedImageResponse delete_captured_image = 18 [json_name = "delete_captured_image"];
+     */
+    value: DeleteCapturedImageResponse;
+    case: "deleteCapturedImage";
+  } | {
+    /**
      * @generated from field: cuda_learning.ControlError error = 99;
      */
     value: ControlError;
@@ -211,6 +291,10 @@ export class ControlResponse extends Message<ControlResponse> {
     { no: 12, name: "get_accelerator_capabilities", jsonName: "get_accelerator_capabilities", kind: "message", T: GetAcceleratorCapabilitiesResponse, oneof: "payload" },
     { no: 13, name: "start_camera_stream", jsonName: "start_camera_stream", kind: "message", T: StartCameraStreamResponse, oneof: "payload" },
     { no: 14, name: "stop_camera_stream", jsonName: "stop_camera_stream", kind: "message", T: StopCameraStreamResponse, oneof: "payload" },
+    { no: 15, name: "capture_frame", jsonName: "capture_frame", kind: "message", T: CaptureFrameResponse, oneof: "payload" },
+    { no: 16, name: "list_captured_images", jsonName: "list_captured_images", kind: "message", T: ListCapturedImagesResponse, oneof: "payload" },
+    { no: 17, name: "get_captured_image", jsonName: "get_captured_image", kind: "message", T: GetCapturedImageResponse, oneof: "payload" },
+    { no: 18, name: "delete_captured_image", jsonName: "delete_captured_image", kind: "message", T: DeleteCapturedImageResponse, oneof: "payload" },
     { no: 99, name: "error", kind: "message", T: ControlError, oneof: "payload" },
   ]);
 
@@ -2166,6 +2250,464 @@ export class StopCameraStreamResponse extends Message<StopCameraStreamResponse> 
 
   static equals(a: StopCameraStreamResponse | PlainMessage<StopCameraStreamResponse> | undefined, b: StopCameraStreamResponse | PlainMessage<StopCameraStreamResponse> | undefined): boolean {
     return proto3.util.equals(StopCameraStreamResponse, a, b);
+  }
+}
+
+/**
+ * CaptureFrameRequest instructs the accelerator to save the next processed
+ * output frame as a BMP file under its captures directory.
+ *
+ * @generated from message cuda_learning.CaptureFrameRequest
+ */
+export class CaptureFrameRequest extends Message<CaptureFrameRequest> {
+  constructor(data?: PartialMessage<CaptureFrameRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.CaptureFrameRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CaptureFrameRequest {
+    return new CaptureFrameRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CaptureFrameRequest {
+    return new CaptureFrameRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CaptureFrameRequest {
+    return new CaptureFrameRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CaptureFrameRequest | PlainMessage<CaptureFrameRequest> | undefined, b: CaptureFrameRequest | PlainMessage<CaptureFrameRequest> | undefined): boolean {
+    return proto3.util.equals(CaptureFrameRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.CaptureFrameResponse
+ */
+export class CaptureFrameResponse extends Message<CaptureFrameResponse> {
+  /**
+   * @generated from field: bool captured = 1;
+   */
+  captured = false;
+
+  /**
+   * @generated from field: string filename = 2;
+   */
+  filename = "";
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<CaptureFrameResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.CaptureFrameResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "captured", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CaptureFrameResponse {
+    return new CaptureFrameResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CaptureFrameResponse {
+    return new CaptureFrameResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CaptureFrameResponse {
+    return new CaptureFrameResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CaptureFrameResponse | PlainMessage<CaptureFrameResponse> | undefined, b: CaptureFrameResponse | PlainMessage<CaptureFrameResponse> | undefined): boolean {
+    return proto3.util.equals(CaptureFrameResponse, a, b);
+  }
+}
+
+/**
+ * ListCapturedImages returns a paginated list of BMP files saved by CaptureFrame.
+ *
+ * @generated from message cuda_learning.ListCapturedImagesRequest
+ */
+export class ListCapturedImagesRequest extends Message<ListCapturedImagesRequest> {
+  /**
+   * 0-indexed
+   *
+   * @generated from field: int32 page = 1;
+   */
+  page = 0;
+
+  /**
+   * default 20 when 0
+   *
+   * @generated from field: int32 page_size = 2 [json_name = "page_size"];
+   */
+  pageSize = 0;
+
+  constructor(data?: PartialMessage<ListCapturedImagesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListCapturedImagesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "page", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 2, name: "page_size", jsonName: "page_size", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListCapturedImagesRequest {
+    return new ListCapturedImagesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListCapturedImagesRequest {
+    return new ListCapturedImagesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListCapturedImagesRequest {
+    return new ListCapturedImagesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListCapturedImagesRequest | PlainMessage<ListCapturedImagesRequest> | undefined, b: ListCapturedImagesRequest | PlainMessage<ListCapturedImagesRequest> | undefined): boolean {
+    return proto3.util.equals(ListCapturedImagesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.CapturedImageInfo
+ */
+export class CapturedImageInfo extends Message<CapturedImageInfo> {
+  /**
+   * filename stem, e.g. capture_20260501_143022_456
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * with .bmp extension
+   *
+   * @generated from field: string filename = 2;
+   */
+  filename = "";
+
+  /**
+   * Unix ms from file mtime
+   *
+   * @generated from field: int64 captured_at_ms = 3 [json_name = "captured_at_ms"];
+   */
+  capturedAtMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<CapturedImageInfo>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.CapturedImageInfo";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "captured_at_ms", jsonName: "captured_at_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CapturedImageInfo {
+    return new CapturedImageInfo().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CapturedImageInfo {
+    return new CapturedImageInfo().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CapturedImageInfo {
+    return new CapturedImageInfo().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CapturedImageInfo | PlainMessage<CapturedImageInfo> | undefined, b: CapturedImageInfo | PlainMessage<CapturedImageInfo> | undefined): boolean {
+    return proto3.util.equals(CapturedImageInfo, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.ListCapturedImagesResponse
+ */
+export class ListCapturedImagesResponse extends Message<ListCapturedImagesResponse> {
+  /**
+   * @generated from field: repeated cuda_learning.CapturedImageInfo images = 1;
+   */
+  images: CapturedImageInfo[] = [];
+
+  /**
+   * @generated from field: int32 total_count = 2 [json_name = "total_count"];
+   */
+  totalCount = 0;
+
+  /**
+   * @generated from field: bool has_more = 3 [json_name = "has_more"];
+   */
+  hasMore = false;
+
+  constructor(data?: PartialMessage<ListCapturedImagesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.ListCapturedImagesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "images", kind: "message", T: CapturedImageInfo, repeated: true },
+    { no: 2, name: "total_count", jsonName: "total_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "has_more", jsonName: "has_more", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListCapturedImagesResponse {
+    return new ListCapturedImagesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListCapturedImagesResponse {
+    return new ListCapturedImagesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListCapturedImagesResponse {
+    return new ListCapturedImagesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListCapturedImagesResponse | PlainMessage<ListCapturedImagesResponse> | undefined, b: ListCapturedImagesResponse | PlainMessage<ListCapturedImagesResponse> | undefined): boolean {
+    return proto3.util.equals(ListCapturedImagesResponse, a, b);
+  }
+}
+
+/**
+ * GetCapturedImage fetches a single captured image as PNG (thumbnail) or BMP (download).
+ *
+ * @generated from message cuda_learning.GetCapturedImageRequest
+ */
+export class GetCapturedImageRequest extends Message<GetCapturedImageRequest> {
+  /**
+   * filename stem
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * thumbnail bound (0 = full-res, PNG only)
+   *
+   * @generated from field: int32 max_width = 2 [json_name = "max_width"];
+   */
+  maxWidth = 0;
+
+  /**
+   * thumbnail bound (0 = full-res, PNG only)
+   *
+   * @generated from field: int32 max_height = 3 [json_name = "max_height"];
+   */
+  maxHeight = 0;
+
+  /**
+   * UNSPECIFIED/PNG = display; BMP = download
+   *
+   * @generated from field: cuda_learning.CapturedImageFormat format = 4;
+   */
+  format = CapturedImageFormat.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<GetCapturedImageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetCapturedImageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "max_width", jsonName: "max_width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "max_height", jsonName: "max_height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "format", kind: "enum", T: proto3.getEnumType(CapturedImageFormat) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCapturedImageRequest {
+    return new GetCapturedImageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCapturedImageRequest {
+    return new GetCapturedImageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCapturedImageRequest {
+    return new GetCapturedImageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetCapturedImageRequest | PlainMessage<GetCapturedImageRequest> | undefined, b: GetCapturedImageRequest | PlainMessage<GetCapturedImageRequest> | undefined): boolean {
+    return proto3.util.equals(GetCapturedImageRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.GetCapturedImageResponse
+ */
+export class GetCapturedImageResponse extends Message<GetCapturedImageResponse> {
+  /**
+   * @generated from field: bool found = 1;
+   */
+  found = false;
+
+  /**
+   * PNG or BMP bytes per format
+   *
+   * @generated from field: bytes image_data = 2 [json_name = "image_data"];
+   */
+  imageData = new Uint8Array(0);
+
+  /**
+   * @generated from field: int32 width = 3;
+   */
+  width = 0;
+
+  /**
+   * @generated from field: int32 height = 4;
+   */
+  height = 0;
+
+  /**
+   * error detail if found==false
+   *
+   * @generated from field: string reason = 5;
+   */
+  reason = "";
+
+  /**
+   * echoes what image_data contains
+   *
+   * @generated from field: cuda_learning.CapturedImageFormat format = 6;
+   */
+  format = CapturedImageFormat.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<GetCapturedImageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.GetCapturedImageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "found", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "image_data", jsonName: "image_data", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 3, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 5, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "format", kind: "enum", T: proto3.getEnumType(CapturedImageFormat) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCapturedImageResponse {
+    return new GetCapturedImageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCapturedImageResponse {
+    return new GetCapturedImageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCapturedImageResponse {
+    return new GetCapturedImageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetCapturedImageResponse | PlainMessage<GetCapturedImageResponse> | undefined, b: GetCapturedImageResponse | PlainMessage<GetCapturedImageResponse> | undefined): boolean {
+    return proto3.util.equals(GetCapturedImageResponse, a, b);
+  }
+}
+
+/**
+ * DeleteCapturedImage removes a captured BMP file from disk.
+ *
+ * @generated from message cuda_learning.DeleteCapturedImageRequest
+ */
+export class DeleteCapturedImageRequest extends Message<DeleteCapturedImageRequest> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  constructor(data?: PartialMessage<DeleteCapturedImageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.DeleteCapturedImageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteCapturedImageRequest {
+    return new DeleteCapturedImageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteCapturedImageRequest {
+    return new DeleteCapturedImageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteCapturedImageRequest {
+    return new DeleteCapturedImageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteCapturedImageRequest | PlainMessage<DeleteCapturedImageRequest> | undefined, b: DeleteCapturedImageRequest | PlainMessage<DeleteCapturedImageRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteCapturedImageRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cuda_learning.DeleteCapturedImageResponse
+ */
+export class DeleteCapturedImageResponse extends Message<DeleteCapturedImageResponse> {
+  /**
+   * @generated from field: bool deleted = 1;
+   */
+  deleted = false;
+
+  /**
+   * error detail when deleted==false
+   *
+   * @generated from field: string reason = 2;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<DeleteCapturedImageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cuda_learning.DeleteCapturedImageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteCapturedImageResponse {
+    return new DeleteCapturedImageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteCapturedImageResponse {
+    return new DeleteCapturedImageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteCapturedImageResponse {
+    return new DeleteCapturedImageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteCapturedImageResponse | PlainMessage<DeleteCapturedImageResponse> | undefined, b: DeleteCapturedImageResponse | PlainMessage<DeleteCapturedImageResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteCapturedImageResponse, a, b);
   }
 }
 

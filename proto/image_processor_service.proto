@@ -21,6 +21,8 @@ message ControlRequest {
     StartCameraStreamRequest start_camera_stream = 13 [json_name = "start_camera_stream"];
     StopCameraStreamRequest stop_camera_stream = 14 [json_name = "stop_camera_stream"];
     CaptureFrameRequest capture_frame = 15 [json_name = "capture_frame"];
+    ListCapturedImagesRequest list_captured_images = 16 [json_name = "list_captured_images"];
+    GetCapturedImageRequest   get_captured_image   = 17 [json_name = "get_captured_image"];
   }
 }
 
@@ -37,6 +39,8 @@ message ControlResponse {
     StartCameraStreamResponse start_camera_stream = 13 [json_name = "start_camera_stream"];
     StopCameraStreamResponse stop_camera_stream = 14 [json_name = "stop_camera_stream"];
     CaptureFrameResponse capture_frame = 15 [json_name = "capture_frame"];
+    ListCapturedImagesResponse list_captured_images = 16 [json_name = "list_captured_images"];
+    GetCapturedImageResponse   get_captured_image   = 17 [json_name = "get_captured_image"];
     ControlError error = 99 [json_name = "error"];
   }
 }
@@ -318,6 +322,39 @@ message CaptureFrameResponse {
   bool   captured = 1 [json_name = "captured"];
   string filename = 2 [json_name = "filename"];
   string reason   = 3 [json_name = "reason"];
+}
+
+// ListCapturedImages returns a paginated list of BMP files saved by CaptureFrame.
+message ListCapturedImagesRequest {
+  int32 page      = 1 [json_name = "page"];       // 0-indexed
+  int32 page_size = 2 [json_name = "page_size"];  // default 20 when 0
+}
+
+message CapturedImageInfo {
+  string id             = 1 [json_name = "id"];             // filename stem, e.g. capture_20260501_143022_456
+  string filename       = 2 [json_name = "filename"];       // with .bmp extension
+  int64  captured_at_ms = 3 [json_name = "captured_at_ms"]; // Unix ms from file mtime
+}
+
+message ListCapturedImagesResponse {
+  repeated CapturedImageInfo images = 1 [json_name = "images"];
+  int32 total_count                 = 2 [json_name = "total_count"];
+  bool  has_more                    = 3 [json_name = "has_more"];
+}
+
+// GetCapturedImage fetches a single captured image converted to PNG.
+message GetCapturedImageRequest {
+  string id         = 1 [json_name = "id"];          // filename stem
+  int32  max_width  = 2 [json_name = "max_width"];   // thumbnail bound (0 = full-res)
+  int32  max_height = 3 [json_name = "max_height"];  // thumbnail bound (0 = full-res)
+}
+
+message GetCapturedImageResponse {
+  bool   found    = 1 [json_name = "found"];
+  bytes  png_data = 2 [json_name = "png_data"];  // PNG-encoded image bytes
+  int32  width    = 3 [json_name = "width"];
+  int32  height   = 4 [json_name = "height"];
+  string reason   = 5 [json_name = "reason"];    // error detail if found==false
 }
 
 // VideoPlaybackService handles server-initiated playback of locally stored

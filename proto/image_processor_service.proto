@@ -21,8 +21,9 @@ message ControlRequest {
     StartCameraStreamRequest start_camera_stream = 13 [json_name = "start_camera_stream"];
     StopCameraStreamRequest stop_camera_stream = 14 [json_name = "stop_camera_stream"];
     CaptureFrameRequest capture_frame = 15 [json_name = "capture_frame"];
-    ListCapturedImagesRequest list_captured_images = 16 [json_name = "list_captured_images"];
-    GetCapturedImageRequest   get_captured_image   = 17 [json_name = "get_captured_image"];
+    ListCapturedImagesRequest  list_captured_images  = 16 [json_name = "list_captured_images"];
+    GetCapturedImageRequest    get_captured_image    = 17 [json_name = "get_captured_image"];
+    DeleteCapturedImageRequest delete_captured_image = 18 [json_name = "delete_captured_image"];
   }
 }
 
@@ -39,8 +40,9 @@ message ControlResponse {
     StartCameraStreamResponse start_camera_stream = 13 [json_name = "start_camera_stream"];
     StopCameraStreamResponse stop_camera_stream = 14 [json_name = "stop_camera_stream"];
     CaptureFrameResponse capture_frame = 15 [json_name = "capture_frame"];
-    ListCapturedImagesResponse list_captured_images = 16 [json_name = "list_captured_images"];
-    GetCapturedImageResponse   get_captured_image   = 17 [json_name = "get_captured_image"];
+    ListCapturedImagesResponse  list_captured_images  = 16 [json_name = "list_captured_images"];
+    GetCapturedImageResponse    get_captured_image    = 17 [json_name = "get_captured_image"];
+    DeleteCapturedImageResponse delete_captured_image = 18 [json_name = "delete_captured_image"];
     ControlError error = 99 [json_name = "error"];
   }
 }
@@ -342,19 +344,37 @@ message ListCapturedImagesResponse {
   bool  has_more                    = 3 [json_name = "has_more"];
 }
 
-// GetCapturedImage fetches a single captured image converted to PNG.
+enum CapturedImageFormat {
+  CAPTURED_IMAGE_FORMAT_UNSPECIFIED = 0;  // treated as PNG
+  CAPTURED_IMAGE_FORMAT_PNG         = 1;
+  CAPTURED_IMAGE_FORMAT_BMP         = 2;
+}
+
+// GetCapturedImage fetches a single captured image as PNG (thumbnail) or BMP (download).
 message GetCapturedImageRequest {
-  string id         = 1 [json_name = "id"];          // filename stem
-  int32  max_width  = 2 [json_name = "max_width"];   // thumbnail bound (0 = full-res)
-  int32  max_height = 3 [json_name = "max_height"];  // thumbnail bound (0 = full-res)
+  string              id         = 1 [json_name = "id"];          // filename stem
+  int32               max_width  = 2 [json_name = "max_width"];   // thumbnail bound (0 = full-res, PNG only)
+  int32               max_height = 3 [json_name = "max_height"];  // thumbnail bound (0 = full-res, PNG only)
+  CapturedImageFormat format     = 4 [json_name = "format"];      // UNSPECIFIED/PNG = display; BMP = download
 }
 
 message GetCapturedImageResponse {
-  bool   found    = 1 [json_name = "found"];
-  bytes  png_data = 2 [json_name = "png_data"];  // PNG-encoded image bytes
-  int32  width    = 3 [json_name = "width"];
-  int32  height   = 4 [json_name = "height"];
-  string reason   = 5 [json_name = "reason"];    // error detail if found==false
+  bool                found      = 1 [json_name = "found"];
+  bytes               image_data = 2 [json_name = "image_data"];  // PNG or BMP bytes per format
+  int32               width      = 3 [json_name = "width"];
+  int32               height     = 4 [json_name = "height"];
+  string              reason     = 5 [json_name = "reason"];      // error detail if found==false
+  CapturedImageFormat format     = 6 [json_name = "format"];      // echoes what image_data contains
+}
+
+// DeleteCapturedImage removes a captured BMP file from disk.
+message DeleteCapturedImageRequest {
+  string id = 1 [json_name = "id"];
+}
+
+message DeleteCapturedImageResponse {
+  bool   deleted = 1 [json_name = "deleted"];
+  string reason  = 2 [json_name = "reason"];  // error detail when deleted==false
 }
 
 // VideoPlaybackService handles server-initiated playback of locally stored

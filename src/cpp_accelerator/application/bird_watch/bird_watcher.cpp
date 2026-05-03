@@ -401,10 +401,45 @@ void BirdWatcher::MaybeSave(const std::vector<uint8_t>& rgb, int width, int heig
   SaveCapture(rgb, width, height);
 }
 
-void BirdWatcher::SaveCapture(const std::vector<uint8_t>& rgb, int width, int height) {
+void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/,
+                              int /*height*/) {
   if (image_sink_ == nullptr || config_.captures_dir.empty()) {
     return;
   }
+
+  // Pull a full-resolution NV12 frame from the still_sink branch of the Argus
+  // pipeline (4056×3040 @ 15fps). This is a blocking pull (≤500 ms) and does a
+  // synchronous DMA transfer from NVMM to system memory (~5 ms for a 4K frame).
+  int still_w = 0, still_h = 0;
+  rtc::binary nv12 = camera_hub_->GrabStillFrame(
+      config_.camera_sensor_id, &still_w, &still_h);
+
+  if (nv12.empty() || still_w <= 0 || still_h <= 0) {
+    spdlog::warn("[BirdWatcher] GrabStillFrame returned empty; skipping save");
+    return;
+  }
+
+  // Convert NV12 → RGB24 using libswscale (CPU, one-shot for still capture).
+  // NV12 layout: Y plane (w×h bytes) followed by interleaved UV plane (w×h/2 bytes).
+  const auto* y_plane = reinterpret_cast<const uint8_t*>(nv12.data());
+  const uint8_t* src_data[4] = {y_plane, y_plane + still_w * still_h, nullptr, nullptr};
+  const int src_linesize[4]  = {still_w, still_w, 0, 0};
+
+  std::vector<uint8_t> rgb(static_cast<size_t>(still_w) * still_h * 3);
+  uint8_t* dst_data[4]   = {rgb.data(), nullptr, nullptr, nullptr};
+  const int dst_linesize[4] = {still_w * 3, 0, 0, 0};
+
+  SwsContext* sws = sws_getContext(
+      still_w, still_h, AV_PIX_FMT_NV12,
+      still_w, still_h, AV_PIX_FMT_RGB24,
+      SWS_BILINEAR, nullptr, nullptr, nullptr);
+  if (!sws) {
+    spdlog::error("[BirdWatcher] sws_getContext failed for NV12→RGB24 conversion");
+    return;
+  }
+  sws_scale(sws, src_data, src_linesize, 0, still_h, dst_data, dst_linesize);
+  sws_freeContext(sws);
+
   std::error_code ec;
   std::filesystem::create_directories(config_.captures_dir, ec);
   if (ec) {
@@ -420,7 +455,7 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& rgb, int width, int he
   name << std::put_time(&tm_buf, "%Y-%m-%dT%H-%M-%SZ");
   const std::string path = config_.captures_dir + "/" + name.str() + ".bmp";
 
-  if (!image_sink_->writeBmp(path.c_str(), rgb.data(), width, height, 3)) {
+  if (!image_sink_->writeBmp(path.c_str(), rgb.data(), still_w, still_h, 3)) {
     spdlog::error("[BirdWatcher] writeBmp failed: {}", path);
     return;
   }
@@ -429,7 +464,7 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& rgb, int width, int he
   had_capture_ = true;
   last_capture_time_ = now;
   capture_times_.push_back(now);
-  spdlog::info("[BirdWatcher] Saved capture: {}", path);
+  spdlog::info("[BirdWatcher] Saved {}x{} still capture: {}", still_w, still_h, path);
 }
 
 }  // namespace jrb::application::bird_watch

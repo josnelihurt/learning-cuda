@@ -36,6 +36,10 @@ class GstCameraSource {
 
   bool IsRunning() const;
 
+  // Pulls one full-resolution NV12 frame from the active backend (blocking ≤500 ms).
+  // Returns empty vector if the backend doesn't support still capture.
+  rtc::binary GrabStillFrame(int* out_width, int* out_height);
+
  private:
   std::unique_ptr<void, void(*)(void*)> impl_;
 };

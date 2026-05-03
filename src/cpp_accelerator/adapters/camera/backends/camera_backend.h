@@ -47,6 +47,11 @@ class CameraBackend {
   // Returns the backend name (e.g., "V4L2", "NVIDIA Argus", "Stub").
   // Used for device identification in UI (e.g., "V4L2: /dev/video0").
   virtual std::string GetBackendName() const = 0;
+
+  // Pulls one full-resolution NV12 frame from the camera (blocking, ≤500 ms).
+  // Only NvidiaArgusBackend implements this; all others return an empty vector.
+  // out_width / out_height are set to the frame dimensions on success.
+  virtual rtc::binary GrabStillFrame(int* out_width, int* out_height) { return {}; }
 };
 
 }  // namespace jrb::adapters::camera

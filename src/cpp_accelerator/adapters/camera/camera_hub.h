@@ -61,6 +61,11 @@ class CameraHub {
   // Tears down all camera streams. Called automatically on destruction.
   void Shutdown();
 
+  // Pulls one full-resolution NV12 frame from the given sensor (blocking ≤500 ms).
+  // Returns empty vector if the sensor is not streaming or the backend doesn't
+  // support still capture (V4L2, Stub).
+  rtc::binary GrabStillFrame(int sensor_id, int* out_width, int* out_height);
+
  private:
   CameraHub() = default;
 

@@ -26,6 +26,7 @@ class NvidiaArgusBackend : public CameraBackend {
   void Stop() override;
   bool IsRunning() const override;
   std::string GetBackendName() const override;
+  rtc::binary GrabStillFrame(int* out_width, int* out_height) override;
 
  private:
   struct Impl;

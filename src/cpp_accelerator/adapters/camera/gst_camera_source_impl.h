@@ -23,6 +23,7 @@ class GstCameraSourceImpl {
              std::string* error_message);
   void Stop();
   bool IsRunning() const;
+  rtc::binary GrabStillFrame(int* out_width, int* out_height);
 
  private:
   std::vector<std::unique_ptr<CameraBackend>> backends_;

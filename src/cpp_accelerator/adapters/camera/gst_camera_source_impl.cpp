@@ -91,4 +91,9 @@ bool GstCameraSourceImpl::IsRunning() const {
   return active_backend_ && active_backend_->IsRunning();
 }
 
+rtc::binary GstCameraSourceImpl::GrabStillFrame(int* out_width, int* out_height) {
+  if (!active_backend_) return {};
+  return active_backend_->GrabStillFrame(out_width, out_height);
+}
+
 }  // namespace jrb::adapters::camera

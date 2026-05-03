@@ -2,14 +2,13 @@
 
 #include <cstdlib>
 #include <cctype>
-#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/basic_file_sink.h> 
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
@@ -18,10 +17,14 @@
 
 namespace jrb::core {
 
-// Build-time constant to verify library reloading
 constexpr const char* kLoggerBuildTimestamp = __DATE__ " " __TIME__;
 
 namespace {
+
+constexpr const char* kLogFile = "/tmp/cppaccelerator.log";
+constexpr const char* kFilePattern =
+    "{\"timestamp\":%E,\"level\":\"%l\",\"message\":\"%v\",\"source\":\"cpp\"}\n";
+constexpr const char* kConsolePattern = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v";
 
 spdlog::level::level_enum ParseLogLevel(const char* s) {
   if (s == nullptr || *s == '\0') {
@@ -41,11 +44,37 @@ spdlog::level::level_enum ParseLogLevel(const char* s) {
   return spdlog::level::info;
 }
 
+spdlog::sink_ptr MakeFileSink() {
+  auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(kLogFile, true);
+  sink->set_pattern(kFilePattern);
+  return sink;
+}
+
+spdlog::sink_ptr MakeConsoleSink() {
+  auto sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+  sink->set_pattern(kConsolePattern);
+  return sink;
+}
+
+void BuildLoggerFromSinks(const std::vector<spdlog::sink_ptr>& sinks) {
+  auto logger = std::make_shared<spdlog::logger>("cpp_accelerator", sinks.begin(), sinks.end());
+
+  const char* level_env = std::getenv("CUDA_ACCELERATOR_LOG_LEVEL");
+  if (level_env == nullptr || *level_env == '\0') {
+    level_env = std::getenv("SPDLOG_LEVEL");
+  }
+  const spdlog::level::level_enum log_level = ParseLogLevel(level_env);
+  logger->set_level(log_level);
+  logger->flush_on(log_level);
+
+  spdlog::set_default_logger(logger);
+  spdlog::set_level(log_level);
+}
+
 }  // namespace
 
 void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
                        const std::string& environment) {
-  // Read configuration from environment variables if not provided
   std::string endpoint = otlp_endpoint;
   bool enabled = remote_enabled;
   std::string env = environment;
@@ -64,112 +93,38 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
     env = env_environment;
   }
 
-  std::cout << "DEBUG: initialize_logger() called [BUILD: " << kLoggerBuildTimestamp << "]"
-            << std::endl;
-
-  const char* log_file = "/tmp/cppaccelerator.log";
-  std::shared_ptr<spdlog::logger> logger;
-  std::vector<spdlog::sink_ptr> sinks;
-
-  std::cout << "DEBUG: Attempting to create file logger at: " << log_file << std::endl;
-
   try {
-    // Create file sink
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_file, true);
-    file_sink->set_pattern(
-        "{\"timestamp\":%E,\"level\":\"%l\",\"message\":\"%v\",\"source\":"
-        "\"cpp\"}\n");
-    sinks.push_back(file_sink);
-    std::cout << "DEBUG: basic_file_sink_mt created successfully" << std::endl;
+    std::vector<spdlog::sink_ptr> sinks;
+    sinks.push_back(MakeFileSink());
+    sinks.push_back(MakeConsoleSink());
 
-    // Add OpenTelemetry sink if enabled
+    BuildLoggerFromSinks(sinks);
+
+    spdlog::info("Logger initialized [BUILD: {}]", kLoggerBuildTimestamp);
+
     if (enabled && !endpoint.empty()) {
       try {
-        auto otel_sink = std::make_shared<OtelLogSink>(endpoint, env);
-        sinks.push_back(otel_sink);
-        std::cout << "DEBUG: OpenTelemetry log sink added (endpoint: " << endpoint << ")"
-                  << std::endl;
+        spdlog::default_logger()->sinks().push_back(
+          std::make_shared<OtelLogSink>(endpoint, env));
+        spdlog::info("OpenTelemetry log sink added (endpoint: {})", endpoint);
       } catch (const std::exception& otel_ex) {
-        std::cerr << "WARNING: Failed to create OpenTelemetry sink: " << otel_ex.what()
-                  << std::endl;
-        std::cerr << "WARNING: Continuing with file logger only" << std::endl;
+        spdlog::warn("Failed to create OpenTelemetry sink: {}", otel_ex.what());
       }
     } else if (enabled) {
-      std::cerr << "WARNING: OpenTelemetry logging enabled but endpoint not configured"
-                << std::endl;
+      spdlog::warn("OpenTelemetry logging enabled but endpoint not configured");
     }
 
-    // Create logger with all sinks
-    logger = std::make_shared<spdlog::logger>("cpp_accelerator", sinks.begin(), sinks.end());
-
-    const char* level_env = std::getenv("CUDA_ACCELERATOR_LOG_LEVEL");
-    if (level_env == nullptr || *level_env == '\0') {
-      level_env = std::getenv("SPDLOG_LEVEL");
-    }
-    const spdlog::level::level_enum log_level = ParseLogLevel(level_env);
-    logger->set_level(log_level);
-    logger->flush_on(log_level);
-
-    spdlog::set_default_logger(logger);
-    spdlog::set_level(log_level);
-
-    // Use stdout for initialization message to ensure visibility
-    std::cout << "Logger initialized successfully [BUILD: " << kLoggerBuildTimestamp
-              << "] [LIB_RELOAD_TEST]" << std::endl;
-
-    // Verify file was created by attempting to read it
-    std::ifstream verify(log_file);
-    if (!verify.good()) {
-      std::cerr << "WARNING: Logger file sink created but file may not be accessible: " << log_file
-                << std::endl;
-    }
-    verify.close();
-
-  } catch (const spdlog::spdlog_ex& ex) {
-    std::cerr << "ERROR: spdlog initialization failed: " << ex.what() << std::endl;
-    std::cerr << "ERROR: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
-    std::cerr << "ERROR: Attempting fallback to console logger..." << std::endl;
-
+  } catch (const spdlog::spdlog_ex&) {
     try {
-      // Fallback to console logger
-      auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-      console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
-      logger = std::make_shared<spdlog::logger>("cpp_accelerator",
-                                                spdlog::sinks_init_list{console_sink});
-      logger->set_level(spdlog::level::debug);
-      spdlog::set_default_logger(logger);
-      spdlog::set_level(spdlog::level::debug);
-
-      std::cerr << "WARNING: Using console logger as fallback (file logger failed)" << std::endl;
-      logger->error("Failed to initialize file logger, using console only");
-      logger->flush();
+      std::vector<spdlog::sink_ptr> fallback_sinks;
+      fallback_sinks.push_back(MakeConsoleSink());
+      BuildLoggerFromSinks(fallback_sinks);
+      spdlog::error("File logger unavailable, using console only");
     } catch (const std::exception& fallback_ex) {
-      std::cerr << "FATAL: Both file and console logger initialization failed: "
-                << fallback_ex.what() << std::endl;
-      std::cerr << "FATAL: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
+      std::cerr << "FATAL: Logger initialization failed: " << fallback_ex.what() << std::endl;
     }
   } catch (const std::exception& ex) {
-    std::cerr << "ERROR: Unexpected exception during logger initialization: " << ex.what()
-              << std::endl;
-    std::cerr << "ERROR: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
-    std::cerr << "ERROR: Attempting fallback to console logger..." << std::endl;
-
-    try {
-      // Fallback to console logger
-      auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-      console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
-      logger = std::make_shared<spdlog::logger>("cpp_accelerator",
-                                                spdlog::sinks_init_list{console_sink});
-      logger->set_level(spdlog::level::debug);
-      spdlog::set_default_logger(logger);
-      spdlog::set_level(spdlog::level::debug);
-
-      std::cerr << "WARNING: Using console logger as fallback (file logger failed)" << std::endl;
-    } catch (const std::exception& fallback_ex) {
-      std::cerr << "FATAL: Both file and console logger initialization failed: "
-                << fallback_ex.what() << std::endl;
-      std::cerr << "FATAL: Logger build timestamp: " << kLoggerBuildTimestamp << std::endl;
-    }
+    std::cerr << "FATAL: Logger initialization failed: " << ex.what() << std::endl;
   }
 }
 

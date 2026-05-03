@@ -12,16 +12,15 @@ cc_library(
         "camera_detector.cpp",
         "camera_detector_impl.cpp",
         "camera_detector_impl.h",
-    ],
+    ] + select({
+        "//bazel/flags:v4l2_camera_enabled": ["camera_detector_impl_v4l2.cpp"],
+        "//conditions:default": ["camera_detector_impl_v4l2_stub.cpp"],
+    }) + select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["camera_detector_impl_argus.cpp"],
+        "//conditions:default": ["camera_detector_impl_argus_stub.cpp"],
+    }),
     hdrs = ["camera_detector.h"],
     visibility = ["//visibility:public"],
-    defines = select({
-        "//bazel/flags:v4l2_camera_enabled": ["CAMERA_BACKEND_V4L2_ENABLED"],
-        "//conditions:default": [],
-    }) + select({
-        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
-        "//conditions:default": [],
-    }),
     deps = [
         ":backends",
         "//proto:accelerator_control_cc_proto",
@@ -143,18 +142,17 @@ cc_library(
         "gst_camera_source_impl.cpp",
         "gst_camera_source_impl.h",
     ] + select({
+        "//bazel/flags:v4l2_camera_enabled": ["gst_camera_source_impl_v4l2.cpp"],
+        "//conditions:default": ["gst_camera_source_impl_v4l2_stub.cpp"],
+    }) + select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["gst_camera_source_impl_argus.cpp"],
+        "//conditions:default": ["gst_camera_source_impl_argus_stub.cpp"],
+    }) + select({
         "//bazel/flags:nvidia_argus_camera_enabled": ["gst_camera_source_impl_gpu_argus.cpp"],
         "//conditions:default": ["gst_camera_source_impl_gpu_stub.cpp"],
     }),
     hdrs = ["gst_camera_source.h"],
     visibility = ["//visibility:public"],
-    defines = select({
-        "//bazel/flags:v4l2_camera_enabled": ["CAMERA_BACKEND_V4L2_ENABLED"],
-        "//conditions:default": [],
-    }) + select({
-        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
-        "//conditions:default": [],
-    }),
     deps = [
         ":backends",
         ":gpu_frame_processor",

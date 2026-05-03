@@ -3,30 +3,13 @@
 #include "src/cpp_accelerator/adapters/camera/backends/camera_backend.h"
 #include "src/cpp_accelerator/adapters/camera/backends/stub_backend.h"
 
-#ifdef CAMERA_BACKEND_V4L2_ENABLED
-#include "src/cpp_accelerator/adapters/camera/backends/v4l2_backend.h"
-#endif
-
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-#include "src/cpp_accelerator/adapters/camera/backends/nvidia_argus_backend.h"
-#endif
-
 #include <spdlog/spdlog.h>
 
 namespace jrb::adapters::camera {
 
 CameraDetectorImpl::CameraDetectorImpl() {
-  // Initialize backends in priority order.
-  // Backends are conditionally compiled based on Bazel flags.
-#ifdef CAMERA_BACKEND_V4L2_ENABLED
-  backends_.push_back(std::make_unique<V4L2Backend>());
-#endif
-
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-  backends_.push_back(std::make_unique<NvidiaArgusBackend>());
-#endif
-
-  // Stub is always available as fallback
+  RegisterV4L2Backend();
+  RegisterArgusBackend();
   backends_.push_back(std::make_unique<StubBackend>());
 
   std::string backend_list;

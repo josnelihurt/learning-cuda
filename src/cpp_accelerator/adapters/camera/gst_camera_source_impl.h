@@ -34,6 +34,9 @@ class GstCameraSourceImpl {
   GpuFrameProcessor* GetGpuFrameProcessor();
 
  private:
+  void RegisterV4L2Backend();
+  void RegisterArgusBackend();
+
   std::vector<std::unique_ptr<CameraBackend>> backends_;
   std::unique_ptr<CameraBackend> active_backend_;
 };

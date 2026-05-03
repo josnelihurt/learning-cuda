@@ -48,7 +48,7 @@ services:
     # covers JetPack 6 / R36.
     devices:
       - /dev/video0:/dev/video0   # CAM0 — IMX477
-      - /dev/video1:/dev/video1   # CAM1 — IMX519
+      # - /dev/video1:/dev/video1   # CAM1 — IMX519 (disabled because it's not working with IMX477)
       - /dev/v4l-subdev0:/dev/v4l-subdev0
       - /dev/v4l-subdev1:/dev/v4l-subdev1
       - /dev/v4l-subdev2:/dev/v4l-subdev2

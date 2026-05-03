@@ -1,7 +1,7 @@
 #include "src/cpp_accelerator/application/bird_watch/bird_watcher.h"
 
-#include <ctime>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <iomanip>
 #include <optional>
@@ -48,7 +48,9 @@ BirdWatcher::BirdWatcher(BirdWatcherConfig config,
       image_sink_(image_sink),
       cuda_memory_pool_(std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>()) {}
 
-BirdWatcher::~BirdWatcher() { Stop(); }
+BirdWatcher::~BirdWatcher() {
+  Stop();
+}
 
 void BirdWatcher::Start() {
   if (!config_.enabled) {
@@ -158,7 +160,7 @@ void BirdWatcher::ProcessQueuedFrame(rtc::binary data, rtc::FrameInfo info) {
 
   const bool bird = DetectBird(rgb, w, h);
   if (state_ == State::Idle) {
-    spdlog::info("[BirdWatcher] idle check {}x{} bird={}", w, h, bird);
+    spdlog::debug("[BirdWatcher] idle check {}x{} bird={}", w, h, bird);
     if (bird) {
       spdlog::info("[BirdWatcher] IDLE -> ALERT (bird detected)");
       state_ = State::Alert;
@@ -252,8 +254,7 @@ bool BirdWatcher::FeedDecoderAndExtractRgb(const rtc::binary& access_unit, bool 
   // delivers exactly one access unit ready to be fed verbatim — same pattern
   // as LiveVideoProcessor::ProcessAccessUnit.
   av_packet_unref(decode_packet_);
-  decode_packet_->data =
-      const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(access_unit.data()));
+  decode_packet_->data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(access_unit.data()));
   decode_packet_->size = static_cast<int>(access_unit.size());
 
   const int send_result = avcodec_send_packet(decoder_context_, decode_packet_);
@@ -311,9 +312,9 @@ bool BirdWatcher::RgbFromDecodedFrame(std::vector<uint8_t>* rgb, int* width, int
       spdlog::error("[BirdWatcher] av_frame_get_buffer RGB failed");
       return false;
     }
-    decode_to_rgb_context_ = sws_getCachedContext(
-        nullptr, w, h, static_cast<AVPixelFormat>(input_format), w, h, AV_PIX_FMT_RGB24,
-        SWS_BILINEAR, nullptr, nullptr, nullptr);
+    decode_to_rgb_context_ =
+        sws_getCachedContext(nullptr, w, h, static_cast<AVPixelFormat>(input_format), w, h,
+                             AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
     if (decode_to_rgb_context_ == nullptr) {
       spdlog::error("[BirdWatcher] sws_getCachedContext failed");
       return false;
@@ -327,7 +328,7 @@ bool BirdWatcher::RgbFromDecodedFrame(std::vector<uint8_t>* rgb, int* width, int
     return false;
   }
   if (sws_scale(decode_to_rgb_context_, decoded_frame_->data, decoded_frame_->linesize, 0, h,
-                 rgb_input_frame_->data, rgb_input_frame_->linesize) <= 0) {
+                rgb_input_frame_->data, rgb_input_frame_->linesize) <= 0) {
     return false;
   }
 
@@ -376,8 +377,7 @@ bool BirdWatcher::DetectBird(const std::vector<uint8_t>& rgb, int width, int hei
 
 bool BirdWatcher::RateGateAllowsSave() {
   const auto now = std::chrono::steady_clock::now();
-  while (!capture_times_.empty() &&
-         now - capture_times_.front() > std::chrono::seconds(60)) {
+  while (!capture_times_.empty() && now - capture_times_.front() > std::chrono::seconds(60)) {
     capture_times_.pop_front();
   }
   if (capture_times_.size() >= static_cast<size_t>(config_.max_per_minute)) {

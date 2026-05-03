@@ -233,10 +233,10 @@ struct NvidiaArgusBackend::Impl {
   }
 
   void Cleanup() {
-    if (gpu_processor) {
-      gpu_processor->Stop();
-      gpu_processor.reset();
-    }
+    // Stop the pipeline first so all GStreamer streaming threads (and thus all
+    // OnNewSample callbacks) drain before we destroy gpu_processor.
+    // Destroying gpu_processor while OnNewSample is still running causes
+    // a use-after-free.
     if (pipeline) {
       gst_element_set_state(pipeline, GST_STATE_NULL);
       if (proc_sink) {
@@ -249,6 +249,11 @@ struct NvidiaArgusBackend::Impl {
       }
       gst_object_unref(pipeline);
       pipeline = nullptr;
+    }
+    // Safe to destroy now: no more OnNewSample callbacks can fire.
+    if (gpu_processor) {
+      gpu_processor->Stop();
+      gpu_processor.reset();
     }
   }
 };

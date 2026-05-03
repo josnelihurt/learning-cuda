@@ -30,7 +30,15 @@ struct GpuFrameProcessor::Impl {
   std::vector<uint8_t> h_rgba;   // for RgbCallback (allocated lazily)
 
   bool AllocScratch(int w, int h) {
-    if (d_rgba) return true;  // already allocated
+    if (d_rgba) {
+      if (w != width || h != height) {
+        spdlog::error("[GpuFrameProcessor] Frame dimensions changed {}x{} -> {}x{}; "
+                      "reallocating scratch buffers", width, height, w, h);
+        FreeScratch();
+      } else {
+        return true;
+      }
+    }
     const size_t rgba_bytes = static_cast<size_t>(w) * h * 4;
     const size_t y_bytes    = static_cast<size_t>(w) * h;
     const size_t uv_bytes   = static_cast<size_t>(w) * (h / 2);

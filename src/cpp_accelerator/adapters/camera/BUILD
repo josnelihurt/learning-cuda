@@ -46,6 +46,7 @@ cc_library(
     deps = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
             "//third_party/glib-config:glibconfig",
+            "//third_party/nvbufsurface:nvbufsurface",
             "@spdlog",
         ],
         "//conditions:default": ["@spdlog"],

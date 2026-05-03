@@ -10,8 +10,6 @@ namespace jrb::adapters::camera {
 
 class GpuFrameProcessor;
 
-class GpuFrameProcessor;
-
 // Orchestrates camera streaming by trying each enabled backend in priority order.
 // The first backend that successfully starts streaming is used; if it fails,
 // the next backend is tried.

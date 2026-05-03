@@ -13,9 +13,10 @@
 
 #include <rtc/rtc.hpp>
 
-// GstBuffer is defined in GStreamer; forward-declared here so this header
-// compiles without GStreamer on x86.  The full type is only required in .cpp.
-struct GstBuffer;
+// GstBuffer forward declaration compatible with GStreamer's typedef.
+// The full type (<gst/gst.h>) is only included in .cpp files.
+struct _GstBuffer;
+typedef struct _GstBuffer GstBuffer;
 
 namespace jrb::adapters::camera {
 

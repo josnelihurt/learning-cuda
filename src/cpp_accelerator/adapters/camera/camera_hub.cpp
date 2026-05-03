@@ -167,6 +167,15 @@ rtc::binary CameraHub::GrabStillFrame(int sensor_id, int* out_width, int* out_he
   return source->GrabStillFrame(out_width, out_height);
 }
 
+GpuFrameProcessor* CameraHub::GetGpuFrameProcessor(int sensor_id) {
+  std::lock_guard<std::mutex> lock(streams_mutex_);
+  auto it = streams_.find(sensor_id);
+  if (it == streams_.end()) return nullptr;
+  GstCameraSource* source = it->second->source.get();
+  if (!source) return nullptr;
+  return source->GetGpuFrameProcessor();
+}
+
 void CameraHub::Unsubscribe(int sensor_id, uint64_t token) {
   if (token == 0) return;
   std::lock_guard<std::mutex> lock(streams_mutex_);

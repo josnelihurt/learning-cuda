@@ -52,6 +52,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":camera_backend",
+        "//src/cpp_accelerator/adapters/camera:gpu_frame_processor",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
         "@spdlog",
     ] + select({
         "//bazel/flags:nvidia_argus_camera_enabled": [

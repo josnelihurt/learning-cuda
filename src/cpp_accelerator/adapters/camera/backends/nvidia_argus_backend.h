@@ -10,6 +10,8 @@
 
 namespace jrb::adapters::camera {
 
+class GpuFrameProcessor;
+
 // NvidiaArgusBackend implements camera detection and streaming via NVIDIA Argus.
 // Only available on NVIDIA Jetson platforms with GStreamer nvarguscamerasrc.
 class NvidiaArgusBackend : public CameraBackend {
@@ -28,9 +30,15 @@ class NvidiaArgusBackend : public CameraBackend {
   std::string GetBackendName() const override;
   rtc::binary GrabStillFrame(int* out_width, int* out_height) override;
 
+  // Returns the GpuFrameProcessor created during Start().  Null before Start()
+  // or after Stop().  Callers (e.g. BirdWatcher) can register an RgbCallback
+  // on it to receive RGBA frames for YOLO inference without H.264 decode.
+  GpuFrameProcessor* GetGpuFrameProcessor();
+
  private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace jrb::adapters::camera
+

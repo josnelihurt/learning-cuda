@@ -14,6 +14,8 @@
 
 namespace jrb::adapters::camera {
 
+class GpuFrameProcessor;
+
 // CameraHub owns one GstCameraSource per sensor_id for the lifetime of the
 // process and fans out encoded H.264 access units to any number of subscribers.
 //
@@ -65,6 +67,12 @@ class CameraHub {
   // Returns empty vector if the sensor is not streaming or the backend doesn't
   // support still capture (V4L2, Stub).
   rtc::binary GrabStillFrame(int sensor_id, int* out_width, int* out_height);
+
+  // Returns the GpuFrameProcessor for the given sensor if streaming via
+  // NvidiaArgusBackend; nullptr on all other backends or before streaming starts.
+  // Callers (e.g. BirdWatcher) can register an RgbCallback to receive RGBA
+  // frames for YOLO inference without H.264 decode.
+  GpuFrameProcessor* GetGpuFrameProcessor(int sensor_id);
 
  private:
   CameraHub() = default;

@@ -8,6 +8,8 @@
 
 namespace jrb::adapters::camera {
 
+class GpuFrameProcessor;
+
 // GstCameraSource captures video from cameras via GStreamer.
 // Tries multiple backends (V4L2, NVIDIA Argus) in priority order until one succeeds.
 // Delivers encoded H.264 access units via callback.
@@ -39,6 +41,10 @@ class GstCameraSource {
   // Pulls one full-resolution NV12 frame from the active backend (blocking ≤500 ms).
   // Returns empty vector if the backend doesn't support still capture.
   rtc::binary GrabStillFrame(int* out_width, int* out_height);
+
+  // Returns the GpuFrameProcessor if the active backend is NvidiaArgusBackend.
+  // Null on all other backends / before Start().
+  GpuFrameProcessor* GetGpuFrameProcessor();
 
  private:
   std::unique_ptr<void, void(*)(void*)> impl_;

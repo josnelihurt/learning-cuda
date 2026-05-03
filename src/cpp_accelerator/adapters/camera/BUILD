@@ -30,6 +30,125 @@ cc_library(
 )
 
 cc_library(
+    name = "nvbuf_cuda_utils",
+    srcs = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["nvbuf_cuda_utils.cpp"],
+        "//conditions:default": [],
+    }),
+    hdrs = ["nvbuf_cuda_utils.h"],
+    visibility = ["//visibility:public"],
+    defines = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
+        "//conditions:default": [],
+    }),
+    copts = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "-I/usr/include/gstreamer-1.0",
+            "-I/usr/include/glib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
+    deps = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "//third_party/glib-config:glibconfig",
+            "@spdlog",
+        ],
+        "//conditions:default": ["@spdlog"],
+    }),
+    linkopts = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "-lgstreamer-1.0",
+            "-lgobject-2.0",
+            "-lglib-2.0",
+            "-lnvbuf_utils",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
+    name = "encode_pipeline",
+    srcs = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["encode_pipeline.cpp"],
+        "//conditions:default": [],
+    }),
+    hdrs = ["encode_pipeline.h"],
+    visibility = ["//visibility:public"],
+    defines = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
+        "//conditions:default": [],
+    }),
+    copts = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "-I/usr/include/gstreamer-1.0",
+            "-I/usr/include/glib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
+    deps = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "//third_party/glib-config:glibconfig",
+            "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+            "@spdlog",
+        ],
+        "//conditions:default": [
+            "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+            "@spdlog",
+        ],
+    }),
+    linkopts = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "-lgstreamer-1.0",
+            "-lgstapp-1.0",
+            "-lgobject-2.0",
+            "-lglib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
+    name = "gpu_frame_processor",
+    srcs = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["gpu_frame_processor.cpp"],
+        "//conditions:default": [],
+    }),
+    hdrs = ["gpu_frame_processor.h"],
+    visibility = ["//visibility:public"],
+    defines = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
+        "//conditions:default": [],
+    }),
+    copts = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "-I/usr/include/gstreamer-1.0",
+            "-I/usr/include/glib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":encode_pipeline",
+        ":nvbuf_cuda_utils",
+        "//src/cpp_accelerator/adapters/compute/cuda/kernels:kernels",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+        "@spdlog",
+    ] + select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "//third_party/glib-config:glibconfig",
+        ],
+        "//conditions:default": [],
+    }),
+    linkopts = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "-lgstreamer-1.0",
+            "-lgobject-2.0",
+            "-lglib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
     name = "gst_camera_source",
     srcs = [
         "gst_camera_source.cpp",
@@ -47,6 +166,7 @@ cc_library(
     }),
     deps = [
         ":backends",
+        ":gpu_frame_processor",
         "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
         "@spdlog",
     ],

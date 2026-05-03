@@ -8,6 +8,10 @@
 
 namespace jrb::adapters::camera {
 
+class GpuFrameProcessor;
+
+class GpuFrameProcessor;
+
 // Orchestrates camera streaming by trying each enabled backend in priority order.
 // The first backend that successfully starts streaming is used; if it fails,
 // the next backend is tried.
@@ -24,6 +28,10 @@ class GstCameraSourceImpl {
   void Stop();
   bool IsRunning() const;
   rtc::binary GrabStillFrame(int* out_width, int* out_height);
+
+  // Returns the active backend's GpuFrameProcessor if the backend is
+  // NvidiaArgusBackend and streaming has started; nullptr otherwise.
+  GpuFrameProcessor* GetGpuFrameProcessor();
 
  private:
   std::vector<std::unique_ptr<CameraBackend>> backends_;

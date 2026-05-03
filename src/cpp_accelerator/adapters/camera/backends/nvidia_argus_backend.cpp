@@ -8,6 +8,8 @@
 #include <gst/app/gstappsink.h>
 #include <spdlog/spdlog.h>
 
+#include "src/cpp_accelerator/adapters/camera/gpu_frame_processor.h"
+
 namespace jrb::adapters::camera {
 
 namespace {
@@ -164,9 +166,14 @@ struct NvidiaArgusBackend::Impl {
   FrameCallback cb;
   std::atomic<bool> running{false};
   GstElement* pipeline{nullptr};
-  GstElement* proc_sink{nullptr};   // continuous H.264 callbacks (encode branch)
+  GstElement* proc_sink{nullptr};   // continuous NV12 NVMM callbacks (GPU branch)
   GstElement* still_sink{nullptr};  // pull-on-demand for full-res NV12 stills
   std::thread bus_thread;
+
+  // GPU pipeline: NVMM → CUDA kernels → EncodePipeline (H.264) → cb
+  std::unique_ptr<GpuFrameProcessor> gpu_processor;
+  int encode_width{0};
+  int encode_height{0};
 
   static GstFlowReturn OnNewSample(GstAppSink* sink, gpointer user_data) {
     auto* impl = static_cast<Impl*>(user_data);
@@ -181,31 +188,19 @@ struct NvidiaArgusBackend::Impl {
       return GST_FLOW_OK;
     }
 
-    GstMapInfo map;
-    if (!gst_buffer_map(buf, &map, GST_MAP_READ)) {
-      gst_sample_unref(sample);
-      return GST_FLOW_OK;
-    }
-
-    rtc::binary data(reinterpret_cast<const std::byte*>(map.data),
-                     reinterpret_cast<const std::byte*>(map.data) + map.size);
-
+    // Extract RTP timestamp from PTS (µs units, matching the old H.264 path).
     const GstClockTime pts = GST_BUFFER_PTS(buf);
     const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts)
                                 ? static_cast<uint32_t>(pts / 1000u)
                                 : 0u;
-    rtc::FrameInfo info{rtp_ts};
 
-    gst_buffer_unmap(buf, &map);
-    gst_sample_unref(sample);
-
-    if (impl->cb) {
-      try {
-        impl->cb(std::move(data), info);
-      } catch (const std::exception& e) {
-        spdlog::warn("[NvidiaArgusBackend] Frame callback threw: {}", e.what());
-      }
+    // Pass NVMM buffer directly to GPU processor — sample must remain alive
+    // until Process() returns so the NvBufSurface backing stays valid.
+    if (impl->gpu_processor) {
+      impl->gpu_processor->Process(buf, rtp_ts);
     }
+
+    gst_sample_unref(sample);
     return GST_FLOW_OK;
   }
 
@@ -238,6 +233,10 @@ struct NvidiaArgusBackend::Impl {
   }
 
   void Cleanup() {
+    if (gpu_processor) {
+      gpu_processor->Stop();
+      gpu_processor.reset();
+    }
     if (pipeline) {
       gst_element_set_state(pipeline, GST_STATE_NULL);
       if (proc_sink) {
@@ -348,29 +347,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
         "[NvidiaArgusBackend] GStreamer element 'h264parse' not found; "
         "continuing without parser in Argus pipeline");
   }
-
-  // Orin Nano has no NVENC: the nvv4l2h264enc plugin is registered in the L4T
-  // image, but it opens /dev/v4l2-nvenc, which the kernel never creates on
-  // SKUs without an encoder. So check the device node, not just the factory.
-  const bool nvenc_plugin = HasGstElement("nvv4l2h264enc");
-  const bool nvenc_device = (access("/dev/v4l2-nvenc", F_OK) == 0);
-  const bool has_nvenc = nvenc_plugin && nvenc_device;
-  const bool has_x264 = HasGstElement("x264enc");
-  if (!has_nvenc) {
-    spdlog::warn(
-        "[NvidiaArgusBackend] Hardware H.264 encoder unavailable "
-        "(plugin_registered={}, device_present={}); falling back to software "
-        "'x264enc' (expected on Orin Nano: no NVENC hardware)",
-        nvenc_plugin, nvenc_device);
-  }
-  if (!has_nvenc && !has_x264) {
-    const std::string msg =
-        "No H.264 encoder available: neither nvv4l2h264enc nor x264enc are "
-        "registered with GStreamer";
-    if (error_message) *error_message = msg;
-    spdlog::error("[NvidiaArgusBackend] {}", msg);
-    return false;
-  }
+  (void)has_h264parse;  // proc_sink branch no longer uses h264parse
 
   // AWB workaround for Arducam IMX477: stock ISP tuning + wbmode=auto produces
   // a strong cyan cast on mixed indoor/window-light scenes. Lock to a fixed
@@ -384,12 +361,14 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   //   nvarguscamerasrc (4056×3040 @ 15fps, full sensor readout)
   //     → tee
   //         still_sink branch : raw NV12 frames, pull-on-demand for BMP stills
-  //         encode branch     : nvvidconv downscale → H.264 encoder → proc_sink
+  //         proc_sink branch  : nvvidconv downscale → NV12 NVMM → GpuFrameProcessor
+  //                               (GPU kernels + EncodePipeline → H.264 → WebRTC)
   //
-  // The still_sink branch keeps the full 4056×3040 NV12 frame in a one-buffer
-  // leaky queue.  GrabStillFrame() pulls from it on demand (~67 ms wait at 15fps).
-  // The encode branch downscales to encode_w×encode_h before the H.264 encoder,
-  // so x264enc CPU load stays at ~15% (same as the previous 720p pipeline).
+  // The proc_sink branch keeps NVMM through the VIC downscaler.  GpuFrameProcessor
+  // maps the NVMM buffer to CUDA device pointers, runs NV12↔RGBA kernels, and
+  // re-encodes via a dedicated GStreamer software pipeline (EncodePipeline).
+  // This eliminates the encode→decode H.264 round-trip previously required to get
+  // RGB frames for BirdWatcher YOLO inference.
   std::string pipeline;
   pipeline.reserve(2048);
 
@@ -415,38 +394,14 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   pipeline += ",format=NV12 ! ";
   pipeline += "appsink name=still_sink emit-signals=false sync=false max-buffers=1 drop=true ";
 
-  // Encode branch: hardware downscale then H.264 encode.
+  // proc_sink branch: VIC hardware downscale to encode resolution, keep in NVMM.
+  // GpuFrameProcessor owns the H.264 re-encode (via EncodePipeline) after this.
   pipeline += "cam_tee. ! ";
-  if (has_nvenc) {
-    // Hardware path: nvvidconv keeps data in NVMM through the encoder.
-    pipeline += "nvvidconv ! ";
-    pipeline += "video/x-raw(memory:NVMM)";
-    pipeline += ",width="  + std::to_string(encode_w);
-    pipeline += ",height=" + std::to_string(encode_h);
-    pipeline += ",format=NV12 ! ";
-    pipeline += "nvv4l2h264enc insert-sps-pps=true bitrate=2000000 ! ";
-  } else {
-    // Software path: nvvidconv downscales and converts NVMM→I420 for x264enc.
-    // Rolling intra-refresh avoids large keyframe bursts that overrun the
-    // WebRTC outbound queue (see backends/README.md §13.3).
-    pipeline += "nvvidconv ! ";
-    pipeline += "video/x-raw";
-    pipeline += ",width="  + std::to_string(encode_w);
-    pipeline += ",height=" + std::to_string(encode_h);
-    pipeline += ",format=I420 ! ";
-    pipeline += "x264enc tune=zerolatency speed-preset=ultrafast ";
-    pipeline += "bitrate=2000 vbv-buf-capacity=400 ";
-    pipeline += "intra-refresh=true key-int-max=60 ! ";
-    pipeline += "video/x-h264,profile=baseline ! ";
-  }
-
-  // Pin Annex-B byte-stream / AU alignment after the parser. Without this,
-  // h264parse may negotiate to stream-format=avc (length-prefixed NALs),
-  // which the downstream libavcodec decoder rejects — "No start code is found".
-  if (has_h264parse) {
-    pipeline += "h264parse config-interval=-1 ! ";
-    pipeline += "video/x-h264,stream-format=byte-stream,alignment=au ! ";
-  }
+  pipeline += "nvvidconv ! ";
+  pipeline += "video/x-raw(memory:NVMM)";
+  pipeline += ",width="  + std::to_string(encode_w);
+  pipeline += ",height=" + std::to_string(encode_h);
+  pipeline += ",format=NV12 ! ";
   pipeline += "appsink name=proc_sink emit-signals=true max-buffers=2 drop=true";
 
   spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline);
@@ -527,6 +482,22 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   impl_->running = true;
   impl_->bus_thread = std::thread([this]() { impl_->BusLoop(); });
 
+  // Start GPU frame processor: maps NVMM → CUDA kernels → EncodePipeline (x264enc).
+  impl_->encode_width  = encode_w;
+  impl_->encode_height = encode_h;
+  impl_->gpu_processor = std::make_unique<GpuFrameProcessor>();
+  {
+    std::string gfp_err;
+    if (!impl_->gpu_processor->Start(encode_w, encode_h, kSensorFps, impl_->cb, &gfp_err)) {
+      spdlog::error("[NvidiaArgusBackend] GpuFrameProcessor::Start failed: {}", gfp_err);
+      impl_->running = false;
+      if (impl_->bus_thread.joinable()) impl_->bus_thread.join();
+      impl_->Cleanup();
+      if (error_message) *error_message = "GpuFrameProcessor failed: " + gfp_err;
+      return false;
+    }
+  }
+
   spdlog::info(
       "[NvidiaArgusBackend] Started sensor-id={} full-sensor {}x{}@{}fps, "
       "encode branch {}x{}",
@@ -553,6 +524,10 @@ bool NvidiaArgusBackend::IsRunning() const {
 
 std::string NvidiaArgusBackend::GetBackendName() const {
   return "Argus";
+}
+
+GpuFrameProcessor* NvidiaArgusBackend::GetGpuFrameProcessor() {
+  return impl_->gpu_processor.get();
 }
 
 rtc::binary NvidiaArgusBackend::GrabStillFrame(int* out_width, int* out_height) {

@@ -173,4 +173,52 @@ extern "C" cudaError_t cuda_apply_gaussian_blur_1d_vertical(const unsigned char*
   return error;
 }
 
+// Device-pointer overload: horizontal + vertical separable Gaussian blur on an RGBA
+// device buffer, entirely in device memory. No host copies.
+extern "C" cudaError_t cuda_apply_gaussian_blur_separable_device(unsigned char* rgba_dev,
+                                                                  int width, int height,
+                                                                  const float* kernel_dev,
+                                                                  int kernel_size,
+                                                                  int border_mode) {
+  constexpr int kChannels = 4;
+  const size_t data_size  = static_cast<size_t>(width) * height * kChannels;
+
+  unsigned char* d_tmp = nullptr;
+  cudaError_t error    = cudaMalloc(&d_tmp, data_size);
+  if (error != cudaSuccess) return error;
+
+  const BorderMode km = static_cast<BorderMode>(border_mode);
+
+  // Horizontal pass: rgba_dev → d_tmp
+  {
+    const dim3 block(256);
+    const dim3 grid((width + 255) / 256);
+    ApplyHorizontalBlurKernel<<<grid, block>>>(rgba_dev, d_tmp, width, height, kChannels,
+                                               kernel_dev, kernel_size, km);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      cudaFree(d_tmp);
+      return error;
+    }
+  }
+
+  // Vertical pass: d_tmp → rgba_dev (in-place result)
+  {
+    const dim3 block(16, 16);
+    const dim3 grid((width + 15) / 16, (height + 15) / 16);
+    ApplyVerticalBlurKernel<<<grid, block>>>(d_tmp, rgba_dev, width, height, kChannels, kernel_dev,
+                                             kernel_size, km);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      cudaFree(d_tmp);
+      return error;
+    }
+  }
+
+  error = cudaDeviceSynchronize();
+  cudaFree(d_tmp);
+  if (error != cudaSuccess) return error;
+  return cudaGetLastError();
+}
+
 }  // namespace jrb::adapters::compute::cuda

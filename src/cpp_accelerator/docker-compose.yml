@@ -52,7 +52,7 @@ services:
       - /dev/v4l-subdev0:/dev/v4l-subdev0
       - /dev/v4l-subdev1:/dev/v4l-subdev1
       - /dev/v4l-subdev2:/dev/v4l-subdev2
-      - /dev/v4l-subdev3:/dev/v4l-subdev3
+      # - /dev/v4l-subdev3:/dev/v4l-subdev3
       - /dev/media0:/dev/media0
       - /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu
       - /dev/nvhost-ctrl-isp:/dev/nvhost-ctrl-isp

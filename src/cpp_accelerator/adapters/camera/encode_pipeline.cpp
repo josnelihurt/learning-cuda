@@ -208,7 +208,7 @@ bool EncodePipeline::PushFrame(const uint8_t* nv12_host, int width, int height,
 
   const GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(impl_->appsrc), buf);
   if (ret != GST_FLOW_OK) {
-    spdlog::debug("[EncodePipeline] gst_app_src_push_buffer: {}", ret);
+    spdlog::debug("[EncodePipeline] gst_app_src_push_buffer: {}", static_cast<int>(ret));
     return false;
   }
   return true;

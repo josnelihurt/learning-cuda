@@ -16,6 +16,7 @@ extern "C" {
 
 #include <spdlog/spdlog.h>
 
+#include "src/cpp_accelerator/core/logger.h"
 #include "src/cpp_accelerator/adapters/webrtc/protocol/filter_resolver.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 
@@ -30,6 +31,7 @@ using cuda_learning::FilterType;
 using cuda_learning::ProcessImageRequest;
 using cuda_learning::ProcessImageResponse;
 using jrb::adapters::webrtc::protocol::ResolveGenericSelectionsInPlace;
+using jrb::core::configure_ffmpeg_logging;
 using jrb::domain::interfaces::IImageSink;
 
 namespace {
@@ -250,6 +252,8 @@ bool LiveVideoProcessor::EnsureDecoder(std::string* error_message) {
   if (decoder_context_ != nullptr) {
     return true;
   }
+
+  configure_ffmpeg_logging();
 
   if (decoded_frame_ == nullptr) {
     decoded_frame_ = av_frame_alloc();

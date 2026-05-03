@@ -52,6 +52,10 @@ cc_library(
         ":otel_log_sink",
         "@spdlog",
     ],
+    linkopts = [
+        "-lavcodec",
+        "-lavutil",
+    ],
 )
 
 cc_library(

@@ -112,14 +112,14 @@ bool WaitForSdpAnswer(const std::string& session_id,
       std::string sdp = local_desc.generateSdp();
       if (sdp_answer_str != nullptr && sdp_answer_str->empty()) {
         *sdp_answer_str = sdp;
-        spdlog::info("[WebRTC:{}] SDP answer available immediately (length: {})", session_id,
+        spdlog::debug("[WebRTC:{}] SDP answer available immediately (length: {})", session_id,
                      sdp.length());
         return true;
       }
     }
   }
 
-  spdlog::info("[WebRTC:{}] Waiting for SDP answer (timeout: {}s)", session_id, timeout.count());
+  spdlog::debug("[WebRTC:{}] Waiting for SDP answer (timeout: {}s)", session_id, timeout.count());
   while ((std::chrono::steady_clock::now() - start) < timeout) {
     const auto status = answer_future.wait_for(std::chrono::milliseconds(100));
     if (status == std::future_status::ready) {
@@ -128,7 +128,7 @@ bool WaitForSdpAnswer(const std::string& session_id,
         if (sdp_answer_str != nullptr && sdp_answer_str->empty()) {
           *sdp_answer_str = answer;
         }
-        spdlog::info("[WebRTC:{}] SDP answer received via callback (length: {})", session_id,
+        spdlog::debug("[WebRTC:{}] SDP answer received via callback (length: {})", session_id,
                      answer.length());
         return true;
       } catch (const std::exception& e) {
@@ -142,7 +142,7 @@ bool WaitForSdpAnswer(const std::string& session_id,
         std::string sdp = local_desc.generateSdp();
         if (sdp_answer_str != nullptr && sdp_answer_str->empty()) {
           *sdp_answer_str = sdp;
-          spdlog::info("[WebRTC:{}] Retrieved SDP answer directly (length: {})", session_id,
+          spdlog::debug("[WebRTC:{}] Retrieved SDP answer directly (length: {})", session_id,
                        sdp.length());
           return true;
         }

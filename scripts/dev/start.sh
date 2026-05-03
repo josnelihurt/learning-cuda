@@ -22,6 +22,7 @@ cd "$PROJECT_ROOT"
 BUILD_FIRST=false
 SHOW_HELP=false
 ACCELERATOR="cuda"
+CAMERAS=""
 V4L2_CAMERA=false
 NVIDIA_ARGUS_CAMERA=false
 BIRD_WATCH_ENABLED=true
@@ -80,6 +81,15 @@ parse_args() {
                 [ -z "${1:-}" ] && die "--accelerator requires a value (cuda|opencl|vulkan|full|cpu)"
                 ACCELERATOR="$1"
                 ;;
+            --cameras=*)
+                CAMERAS="${1#--cameras=}"
+                [ -z "$CAMERAS" ] && die "--cameras= requires a value (e.g. 0 or 0,1)"
+                ;;
+            --cameras)
+                shift
+                [ -z "${1:-}" ] && die "--cameras requires a value (e.g. 0 or 0,1)"
+                CAMERAS="$1"
+                ;;
             --v4l2-camera)
                 V4L2_CAMERA=true
                 ;;
@@ -132,6 +142,7 @@ print_help() {
     echo "                             cuda,opencl,vulkan — all GPU backends"
     echo "  --v4l2-camera            Enable V4L2 camera backend (USB cameras, x86/Jetson)"
     echo "  --nvidia-argus-camera    Enable NVIDIA Argus camera backend (MIPI CSI-2, Jetson only)"
+    echo "  --cameras IDS            Comma-separated sensor IDs to probe (default: 0,1)"
     echo "  --no-bird-watch          Disable background bird detection (on by default for dev)"
     echo "  --bird-watch             Force-enable bird detection (default is already on)"
     echo "  --bird-watch-threshold=N YOLO confidence threshold for bird watch (default 0.4)"
@@ -241,12 +252,17 @@ start_grpc() {
     else
         bird_flags="--bird_watch_enabled=false"
     fi
+    local camera_flags=""
+    if [ -n "$CAMERAS" ]; then
+        camera_flags="--cameras=${CAMERAS}"
+    fi
     "$GRPC_SERVER_BIN" \
         --control_addr=localhost:60062 \
         --client_cert="${PROJECT_ROOT}/.secrets/dev-accelerator-client.pem" \
         --client_key="${PROJECT_ROOT}/.secrets/dev-accelerator-client-key.pem" \
         --ca_cert="${PROJECT_ROOT}/.secrets/accelerator-ca.pem" \
         --captures_dir="$captures_dir" \
+        $camera_flags \
         $bird_flags \
         >"$DEV_LOG_GRPC" 2>&1 &
     GRPC_PID=$!

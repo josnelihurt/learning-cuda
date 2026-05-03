@@ -1,17 +1,23 @@
 #include "src/cpp_accelerator/core/logger.h"
 
-#include <cstdlib>
 #include <cctype>
+#include <cstdarg>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#include <spdlog/sinks/basic_file_sink.h> 
+#include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavutil/log.h>
+}
 
 #include "src/cpp_accelerator/core/otel_log_sink.h"
 
@@ -126,6 +132,34 @@ void initialize_logger(const std::string& otlp_endpoint, bool remote_enabled,
   } catch (const std::exception& ex) {
     std::cerr << "FATAL: Logger initialization failed: " << ex.what() << std::endl;
   }
+}
+
+void configure_ffmpeg_logging() {
+  static bool configured = false;
+  if (configured) return;
+
+  av_log_set_callback([](void* /*ptr*/, int level, const char* fmt, va_list vl) {
+    if (level > av_log_get_level()) return;
+
+    if (fmt) {
+      std::string fmt_str = fmt;
+      if (fmt_str.find("decode_slice_header") != std::string::npos ||
+          fmt_str.find("non-existing PPS") != std::string::npos ||
+          fmt_str.find("non-existing SPS") != std::string::npos) {
+        return;
+      }
+    }
+
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), fmt, vl);
+    std::string msg(buf);
+    while (!msg.empty() && (msg.back() == '\n' || msg.back() == '\r')) {
+      msg.pop_back();
+    }
+    spdlog::warn("[ffmpeg] {}", msg);
+  });
+  av_log_set_level(AV_LOG_WARNING);
+  configured = true;
 }
 
 }  // namespace jrb::core

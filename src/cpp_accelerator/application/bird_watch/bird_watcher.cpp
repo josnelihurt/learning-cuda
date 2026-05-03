@@ -17,6 +17,7 @@ extern "C" {
 
 #include <spdlog/spdlog.h>
 
+#include "src/cpp_accelerator/core/logger.h"
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/domain/interfaces/image_sink.h"
@@ -29,6 +30,7 @@ using cuda_learning::ACCELERATOR_TYPE_CUDA;
 using cuda_learning::FILTER_TYPE_MODEL_INFERENCE;
 using cuda_learning::ProcessImageRequest;
 using cuda_learning::ProcessImageResponse;
+using jrb::core::configure_ffmpeg_logging;
 
 std::string AvErrorToString(int error_code) {
   char buffer[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -195,6 +197,8 @@ void BirdWatcher::InitDecoder() {
   if (decoder_context_ != nullptr) {
     return;
   }
+
+  configure_ffmpeg_logging();
   if (decoded_frame_ == nullptr) {
     decoded_frame_ = av_frame_alloc();
   }

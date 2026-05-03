@@ -12,4 +12,9 @@ namespace jrb::core {
 void initialize_logger(const std::string& otlp_endpoint = "", bool remote_enabled = false,
                        const std::string& environment = "development");
 
+// Route FFmpeg (libav) log output through spdlog instead of raw stderr.
+// Suppresses noisy startup warnings (decode_slice_header, non-existing PPS/SPS).
+// Call once after initialize_logger().
+void configure_ffmpeg_logging();
+
 }  // namespace jrb::core

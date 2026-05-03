@@ -22,10 +22,6 @@ extern "C" {
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/domain/interfaces/image_sink.h"
 
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-#include "src/cpp_accelerator/adapters/camera/gpu_frame_processor.h"
-#endif
-
 namespace jrb::application::bird_watch {
 
 namespace {
@@ -85,19 +81,7 @@ void BirdWatcher::Start() {
     return;
   }
 
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-  // On Jetson: try to get the GPU processor for direct RGBA delivery.
-  gpu_processor_ = camera_hub_->GetGpuFrameProcessor(config_.camera_sensor_id);
-  if (gpu_processor_) {
-    spdlog::info("[BirdWatcher] GPU direct path active — bypassing H.264 decode");
-    // Decoder is unused on the GPU path; free it early.
-    DestroyDecoder();
-    gpu_processor_->SetRgbCallback(
-        [this](const std::vector<uint8_t>& rgba, int w, int h) { OnRgbaFrame(rgba, w, h); });
-  } else {
-    spdlog::info("[BirdWatcher] No GpuFrameProcessor found — using H.264 decode path");
-  }
-#endif
+  ConnectGpuPath();
 
   worker_thread_ = std::thread([this] { WorkerLoop(); });
 }
@@ -108,12 +92,7 @@ void BirdWatcher::Stop() {
     DestroyDecoder();
     return;
   }
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-  if (gpu_processor_) {
-    gpu_processor_->SetRgbCallback(nullptr);
-    gpu_processor_ = nullptr;
-  }
-#endif
+  DisconnectGpuPath();
   queue_cv_.notify_all();
   if (worker_thread_.joinable()) {
     worker_thread_.join();

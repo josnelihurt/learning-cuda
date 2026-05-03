@@ -4,10 +4,6 @@
 // Orchestrates: NVMM map → NV12→RGBA (CUDA) → optional GPU filters →
 //               RGBA→NV12 (CUDA) → EncodePipeline (H.264 for WebRTC)
 // Optionally downloads RGBA to host for BirdWatcher YOLO inference.
-//
-// Only compiled when CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED is defined.
-
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
 
 #include <cstdint>
 #include <functional>
@@ -15,8 +11,11 @@
 #include <string>
 #include <vector>
 
-#include <gst/gst.h>
 #include <rtc/rtc.hpp>
+
+// GstBuffer is defined in GStreamer; forward-declared here so this header
+// compiles without GStreamer on x86.  The full type is only required in .cpp.
+struct GstBuffer;
 
 namespace jrb::adapters::camera {
 
@@ -68,5 +67,3 @@ class GpuFrameProcessor {
 };
 
 }  // namespace jrb::adapters::camera
-
-#endif  // CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED

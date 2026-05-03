@@ -1,7 +1,5 @@
 #include "src/cpp_accelerator/adapters/camera/encode_pipeline.h"
 
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-
 #include <cstring>
 
 #include <gst/gst.h>
@@ -217,5 +215,3 @@ bool EncodePipeline::PushFrame(const uint8_t* nv12_host, int width, int height,
 }
 
 }  // namespace jrb::adapters::camera
-
-#endif  // CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED

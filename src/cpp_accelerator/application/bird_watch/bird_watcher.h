@@ -72,6 +72,9 @@ class BirdWatcher {
   // GPU RGBA callback: used on Jetson / NvidiaArgusBackend path.
   void OnRgbaFrame(const std::vector<uint8_t>& rgba, int width, int height);
 
+  void ConnectGpuPath();
+  void DisconnectGpuPath();
+
   void WorkerLoop();
   void ProcessQueuedFrame(rtc::binary data, rtc::FrameInfo info);
   void ProcessRgbaFrame(std::vector<uint8_t> rgba, int width, int height);

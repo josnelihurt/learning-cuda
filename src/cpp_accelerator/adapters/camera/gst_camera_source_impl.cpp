@@ -96,15 +96,4 @@ rtc::binary GstCameraSourceImpl::GrabStillFrame(int* out_width, int* out_height)
   return active_backend_->GrabStillFrame(out_width, out_height);
 }
 
-GpuFrameProcessor* GstCameraSourceImpl::GetGpuFrameProcessor() {
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-  if (!active_backend_) return nullptr;
-  auto* argus = dynamic_cast<NvidiaArgusBackend*>(active_backend_.get());
-  if (!argus) return nullptr;
-  return argus->GetGpuFrameProcessor();
-#else
-  return nullptr;
-#endif
-}
-
 }  // namespace jrb::adapters::camera

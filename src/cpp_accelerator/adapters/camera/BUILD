@@ -37,10 +37,6 @@ cc_library(
     }),
     hdrs = ["nvbuf_cuda_utils.h"],
     visibility = ["//visibility:public"],
-    defines = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
-        "//conditions:default": [],
-    }),
     copts = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
             "-I/usr/include/gstreamer-1.0",
@@ -74,10 +70,6 @@ cc_library(
     }),
     hdrs = ["encode_pipeline.h"],
     visibility = ["//visibility:public"],
-    defines = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
-        "//conditions:default": [],
-    }),
     copts = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
             "-I/usr/include/gstreamer-1.0",
@@ -115,10 +107,6 @@ cc_library(
     }),
     hdrs = ["gpu_frame_processor.h"],
     visibility = ["//visibility:public"],
-    defines = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
-        "//conditions:default": [],
-    }),
     copts = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
             "-I/usr/include/gstreamer-1.0",
@@ -154,7 +142,10 @@ cc_library(
         "gst_camera_source.cpp",
         "gst_camera_source_impl.cpp",
         "gst_camera_source_impl.h",
-    ],
+    ] + select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["gst_camera_source_impl_gpu_argus.cpp"],
+        "//conditions:default": ["gst_camera_source_impl_gpu_stub.cpp"],
+    }),
     hdrs = ["gst_camera_source.h"],
     visibility = ["//visibility:public"],
     defines = select({

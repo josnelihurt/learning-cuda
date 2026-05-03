@@ -2,13 +2,12 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "bird_watcher",
-    srcs = ["bird_watcher.cpp"],
+    srcs = ["bird_watcher.cpp"] + select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["bird_watcher_gpu_argus.cpp"],
+        "//conditions:default": ["bird_watcher_gpu_stub.cpp"],
+    }),
     hdrs = ["bird_watcher.h"],
     visibility = ["//visibility:public"],
-    defines = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": ["CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED"],
-        "//conditions:default": [],
-    }),
     deps = [
         "//proto:image_processor_service_cc_proto",
         "//src/cpp_accelerator/adapters/camera:camera_hub",

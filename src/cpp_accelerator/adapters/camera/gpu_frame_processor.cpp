@@ -1,7 +1,5 @@
 #include "src/cpp_accelerator/adapters/camera/gpu_frame_processor.h"
 
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-
 #include <cuda_runtime.h>
 #include <mutex>
 
@@ -178,5 +176,3 @@ void GpuFrameProcessor::Process(GstBuffer* nvmm_buf, uint32_t rtp_ts) {
 }
 
 }  // namespace jrb::adapters::camera
-
-#endif  // CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED

@@ -1,10 +1,6 @@
 #pragma once
 
 // NvBufSurface-based NVMM buffer mapping utilities for Jetson (Argus pipeline).
-// Only compiled when CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED is defined.
-
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-
 #include <cstdint>
 #include <gst/gst.h>
 
@@ -34,5 +30,3 @@ bool MapNvmmBuffer(GstBuffer* buf, GstMapInfo* map_info, NvmmFrame* out);
 void UnmapNvmmBuffer(GstBuffer* buf, GstMapInfo* map_info);
 
 }  // namespace jrb::adapters::camera
-
-#endif  // CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED

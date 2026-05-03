@@ -1,7 +1,5 @@
 #include "src/cpp_accelerator/adapters/camera/nvbuf_cuda_utils.h"
 
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-
 #include <nvbufsurface.h>
 #include <spdlog/spdlog.h>
 
@@ -59,5 +57,3 @@ void UnmapNvmmBuffer(GstBuffer* buf, GstMapInfo* map_info) {
 }
 
 }  // namespace jrb::adapters::camera
-
-#endif  // CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED

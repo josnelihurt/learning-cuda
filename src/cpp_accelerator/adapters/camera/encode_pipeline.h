@@ -4,10 +4,6 @@
 // Used by GpuFrameProcessor to restore the H.264 stream for WebRTC after
 // GPU-space processing on the NV12 frames.
 //
-// Only compiled when CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED is defined.
-
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -55,5 +51,3 @@ class EncodePipeline {
 };
 
 }  // namespace jrb::adapters::camera
-
-#endif  // CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED

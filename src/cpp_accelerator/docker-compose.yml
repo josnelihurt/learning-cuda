@@ -41,6 +41,7 @@ services:
       - "--bird_watch_max_per_minute=${BIRD_WATCH_MAX_PER_MINUTE:-5}"
       - "--bird_watch_min_interval_s=${BIRD_WATCH_MIN_INTERVAL_S:-5}"
       - "--bird_watch_camera_id=${BIRD_WATCH_CAMERA_ID:-0}"
+      - "--cameras=0"
 
     # Camera device pass-through for Jetson Argus camera framework.
     # nvarguscamerasrc requires access to Tegra platform devices in addition to

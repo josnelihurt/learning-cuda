@@ -63,43 +63,6 @@ cc_library(
 )
 
 cc_library(
-    name = "encode_pipeline",
-    srcs = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": ["encode_pipeline.cpp"],
-        "//conditions:default": [],
-    }),
-    hdrs = ["encode_pipeline.h"],
-    visibility = ["//visibility:public"],
-    copts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-I/usr/include/gstreamer-1.0",
-            "-I/usr/include/glib-2.0",
-        ],
-        "//conditions:default": [],
-    }),
-    deps = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "//third_party/glib-config:glibconfig",
-            "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
-            "@spdlog",
-        ],
-        "//conditions:default": [
-            "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
-            "@spdlog",
-        ],
-    }),
-    linkopts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-lgstreamer-1.0",
-            "-lgstapp-1.0",
-            "-lgobject-2.0",
-            "-lglib-2.0",
-        ],
-        "//conditions:default": [],
-    }),
-)
-
-cc_library(
     name = "gpu_frame_processor",
     srcs = select({
         "//bazel/flags:nvidia_argus_camera_enabled": ["gpu_frame_processor.cpp"],
@@ -115,10 +78,8 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
-        ":encode_pipeline",
         ":nvbuf_cuda_utils",
         "//src/cpp_accelerator/adapters/compute/cuda/kernels:kernels",
-        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
         "@spdlog",
     ] + select({
         "//bazel/flags:nvidia_argus_camera_enabled": [

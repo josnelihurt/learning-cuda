@@ -190,16 +190,20 @@ struct NvidiaArgusBackend::Impl {
   std::atomic<bool> running{false};
   int active_sensor_id{-1};
   GstElement* pipeline{nullptr};
-  GstElement* proc_sink{nullptr};   // continuous NV12 NVMM callbacks (GPU branch)
-  GstElement* still_sink{nullptr};  // pull-on-demand for full-res NV12 stills
+  GstElement* still_sink{nullptr};   // pull-on-demand for full-res NV12 stills
+  GstElement* raw_sink{nullptr};     // 720p NV12 NVMM tap for GpuFrameProcessor (BirdWatcher RGB)
+  GstElement* stream_sink{nullptr};  // 720p H.264 access units for WebRTC streaming
   std::thread bus_thread;
 
-  // GPU pipeline: NVMM → CUDA kernels → EncodePipeline (H.264) → cb
+  // RGBA tap for BirdWatcher; idle (no GPU/CPU work) until SetRgbCallback is set.
   std::unique_ptr<GpuFrameProcessor> gpu_processor;
   int encode_width{0};
   int encode_height{0};
 
-  static GstFlowReturn OnNewSample(GstAppSink* sink, gpointer user_data) {
+  // raw_sink: hand the NVMM buffer to GpuFrameProcessor.  When BirdWatcher has
+  // not registered an RgbCallback, Process() short-circuits without touching
+  // the buffer, so this branch is essentially free for the streaming path.
+  static GstFlowReturn OnRawSample(GstAppSink* sink, gpointer user_data) {
     auto* impl = static_cast<Impl*>(user_data);
     if (!impl->running.load()) return GST_FLOW_OK;
 
@@ -212,19 +216,59 @@ struct NvidiaArgusBackend::Impl {
       return GST_FLOW_OK;
     }
 
-    // Extract RTP timestamp from PTS (µs units, matching the old H.264 path).
     const GstClockTime pts = GST_BUFFER_PTS(buf);
     const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts)
                                 ? static_cast<uint32_t>(pts / 1000u)
                                 : 0u;
 
-    // Pass NVMM buffer directly to GPU processor — sample must remain alive
-    // until Process() returns so the NvBufSurface backing stays valid.
     if (impl->gpu_processor) {
       impl->gpu_processor->Process(buf, rtp_ts);
     }
 
     gst_sample_unref(sample);
+    return GST_FLOW_OK;
+  }
+
+  // stream_sink: emit one H.264 Annex B access unit per buffer to subscribers
+  // (CameraHub fan-out -> WebRTC LiveVideoProcessor).
+  static GstFlowReturn OnStreamSample(GstAppSink* sink, gpointer user_data) {
+    auto* impl = static_cast<Impl*>(user_data);
+    if (!impl->running.load()) return GST_FLOW_OK;
+
+    GstSample* sample = gst_app_sink_pull_sample(sink);
+    if (!sample) return GST_FLOW_OK;
+
+    GstBuffer* buf = gst_sample_get_buffer(sample);
+    if (!buf) {
+      gst_sample_unref(sample);
+      return GST_FLOW_OK;
+    }
+
+    GstMapInfo map;
+    if (!gst_buffer_map(buf, &map, GST_MAP_READ)) {
+      gst_sample_unref(sample);
+      return GST_FLOW_OK;
+    }
+
+    rtc::binary data(reinterpret_cast<const std::byte*>(map.data),
+                     reinterpret_cast<const std::byte*>(map.data) + map.size);
+
+    const GstClockTime pts = GST_BUFFER_PTS(buf);
+    const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts)
+                                ? static_cast<uint32_t>(pts / 1000u)
+                                : 0u;
+    rtc::FrameInfo info{rtp_ts};
+
+    gst_buffer_unmap(buf, &map);
+    gst_sample_unref(sample);
+
+    if (impl->cb) {
+      try {
+        impl->cb(std::move(data), info);
+      } catch (const std::exception& e) {
+        spdlog::warn("[NvidiaArgusBackend] Stream callback threw: {}", e.what());
+      }
+    }
     return GST_FLOW_OK;
   }
 
@@ -262,14 +306,17 @@ struct NvidiaArgusBackend::Impl {
     }
     active_sensor_id = -1;
     // Stop the pipeline first so all GStreamer streaming threads (and thus all
-    // OnNewSample callbacks) drain before we destroy gpu_processor.
-    // Destroying gpu_processor while OnNewSample is still running causes
-    // a use-after-free.
+    // appsink callbacks) drain before we destroy gpu_processor.  Destroying
+    // gpu_processor while OnRawSample is still running would be a use-after-free.
     if (pipeline) {
       gst_element_set_state(pipeline, GST_STATE_NULL);
-      if (proc_sink) {
-        gst_object_unref(proc_sink);
-        proc_sink = nullptr;
+      if (raw_sink) {
+        gst_object_unref(raw_sink);
+        raw_sink = nullptr;
+      }
+      if (stream_sink) {
+        gst_object_unref(stream_sink);
+        stream_sink = nullptr;
       }
       if (still_sink) {
         gst_object_unref(still_sink);
@@ -278,7 +325,6 @@ struct NvidiaArgusBackend::Impl {
       gst_object_unref(pipeline);
       pipeline = nullptr;
     }
-    // Safe to destroy now: no more OnNewSample callbacks can fire.
     if (gpu_processor) {
       gpu_processor->Stop();
       gpu_processor.reset();
@@ -382,14 +428,6 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   // fps is informational only; the sensor drives the clock at kSensorFps.
   (void)fps;
 
-  const bool has_h264parse = HasGstElement("h264parse");
-  if (!has_h264parse) {
-    spdlog::warn(
-        "[NvidiaArgusBackend] GStreamer element 'h264parse' not found; "
-        "continuing without parser in Argus pipeline");
-  }
-  (void)has_h264parse;  // proc_sink branch no longer uses h264parse
-
   // AWB workaround for Arducam IMX477: stock ISP tuning + wbmode=auto produces
   // a strong cyan cast on mixed indoor/window-light scenes. Lock to a fixed
   // preset. Override per-deploy with NVARGUS_WBMODE; default 4 (warm-fluorescent).
@@ -398,22 +436,31 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
 
   // Build pipeline string.
   //
-  // Architecture:
-  //   nvarguscamerasrc (4056×3040 @ 15fps, full sensor readout)
-  //     → tee
-  //         still_sink branch : raw NV12 frames, pull-on-demand for BMP stills
-  //         proc_sink branch  : nvvidconv downscale → NV12 NVMM → GpuFrameProcessor
-  //                               (GPU kernels + EncodePipeline → H.264 → WebRTC)
+  // Architecture (three tee branches off the full-sensor source):
   //
-  // The proc_sink branch keeps NVMM through the VIC downscaler.  GpuFrameProcessor
-  // maps the NVMM buffer to CUDA device pointers, runs NV12↔RGBA kernels, and
-  // re-encodes via a dedicated GStreamer software pipeline (EncodePipeline).
-  // This eliminates the encode→decode H.264 round-trip previously required to get
-  // RGB frames for BirdWatcher YOLO inference.
+  //   nvarguscamerasrc (4056x3040 @ 15fps, full sensor readout)
+  //     -> tee
+  //         still_sink   : full-res NV12 (system memory), pull-on-demand BMP stills
+  //         raw_sink     : 720p NV12 NVMM, fed to GpuFrameProcessor for the
+  //                        BirdWatcher RGBA tap.  When no RgbCallback is
+  //                        registered, Process() short-circuits and pays no
+  //                        GPU/CPU cost, so this branch is effectively idle
+  //                        for the streaming-only case.
+  //         stream_sink  : 720p I420 -> x264enc -> h264parse, emitting one
+  //                        Annex B access unit per buffer to the WebRTC
+  //                        LiveVideoProcessor.  This is the H.264 stream the
+  //                        front end consumes; no extra encode/decode round
+  //                        trip on the camera side.
+  const bool has_h264parse = HasGstElement("h264parse");
+  if (!has_h264parse) {
+    spdlog::warn(
+        "[NvidiaArgusBackend] GStreamer element 'h264parse' not found; "
+        "stream_sink will emit raw x264enc output without AU framing");
+  }
+
   std::string pipeline;
   pipeline.reserve(2048);
 
-  // Source — always full sensor resolution at sensor native fps.
   pipeline += "nvarguscamerasrc sensor-id=" + std::to_string(sensor_id);
   pipeline += " wbmode=" + std::to_string(wbmode) + " ! ";
   pipeline += "video/x-raw(memory:NVMM)";
@@ -423,11 +470,9 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   pipeline += ",format=NV12 ! ";
   pipeline += "tee name=cam_tee ";
 
-  // Still-capture branch: nvvidconv normalizes the NVMM pitch to stride=width in
-  // system memory so gst_buffer_map gives linear NV12 without alignment padding.
-  // nvvidconv uses the VIC hardware block (effectively free on Jetson).
-  // The leaky queue (downstream, max 1 buffer) keeps only the latest frame so
-  // GrabStillFrame always returns a fresh ~67 ms-old frame regardless of pull cadence.
+  // still_sink: VIC normalizes pitch to stride=width in system memory so
+  // gst_buffer_map gives linear NV12 without padding.  Leaky queue keeps only
+  // the freshest frame so GrabStillFrame is always close to real time.
   pipeline += "cam_tee. ! queue leaky=2 max-size-buffers=1 ! ";
   pipeline += "nvvidconv ! ";
   pipeline += "video/x-raw,width=" + std::to_string(kSensorWidth);
@@ -435,15 +480,33 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   pipeline += ",format=NV12 ! ";
   pipeline += "appsink name=still_sink emit-signals=false sync=false max-buffers=1 drop=true ";
 
-  // proc_sink branch: VIC hardware downscale to encode resolution, keep in NVMM.
-  // GpuFrameProcessor owns the H.264 re-encode (via EncodePipeline) after this.
-  pipeline += "cam_tee. ! ";
+  // raw_sink: VIC downscale, keep NVMM.  Drop-on-overrun so the streaming
+  // branch never blocks on BirdWatcher's CUDA work.
+  pipeline += "cam_tee. ! queue leaky=2 max-size-buffers=2 ! ";
   pipeline += "nvvidconv ! ";
   pipeline += "video/x-raw(memory:NVMM)";
   pipeline += ",width="  + std::to_string(encode_w);
   pipeline += ",height=" + std::to_string(encode_h);
   pipeline += ",format=NV12 ! ";
-  pipeline += "appsink name=proc_sink emit-signals=true max-buffers=2 drop=true";
+  pipeline += "appsink name=raw_sink emit-signals=true max-buffers=2 drop=true ";
+
+  // stream_sink: download to system memory I420 (Orin Nano has no NVENC, so
+  // we have to leave NVMM here) and encode H.264 with x264enc.  config-interval=-1
+  // keeps SPS/PPS at the head only because we have no IDRs (intra-refresh).
+  pipeline += "cam_tee. ! queue leaky=2 max-size-buffers=2 ! ";
+  pipeline += "nvvidconv ! ";
+  pipeline += "video/x-raw,format=I420";
+  pipeline += ",width="  + std::to_string(encode_w);
+  pipeline += ",height=" + std::to_string(encode_h);
+  pipeline += " ! ";
+  pipeline += "x264enc tune=zerolatency speed-preset=ultrafast bitrate=2000 ";
+  pipeline += "vbv-buf-capacity=400 intra-refresh=true key-int-max=60 ! ";
+  pipeline += "video/x-h264,profile=baseline ! ";
+  if (has_h264parse) {
+    pipeline += "h264parse config-interval=-1 ! ";
+    pipeline += "video/x-h264,stream-format=byte-stream,alignment=au ! ";
+  }
+  pipeline += "appsink name=stream_sink emit-signals=true max-buffers=2 drop=true";
 
   spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline);
 
@@ -461,23 +524,36 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
     g_error_free(err);
   }
 
-  impl_->proc_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "proc_sink");
-  if (!impl_->proc_sink) {
-    if (error_message) *error_message = "Failed to find proc_sink element";
-    spdlog::error("[NvidiaArgusBackend] proc_sink element not found");
+  impl_->stream_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "stream_sink");
+  if (!impl_->stream_sink) {
+    if (error_message) *error_message = "Failed to find stream_sink element";
+    spdlog::error("[NvidiaArgusBackend] stream_sink element not found");
     impl_->Cleanup();
     return false;
   }
 
+  impl_->raw_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "raw_sink");
+  if (!impl_->raw_sink) {
+    spdlog::warn(
+        "[NvidiaArgusBackend] raw_sink element not found; BirdWatcher GPU RGBA tap unavailable");
+  }
+
   impl_->still_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "still_sink");
   if (!impl_->still_sink) {
-    // Non-fatal: still capture won't work but streaming can continue.
     spdlog::warn("[NvidiaArgusBackend] still_sink element not found; still capture unavailable");
   }
 
-  GstAppSinkCallbacks callbacks{};
-  callbacks.new_sample = &Impl::OnNewSample;
-  gst_app_sink_set_callbacks(GST_APP_SINK(impl_->proc_sink), &callbacks, impl_.get(), nullptr);
+  GstAppSinkCallbacks stream_callbacks{};
+  stream_callbacks.new_sample = &Impl::OnStreamSample;
+  gst_app_sink_set_callbacks(GST_APP_SINK(impl_->stream_sink), &stream_callbacks, impl_.get(),
+                             nullptr);
+
+  if (impl_->raw_sink) {
+    GstAppSinkCallbacks raw_callbacks{};
+    raw_callbacks.new_sample = &Impl::OnRawSample;
+    gst_app_sink_set_callbacks(GST_APP_SINK(impl_->raw_sink), &raw_callbacks, impl_.get(),
+                               nullptr);
+  }
 
   GstStateChangeReturn ret = gst_element_set_state(impl_->pipeline, GST_STATE_PLAYING);
   if (ret == GST_STATE_CHANGE_FAILURE) {
@@ -523,13 +599,14 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   impl_->running = true;
   impl_->bus_thread = std::thread([this]() { impl_->BusLoop(); });
 
-  // Start GPU frame processor: maps NVMM → CUDA kernels → EncodePipeline (x264enc).
+  // GpuFrameProcessor is the BirdWatcher RGBA tap.  Idle (no-op) until
+  // BirdWatcher registers an RgbCallback via GetGpuFrameProcessor().
   impl_->encode_width  = encode_w;
   impl_->encode_height = encode_h;
   impl_->gpu_processor = std::make_unique<GpuFrameProcessor>();
   {
     std::string gfp_err;
-    if (!impl_->gpu_processor->Start(encode_w, encode_h, kSensorFps, impl_->cb, &gfp_err)) {
+    if (!impl_->gpu_processor->Start(encode_w, encode_h, &gfp_err)) {
       spdlog::error("[NvidiaArgusBackend] GpuFrameProcessor::Start failed: {}", gfp_err);
       impl_->running = false;
       if (impl_->bus_thread.joinable()) impl_->bus_thread.join();

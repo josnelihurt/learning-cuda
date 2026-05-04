@@ -21,29 +21,35 @@ struct GpuFrameProcessor::Impl {
   int height = 0;
 
   // Scratch CUDA device buffers.  Allocated once on first Process() call.
+  uint8_t* d_y_in     = nullptr;  // pitch × height       (input Y plane, H→D copy)
+  uint8_t* d_uv_in    = nullptr;  // pitch × (height/2)   (input UV plane, H→D copy)
   uint8_t* d_rgba     = nullptr;  // width × height × 4
   uint8_t* d_y_out    = nullptr;  // width × height      (processed Y plane)
   uint8_t* d_uv_out   = nullptr;  // width × (height/2)  (processed UV plane)
+
+  int pitch = 0;  // tracked separately (may differ from width)
 
   // Host staging buffers.
   std::vector<uint8_t> h_nv12;   // for EncodePipeline::PushFrame
   std::vector<uint8_t> h_rgba;   // for RgbCallback (allocated lazily)
 
-  bool AllocScratch(int w, int h) {
+  bool AllocScratch(int w, int h, int p) {
+    const bool dims_changed = (w != width || h != height || p != pitch);
+    if (d_rgba && !dims_changed) return true;
     if (d_rgba) {
-      if (w != width || h != height) {
-        spdlog::error("[GpuFrameProcessor] Frame dimensions changed {}x{} -> {}x{}; "
-                      "reallocating scratch buffers", width, height, w, h);
-        FreeScratch();
-      } else {
-        return true;
-      }
+      spdlog::error("[GpuFrameProcessor] Frame dimensions changed {}x{} pitch={} -> {}x{} pitch={}; "
+                    "reallocating scratch buffers", width, height, pitch, w, h, p);
+      FreeScratch();
     }
-    const size_t rgba_bytes = static_cast<size_t>(w) * h * 4;
-    const size_t y_bytes    = static_cast<size_t>(w) * h;
-    const size_t uv_bytes   = static_cast<size_t>(w) * (h / 2);
+    const size_t in_y_bytes  = static_cast<size_t>(p) * h;
+    const size_t in_uv_bytes = static_cast<size_t>(p) * (h / 2);
+    const size_t rgba_bytes  = static_cast<size_t>(w) * h * 4;
+    const size_t y_bytes     = static_cast<size_t>(w) * h;
+    const size_t uv_bytes    = static_cast<size_t>(w) * (h / 2);
 
-    if (cudaMalloc(&d_rgba, rgba_bytes) != cudaSuccess ||
+    if (cudaMalloc(&d_y_in, in_y_bytes) != cudaSuccess ||
+        cudaMalloc(&d_uv_in, in_uv_bytes) != cudaSuccess ||
+        cudaMalloc(&d_rgba, rgba_bytes) != cudaSuccess ||
         cudaMalloc(&d_y_out, y_bytes) != cudaSuccess ||
         cudaMalloc(&d_uv_out, uv_bytes) != cudaSuccess) {
       spdlog::error("[GpuFrameProcessor] cudaMalloc failed for scratch buffers");
@@ -52,15 +58,19 @@ struct GpuFrameProcessor::Impl {
     }
 
     h_nv12.resize(y_bytes + uv_bytes);
+    pitch = p;
     return true;
   }
 
   void FreeScratch() {
+    if (d_y_in)   { cudaFree(d_y_in);   d_y_in   = nullptr; }
+    if (d_uv_in)  { cudaFree(d_uv_in);  d_uv_in  = nullptr; }
     if (d_rgba)   { cudaFree(d_rgba);   d_rgba   = nullptr; }
     if (d_y_out)  { cudaFree(d_y_out);  d_y_out  = nullptr; }
     if (d_uv_out) { cudaFree(d_uv_out); d_uv_out = nullptr; }
     h_nv12.clear();
     h_rgba.clear();
+    pitch = 0;
   }
 };
 
@@ -115,14 +125,27 @@ void GpuFrameProcessor::Process(GstBuffer* nvmm_buf, uint32_t rtp_ts) {
   const int pitch = frame.pitch;
 
   // ── 2. Ensure scratch buffers exist ──────────────────────────────────────
-  if (!impl_->AllocScratch(w, h)) {
+  if (!impl_->AllocScratch(w, h, pitch)) {
     UnmapNvmmBuffer(nvmm_buf, &map_info);
     return;
   }
 
-  // ── 3. NV12 → RGBA (device) ──────────────────────────────────────────────
+  // ── 3. Copy NVMM planes (CPU virtual addr) → CUDA device buffers ─────────
+  //      NvBufSurfaceMap() gives host pointers; the kernel needs device ptrs.
+  const size_t in_y_bytes  = static_cast<size_t>(pitch) * h;
+  const size_t in_uv_bytes = static_cast<size_t>(pitch) * (h / 2);
+  if (cudaMemcpy(impl_->d_y_in, frame.y_ptr, in_y_bytes, cudaMemcpyHostToDevice) !=
+          cudaSuccess ||
+      cudaMemcpy(impl_->d_uv_in, frame.uv_ptr, in_uv_bytes, cudaMemcpyHostToDevice) !=
+          cudaSuccess) {
+    spdlog::error("[GpuFrameProcessor] NV12 H→D copy failed");
+    UnmapNvmmBuffer(nvmm_buf, &map_info);
+    return;
+  }
+
+  // ── 4. NV12 → RGBA (device) ──────────────────────────────────────────────
   cudaError_t cuda_err =
-      cuda_nv12_to_rgba_device(frame.y_ptr, frame.uv_ptr, pitch, impl_->d_rgba, w, h);
+      cuda_nv12_to_rgba_device(impl_->d_y_in, impl_->d_uv_in, pitch, impl_->d_rgba, w, h);
   if (cuda_err != cudaSuccess) {
     spdlog::error("[GpuFrameProcessor] cuda_nv12_to_rgba_device: {}",
                   cudaGetErrorString(cuda_err));
@@ -130,10 +153,10 @@ void GpuFrameProcessor::Process(GstBuffer* nvmm_buf, uint32_t rtp_ts) {
     return;
   }
 
-  // ── 4. Optional GPU filter kernels go here in the future ─────────────────
+  // ── 5. Optional GPU filter kernels go here in the future ─────────────────
   //      (grayscale / blur device-ptr overloads can be inserted here)
 
-  // ── 5. RGBA → NV12 (device), writing to scratch Y/UV planes ─────────────
+  // ── 6. RGBA → NV12 (device), writing to scratch Y/UV planes ─────────────
   //    Pitch for scratch output equals width (dense layout for EncodePipeline).
   cuda_err =
       cuda_rgba_to_nv12_device(impl_->d_rgba, impl_->d_y_out, impl_->d_uv_out, w, w, h);
@@ -144,7 +167,7 @@ void GpuFrameProcessor::Process(GstBuffer* nvmm_buf, uint32_t rtp_ts) {
     return;
   }
 
-  // ── 6. Download processed NV12 to host → EncodePipeline ─────────────────
+  // ── 7. Download processed NV12 to host → EncodePipeline ─────────────────
   {
     const size_t y_bytes  = static_cast<size_t>(w) * h;
     const size_t uv_bytes = static_cast<size_t>(w) * (h / 2);
@@ -160,7 +183,7 @@ void GpuFrameProcessor::Process(GstBuffer* nvmm_buf, uint32_t rtp_ts) {
     impl_->encode_pipeline->PushFrame(impl_->h_nv12.data(), w, h, rtp_ts);
   }
 
-  // ── 7. Optional RGBA download for RgbCallback (YOLO / BirdWatcher) ───────
+  // ── 8. Optional RGBA download for RgbCallback (YOLO / BirdWatcher) ───────
   {
     std::lock_guard<std::mutex> lk(impl_->rgb_cb_mutex);
     if (impl_->rgb_cb) {
@@ -179,7 +202,7 @@ void GpuFrameProcessor::Process(GstBuffer* nvmm_buf, uint32_t rtp_ts) {
     }
   }
 
-  // ── 8. Release NVMM mapping ───────────────────────────────────────────────
+  // ── 9. Release NVMM mapping ───────────────────────────────────────────────
   UnmapNvmmBuffer(nvmm_buf, &map_info);
 }
 

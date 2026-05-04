@@ -78,8 +78,11 @@ services:
       - /usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:/usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:ro
-      - /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2:ro
-      - /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so:ro
+      # libnvbuf_utils is not available via apt on this Jetson; the linker stub
+      # compiled into the image satisfies runtime loading. Re-add these mounts
+      # when the full JetPack multimedia package is installed on the host.
+      # - /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2:ro
+      # - /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so:ro
       - ${ACCELERATOR_MODELS_DIR:-./models}:/opt/cuda/grpc/data/models:rw
       - ${ACCELERATOR_CAPTURES_DIR:-./captures}:/app/captures:rw
 

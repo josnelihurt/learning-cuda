@@ -12,8 +12,12 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include <grpcpp/channel.h>
 #include <grpcpp/security/credentials.h>
+#include <grpcpp/support/channel_arguments.h>
 #pragma GCC diagnostic pop
+
+#include <grpc/grpc.h>
 
 #include "proto/_virtual_imports/common_proto/common.pb.h"
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
@@ -132,7 +136,12 @@ bool AcceleratorControlClient::RunOnce() {
     creds = grpc::InsecureChannelCredentials();
   }
 
-  auto channel = grpc::CreateChannel(config_.control_addr, creds);
+  // Keepalive args keep the long-lived stream alive through NAT/firewall idle timeouts.
+  grpc::ChannelArguments ch_args;
+  ch_args.SetInt(GRPC_ARG_KEEPALIVE_TIME_MS, 30'000);
+  ch_args.SetInt(GRPC_ARG_KEEPALIVE_TIMEOUT_MS, 10'000);
+  ch_args.SetInt(GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS, 1);
+  auto channel = grpc::CreateCustomChannel(config_.control_addr, creds, ch_args);
   auto stub = AcceleratorControlService::NewStub(channel);
 
   grpc::ClientContext ctx;

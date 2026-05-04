@@ -43,8 +43,6 @@ type Deps struct {
 	UploadImageUC         useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
 	ListVideosUC          useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
 	UploadVideoUC         useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
-	StartVideoPlaybackUC  useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput]
-	StopVideoPlaybackUC   useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput]
 
 	// Infrastructure
 	AcceleratorGateway *processor.AcceleratorGateway
@@ -75,12 +73,6 @@ func New(ctx context.Context, deps Deps) (*App, error) {
 	}
 	if deps.ListInputsUC == nil {
 		return nil, errors.New("list inputs use case is required")
-	}
-	if deps.StartVideoPlaybackUC == nil {
-		return nil, errors.New("start video playback use case is required")
-	}
-	if deps.StopVideoPlaybackUC == nil {
-		return nil, errors.New("stop video playback use case is required")
 	}
 	if deps.ListAvailableImagesUC == nil {
 		return nil, errors.New("list available images use case is required")
@@ -146,11 +138,6 @@ func (a *App) setupObservability(mux *http.ServeMux) {
 }
 
 func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
-	videoPlaybackHandler := connectrpc.NewVideoPlaybackHandler(
-		a.StartVideoPlaybackUC,
-		a.StopVideoPlaybackUC,
-	)
-
 	connectrpc.RegisterConfigService(
 		mux,
 		connectrpc.ConfigHandlerDeps{
@@ -179,8 +166,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 		a.interceptors...,
 	)
 
-	connectrpc.RegisterVideoPlaybackService(mux, videoPlaybackHandler, a.interceptors...)
-
 	connectrpc.RegisterRemoteManagementService(
 		mux,
 		a.AcceleratorGateway,
@@ -190,7 +175,6 @@ func (a *App) setupConnectRPCServices(mux *http.ServeMux) {
 	)
 
 	transcoder := connectrpc.SetupVanguardTranscoder(&connectrpc.VanguardConfig{
-		VideoPlaybackHandler:  videoPlaybackHandler,
 		FeatureFlagRepo:       a.FeatureFlagRepo,
 		ListInputsUC:          a.ListInputsUC,
 		GetSystemInfoUC:       a.GetSystemInfoUC,

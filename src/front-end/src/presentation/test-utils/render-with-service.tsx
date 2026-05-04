@@ -12,9 +12,6 @@ export function renderWithService(
   const root = createRoot(container);
 
   const value: GrpcClients = {
-    videoPlaybackClient:
-      overrides?.videoPlaybackClient ??
-      ({} as GrpcClients['videoPlaybackClient']),
     remoteManagementClient:
       overrides?.remoteManagementClient ??
       ({} as GrpcClients['remoteManagementClient']),

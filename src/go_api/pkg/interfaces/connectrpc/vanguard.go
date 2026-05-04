@@ -16,7 +16,6 @@ import (
 
 // VanguardConfig groups all dependencies needed to setup Vanguard transcoder
 type VanguardConfig struct {
-	VideoPlaybackHandler  *VideoPlaybackHandler
 	FeatureFlagRepo       featureFlagRepository
 	ListInputsUC          useCase[videoapp.ListInputsUseCaseInput, videoapp.ListInputsUseCaseOutput]
 	GetSystemInfoUC       useCase[systemapp.GetSystemInfoUseCaseInput, systemapp.GetSystemInfoUseCaseOutput]
@@ -39,10 +38,6 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 		opts = append(opts, connect.WithInterceptors(cfg.Interceptors...))
 	}
 
-	_, videoPlaybackConnectHandler := genconnect.NewVideoPlaybackServiceHandler(
-		cfg.VideoPlaybackHandler, opts...,
-	)
-
 	configHandler := NewConfigHandler(ConfigHandlerDeps{
 		FeatureFlagRepo:     cfg.FeatureFlagRepo,
 		ListInputsUC:        cfg.ListInputsUC,
@@ -59,7 +54,6 @@ func SetupVanguardTranscoder(cfg *VanguardConfig) http.Handler {
 	_, fileConnectHandler := genconnect.NewFileServiceHandler(fileHandler, opts...)
 
 	services := []*vanguard.Service{
-		vanguard.NewService(genconnect.VideoPlaybackServiceName, videoPlaybackConnectHandler),
 		vanguard.NewService(genconnect.ConfigServiceName, configConnectHandler),
 		vanguard.NewService(genconnect.FileServiceName, fileConnectHandler),
 	}

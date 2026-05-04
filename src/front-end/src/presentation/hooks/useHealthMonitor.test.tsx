@@ -56,7 +56,6 @@ describe('useHealthMonitor', () => {
     }
 
     const { unmount } = renderWithService(<Probe />, {
-      videoPlaybackClient: {} as GrpcClients['videoPlaybackClient'],
       remoteManagementClient: {
         checkAcceleratorHealth,
       } as unknown as GrpcClients['remoteManagementClient'],
@@ -101,7 +100,6 @@ describe('useHealthMonitor', () => {
     }
 
     const { unmount } = renderWithService(<Probe />, {
-      videoPlaybackClient: {} as GrpcClients['videoPlaybackClient'],
       remoteManagementClient: {
         checkAcceleratorHealth,
       } as unknown as GrpcClients['remoteManagementClient'],

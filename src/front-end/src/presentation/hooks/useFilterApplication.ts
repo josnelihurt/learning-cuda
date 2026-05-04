@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import type { ActiveFilterState } from '@/presentation/components/filters/FilterPanel';
 import type { IToastDisplay } from '@/infrastructure/transport/transport-types';
 import { FilterData, GrayscaleAlgorithm } from '@/domain/value-objects';
@@ -19,9 +19,7 @@ export type FilterApplicationResult =
   | { status: 'success' }
   | { status: 'error'; message: string };
 
-export function useFilterApplication(toastManager: IToastDisplay): { applyStaticFilters: (options: FilterApplicationOptions) => Promise<FilterApplicationResult>; applyVideoFilters: (options: FilterApplicationOptions) => Promise<FilterApplicationResult> } {
-  const pendingUpdateRef = useRef<{ sourceId: string; filters: ActiveFilterState[] } | null>(null);
-
+export function useFilterApplication(toastManager: IToastDisplay): { applyStaticFilters: (options: FilterApplicationOptions) => Promise<FilterApplicationResult> } {
   const mapFiltersToValueObjects = useCallback((filters: ActiveFilterState[]): FilterData[] => {
     return filters.map((filter) => new FilterData(filter.id, { ...filter.parameters }));
   }, []);
@@ -120,51 +118,5 @@ export function useFilterApplication(toastManager: IToastDisplay): { applyStatic
     [mapFiltersToValueObjects, toastManager]
   );
 
-  const applyVideoFilters = useCallback(
-    async (options: FilterApplicationOptions): Promise<FilterApplicationResult> => {
-      const { source, filters, accelerator } = options;
-
-      if (!source.transport || !source.transport.isConnected()) {
-        logger.error('Frame transport not connected for selected source', {
-          'source.id': source.id,
-        });
-        return { status: 'error', message: 'Transport not connected' };
-      }
-
-      const videoId = source.videoId || source.id;
-      pendingUpdateRef.current = { sourceId: source.id, filters };
-
-      source.transport.sendStopVideo(videoId);
-
-      await new Promise<void>((resolve) => {
-        setTimeout(() => {
-          const pending = pendingUpdateRef.current;
-          if (!pending || pending.sourceId !== source.id) {
-            resolve();
-            return;
-          }
-
-          if (source.transport?.isConnected()) {
-            source.transport.sendStartVideo(videoId, mapFiltersToValueObjects(pending.filters), accelerator);
-            pendingUpdateRef.current = null;
-          } else {
-            toastManager.error(
-              'Filter update failed',
-              'Could not restart video stream. Please try selecting the video again.'
-            );
-            logger.error('Video filter update failed - transport not ready', {
-              'source.id': source.id,
-              'video.id': videoId,
-            });
-          }
-          resolve();
-        }, 200);
-      });
-
-      return { status: 'success' };
-    },
-    [mapFiltersToValueObjects, toastManager]
-  );
-
-  return { applyStaticFilters, applyVideoFilters };
+  return { applyStaticFilters };
 }

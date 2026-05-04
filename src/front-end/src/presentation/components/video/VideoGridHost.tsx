@@ -87,7 +87,7 @@ export function VideoGridHost(): React.ReactNode {
     selectedAcceleratorRef,
     sourcesRef,
   });
-  const { applyStaticFilters, applyVideoFilters } = useFilterApplication(toastManager);
+  const { applyStaticFilters } = useFilterApplication(toastManager);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
@@ -121,7 +121,6 @@ export function VideoGridHost(): React.ReactNode {
     dispatch,
     sendCameraControlRequest,
     applyStaticFilters,
-    applyVideoFilters,
     toastManager,
   });
 

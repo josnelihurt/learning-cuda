@@ -19,7 +19,6 @@ import (
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/processor"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/version"
 	"github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/video"
-	webrtcinfra "github.com/jrb/cuda-learning/src/go_api/pkg/infrastructure/webrtc"
 )
 
 type Container struct {
@@ -35,8 +34,6 @@ type Container struct {
 	UploadImageUseCase                useCase[imageapp.UploadImageUseCaseInput, imageapp.UploadImageUseCaseOutput]
 	ListVideosUseCase                 useCase[videoapp.ListVideosUseCaseInput, videoapp.ListVideosUseCaseOutput]
 	UploadVideoUseCase                useCase[videoapp.UploadVideoUseCaseInput, videoapp.UploadVideoUseCaseOutput]
-	StartVideoPlaybackUseCase         useCase[videoapp.StartVideoPlaybackUseCaseInput, videoapp.StartVideoPlaybackUseCaseOutput]
-	StopVideoPlaybackUseCase          useCase[videoapp.StopVideoPlaybackUseCaseInput, videoapp.StopVideoPlaybackUseCaseOutput]
 
 	AcceleratorRegistry *processor.Registry
 	AcceleratorControl  *processor.ControlServer
@@ -115,20 +112,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 	listVideosUseCase := videoapp.NewListVideosUseCase(videoRepo)
 	uploadVideoUseCase := videoapp.NewUploadVideoUseCase(videoRepo, "data/videos", "data/video_previews")
 
-	sessionManager := videoapp.NewVideoSessionManager()
-	startVideoPlaybackUseCase := videoapp.NewStartVideoPlaybackUseCase(
-		ctx,
-		sessionManager,
-		videoRepo,
-		func(videoPath string) (videoapp.StreamVideoPlayer, error) {
-			return video.NewFFmpegVideoPlayer(videoPath)
-		},
-		func(browserSessionID string) (videoapp.StreamVideoPeer, error) {
-			return webrtcinfra.NewGoPeer(browserSessionID), nil
-		},
-	)
-	stopVideoPlaybackUseCase := videoapp.NewStopVideoPlaybackUseCase(sessionManager)
-
 	deviceMonitor := mqtt.NewDeviceMonitor(ctx, cfg.MQTT)
 
 	return &Container{
@@ -142,8 +125,6 @@ func New(ctx context.Context, configFile string) (*Container, error) {
 		UploadImageUseCase:                uploadImageUseCase,
 		ListVideosUseCase:                 listVideosUseCase,
 		UploadVideoUseCase:                uploadVideoUseCase,
-		StartVideoPlaybackUseCase:         startVideoPlaybackUseCase,
-		StopVideoPlaybackUseCase:          stopVideoPlaybackUseCase,
 		AcceleratorRegistry:               registry,
 		AcceleratorControl:                controlServer,
 		DeviceMonitor:                     deviceMonitor,

@@ -21,7 +21,6 @@ type SourceFilterSyncOptions = {
   dispatch: Dispatch<GridSourceAction>;
   sendCameraControlRequest: ReturnType<typeof useCameraTransport>['sendCameraControlRequest'];
   applyStaticFilters: ReturnType<typeof useFilterApplication>['applyStaticFilters'];
-  applyVideoFilters: ReturnType<typeof useFilterApplication>['applyVideoFilters'];
   toastManager: IToastDisplay;
 };
 
@@ -35,7 +34,6 @@ export function useSourceFilterSync({
   dispatch,
   sendCameraControlRequest,
   applyStaticFilters,
-  applyVideoFilters,
   toastManager,
 }: SourceFilterSyncOptions): void {
   useEffect(() => {
@@ -61,23 +59,6 @@ export function useSourceFilterSync({
         type: GridSourceActionType.SET_DETECTIONS,
         payload: { sourceId: selectedSource.id, detections: [], width: 0, height: 0 },
       });
-    }
-
-    if (selectedSource.type === 'video') {
-      void applyVideoFilters({
-        source: selectedSource,
-        filters: normalizedFilters,
-        accelerator: selectedAccelerator,
-        resolution: selectedResolution,
-        onSourceUpdate: (sourceId, updater) =>
-          dispatch({ type: GridSourceActionType.UPDATE_SOURCE, payload: { sourceId, updater } }),
-      }).then((result) => {
-        if (result.status === 'error') {
-          toastManager.error('Filter update failed', result.message);
-          logger.error('Video filter update failed', { 'source.id': selectedSource.id });
-        }
-      });
-      return;
     }
 
     if (selectedSource.type === 'camera' || selectedSource.type === 'remote_camera') {
@@ -119,7 +100,6 @@ export function useSourceFilterSync({
   }, [
     activeFilters,
     applyStaticFilters,
-    applyVideoFilters,
     dispatch,
     ready,
     selectedAccelerator,

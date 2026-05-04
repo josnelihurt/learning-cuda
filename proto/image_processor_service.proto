@@ -124,6 +124,7 @@ message GetAcceleratorCapabilitiesResponse {
   string device_id = 1 [json_name = "device_id"];
   string display_name = 2 [json_name = "display_name"];
   repeated AcceleratorOption supported_options = 3 [json_name = "supported_options"];
+  string version = 4 [json_name = "version"];
 }
 
 message KeepaliveRequest {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { useEffect } from 'react';
 import { act } from 'react';
 import { ConnectError, Code } from '@connectrpc/connect';
-import { ListFiltersResponse } from '@/gen/image_processor_service_pb';
+import { CheckAcceleratorHealthResponse, AcceleratorHealthStatus } from '@/gen/remote_management_service_pb';
 import { useAsyncGRPC } from '@/presentation/hooks/useAsyncGRPC';
 import { renderWithService } from '@/presentation/test-utils/render-with-service';
 import type { GrpcClients } from '@/presentation/context/service-context';
@@ -13,13 +13,15 @@ afterEach(() => {
 
 describe('useAsyncGRPC', () => {
   it('transitions loading to data on success', async () => {
-    const listFilters = vi.fn().mockResolvedValue(new ListFiltersResponse({}));
+    const checkHealth = vi.fn().mockResolvedValue(
+      new CheckAcceleratorHealthResponse({ status: AcceleratorHealthStatus.HEALTHY })
+    );
     const snapshots: { loading: boolean; data?: unknown }[] = [];
 
     function Probe(): React.ReactNode {
       const { data, loading } = useAsyncGRPC(
         async (clients, { signal }) =>
-          clients.videoPlaybackClient.startVideoPlayback({}, { signal }),
+          clients.remoteManagementClient.checkAcceleratorHealth({}, { signal }),
         []
       );
       snapshots.push({ loading, data });
@@ -27,13 +29,12 @@ describe('useAsyncGRPC', () => {
     }
 
     const { unmount } = renderWithService(<Probe />, {
-      videoPlaybackClient: { startVideoPlayback: listFilters } as unknown as GrpcClients['videoPlaybackClient'],
-      remoteManagementClient: {} as GrpcClients['remoteManagementClient'],
+      remoteManagementClient: { checkAcceleratorHealth: checkHealth } as unknown as GrpcClients['remoteManagementClient'],
     });
 
     await act(async () => {
       await vi.waitFor(() => {
-        expect(listFilters).toHaveBeenCalled();
+        expect(checkHealth).toHaveBeenCalled();
       });
     });
 
@@ -41,7 +42,7 @@ describe('useAsyncGRPC', () => {
       await Promise.resolve();
     });
 
-    expect(listFilters).toHaveBeenCalled();
+    expect(checkHealth).toHaveBeenCalled();
     const last = snapshots[snapshots.length - 1];
     expect(last?.loading).toBe(false);
     expect(last?.data).toBeDefined();
@@ -49,7 +50,7 @@ describe('useAsyncGRPC', () => {
   });
 
   it('maps ConnectError to stable error shape', async () => {
-    const listFilters = vi
+    const checkHealth = vi
       .fn()
       .mockRejectedValue(new ConnectError('rpc failed', Code.Unavailable));
     const errors: { message: string; code?: string }[] = [];
@@ -57,7 +58,7 @@ describe('useAsyncGRPC', () => {
     function Probe(): React.ReactNode {
       const { error, loading } = useAsyncGRPC(
         async (clients, { signal }) =>
-          clients.videoPlaybackClient.startVideoPlayback({}, { signal }),
+          clients.remoteManagementClient.checkAcceleratorHealth({}, { signal }),
         []
       );
       useEffect(() => {
@@ -69,8 +70,7 @@ describe('useAsyncGRPC', () => {
     }
 
     const { unmount } = renderWithService(<Probe />, {
-      videoPlaybackClient: { startVideoPlayback: listFilters } as unknown as GrpcClients['videoPlaybackClient'],
-      remoteManagementClient: {} as GrpcClients['remoteManagementClient'],
+      remoteManagementClient: { checkAcceleratorHealth: checkHealth } as unknown as GrpcClients['remoteManagementClient'],
     });
 
     await vi.waitFor(
@@ -86,13 +86,15 @@ describe('useAsyncGRPC', () => {
   });
 
   it('refetch runs executor again', async () => {
-    const listFilters = vi.fn().mockResolvedValue(new ListFiltersResponse({}));
+    const checkHealth = vi.fn().mockResolvedValue(
+      new CheckAcceleratorHealthResponse({ status: AcceleratorHealthStatus.HEALTHY })
+    );
     let refetch: (() => void) | undefined;
 
     function Probe(): React.ReactNode {
       const grpc = useAsyncGRPC(
         async (clients, { signal }) =>
-          clients.videoPlaybackClient.startVideoPlayback({}, { signal }),
+          clients.remoteManagementClient.checkAcceleratorHealth({}, { signal }),
         []
       );
       refetch = grpc.refetch;
@@ -100,12 +102,11 @@ describe('useAsyncGRPC', () => {
     }
 
     const { unmount } = renderWithService(<Probe />, {
-      videoPlaybackClient: { startVideoPlayback: listFilters } as unknown as GrpcClients['videoPlaybackClient'],
-      remoteManagementClient: {} as GrpcClients['remoteManagementClient'],
+      remoteManagementClient: { checkAcceleratorHealth: checkHealth } as unknown as GrpcClients['remoteManagementClient'],
     });
 
     await act(async () => {
-      await vi.waitFor(() => expect(listFilters).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(checkHealth).toHaveBeenCalledTimes(1));
     });
 
     await act(async () => {
@@ -113,7 +114,7 @@ describe('useAsyncGRPC', () => {
     });
 
     await act(async () => {
-      await vi.waitFor(() => expect(listFilters).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(checkHealth).toHaveBeenCalledTimes(2));
     });
 
     unmount();

@@ -10,8 +10,6 @@ export interface IFrameTransportService {
   sendFrameWithValueObjects(image: ImageData, filters: FilterData[], accelerator: AcceleratorType): void;
   sendFrameWithProcessingConfig(image: ImageData, filters: FilterData[], accelerator: AcceleratorType, grayscale: GrayscaleAlgorithm): void;
   sendSingleFrame(imageData: string, width: number, height: number, filters: FilterData[], accelerator: AcceleratorType): Promise<ProcessImageResponse>;
-  sendStartVideo(videoId: string, filters: FilterData[], accelerator: AcceleratorType): void;
-  sendStopVideo(videoId?: string): void;
   onFrameResult(callback: (data: ProcessImageResponse) => void): void;
   isConnected(): boolean;
   getConnectionStatus(): { state: 'connected' | 'disconnected' | 'connecting' | 'error'; lastRequest: string | null; lastRequestTime: Date | null };

@@ -187,12 +187,7 @@ export function useSourceTransportFactory({
           : [];
 
       if (transport) {
-        if (inputSource.type === 'video') {
-          waitForConnected(transport, () => {
-            dispatch({ type: GridSourceActionType.SET_CONNECTED, payload: { sourceId: uniqueId, connected: true } });
-            transport.sendStartVideo(inputSource.id, filtersToFilterData(filters), selectedAccelerator);
-          });
-        } else if (inputSource.type === 'remote_camera') {
+        if (inputSource.type === 'remote_camera') {
           waitForConnected(transport, () => {
             dispatch({ type: GridSourceActionType.SET_CONNECTED, payload: { sourceId: uniqueId, connected: true } });
             const sessionId = transport.getSessionId();

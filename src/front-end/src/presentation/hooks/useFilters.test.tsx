@@ -46,7 +46,6 @@ describe('useFilters', () => {
     }
 
     const { unmount } = renderWithService(<Probe />, {
-      videoPlaybackClient: {} as GrpcClients['videoPlaybackClient'],
       remoteManagementClient: {} as GrpcClients['remoteManagementClient'],
     });
 

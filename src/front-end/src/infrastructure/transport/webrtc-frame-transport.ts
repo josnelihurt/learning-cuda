@@ -1,8 +1,6 @@
-import { createPromiseClient, type PromiseClient } from '@connectrpc/connect';
 import { context, propagation } from '@opentelemetry/api';
 import type { IFrameTransportService } from '@/domain/interfaces/i-frame-transport-service';
 import { FilterData, GrayscaleAlgorithm, ImageData } from '@/domain/value-objects';
-import { VideoPlaybackService } from '@/gen/image_processor_service_connect';
 import {
   DataChannelRequest,
   DetectionFrame,
@@ -11,8 +9,6 @@ import {
   ProcessingStatsFrame,
   ProcessImageRequest,
   ProcessImageResponse,
-  StartVideoPlaybackRequest,
-  StopVideoPlaybackRequest,
 } from '@/gen/image_processor_service_pb';
 import {
   AcceleratorType,
@@ -22,7 +18,6 @@ import type { WebRTCSessionMode } from '@/domain/value-objects/webrtc-session';
 
 import { ChunkReassembler, nextMessageId, packMessage } from './data-channel-framing';
 import { webrtcService } from '@/infrastructure/connection/webrtc-service';
-import { createGrpcConnectTransport } from '@/infrastructure/grpc/create-grpc-transport';
 import { logger } from '@/infrastructure/observability/otel-logger';
 import { markStart, markEnd } from '@/infrastructure/observability/perf-mark';
 
@@ -120,7 +115,6 @@ async function rasterizeImageData(
 }
 
 export class WebRTCFrameTransportService implements IFrameTransportService {
-  private readonly client: PromiseClient<typeof VideoPlaybackService>;
   private sessionId: string | null = null;
   private frameResultCallback: FrameResultCallback | null = null;
   private detectionResultCallback: ((frame: DetectionFrame) => void) | null = null;
@@ -142,9 +136,7 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     private toastManager: IToastDisplay,
     private sessionMode: WebRTCSessionMode = 'frame-processing',
     private onRemoteStream?: (stream: MediaStream) => void
-  ) {
-    this.client = createPromiseClient(VideoPlaybackService, createGrpcConnectTransport());
-  }
+  ) {}
 
   connect(): void {
     void this.ensureConnected();
@@ -276,44 +268,6 @@ export class WebRTCFrameTransportService implements IFrameTransportService {
     }
 
     return pending;
-  }
-
-  sendStartVideo(videoId: string, filters: FilterData[], accelerator: AcceleratorType): void {
-    void this.ensureConnected()
-      .then(() => this.client.startVideoPlayback(new StartVideoPlaybackRequest({
-        videoId,
-        sessionId: this.sessionId ?? '',
-        filters: [],
-        accelerator,
-        genericFilters: toGenericFilterSelections(filters),
-        traceContext: buildTraceContext(),
-        apiVersion: '1.1',
-      })))
-      .then(() => {
-        this.lastRequest = 'StartVideoPlayback';
-        this.lastRequestTime = new Date();
-      })
-      .catch((error) => {
-        this.handleError('Failed to start video playback', error);
-      });
-  }
-
-  sendStopVideo(videoId?: string): void {
-    void videoId;
-    if (!this.sessionId) {
-      return;
-    }
-
-    void this.client.stopVideoPlayback(new StopVideoPlaybackRequest({
-      sessionId: this.sessionId,
-      traceContext: buildTraceContext(),
-      apiVersion: '1.1',
-    })).then(() => {
-      this.lastRequest = 'StopVideoPlayback';
-      this.lastRequestTime = new Date();
-    }).catch((error) => {
-      this.handleError('Failed to stop video playback', error);
-    });
   }
 
   onFrameResult(callback: (data: ProcessImageResponse) => void): void {

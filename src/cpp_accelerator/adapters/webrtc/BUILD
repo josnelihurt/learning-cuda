@@ -37,6 +37,39 @@ cc_test(
 )
 
 cc_library(
+    name = "webrtc_session_state",
+    hdrs = ["webrtc_session_state.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":data_channel_framing",
+        ":live_video_processor",
+        "//proto:image_processor_service_cc_proto",
+        "//src/cpp_accelerator/adapters/camera:camera_hub",
+        "//src/cpp_accelerator/adapters/camera:gst_camera_source",
+        "//src/cpp_accelerator/adapters/compute/cuda/memory:cuda_memory_pool",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+    ],
+)
+
+cc_library(
+    name = "control_message_dispatcher",
+    srcs = ["control_message_dispatcher.cpp"],
+    hdrs = ["control_message_dispatcher.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":webrtc_session_state",
+        "//proto:image_processor_service_cc_proto",
+        "//src/cpp_accelerator/adapters/camera:camera_hub",
+        "//src/cpp_accelerator/adapters/image_io:image_adapters",
+        "//src/cpp_accelerator/application/engine:engine",
+        "//src/cpp_accelerator/application/server_info:accelerator_label",
+        "//src/cpp_accelerator/application/server_info:server_info_provider",
+        "@com_github_paullouisageneau_libdatachannel//:libdatachannel",
+        "@spdlog",
+    ],
+)
+
+cc_library(
     name = "live_video_processor",
     srcs = ["live_video_processor.cpp"],
     hdrs = ["live_video_processor.h"],
@@ -62,19 +95,19 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":channel_labels",
+        ":control_message_dispatcher",
         ":data_channel_framing",
         ":live_video_processor",
         ":session_routing",
+        ":webrtc_session_state",
         "//proto:image_processor_service_cc_proto",
         "//src/cpp_accelerator/adapters/camera:camera_hub",
         "//src/cpp_accelerator/adapters/camera:gst_camera_source",
-        "//src/cpp_accelerator/adapters/image_io:image_adapters",
         "//src/cpp_accelerator/adapters/compute/cuda/memory:cuda_memory_pool",
         "//src/cpp_accelerator/adapters/webrtc/protocol:data_channel_envelope",
         "//src/cpp_accelerator/adapters/webrtc/protocol:filter_resolver",
         "//src/cpp_accelerator/adapters/webrtc/sdp:sdp_utils",
         "//src/cpp_accelerator/application/engine:engine",
-        "//src/cpp_accelerator/application/server_info:accelerator_label",
         "//src/cpp_accelerator/application/server_info:server_info_provider",
         "//src/cpp_accelerator/ports:i_media_session",
         "@com_github_paullouisageneau_libdatachannel//:libdatachannel",

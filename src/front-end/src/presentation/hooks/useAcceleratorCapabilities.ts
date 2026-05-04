@@ -19,7 +19,7 @@ export function useAcceleratorCapabilities() {
           return;
         }
         const nextOptions: AcceleratorOption[] = response.supportedOptions.map((option) => ({
-          label: `${response.displayName}: ${option.label}`,
+          label: `${response.displayName}: ${option.label}@v${response.version}`,
           value: option.type,
         }));
         setOptions(nextOptions);

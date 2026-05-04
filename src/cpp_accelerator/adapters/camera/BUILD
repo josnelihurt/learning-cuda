@@ -36,16 +36,9 @@ cc_library(
     }),
     hdrs = ["nvbuf_cuda_utils.h"],
     visibility = ["//visibility:public"],
-    copts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-I/usr/include/gstreamer-1.0",
-            "-I/usr/include/glib-2.0",
-        ],
-        "//conditions:default": [],
-    }),
     deps = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
-            "//third_party/glib-config:glibconfig",
+            "//third_party/gstreamer:gstreamer",
             "//third_party/nvbufsurface:nvbufsurface",
             "@spdlog",
         ],
@@ -53,9 +46,6 @@ cc_library(
     }),
     linkopts = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-lgstreamer-1.0",
-            "-lgobject-2.0",
-            "-lglib-2.0",
             "-lnvbuf_utils",
         ],
         "//conditions:default": [],
@@ -70,28 +60,13 @@ cc_library(
     }),
     hdrs = ["gpu_frame_processor.h"],
     visibility = ["//visibility:public"],
-    copts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-I/usr/include/gstreamer-1.0",
-            "-I/usr/include/glib-2.0",
-        ],
-        "//conditions:default": [],
-    }),
     deps = [
         ":nvbuf_cuda_utils",
         "//src/cpp_accelerator/adapters/compute/cuda/kernels:kernels",
         "@spdlog",
     ] + select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
-            "//third_party/glib-config:glibconfig",
-        ],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-lgstreamer-1.0",
-            "-lgobject-2.0",
-            "-lglib-2.0",
+            "//third_party/gstreamer:gstreamer",
         ],
         "//conditions:default": [],
     }),

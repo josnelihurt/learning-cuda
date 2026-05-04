@@ -38,15 +38,15 @@ sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
     libgstreamer-plugins-ugly1.0-dev gstreamer1.0-plugins-good
 ```
 
-`adapters/camera/BUILD` enables camera backends through `config_setting` labels. If neither `v4l2_camera_enabled` nor `nvidia_argus_camera_enabled` is active, only the stub backend is linked:
+Camera backends use `select()` at two levels — **which backend libraries to link** and **which `.cpp` files to compile**. If neither flag is active, only the stub backend is compiled and linked:
 
 ```python
-# adapters/camera/BUILD
+# adapters/camera/BUILD — which backend libraries to link
 cc_library(
     name = "backends",
     deps = [
-        ":camera_backend",
-        ":stub_backend",
+        "//src/cpp_accelerator/adapters/camera/backends:camera_backend",
+        "//src/cpp_accelerator/adapters/camera/backends:stub_backend",
     ] + select({
         "//bazel/flags:v4l2_camera_enabled": ["//src/cpp_accelerator/adapters/camera/backends:v4l2_backend"],
         "//conditions:default": [],
@@ -57,7 +57,28 @@ cc_library(
 )
 ```
 
-The same `select()`-without-`#ifdef` pattern applies: three `.cpp` files, one compiled, no conditional compilation in C++ source.
+```python
+# adapters/camera/backends/BUILD — which .cpp to compile
+cc_library(
+    name = "v4l2_backend",
+    srcs = select({
+        "//bazel/flags:v4l2_camera_enabled": ["v4l2_backend.cpp"],
+        "//conditions:default": [],
+    }),
+    hdrs = ["v4l2_backend.h"],
+    deps = [
+        ":camera_backend",
+        "@spdlog",
+    ] + select({
+        "//bazel/flags:v4l2_camera_enabled": [
+            "//third_party/gstreamer:gstreamer",
+        ],
+        "//conditions:default": [],
+    }),
+)
+```
+
+When the flag is off, `srcs` is empty — the `.cpp` is never compiled, so GStreamer headers are never needed. When the flag is on, the `//third_party/gstreamer:gstreamer` target provides all include paths and link flags as a single dependency.
 
 Examples:
 
@@ -387,7 +408,9 @@ No existing source files are modified — only `BUILD` files and new `.cpp` file
 | `composition/platform/platform_support.h` | Shared interface (3 functions) |
 | `composition/platform/platform_support_*.cpp` | One per backend combination |
 | `composition/platform/<backend>/<backend>_platform.h/cpp` | Per-backend `RegisterFactories()` |
+| `third_party/gstreamer/BUILD` | System GStreamer `cc_library` (headers + link flags) |
 | `adapters/camera/BUILD` | `select()` blocks choosing camera source per platform |
+| `adapters/camera/backends/BUILD` | Conditional `srcs` + GStreamer dep per camera flag |
 | `adapters/camera/gst_camera_source_stub.cpp` | No-op camera source (x86 default) |
 | `adapters/camera/gst_camera_source_v4l2.cpp` | V4L2 + GStreamer source (`--config=v4l2-camera`) |
 | `adapters/camera/backends/nvidia_argus_backend.cpp` | Jetson Argus backend (`--config=nvidia-argus-camera`) |

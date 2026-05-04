@@ -14,7 +14,10 @@ cc_library(
 # V4L2 backend (Linux V4L2 + GStreamer)
 cc_library(
     name = "v4l2_backend",
-    srcs = ["v4l2_backend.cpp"],
+    srcs = select({
+        "//bazel/flags:v4l2_camera_enabled": ["v4l2_backend.cpp"],
+        "//conditions:default": [],
+    }),
     hdrs = ["v4l2_backend.h"],
     visibility = ["//visibility:public"],
     deps = [
@@ -22,23 +25,7 @@ cc_library(
         "@spdlog",
     ] + select({
         "//bazel/flags:v4l2_camera_enabled": [
-            "//third_party/glib-config:glibconfig",
-        ],
-        "//conditions:default": [],
-    }),
-    copts = select({
-        "//bazel/flags:v4l2_camera_enabled": [
-            "-I/usr/include/gstreamer-1.0",
-            "-I/usr/include/glib-2.0",
-        ],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "//bazel/flags:v4l2_camera_enabled": [
-            "-lgstreamer-1.0",
-            "-lgstapp-1.0",
-            "-lgobject-2.0",
-            "-lglib-2.0",
+            "//third_party/gstreamer:gstreamer",
         ],
         "//conditions:default": [],
     }),
@@ -47,7 +34,10 @@ cc_library(
 # NVIDIA Argus backend (GStreamer nvarguscamerasrc)
 cc_library(
     name = "nvidia_argus_backend",
-    srcs = ["nvidia_argus_backend.cpp"],
+    srcs = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": ["nvidia_argus_backend.cpp"],
+        "//conditions:default": [],
+    }),
     hdrs = ["nvidia_argus_backend.h"],
     visibility = ["//visibility:public"],
     deps = [
@@ -57,23 +47,7 @@ cc_library(
         "@spdlog",
     ] + select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
-            "//third_party/glib-config:glibconfig",
-        ],
-        "//conditions:default": [],
-    }),
-    copts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-I/usr/include/gstreamer-1.0",
-            "-I/usr/include/glib-2.0",
-        ],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-lgstreamer-1.0",
-            "-lgstapp-1.0",
-            "-lgobject-2.0",
-            "-lglib-2.0",
+            "//third_party/gstreamer:gstreamer",
         ],
         "//conditions:default": [],
     }),

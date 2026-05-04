@@ -78,8 +78,13 @@ services:
       - /usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer.so.10.3.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:/usr/lib/aarch64-linux-gnu/libnvinfer_builder_resource.so.10.3.0:ro
       - /usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:/usr/lib/aarch64-linux-gnu/libnvonnxparser.so.10:ro
-      - /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2:ro
-      - /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so:ro
+      # JetPack 6/R36 ships libnvbuf_utils as libnvbufsurface under the nvidia/ subdir.
+      # Mount it over the linker stub compiled into the image.
+      # IMPORTANT: before first start, remove bogus dirs Docker previously created:
+      #   sudo rmdir /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so
+      #   sudo rmdir /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2
+      - /usr/lib/aarch64-linux-gnu/nvidia/libnvbufsurface.so.1.0.0:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so:ro
+      - /usr/lib/aarch64-linux-gnu/nvidia/libnvbufsurface.so.1.0.0:/usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2:ro
       - ${ACCELERATOR_MODELS_DIR:-./models}:/opt/cuda/grpc/data/models:rw
       - ${ACCELERATOR_CAPTURES_DIR:-./captures}:/app/captures:rw
 

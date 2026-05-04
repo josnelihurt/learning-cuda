@@ -12,14 +12,14 @@
 
 #include "src/cpp_accelerator/adapters/camera/camera_detector.h"
 #include "src/cpp_accelerator/adapters/camera/camera_hub.h"
+#include "src/cpp_accelerator/adapters/grpc_control/accelerator_control_client.h"
+#include "src/cpp_accelerator/adapters/grpc_control/processor_engine_adapter.h"
 #include "src/cpp_accelerator/adapters/image_io/image_writer.h"
+#include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 #include "src/cpp_accelerator/application/bird_watch/bird_watcher.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
 #include "src/cpp_accelerator/core/signal_handler.h"
 #include "src/cpp_accelerator/core/version.h"
-#include "src/cpp_accelerator/adapters/grpc_control/accelerator_control_client.h"
-#include "src/cpp_accelerator/adapters/grpc_control/processor_engine_adapter.h"
-#include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 
 ABSL_FLAG(std::string, control_addr, "localhost:60062",
           "Address of the Go cloud control server (host:port).");
@@ -48,20 +48,20 @@ ABSL_FLAG(int, bird_watch_max_per_minute, 5, "Max BMP saves per minute");
 ABSL_FLAG(int, bird_watch_min_interval_s, 5, "Min seconds between saves");
 ABSL_FLAG(int, bird_watch_camera_id, 0, "Sensor ID to watch");
 
-using jrb::application::engine::ProcessorEngine;
-using jrb::adapters::grpc_control::ProcessorEngineAdapter;
-using jrb::adapters::camera::CameraHub;
-using jrb::adapters::webrtc::WebRTCManagerConfig;
-using jrb::adapters::webrtc::WebRTCManager;
-using jrb::adapters::grpc_control::AcceleratorControlClientConfig;
-using jrb::adapters::grpc_control::AcceleratorControlClient;
-using jrb::adapters::camera::DetectCameras;
-using jrb::adapters::image::ImageWriter;
-using jrb::application::bird_watch::BirdWatcher;
-using jrb::application::bird_watch::BirdWatcherConfig;
-using jrb::core::SignalHandler;
 using cuda_learning::InitRequest;
 using cuda_learning::InitResponse;
+using jrb::adapters::camera::CameraHub;
+using jrb::adapters::camera::DetectCameras;
+using jrb::adapters::grpc_control::AcceleratorControlClient;
+using jrb::adapters::grpc_control::AcceleratorControlClientConfig;
+using jrb::adapters::grpc_control::ProcessorEngineAdapter;
+using jrb::adapters::image::ImageWriter;
+using jrb::adapters::webrtc::WebRTCManager;
+using jrb::adapters::webrtc::WebRTCManagerConfig;
+using jrb::application::bird_watch::BirdWatcher;
+using jrb::application::bird_watch::BirdWatcherConfig;
+using jrb::application::engine::ProcessorEngine;
+using jrb::core::SignalHandler;
 
 // This is the main entry point for the accelerator control client.
 int main(int argc, char** argv) {
@@ -76,7 +76,8 @@ int main(int argc, char** argv) {
   spdlog::info("CUDA device:  {}", absl::GetFlag(FLAGS_cuda_device_id));
   spdlog::info("Cameras:      {}", absl::GetFlag(FLAGS_cameras));
   spdlog::info("Captures dir: {}", absl::GetFlag(FLAGS_captures_dir));
-  spdlog::info("Bird watch:   {}", absl::GetFlag(FLAGS_bird_watch_enabled) ? "enabled" : "disabled");
+  spdlog::info("Bird watch:   {}",
+               absl::GetFlag(FLAGS_bird_watch_enabled) ? "enabled" : "disabled");
   spdlog::info("========================================");
 
   auto engine = std::make_shared<ProcessorEngine>("accelerator-client");
@@ -99,6 +100,7 @@ int main(int argc, char** argv) {
   webrtc_cfg.device_id = absl::GetFlag(FLAGS_device_id);
   webrtc_cfg.display_name = absl::GetFlag(FLAGS_display_name);
   webrtc_cfg.captures_dir = absl::GetFlag(FLAGS_captures_dir);
+  webrtc_cfg.accelerator_version = kLibraryVersionStr;
   auto webrtc_manager = std::make_shared<WebRTCManager>(webrtc_cfg);
   if (!webrtc_manager->Initialize()) {
     spdlog::warn("WebRTCManager failed to initialize — signaling will be unavailable");
@@ -117,7 +119,8 @@ int main(int argc, char** argv) {
     bw_cfg.min_save_interval_s = absl::GetFlag(FLAGS_bird_watch_min_interval_s);
     bw_cfg.camera_sensor_id = absl::GetFlag(FLAGS_bird_watch_camera_id);
     bw_cfg.captures_dir = absl::GetFlag(FLAGS_captures_dir);
-    bird_watcher = std::make_unique<BirdWatcher>(bw_cfg, camera_hub, engine.get(), image_sink.get());
+    bird_watcher =
+        std::make_unique<BirdWatcher>(bw_cfg, camera_hub, engine.get(), image_sink.get());
     bird_watcher->Start();
     if (bird_watcher->IsSubscribed()) {
       spdlog::info("[BirdWatcher] Started (camera={}, threshold={:.2f})", bw_cfg.camera_sensor_id,
@@ -156,8 +159,8 @@ int main(int argc, char** argv) {
     cfg.cameras = DetectCameras(sensor_ids);
     spdlog::info("Detected {} camera(s):", cfg.cameras.size());
     for (const auto& cam : cfg.cameras) {
-      spdlog::info("  sensor_id={} display_name='{}' model='{}'",
-                   cam.sensor_id(), cam.display_name(), cam.model());
+      spdlog::info("  sensor_id={} display_name='{}' model='{}'", cam.sensor_id(),
+                   cam.display_name(), cam.model());
     }
   }
 

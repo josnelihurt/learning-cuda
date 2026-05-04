@@ -36,6 +36,7 @@ struct WebRTCManagerConfig {
   std::string device_id;
   std::string display_name;
   std::string captures_dir{"/tmp/cuda-captures"};
+  std::string accelerator_version;
 };
 
 class WebRTCManager : public std::enable_shared_from_this<WebRTCManager>,
@@ -53,8 +54,8 @@ public:
                      std::string* sdp_answer, std::string* error_message);
 
   bool CreateCameraSession(const std::string& session_id, const std::string& sdp_offer,
-                           int sensor_id, int width, int height, int fps,
-                           std::string* sdp_answer, std::string* error_message);
+                           int sensor_id, int width, int height, int fps, std::string* sdp_answer,
+                           std::string* error_message);
 
   bool CloseSession(const std::string& session_id, std::string* error_message);
 
@@ -67,8 +68,7 @@ public:
   std::vector<rtc::Candidate> GetPendingLocalCandidates(const std::string& session_id);
   virtual void SendToSession(const std::string& session_id, const std::string& bytes);
 
-  private:
-
+private:
   std::shared_ptr<SessionState> GetSession(const std::string& session_id);
   void RemoveSession(const std::string& session_id);
   void CleanupInactiveSessions(int timeout_seconds = 30);
@@ -86,38 +86,28 @@ public:
   // Registers all peer connection state callbacks (onStateChange, onGatheringStateChange,
   // onIceStateChange, onLocalDescription, onLocalCandidate) and the onTrack callback.
   std::shared_future<std::string> SetupPeerConnectionCallbacks(
-      const std::string& session_id,
-      std::shared_ptr<SessionState> session,
-      std::shared_ptr<std::string> manual_candidate_sdp,
-      std::string* sdp_answer_out);
+      const std::string& session_id, std::shared_ptr<SessionState> session,
+      std::shared_ptr<std::string> manual_candidate_sdp, std::string* sdp_answer_out);
 
   // Adds the outbound H264 video track and configures the RTP packetizer chain
   // based on the parsed SDP offer. Returns false on error.
-  bool SetupMediaTracks(const std::string& session_id,
-                        std::shared_ptr<SessionState> session,
-                        const rtc::Description& offer,
-                        std::string* error_message);
+  bool SetupMediaTracks(const std::string& session_id, std::shared_ptr<SessionState> session,
+                        const rtc::Description& offer, std::string* error_message);
 
   // Registers the onDataChannel callback that routes the four data channels
   // (main, detections, stats, control) to their respective handlers.
   void SetupDataChannels(const std::string& session_id, std::shared_ptr<SessionState> session);
 
   // Handles a framed binary payload from the control channel.
-  void HandleControlMessage(const std::string& session_id,
-                            SessionState& state,
-                            const rtc::binary& raw_chunk,
-                            rtc::DataChannel& response_channel);
+  void HandleControlMessage(const std::string& session_id, SessionState& state,
+                            const rtc::binary& raw_chunk, rtc::DataChannel& response_channel);
 
   // Handles a framed binary payload from the main data channel (image processing requests).
-  void HandleProcessingMessage(const std::string& session_id,
-                               SessionState& state,
-                               const rtc::binary& raw_chunk,
-                               rtc::DataChannel& response_channel);
+  void HandleProcessingMessage(const std::string& session_id, SessionState& state,
+                               const rtc::binary& raw_chunk, rtc::DataChannel& response_channel);
 
   // Processes a decoded inbound video frame and sends the result on the outbound track.
-  void HandleVideoFrame(const std::string& session_id,
-                        SessionState& state,
-                        rtc::binary frame,
+  void HandleVideoFrame(const std::string& session_id, SessionState& state, rtc::binary frame,
                         rtc::FrameInfo info);
 
   // Sets up RTP handlers and callbacks for an inbound RecvOnly video track.
@@ -126,22 +116,18 @@ public:
                                   std::shared_ptr<rtc::Track> track);
 
   // Per-channel setup helpers called from SetupDataChannels.
-  void SetupDetectionChannel(const std::string& session_id,
-                             std::shared_ptr<SessionState> session,
+  void SetupDetectionChannel(const std::string& session_id, std::shared_ptr<SessionState> session,
                              std::shared_ptr<rtc::DataChannel> dc);
-  void SetupControlChannel(const std::string& session_id,
-                           std::shared_ptr<SessionState> session,
+  void SetupControlChannel(const std::string& session_id, std::shared_ptr<SessionState> session,
                            std::shared_ptr<rtc::DataChannel> dc);
-  void SetupStatsChannel(const std::string& session_id,
-                         std::shared_ptr<SessionState> session,
+  void SetupStatsChannel(const std::string& session_id, std::shared_ptr<SessionState> session,
                          std::shared_ptr<rtc::DataChannel> dc);
-  void SetupMainChannel(const std::string& session_id,
-                        std::shared_ptr<SessionState> session,
+  void SetupMainChannel(const std::string& session_id, std::shared_ptr<SessionState> session,
                         std::shared_ptr<rtc::DataChannel> dc);
 
   // Serializes and sends a ProcessingStatsFrame to the stats channel if open.
-  void EmitProcessingStats(const std::string& session_id, SessionState& state,
-                           double elapsed_ms, int64_t detection_count, uint32_t frame_id);
+  void EmitProcessingStats(const std::string& session_id, SessionState& state, double elapsed_ms,
+                           int64_t detection_count, uint32_t frame_id);
 
   // Serializes and sends a DetectionFrame to the detection channel if open.
   void ForwardDetections(const std::string& session_id, SessionState& state,
@@ -163,6 +149,7 @@ public:
   std::string display_name_;
   std::atomic<bool> cleanup_running_;
   std::thread cleanup_thread_;
+  std::string accelerator_version_;
 };
 
 }  // namespace jrb::adapters::webrtc

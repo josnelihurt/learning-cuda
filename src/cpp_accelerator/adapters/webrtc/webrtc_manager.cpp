@@ -62,7 +62,8 @@ WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
       initialized_(false),
       device_id_(std::move(config.device_id)),
       display_name_(std::move(config.display_name)),
-      cleanup_running_(false) {
+      cleanup_running_(false),
+      accelerator_version_(std::move(config.accelerator_version)) {
   rtc::InitLogger(rtc::LogLevel::Error);
 }
 
@@ -119,12 +120,15 @@ bool WebRTCManager::Initialize() {
         .device_id = device_id_,
         .display_name = display_name_,
         .captures_dir = captures_dir_,
+        .accelerator_version = accelerator_version_,
         .video_frame_handler =
             [weak_self](const std::string& sid, rtc::binary data, rtc::FrameInfo info) {
               auto self = weak_self.lock();
-              if (!self) return;
+              if (!self)
+                return;
               auto s = self->GetSession(sid);
-              if (!s) return;
+              if (!s)
+                return;
               self->HandleVideoFrame(sid, *s, std::move(data), info);
             },
     });
@@ -1274,8 +1278,7 @@ void WebRTCManager::SendToSession(const std::string& session_id, const std::stri
   }
 }
 
-std::shared_ptr<SessionState> WebRTCManager::GetSession(
-    const std::string& session_id) {
+std::shared_ptr<SessionState> WebRTCManager::GetSession(const std::string& session_id) {
   std::lock_guard<std::mutex> lock(sessions_mutex_);
   auto it = sessions_.find(session_id);
   if (it != sessions_.end()) {

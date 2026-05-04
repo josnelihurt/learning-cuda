@@ -5,7 +5,7 @@ import type { StaticImage } from '@/gen/common_pb';
 import { controlChannelService } from '@/infrastructure/transport/control-channel-service';
 import './video-grid.css';
 
-type Tab = 'library' | 'captured';
+type Tab = 'captured' | 'library';
 
 type ImageSelectorModalProps = {
   isOpen: boolean;
@@ -56,7 +56,7 @@ export function ImageSelectorModal({
   onClose,
   onSelectImage,
 }: ImageSelectorModalProps): React.ReactElement {
-  const [activeTab, setActiveTab] = useState<Tab>('library');
+  const [activeTab, setActiveTab] = useState<Tab>('captured');
   const [capturedImages, setCapturedImages] = useState<CapturedImageInfo[]>([]);
   const [capturedPage, setCapturedPage] = useState(0);
   const [capturedHasMore, setCapturedHasMore] = useState(true);

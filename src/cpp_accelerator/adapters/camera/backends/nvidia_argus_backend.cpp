@@ -165,6 +165,7 @@ bool ProbeSensor(int sensor_id) {
 struct NvidiaArgusBackend::Impl {
   FrameCallback cb;
   std::atomic<bool> running{false};
+  int active_sensor_id{-1};
   GstElement* pipeline{nullptr};
   GstElement* proc_sink{nullptr};   // continuous NV12 NVMM callbacks (GPU branch)
   GstElement* still_sink{nullptr};  // pull-on-demand for full-res NV12 stills
@@ -233,6 +234,7 @@ struct NvidiaArgusBackend::Impl {
   }
 
   void Cleanup() {
+    active_sensor_id = -1;
     // Stop the pipeline first so all GStreamer streaming threads (and thus all
     // OnNewSample callbacks) drain before we destroy gpu_processor.
     // Destroying gpu_processor while OnNewSample is still running causes
@@ -285,10 +287,18 @@ std::vector<cuda_learning::RemoteCameraInfo> NvidiaArgusBackend::DetectCameras(
 
   for (int sensor_id : sensor_ids) {
     try {
-      spdlog::info("[NvidiaArgusBackend] Probing sensor-id={}", sensor_id);
-      if (!ProbeSensor(sensor_id)) {
-        spdlog::warn("[NvidiaArgusBackend] sensor-id={} probe failed", sensor_id);
-        continue;
+      // If this sensor is already streaming, skip the probe (it would fail with
+      // "Failed to create CaptureSession" and may crash Argus) and report it
+      // directly as available.
+      if (impl_->running.load() && impl_->active_sensor_id == sensor_id) {
+        spdlog::info("[NvidiaArgusBackend] sensor-id={} already active, skipping probe",
+                     sensor_id);
+      } else {
+        spdlog::info("[NvidiaArgusBackend] Probing sensor-id={}", sensor_id);
+        if (!ProbeSensor(sensor_id)) {
+          spdlog::warn("[NvidiaArgusBackend] sensor-id={} probe failed", sensor_id);
+          continue;
+        }
       }
 
       cuda_learning::RemoteCameraInfo info;
@@ -503,6 +513,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
     }
   }
 
+  impl_->active_sensor_id = sensor_id;
   spdlog::info(
       "[NvidiaArgusBackend] Started sensor-id={} full-sensor {}x{}@{}fps, "
       "encode branch {}x{}",

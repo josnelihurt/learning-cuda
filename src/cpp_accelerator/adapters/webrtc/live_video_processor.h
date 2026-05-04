@@ -17,6 +17,7 @@ class ProcessorEngine;
 }
 
 struct AVCodecContext;
+struct AVCodecParserContext;
 struct AVFrame;
 struct AVPacket;
 struct SwsContext;

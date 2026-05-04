@@ -1,9 +1,10 @@
 #pragma once
 
-// GPU-space NV12 frame processing pipeline for Jetson Orin Nano.
-// Orchestrates: NVMM map → NV12→RGBA (CUDA) → optional GPU filters →
-//               RGBA→NV12 (CUDA) → EncodePipeline (H.264 for WebRTC)
-// Optionally downloads RGBA to host for BirdWatcher YOLO inference.
+// GPU-space NV12 -> RGBA tap for Jetson NvidiaArgusBackend.
+// Maps an NV12 NVMM GstBuffer to CUDA, runs nv12_to_rgba_kernel, and forwards
+// the host RGBA buffer to an optional consumer (e.g. BirdWatcher YOLO).
+// Designed to do NO work when no RgbCallback is registered, so the WebRTC
+// streaming path pays nothing extra when YOLO inference is idle.
 
 #include <cstdint>
 #include <functional>
@@ -11,34 +12,14 @@
 #include <string>
 #include <vector>
 
-#include <rtc/rtc.hpp>
-
-// GstBuffer forward declaration compatible with GStreamer's typedef.
-// The full type (<gst/gst.h>) is only included in .cpp files.
 struct _GstBuffer;
 typedef struct _GstBuffer GstBuffer;
 
 namespace jrb::adapters::camera {
 
-// Processes one 720p NV12 NVMM frame per call to Process():
-//   1. Map NVMM GstBuffer to CUDA device pointers (NvBufSurface).
-//   2. Run NV12→RGBA kernel on device.
-//   3. Run optional GPU filter kernels (grayscale / blur) on device.
-//   4. Run RGBA→NV12 kernel on device.
-//   5. Download processed NV12 to host and push to EncodePipeline → H.264 → FrameCallback.
-//   6. If RgbCallback is set: download RGBA to host and call RgbCallback.
-//
-// Thread safety: Process() may be called from any single thread (the GstAppSink
-// callback thread).  The FrameCallback and RgbCallback will be invoked from that
-// same thread.
 class GpuFrameProcessor {
  public:
-  // H.264 output callback (passed to EncodePipeline and forwarded to CameraHub / WebRTC).
-  using FrameCallback =
-      std::function<void(const rtc::binary& data, const rtc::FrameInfo& info)>;
-
-  // Optional: called with host RGBA (4-channel, width × height × 4 bytes) for
-  // YOLO inference or other CPU-side processing.
+  // Called with a host RGBA buffer (width * height * 4 bytes).
   using RgbCallback =
       std::function<void(const std::vector<uint8_t>& rgba, int width, int height)>;
 
@@ -48,18 +29,18 @@ class GpuFrameProcessor {
   GpuFrameProcessor(const GpuFrameProcessor&) = delete;
   GpuFrameProcessor& operator=(const GpuFrameProcessor&) = delete;
 
-  // Start the internal EncodePipeline.  width/height are the NV12 frame dimensions;
-  // fps is the sensor frame rate (used for caps negotiation).
-  bool Start(int width, int height, int fps, FrameCallback h264_cb,
-             std::string* error_message);
+  // Reserves the dimensions of incoming frames.  Actual scratch buffers are
+  // allocated lazily on the first Process() call that has an active
+  // RgbCallback.
+  bool Start(int width, int height, std::string* error_message);
   void Stop();
   bool IsRunning() const;
 
-  // Register an optional callback to receive host RGBA frames (e.g. for YOLO).
-  // Pass nullptr to disable.  May be called before or after Start().
+  // Register / clear the RGB consumer.  When no callback is set, Process()
+  // returns immediately without mapping the buffer or running any kernel.
   void SetRgbCallback(RgbCallback cb);
 
-  // Process one NVMM NV12 GstBuffer.  Called from NvidiaArgusBackend::OnNewSample.
+  // Process one NV12 NVMM GstBuffer.  No-op when no RgbCallback is registered.
   void Process(GstBuffer* nvmm_buf, uint32_t rtp_ts);
 
  private:

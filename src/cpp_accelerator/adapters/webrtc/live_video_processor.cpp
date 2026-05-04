@@ -56,7 +56,6 @@ LiveVideoProcessor::LiveVideoProcessor(jrb::application::engine::ProcessorEngine
     : engine_(engine),
       cuda_memory_pool_(cuda_memory_pool),
       image_sink_(image_sink),
-      parser_context_(nullptr),
       decoder_context_(nullptr),
       encoder_context_(nullptr),
       decode_to_rgb_context_(nullptr),
@@ -81,10 +80,6 @@ LiveVideoProcessor::~LiveVideoProcessor() {
   av_frame_free(&yuv_frame_);
   sws_freeContext(decode_to_rgb_context_);
   sws_freeContext(rgb_to_yuv_context_);
-  if (parser_context_) {
-    av_parser_close(parser_context_);
-    parser_context_ = nullptr;
-  }
   avcodec_free_context(&decoder_context_);
   avcodec_free_context(&encoder_context_);
 }
@@ -155,41 +150,21 @@ bool LiveVideoProcessor::ProcessAccessUnit(const rtc::binary& access_unit,
     return false;
   }
 
-  // Feed the raw Annex B byte-stream through the parser first.  This splits
-  // the concatenated NALUs into individual packets that the decoder accepts.
-  const uint8_t* in_data = reinterpret_cast<const uint8_t*>(access_unit.data());
-  int in_size            = static_cast<int>(access_unit.size());
+  // The upstream camera pipeline emits one full Annex B access unit per buffer
+  // (h264parse alignment=au + stream-format=byte-stream).  libavcodec's H.264
+  // decoder accepts byte-stream input directly, so we hand the AU straight to
+  // avcodec_send_packet without a separate AVCodecParserContext stage.
+  av_packet_unref(decode_packet_);
+  decode_packet_->data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(access_unit.data()));
+  decode_packet_->size = static_cast<int>(access_unit.size());
 
-  while (in_size > 0) {
-    uint8_t* parsed_data = nullptr;
-    int parsed_size      = 0;
-    const int consumed = av_parser_parse2(parser_context_, decoder_context_,
-                                          &parsed_data, &parsed_size,
-                                          in_data, in_size,
-                                          AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
-    if (consumed < 0) {
-      if (error_message != nullptr) {
-        *error_message = "H264 parser error";
-      }
-      return false;
+  const int send_packet_result = avcodec_send_packet(decoder_context_, decode_packet_);
+  if (send_packet_result < 0) {
+    if (error_message != nullptr) {
+      *error_message =
+          "failed to submit H264 packet to decoder: " + AvErrorToString(send_packet_result);
     }
-    in_data += consumed;
-    in_size -= consumed;
-
-    if (parsed_size == 0) continue;
-
-    av_packet_unref(decode_packet_);
-    decode_packet_->data = parsed_data;
-    decode_packet_->size = parsed_size;
-
-    const int send_packet_result = avcodec_send_packet(decoder_context_, decode_packet_);
-    if (send_packet_result < 0) {
-      if (error_message != nullptr) {
-        *error_message =
-            "failed to submit H264 packet to decoder: " + AvErrorToString(send_packet_result);
-      }
-      return false;
-    }
+    return false;
   }
 
   std::vector<uint8_t> decoded_rgb_buffer;
@@ -318,19 +293,6 @@ bool LiveVideoProcessor::EnsureDecoder(std::string* error_message) {
     if (error_message != nullptr) {
       *error_message = "failed to open H264 decoder: " + AvErrorToString(open_result);
     }
-    return false;
-  }
-
-  // Create an H264 bitstream parser so the decoder can handle Annex B
-  // byte-stream data (start-code prefixed NALUs) produced by x264enc /
-  // h264parse in EncodePipeline.  Without the parser, avcodec_send_packet
-  // returns AVERROR_INVALIDDATA on raw Annex B input.
-  parser_context_ = av_parser_init(AV_CODEC_ID_H264);
-  if (parser_context_ == nullptr) {
-    if (error_message != nullptr) {
-      *error_message = "failed to create H264 bitstream parser";
-    }
-    avcodec_free_context(&decoder_context_);
     return false;
   }
 

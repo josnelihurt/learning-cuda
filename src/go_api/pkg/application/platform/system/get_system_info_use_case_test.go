@@ -52,19 +52,13 @@ func (m *MockVersionRepository) GetGoVersion() string {
 	return args.String(0)
 }
 
-func (m *MockVersionRepository) GetCppVersion() string {
-	args := m.Called()
-	return args.String(0)
-}
-
 func (m *MockVersionRepository) GetProtoVersion() string {
 	args := m.Called()
 	return args.String(0)
 }
 
-func assertSystemInfo(t *testing.T, result *domain.SystemInfo, goVersion, cppVersion, protoVersion, branch, buildTime, commitHash, environment string) {
+func assertSystemInfo(t *testing.T, result *domain.SystemInfo, goVersion, protoVersion, branch, buildTime, commitHash, environment string) {
 	assert.Equal(t, goVersion, result.Version.GoVersion)
-	assert.Equal(t, cppVersion, result.Version.CppVersion)
 	assert.Equal(t, protoVersion, result.Version.ProtoVersion)
 	assert.Equal(t, branch, result.Version.Branch)
 	assert.Equal(t, buildTime, result.Version.BuildTime)
@@ -102,13 +96,12 @@ func TestGetSystemInfoUseCase_Execute(t *testing.T) {
 				buildInfo.On("GetBuildTime").Return("2024-10-25T12:00:00Z")
 				buildInfo.On("GetCommitHash").Return("abc123")
 				version.On("GetGoVersion").Return("1.0.8")
-				version.On("GetCppVersion").Return("2.1.6")
 				version.On("GetProtoVersion").Return("1.0.0")
 			},
 			assertResult: func(t *testing.T, result *domain.SystemInfo, err error) {
 				assert.NoError(t, err)
 				require.NotNil(t, result)
-				assertSystemInfo(t, result, "1.0.8", "2.1.6", "1.0.0", "main", "2024-10-25T12:00:00Z", "abc123", "development")
+				assertSystemInfo(t, result, "1.0.8", "1.0.0", "main", "2024-10-25T12:00:00Z", "abc123", "development")
 			},
 		},
 		{

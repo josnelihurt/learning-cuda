@@ -8,15 +8,15 @@ struct NvBufSurface;
 
 namespace jrb::adapters::camera {
 
-// Represents a mapped NVMM NV12 surface with CUDA-accessible device pointers.
-// Jetson's iGPU uses unified DRAM, so the pointers returned by NvBufSurfaceMap
-// are valid as both CPU and CUDA device pointers without any extra copy.
+// Represents a mapped NVMM NV12 surface.
+// NvBufSurfaceMap() returns CPU virtual addresses (host pointers).
+// Callers must copy to CUDA device memory before passing to GPU kernels.
 struct NvmmFrame {
-  uint8_t* y_ptr;       // Device (and CPU) pointer to Y plane
-  uint8_t* uv_ptr;      // Device (and CPU) pointer to interleaved UV plane
-  int width;            // Frame width in pixels
-  int height;           // Frame height in pixels
-  int pitch;            // Stride in bytes (shared by both planes)
+  uint8_t* y_ptr;         // CPU (host) pointer to Y plane
+  uint8_t* uv_ptr;        // CPU (host) pointer to interleaved UV plane
+  int width;              // Frame width in pixels
+  int height;             // Frame height in pixels
+  int pitch;              // Stride in bytes (shared by both planes)
   NvBufSurface* surface;  // Retained for unmapping
 };
 

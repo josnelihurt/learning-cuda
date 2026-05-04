@@ -81,6 +81,8 @@ void BirdWatcher::Start() {
     return;
   }
 
+  ConnectGpuPath();
+
   worker_thread_ = std::thread([this] { WorkerLoop(); });
 }
 
@@ -90,6 +92,7 @@ void BirdWatcher::Stop() {
     DestroyDecoder();
     return;
   }
+  DisconnectGpuPath();
   queue_cv_.notify_all();
   if (worker_thread_.joinable()) {
     worker_thread_.join();
@@ -102,6 +105,10 @@ void BirdWatcher::OnH264Frame(const rtc::binary& data, const rtc::FrameInfo& inf
   if (!running_.load()) {
     return;
   }
+  // On the GPU path we receive RGBA via OnRgbaFrame — ignore H.264 frames.
+  if (gpu_processor_ != nullptr) {
+    return;
+  }
   std::lock_guard<std::mutex> lk(queue_mutex_);
   if (frame_queue_.size() >= kMaxQueueSize) {
     frame_queue_.pop();
@@ -110,23 +117,42 @@ void BirdWatcher::OnH264Frame(const rtc::binary& data, const rtc::FrameInfo& inf
   queue_cv_.notify_one();
 }
 
+void BirdWatcher::OnRgbaFrame(const std::vector<uint8_t>& rgba, int width, int height) {
+  if (!running_.load()) {
+    return;
+  }
+  std::lock_guard<std::mutex> lk(queue_mutex_);
+  if (rgba_queue_.size() >= kMaxQueueSize) {
+    rgba_queue_.pop();
+  }
+  rgba_queue_.push({rgba, width, height});
+  queue_cv_.notify_one();
+}
+
 void BirdWatcher::WorkerLoop() {
   while (running_.load()) {
-    std::optional<std::pair<rtc::binary, rtc::FrameInfo>> item;
+    std::optional<std::pair<rtc::binary, rtc::FrameInfo>> h264_item;
+    std::optional<RgbaItem> rgba_item;
     {
       std::unique_lock<std::mutex> lk(queue_mutex_);
-      queue_cv_.wait(lk, [&] { return !running_.load() || !frame_queue_.empty(); });
+      queue_cv_.wait(lk, [&] {
+        return !running_.load() || !frame_queue_.empty() || !rgba_queue_.empty();
+      });
       if (!running_.load()) {
         break;
       }
-      if (frame_queue_.empty()) {
-        continue;
+      if (!rgba_queue_.empty()) {
+        rgba_item.emplace(std::move(rgba_queue_.front()));
+        rgba_queue_.pop();
+      } else if (!frame_queue_.empty()) {
+        h264_item.emplace(std::move(frame_queue_.front()));
+        frame_queue_.pop();
       }
-      item.emplace(std::move(frame_queue_.front()));
-      frame_queue_.pop();
     }
-    if (item) {
-      ProcessQueuedFrame(std::move(item->first), std::move(item->second));
+    if (rgba_item) {
+      ProcessRgbaFrame(std::move(rgba_item->rgba), rgba_item->width, rgba_item->height);
+    } else if (h264_item) {
+      ProcessQueuedFrame(std::move(h264_item->first), std::move(h264_item->second));
     }
   }
 }
@@ -191,6 +217,55 @@ void BirdWatcher::ProcessQueuedFrame(rtc::binary data, rtc::FrameInfo info) {
   }
   spdlog::debug("[BirdWatcher] alert frame {}x{} bird={} bird_streak={} no_bird_streak={}", w, h,
                 bird, consecutive_bird_frames_, consecutive_no_bird_frames_);
+}
+
+// GPU direct path: RGBA already decoded by GpuFrameProcessor — no libavcodec needed.
+void BirdWatcher::ProcessRgbaFrame(std::vector<uint8_t> rgba, int width, int height) {
+  if (!ShouldRunInferenceNow()) {
+    return;
+  }
+
+  // YOLO inference expects RGB (3 channels), but we have RGBA (4 channels).
+  // Strip the alpha channel in-place into a separate RGB vector.
+  const int num_pixels = width * height;
+  std::vector<uint8_t> rgb(static_cast<size_t>(num_pixels) * 3);
+  for (int i = 0; i < num_pixels; ++i) {
+    rgb[i * 3 + 0] = rgba[i * 4 + 0];
+    rgb[i * 3 + 1] = rgba[i * 4 + 1];
+    rgb[i * 3 + 2] = rgba[i * 4 + 2];
+  }
+
+  const bool bird = DetectBird(rgb, width, height);
+  if (state_ == State::Idle) {
+    spdlog::debug("[BirdWatcher] GPU idle check {}x{} bird={}", width, height, bird);
+    if (bird) {
+      spdlog::info("[BirdWatcher] IDLE -> ALERT (bird detected via GPU path)");
+      state_ = State::Alert;
+      consecutive_bird_frames_ = 0;
+      consecutive_no_bird_frames_ = 0;
+    }
+    return;
+  }
+
+  if (bird) {
+    consecutive_bird_frames_++;
+    consecutive_no_bird_frames_ = 0;
+    if (consecutive_bird_frames_ >= config_.alert_frames) {
+      MaybeSave(rgb, width, height);
+      consecutive_bird_frames_ = 0;
+    }
+  } else {
+    consecutive_bird_frames_ = 0;
+    consecutive_no_bird_frames_++;
+    if (consecutive_no_bird_frames_ >= config_.alert_frames) {
+      spdlog::info("[BirdWatcher] ALERT -> IDLE (no bird)");
+      state_ = State::Idle;
+      consecutive_no_bird_frames_ = 0;
+      last_idle_check_ = std::chrono::steady_clock::now();
+    }
+  }
+  spdlog::debug("[BirdWatcher] GPU alert frame {}x{} bird={} bird_streak={} no_bird_streak={}",
+                width, height, bird, consecutive_bird_frames_, consecutive_no_bird_frames_);
 }
 
 void BirdWatcher::InitDecoder() {
@@ -401,10 +476,45 @@ void BirdWatcher::MaybeSave(const std::vector<uint8_t>& rgb, int width, int heig
   SaveCapture(rgb, width, height);
 }
 
-void BirdWatcher::SaveCapture(const std::vector<uint8_t>& rgb, int width, int height) {
+void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/,
+                              int /*height*/) {
   if (image_sink_ == nullptr || config_.captures_dir.empty()) {
     return;
   }
+
+  // Pull a full-resolution NV12 frame from the still_sink branch of the Argus
+  // pipeline (4056×3040 @ 15fps). This is a blocking pull (≤500 ms) and does a
+  // synchronous DMA transfer from NVMM to system memory (~5 ms for a 4K frame).
+  int still_w = 0, still_h = 0;
+  rtc::binary nv12 = camera_hub_->GrabStillFrame(
+      config_.camera_sensor_id, &still_w, &still_h);
+
+  if (nv12.empty() || still_w <= 0 || still_h <= 0) {
+    spdlog::warn("[BirdWatcher] GrabStillFrame returned empty; skipping save");
+    return;
+  }
+
+  // Convert NV12 → RGB24 using libswscale (CPU, one-shot for still capture).
+  // NV12 layout: Y plane (w×h bytes) followed by interleaved UV plane (w×h/2 bytes).
+  const auto* y_plane = reinterpret_cast<const uint8_t*>(nv12.data());
+  const uint8_t* src_data[4] = {y_plane, y_plane + still_w * still_h, nullptr, nullptr};
+  const int src_linesize[4]  = {still_w, still_w, 0, 0};
+
+  std::vector<uint8_t> rgb(static_cast<size_t>(still_w) * still_h * 3);
+  uint8_t* dst_data[4]   = {rgb.data(), nullptr, nullptr, nullptr};
+  const int dst_linesize[4] = {still_w * 3, 0, 0, 0};
+
+  SwsContext* sws = sws_getContext(
+      still_w, still_h, AV_PIX_FMT_NV12,
+      still_w, still_h, AV_PIX_FMT_RGB24,
+      SWS_BILINEAR, nullptr, nullptr, nullptr);
+  if (!sws) {
+    spdlog::error("[BirdWatcher] sws_getContext failed for NV12→RGB24 conversion");
+    return;
+  }
+  sws_scale(sws, src_data, src_linesize, 0, still_h, dst_data, dst_linesize);
+  sws_freeContext(sws);
+
   std::error_code ec;
   std::filesystem::create_directories(config_.captures_dir, ec);
   if (ec) {
@@ -420,7 +530,7 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& rgb, int width, int he
   name << std::put_time(&tm_buf, "%Y-%m-%dT%H-%M-%SZ");
   const std::string path = config_.captures_dir + "/" + name.str() + ".bmp";
 
-  if (!image_sink_->writeBmp(path.c_str(), rgb.data(), width, height, 3)) {
+  if (!image_sink_->writeBmp(path.c_str(), rgb.data(), still_w, still_h, 3)) {
     spdlog::error("[BirdWatcher] writeBmp failed: {}", path);
     return;
   }
@@ -429,7 +539,7 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& rgb, int width, int he
   had_capture_ = true;
   last_capture_time_ = now;
   capture_times_.push_back(now);
-  spdlog::info("[BirdWatcher] Saved capture: {}", path);
+  spdlog::info("[BirdWatcher] Saved {}x{} still capture: {}", still_w, still_h, path);
 }
 
 }  // namespace jrb::application::bird_watch

@@ -23,6 +23,9 @@ class CameraDetectorImpl {
       const std::vector<int>& sensor_ids);
 
  private:
+  void RegisterV4L2Backend();
+  void RegisterArgusBackend();
+
   std::vector<std::unique_ptr<CameraBackend>> backends_;
 };
 

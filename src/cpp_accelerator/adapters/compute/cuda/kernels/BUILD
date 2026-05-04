@@ -8,12 +8,14 @@ cuda_library(
         "blur/separable_tiled.cu",
         "grayscale_kernel.cu",
         "letterbox_kernel.cu",
+        "nv12_utils_kernel.cu",
     ],
     hdrs = [
         "blur/device_utils.cuh",
         "blur_kernel.h",
         "grayscale_kernel.h",
         "letterbox_kernel.h",
+        "nv12_utils_kernel.h",
     ],
     copts = [
         "--expt-relaxed-constexpr",

@@ -8,6 +8,8 @@
 #include <gst/app/gstappsink.h>
 #include <spdlog/spdlog.h>
 
+#include "src/cpp_accelerator/adapters/camera/gpu_frame_processor.h"
+
 namespace jrb::adapters::camera {
 
 namespace {
@@ -48,8 +50,15 @@ bool HasGstElement(const char* element_name) {
 
 constexpr GstClockTime kArgusPlayingWait = 10 * GST_SECOND;
 
-// Best-effort: pull the next ERROR posted to the pipeline bus (Jetson pipelines
-// often fail asynchronously during preroll; the reason is only on the bus).
+// IMX477 full-sensor mode dimensions and fps.
+constexpr int kSensorWidth  = 4056;
+constexpr int kSensorHeight = 3040;
+constexpr int kSensorFps    = 15;
+
+// Default encode resolution when the caller passes 0×0.
+constexpr int kDefaultEncodeWidth  = 1280;
+constexpr int kDefaultEncodeHeight = 720;
+
 std::string ConsumeNextBusError(GstElement* pipeline, GstClockTime timeout) {
   GstBus* bus = gst_element_get_bus(pipeline);
   if (!bus) {
@@ -84,18 +93,6 @@ std::string ConsumeNextBusError(GstElement* pipeline, GstClockTime timeout) {
   }
   gst_message_unref(msg);
   return out;
-}
-
-void CleanupFailedPipeline(GstElement** pipeline, GstElement** appsink) {
-  if (appsink && *appsink) {
-    gst_object_unref(*appsink);
-    *appsink = nullptr;
-  }
-  if (pipeline && *pipeline) {
-    gst_element_set_state(*pipeline, GST_STATE_NULL);
-    gst_object_unref(*pipeline);
-    *pipeline = nullptr;
-  }
 }
 
 bool ProbeSensor(int sensor_id) {
@@ -169,8 +166,14 @@ struct NvidiaArgusBackend::Impl {
   FrameCallback cb;
   std::atomic<bool> running{false};
   GstElement* pipeline{nullptr};
-  GstElement* appsink{nullptr};
+  GstElement* proc_sink{nullptr};   // continuous NV12 NVMM callbacks (GPU branch)
+  GstElement* still_sink{nullptr};  // pull-on-demand for full-res NV12 stills
   std::thread bus_thread;
+
+  // GPU pipeline: NVMM → CUDA kernels → EncodePipeline (H.264) → cb
+  std::unique_ptr<GpuFrameProcessor> gpu_processor;
+  int encode_width{0};
+  int encode_height{0};
 
   static GstFlowReturn OnNewSample(GstAppSink* sink, gpointer user_data) {
     auto* impl = static_cast<Impl*>(user_data);
@@ -185,31 +188,19 @@ struct NvidiaArgusBackend::Impl {
       return GST_FLOW_OK;
     }
 
-    GstMapInfo map;
-    if (!gst_buffer_map(buf, &map, GST_MAP_READ)) {
-      gst_sample_unref(sample);
-      return GST_FLOW_OK;
-    }
-
-    rtc::binary data(reinterpret_cast<const std::byte*>(map.data),
-                     reinterpret_cast<const std::byte*>(map.data) + map.size);
-
+    // Extract RTP timestamp from PTS (µs units, matching the old H.264 path).
     const GstClockTime pts = GST_BUFFER_PTS(buf);
     const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts)
                                 ? static_cast<uint32_t>(pts / 1000u)
                                 : 0u;
-    rtc::FrameInfo info{rtp_ts};
 
-    gst_buffer_unmap(buf, &map);
-    gst_sample_unref(sample);
-
-    if (impl->cb) {
-      try {
-        impl->cb(std::move(data), info);
-      } catch (const std::exception& e) {
-        spdlog::warn("[NvidiaArgusBackend] Frame callback threw: {}", e.what());
-      }
+    // Pass NVMM buffer directly to GPU processor — sample must remain alive
+    // until Process() returns so the NvBufSurface backing stays valid.
+    if (impl->gpu_processor) {
+      impl->gpu_processor->Process(buf, rtp_ts);
     }
+
+    gst_sample_unref(sample);
     return GST_FLOW_OK;
   }
 
@@ -239,6 +230,31 @@ struct NvidiaArgusBackend::Impl {
       gst_message_unref(msg);
     }
     gst_object_unref(bus);
+  }
+
+  void Cleanup() {
+    // Stop the pipeline first so all GStreamer streaming threads (and thus all
+    // OnNewSample callbacks) drain before we destroy gpu_processor.
+    // Destroying gpu_processor while OnNewSample is still running causes
+    // a use-after-free.
+    if (pipeline) {
+      gst_element_set_state(pipeline, GST_STATE_NULL);
+      if (proc_sink) {
+        gst_object_unref(proc_sink);
+        proc_sink = nullptr;
+      }
+      if (still_sink) {
+        gst_object_unref(still_sink);
+        still_sink = nullptr;
+      }
+      gst_object_unref(pipeline);
+      pipeline = nullptr;
+    }
+    // Safe to destroy now: no more OnNewSample callbacks can fire.
+    if (gpu_processor) {
+      gpu_processor->Stop();
+      gpu_processor.reset();
+    }
   }
 };
 
@@ -283,10 +299,18 @@ std::vector<cuda_learning::RemoteCameraInfo> NvidiaArgusBackend::DetectCameras(
       info.set_display_name(display_name);
       info.set_model("");
 
-      auto* mode = info.add_modes();
-      mode->set_width(1920);
-      mode->set_height(1080);
-      mode->set_fps(60.0);
+      // Full-sensor readout — used for high-res still capture; encode branch
+      // hardware-downscales to the requested streaming resolution.
+      auto* mode_full = info.add_modes();
+      mode_full->set_width(kSensorWidth);
+      mode_full->set_height(kSensorHeight);
+      mode_full->set_fps(static_cast<double>(kSensorFps));
+
+      // Streaming mode: 720p encode at sensor fps.
+      auto* mode_stream = info.add_modes();
+      mode_stream->set_width(kDefaultEncodeWidth);
+      mode_stream->set_height(kDefaultEncodeHeight);
+      mode_stream->set_fps(static_cast<double>(kSensorFps));
 
       spdlog::info("[NvidiaArgusBackend] sensor-id={} detected: {}", sensor_id, display_name);
       result.push_back(std::move(info));
@@ -308,19 +332,19 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
                                std::string* error_message) {
   gst_init(nullptr, nullptr);
 
-  constexpr int kDefaultWidth = 1920;
-  constexpr int kDefaultHeight = 1080;
-  constexpr int kDefaultFps = 30;
-  const int effective_width = width > 0 ? width : kDefaultWidth;
-  const int effective_height = height > 0 ? height : kDefaultHeight;
-  const int effective_fps = fps > 0 ? fps : kDefaultFps;
+  // Encode-branch resolution: what gets H.264-encoded and delivered to subscribers.
+  // The Argus source always captures at full sensor resolution (4056×3040@15fps).
+  const int encode_w = width  > 0 ? width  : kDefaultEncodeWidth;
+  const int encode_h = height > 0 ? height : kDefaultEncodeHeight;
 
-  if (width <= 0 || height <= 0 || fps <= 0) {
+  if (width <= 0 || height <= 0) {
     spdlog::warn(
-        "[NvidiaArgusBackend] Invalid camera params {}x{}@{}fps for sensor-id={}; "
-        "using defaults {}x{}@{}fps",
-        width, height, fps, sensor_id, effective_width, effective_height, effective_fps);
+        "[NvidiaArgusBackend] Invalid encode params {}x{} for sensor-id={}; "
+        "using defaults {}x{}",
+        width, height, sensor_id, encode_w, encode_h);
   }
+  // fps is informational only; the sensor drives the clock at kSensorFps.
+  (void)fps;
 
   const bool has_h264parse = HasGstElement("h264parse");
   if (!has_h264parse) {
@@ -328,51 +352,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
         "[NvidiaArgusBackend] GStreamer element 'h264parse' not found; "
         "continuing without parser in Argus pipeline");
   }
-
-  // Orin Nano has no NVENC: the nvv4l2h264enc plugin is registered in the L4T
-  // image, but it opens /dev/v4l2-nvenc, which the kernel never creates on
-  // SKUs without an encoder. So check the device node, not just the factory.
-  const bool nvenc_plugin = HasGstElement("nvv4l2h264enc");
-  const bool nvenc_device = (access("/dev/v4l2-nvenc", F_OK) == 0);
-  const bool has_nvenc = nvenc_plugin && nvenc_device;
-  const bool has_x264 = HasGstElement("x264enc");
-  if (!has_nvenc) {
-    spdlog::warn(
-        "[NvidiaArgusBackend] Hardware H.264 encoder unavailable "
-        "(plugin_registered={}, device_present={}); falling back to software "
-        "'x264enc' (expected on Orin Nano: no NVENC hardware)",
-        nvenc_plugin, nvenc_device);
-  }
-  if (!has_nvenc && !has_x264) {
-    const std::string msg =
-        "No H.264 encoder available: neither nvv4l2h264enc nor x264enc are "
-        "registered with GStreamer";
-    if (error_message) *error_message = msg;
-    spdlog::error("[NvidiaArgusBackend] {}", msg);
-    return false;
-  }
-
-  // Hardware path keeps NVMM all the way to the encoder; software path needs a
-  // download to system memory (I420) before x264enc.
-  const char* encoder_segment =
-      has_nvenc
-          ? "nvvidconv ! "
-            "nvv4l2h264enc insert-sps-pps=true bitrate=2000000 ! "
-          : "nvvidconv ! video/x-raw,format=I420 ! "
-            "x264enc tune=zerolatency speed-preset=ultrafast "
-            "bitrate=2000 vbv-buf-capacity=400 "
-            "intra-refresh=true key-int-max=60 ! "
-            "video/x-h264,profile=baseline ! ";
-
-  // Pin Annex-B byte-stream / AU alignment after the parser. Without this,
-  // h264parse may negotiate to stream-format=avc (length-prefixed NALs),
-  // which the downstream libavcodec decoder in live_video_processor cannot
-  // parse — producing "No start code is found" / "Invalid NAL unit 0".
-  const char* parse_segment =
-      has_h264parse
-          ? "h264parse config-interval=-1 ! "
-            "video/x-h264,stream-format=byte-stream,alignment=au ! "
-          : "";
+  (void)has_h264parse;  // proc_sink branch no longer uses h264parse
 
   // AWB workaround for Arducam IMX477: stock ISP tuning + wbmode=auto produces
   // a strong cyan cast on mixed indoor/window-light scenes. Lock to a fixed
@@ -380,21 +360,59 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   const char* wbmode_env = std::getenv("NVARGUS_WBMODE");
   const int wbmode = wbmode_env ? std::atoi(wbmode_env) : 4;
 
-  char pipeline_str[1024];
-  snprintf(pipeline_str, sizeof(pipeline_str),
-           "nvarguscamerasrc sensor-id=%d wbmode=%d ! "
-           "video/x-raw(memory:NVMM),width=%d,height=%d,framerate=%d/1,format=NV12 ! "
-           "%s"
-           "%s"
-           "appsink name=sink emit-signals=true max-buffers=2 drop=true",
-           sensor_id, wbmode, effective_width, effective_height, effective_fps,
-           encoder_segment,
-           parse_segment);
+  // Build pipeline string.
+  //
+  // Architecture:
+  //   nvarguscamerasrc (4056×3040 @ 15fps, full sensor readout)
+  //     → tee
+  //         still_sink branch : raw NV12 frames, pull-on-demand for BMP stills
+  //         proc_sink branch  : nvvidconv downscale → NV12 NVMM → GpuFrameProcessor
+  //                               (GPU kernels + EncodePipeline → H.264 → WebRTC)
+  //
+  // The proc_sink branch keeps NVMM through the VIC downscaler.  GpuFrameProcessor
+  // maps the NVMM buffer to CUDA device pointers, runs NV12↔RGBA kernels, and
+  // re-encodes via a dedicated GStreamer software pipeline (EncodePipeline).
+  // This eliminates the encode→decode H.264 round-trip previously required to get
+  // RGB frames for BirdWatcher YOLO inference.
+  std::string pipeline;
+  pipeline.reserve(2048);
 
-  spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline_str);
+  // Source — always full sensor resolution at sensor native fps.
+  pipeline += "nvarguscamerasrc sensor-id=" + std::to_string(sensor_id);
+  pipeline += " wbmode=" + std::to_string(wbmode) + " ! ";
+  pipeline += "video/x-raw(memory:NVMM)";
+  pipeline += ",width="     + std::to_string(kSensorWidth);
+  pipeline += ",height="    + std::to_string(kSensorHeight);
+  pipeline += ",framerate=" + std::to_string(kSensorFps) + "/1";
+  pipeline += ",format=NV12 ! ";
+  pipeline += "tee name=cam_tee ";
+
+  // Still-capture branch: nvvidconv normalizes the NVMM pitch to stride=width in
+  // system memory so gst_buffer_map gives linear NV12 without alignment padding.
+  // nvvidconv uses the VIC hardware block (effectively free on Jetson).
+  // The leaky queue (downstream, max 1 buffer) keeps only the latest frame so
+  // GrabStillFrame always returns a fresh ~67 ms-old frame regardless of pull cadence.
+  pipeline += "cam_tee. ! queue leaky=2 max-size-buffers=1 ! ";
+  pipeline += "nvvidconv ! ";
+  pipeline += "video/x-raw,width=" + std::to_string(kSensorWidth);
+  pipeline += ",height=" + std::to_string(kSensorHeight);
+  pipeline += ",format=NV12 ! ";
+  pipeline += "appsink name=still_sink emit-signals=false sync=false max-buffers=1 drop=true ";
+
+  // proc_sink branch: VIC hardware downscale to encode resolution, keep in NVMM.
+  // GpuFrameProcessor owns the H.264 re-encode (via EncodePipeline) after this.
+  pipeline += "cam_tee. ! ";
+  pipeline += "nvvidconv ! ";
+  pipeline += "video/x-raw(memory:NVMM)";
+  pipeline += ",width="  + std::to_string(encode_w);
+  pipeline += ",height=" + std::to_string(encode_h);
+  pipeline += ",format=NV12 ! ";
+  pipeline += "appsink name=proc_sink emit-signals=true max-buffers=2 drop=true";
+
+  spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline);
 
   GError* err = nullptr;
-  impl_->pipeline = gst_parse_launch(pipeline_str, &err);
+  impl_->pipeline = gst_parse_launch(pipeline.c_str(), &err);
   if (!impl_->pipeline) {
     const std::string msg = err ? std::string("Failed to parse pipeline: ") + err->message
                                 : "Failed to parse pipeline (unknown error)";
@@ -407,18 +425,23 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
     g_error_free(err);
   }
 
-  impl_->appsink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "sink");
-  if (!impl_->appsink) {
-    if (error_message) *error_message = "Failed to find appsink element";
-    spdlog::error("[NvidiaArgusBackend] appsink element not found");
-    gst_object_unref(impl_->pipeline);
-    impl_->pipeline = nullptr;
+  impl_->proc_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "proc_sink");
+  if (!impl_->proc_sink) {
+    if (error_message) *error_message = "Failed to find proc_sink element";
+    spdlog::error("[NvidiaArgusBackend] proc_sink element not found");
+    impl_->Cleanup();
     return false;
+  }
+
+  impl_->still_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "still_sink");
+  if (!impl_->still_sink) {
+    // Non-fatal: still capture won't work but streaming can continue.
+    spdlog::warn("[NvidiaArgusBackend] still_sink element not found; still capture unavailable");
   }
 
   GstAppSinkCallbacks callbacks{};
   callbacks.new_sample = &Impl::OnNewSample;
-  gst_app_sink_set_callbacks(GST_APP_SINK(impl_->appsink), &callbacks, impl_.get(), nullptr);
+  gst_app_sink_set_callbacks(GST_APP_SINK(impl_->proc_sink), &callbacks, impl_.get(), nullptr);
 
   GstStateChangeReturn ret = gst_element_set_state(impl_->pipeline, GST_STATE_PLAYING);
   if (ret == GST_STATE_CHANGE_FAILURE) {
@@ -432,7 +455,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
       *error_message = msg;
     }
     spdlog::error("[NvidiaArgusBackend] {} (sensor-id={})", msg, sensor_id);
-    CleanupFailedPipeline(&impl_->pipeline, &impl_->appsink);
+    impl_->Cleanup();
     return false;
   }
 
@@ -457,16 +480,33 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
       *error_message = msg;
     }
     spdlog::error("[NvidiaArgusBackend] {} (sensor-id={})", msg, sensor_id);
-    CleanupFailedPipeline(&impl_->pipeline, &impl_->appsink);
+    impl_->Cleanup();
     return false;
   }
 
   impl_->running = true;
   impl_->bus_thread = std::thread([this]() { impl_->BusLoop(); });
 
+  // Start GPU frame processor: maps NVMM → CUDA kernels → EncodePipeline (x264enc).
+  impl_->encode_width  = encode_w;
+  impl_->encode_height = encode_h;
+  impl_->gpu_processor = std::make_unique<GpuFrameProcessor>();
+  {
+    std::string gfp_err;
+    if (!impl_->gpu_processor->Start(encode_w, encode_h, kSensorFps, impl_->cb, &gfp_err)) {
+      spdlog::error("[NvidiaArgusBackend] GpuFrameProcessor::Start failed: {}", gfp_err);
+      impl_->running = false;
+      if (impl_->bus_thread.joinable()) impl_->bus_thread.join();
+      impl_->Cleanup();
+      if (error_message) *error_message = "GpuFrameProcessor failed: " + gfp_err;
+      return false;
+    }
+  }
+
   spdlog::info(
-      "[NvidiaArgusBackend] Started camera sensor-id={} {}x{}@{}fps",
-      sensor_id, effective_width, effective_height, effective_fps);
+      "[NvidiaArgusBackend] Started sensor-id={} full-sensor {}x{}@{}fps, "
+      "encode branch {}x{}",
+      sensor_id, kSensorWidth, kSensorHeight, kSensorFps, encode_w, encode_h);
   return true;
 }
 
@@ -479,16 +519,8 @@ void NvidiaArgusBackend::Stop() {
     impl_->bus_thread.join();
   }
 
-  if (impl_->pipeline) {
-    gst_element_set_state(impl_->pipeline, GST_STATE_NULL);
-    if (impl_->appsink) {
-      gst_object_unref(impl_->appsink);
-      impl_->appsink = nullptr;
-    }
-    gst_object_unref(impl_->pipeline);
-    impl_->pipeline = nullptr;
-    spdlog::info("[NvidiaArgusBackend] Pipeline stopped and released");
-  }
+  impl_->Cleanup();
+  spdlog::info("[NvidiaArgusBackend] Pipeline stopped and released");
 }
 
 bool NvidiaArgusBackend::IsRunning() const {
@@ -497,6 +529,53 @@ bool NvidiaArgusBackend::IsRunning() const {
 
 std::string NvidiaArgusBackend::GetBackendName() const {
   return "Argus";
+}
+
+GpuFrameProcessor* NvidiaArgusBackend::GetGpuFrameProcessor() {
+  return impl_->gpu_processor.get();
+}
+
+rtc::binary NvidiaArgusBackend::GrabStillFrame(int* out_width, int* out_height) {
+  if (!impl_->running.load() || !impl_->still_sink) {
+    spdlog::warn("[NvidiaArgusBackend] GrabStillFrame: pipeline not running or still_sink absent");
+    return {};
+  }
+
+  // Wait up to 500 ms for the leaky queue to have a fresh frame (at 15fps, a
+  // new frame arrives every ~67 ms so 500 ms is more than enough).
+  GstSample* sample = gst_app_sink_try_pull_sample(
+      GST_APP_SINK(impl_->still_sink), 500 * GST_MSECOND);
+  if (!sample) {
+    spdlog::warn("[NvidiaArgusBackend] GrabStillFrame: timed out waiting for still frame");
+    return {};
+  }
+
+  if (out_width || out_height) {
+    GstCaps* caps = gst_sample_get_caps(sample);
+    if (caps) {
+      const GstStructure* s = gst_caps_get_structure(caps, 0);
+      int w = 0, h = 0;
+      gst_structure_get_int(s, "width", &w);
+      gst_structure_get_int(s, "height", &h);
+      if (out_width)  *out_width  = w;
+      if (out_height) *out_height = h;
+    }
+  }
+
+  GstBuffer* buf = gst_sample_get_buffer(sample);
+  rtc::binary data;
+  if (buf) {
+    // The still_sink branch goes through nvvidconv to system memory, so
+    // map.data is linear NV12 with stride=width — no alignment padding.
+    GstMapInfo map;
+    if (gst_buffer_map(buf, &map, GST_MAP_READ)) {
+      data.assign(reinterpret_cast<const std::byte*>(map.data),
+                  reinterpret_cast<const std::byte*>(map.data) + map.size);
+      gst_buffer_unmap(buf, &map);
+    }
+  }
+  gst_sample_unref(sample);
+  return data;
 }
 
 }  // namespace jrb::adapters::camera

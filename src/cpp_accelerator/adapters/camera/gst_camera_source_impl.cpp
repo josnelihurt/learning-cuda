@@ -3,29 +3,13 @@
 #include "src/cpp_accelerator/adapters/camera/backends/camera_backend.h"
 #include "src/cpp_accelerator/adapters/camera/backends/stub_backend.h"
 
-#ifdef CAMERA_BACKEND_V4L2_ENABLED
-#include "src/cpp_accelerator/adapters/camera/backends/v4l2_backend.h"
-#endif
-
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-#include "src/cpp_accelerator/adapters/camera/backends/nvidia_argus_backend.h"
-#endif
-
 #include <spdlog/spdlog.h>
 
 namespace jrb::adapters::camera {
 
 GstCameraSourceImpl::GstCameraSourceImpl() {
-  // Initialize backends in priority order for streaming.
-#ifdef CAMERA_BACKEND_V4L2_ENABLED
-  backends_.push_back(std::make_unique<V4L2Backend>());
-#endif
-
-#ifdef CAMERA_BACKEND_NVIDIA_ARGUS_ENABLED
-  backends_.push_back(std::make_unique<NvidiaArgusBackend>());
-#endif
-
-  // Stub is always available as fallback
+  RegisterV4L2Backend();
+  RegisterArgusBackend();
   backends_.push_back(std::make_unique<StubBackend>());
 }
 
@@ -89,6 +73,11 @@ void GstCameraSourceImpl::Stop() {
 
 bool GstCameraSourceImpl::IsRunning() const {
   return active_backend_ && active_backend_->IsRunning();
+}
+
+rtc::binary GstCameraSourceImpl::GrabStillFrame(int* out_width, int* out_height) {
+  if (!active_backend_) return {};
+  return active_backend_->GrabStillFrame(out_width, out_height);
 }
 
 }  // namespace jrb::adapters::camera

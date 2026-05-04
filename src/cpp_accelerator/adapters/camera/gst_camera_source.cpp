@@ -32,4 +32,14 @@ bool GstCameraSource::IsRunning() const {
   return impl->IsRunning();
 }
 
+rtc::binary GstCameraSource::GrabStillFrame(int* out_width, int* out_height) {
+  auto* impl = static_cast<GstCameraSourceImpl*>(impl_.get());
+  return impl->GrabStillFrame(out_width, out_height);
+}
+
+GpuFrameProcessor* GstCameraSource::GetGpuFrameProcessor() {
+  auto* impl = static_cast<GstCameraSourceImpl*>(impl_.get());
+  return impl->GetGpuFrameProcessor();
+}
+
 }  // namespace jrb::adapters::camera

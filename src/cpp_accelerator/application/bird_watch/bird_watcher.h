@@ -11,6 +11,7 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include <rtc/rtc.hpp>
 
@@ -32,6 +33,7 @@ class IImageSink;
 
 namespace jrb::adapters::camera {
 class CameraHub;
+class GpuFrameProcessor;
 }
 
 namespace jrb::application::bird_watch {
@@ -65,9 +67,18 @@ class BirdWatcher {
   bool IsSubscribed() const { return subscription_.IsActive(); }
 
  private:
+  // H.264 callback: only used on x86 (no GPU processor).
   void OnH264Frame(const rtc::binary& data, const rtc::FrameInfo& info);
+  // GPU RGBA callback: used on Jetson / NvidiaArgusBackend path.
+  void OnRgbaFrame(const std::vector<uint8_t>& rgba, int width, int height);
+
+  void ConnectGpuPath();
+  void DisconnectGpuPath();
+
   void WorkerLoop();
   void ProcessQueuedFrame(rtc::binary data, rtc::FrameInfo info);
+  void ProcessRgbaFrame(std::vector<uint8_t> rgba, int width, int height);
+
   // Always pushes the AU into the decoder. When `want_rgb` is true, also runs
   // sws_scale on the latest decoded frame and fills `rgb` / dims. Returns true
   // if at least one frame was decoded (regardless of whether RGB was requested).
@@ -92,8 +103,24 @@ class BirdWatcher {
 
   jrb::adapters::camera::CameraHub::Subscription subscription_;
 
+  // Non-null when the active backend is NvidiaArgusBackend (Jetson only).
+  // In that case the GPU path is used: RGB arrives via RgbCallback, not H.264 decode.
+  // This is a non-owning raw pointer; the processor is owned by NvidiaArgusBackend.
+  jrb::adapters::camera::GpuFrameProcessor* gpu_processor_ = nullptr;
+
   std::thread worker_thread_;
+
+  // H.264 frame queue — used only when gpu_processor_ == nullptr.
   std::queue<std::pair<rtc::binary, rtc::FrameInfo>> frame_queue_;
+
+  // RGBA frame queue — used only when gpu_processor_ != nullptr.
+  struct RgbaItem {
+    std::vector<uint8_t> rgba;
+    int width;
+    int height;
+  };
+  std::queue<RgbaItem> rgba_queue_;
+
   std::mutex queue_mutex_;
   std::condition_variable queue_cv_;
   std::atomic<bool> running_{false};

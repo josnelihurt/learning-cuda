@@ -125,4 +125,36 @@ extern "C" cudaError_t cuda_convert_to_grayscale(const unsigned char* input, uns
   return cudaSuccess;
 }
 
+// Device-pointer overload: grayscale RGBA buffer in device memory.
+// Writes luminance into all three RGB channels so the RGBA frame can be passed
+// back through the pipeline without any host copies.
+__global__ void convert_to_grayscale_rgba_device_kernel(unsigned char* rgba_dev, int width,
+                                                        int height,
+                                                        GrayscaleAlgorithmType algorithm) {
+  const int x = blockIdx.x * blockDim.x + threadIdx.x;
+  const int y = blockIdx.y * blockDim.y + threadIdx.y;
+  if (x >= width || y >= height) return;
+
+  const int idx   = (y * width + x) * 4;
+  const unsigned char r = rgba_dev[idx];
+  const unsigned char g = rgba_dev[idx + 1];
+  const unsigned char b = rgba_dev[idx + 2];
+  const unsigned char lum = calculate_grayscale_value(r, g, b, algorithm);
+  rgba_dev[idx]     = lum;
+  rgba_dev[idx + 1] = lum;
+  rgba_dev[idx + 2] = lum;
+  // alpha unchanged
+}
+
+extern "C" cudaError_t cuda_convert_to_grayscale_device(unsigned char* rgba_dev, int width,
+                                                        int height, int algorithm) {
+  const dim3 block(16, 16);
+  const dim3 grid((width + 15) / 16, (height + 15) / 16);
+  convert_to_grayscale_rgba_device_kernel<<<grid, block>>>(
+      rgba_dev, width, height, static_cast<GrayscaleAlgorithmType>(algorithm));
+  const cudaError_t err = cudaDeviceSynchronize();
+  if (err != cudaSuccess) return err;
+  return cudaGetLastError();
+}
+
 }  // namespace jrb::adapters::compute::cuda

@@ -1,6 +1,8 @@
 #include "src/cpp_accelerator/adapters/camera/backends/nvidia_argus_backend.h"
 
 #include <cstdlib>
+#include <mutex>
+#include <set>
 #include <string>
 #include <unistd.h>
 
@@ -13,6 +15,27 @@
 namespace jrb::adapters::camera {
 
 namespace {
+
+// Process-wide registry of sensor IDs currently being streamed by any
+// NvidiaArgusBackend instance.  Argus allows only one CaptureSession per
+// sensor; probing an active sensor segfaults the process.
+std::mutex g_active_sensors_mu;
+std::set<int> g_active_sensors;
+
+void MarkSensorActive(int sensor_id) {
+  std::lock_guard<std::mutex> lock(g_active_sensors_mu);
+  g_active_sensors.insert(sensor_id);
+}
+
+void MarkSensorInactive(int sensor_id) {
+  std::lock_guard<std::mutex> lock(g_active_sensors_mu);
+  g_active_sensors.erase(sensor_id);
+}
+
+bool IsSensorActive(int sensor_id) {
+  std::lock_guard<std::mutex> lock(g_active_sensors_mu);
+  return g_active_sensors.count(sensor_id) > 0;
+}
 
 bool IsNvargusAvailable(std::string* reason) {
   gst_init(nullptr, nullptr);
@@ -234,6 +257,9 @@ struct NvidiaArgusBackend::Impl {
   }
 
   void Cleanup() {
+    if (active_sensor_id >= 0) {
+      MarkSensorInactive(active_sensor_id);
+    }
     active_sensor_id = -1;
     // Stop the pipeline first so all GStreamer streaming threads (and thus all
     // OnNewSample callbacks) drain before we destroy gpu_processor.
@@ -287,10 +313,10 @@ std::vector<cuda_learning::RemoteCameraInfo> NvidiaArgusBackend::DetectCameras(
 
   for (int sensor_id : sensor_ids) {
     try {
-      // If this sensor is already streaming, skip the probe (it would fail with
-      // "Failed to create CaptureSession" and may crash Argus) and report it
-      // directly as available.
-      if (impl_->running.load() && impl_->active_sensor_id == sensor_id) {
+      // If this sensor is already streaming (in any backend instance in this
+      // process), skip the probe — Argus only allows one CaptureSession per
+      // sensor and a second attempt segfaults the process.
+      if (IsSensorActive(sensor_id)) {
         spdlog::info("[NvidiaArgusBackend] sensor-id={} already active, skipping probe",
                      sensor_id);
       } else {
@@ -514,6 +540,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   }
 
   impl_->active_sensor_id = sensor_id;
+  MarkSensorActive(sensor_id);
   spdlog::info(
       "[NvidiaArgusBackend] Started sensor-id={} full-sensor {}x{}@{}fps, "
       "encode branch {}x{}",

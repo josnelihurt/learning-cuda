@@ -66,11 +66,19 @@ cc_library(
         "//conditions:default": [],
     }),
     hdrs = ["v4l2_backend.h"],
+    copts = select({
+        "//bazel/flags:v4l2_camera_enabled": [
+            "-I/usr/include/gstreamer-1.0",
+            "-I/usr/include/glib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
     deps = [
         ":camera_backend",
         "@spdlog",
     ] + select({
         "//bazel/flags:v4l2_camera_enabled": [
+            "//third_party/glib-config:glibconfig",
             "//third_party/gstreamer:gstreamer",
         ],
         "//conditions:default": [],
@@ -78,7 +86,7 @@ cc_library(
 )
 ```
 
-When the flag is off, `srcs` is empty — the `.cpp` is never compiled, so GStreamer headers are never needed. When the flag is on, the `//third_party/gstreamer:gstreamer` target provides all include paths and link flags as a single dependency.
+When the flag is off, `srcs` is empty — the `.cpp` is never compiled, so GStreamer headers are never needed. When the flag is on, `copts` provides the system include paths and `//third_party/gstreamer:gstreamer` provides the link flags (`-lgstreamer-1.0`, etc.).
 
 Examples:
 

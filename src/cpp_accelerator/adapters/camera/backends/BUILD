@@ -20,11 +20,19 @@ cc_library(
     }),
     hdrs = ["v4l2_backend.h"],
     visibility = ["//visibility:public"],
+    copts = select({
+        "//bazel/flags:v4l2_camera_enabled": [
+            "-I/usr/include/gstreamer-1.0",
+            "-I/usr/include/glib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
     deps = [
         ":camera_backend",
         "@spdlog",
     ] + select({
         "//bazel/flags:v4l2_camera_enabled": [
+            "//third_party/glib-config:glibconfig",
             "//third_party/gstreamer:gstreamer",
         ],
         "//conditions:default": [],
@@ -40,6 +48,13 @@ cc_library(
     }),
     hdrs = ["nvidia_argus_backend.h"],
     visibility = ["//visibility:public"],
+    copts = select({
+        "//bazel/flags:nvidia_argus_camera_enabled": [
+            "-I/usr/include/gstreamer-1.0",
+            "-I/usr/include/glib-2.0",
+        ],
+        "//conditions:default": [],
+    }),
     deps = [
         ":camera_backend",
         "//src/cpp_accelerator/adapters/camera:gpu_frame_processor",
@@ -47,6 +62,7 @@ cc_library(
         "@spdlog",
     ] + select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
+            "//third_party/glib-config:glibconfig",
             "//third_party/gstreamer:gstreamer",
         ],
         "//conditions:default": [],

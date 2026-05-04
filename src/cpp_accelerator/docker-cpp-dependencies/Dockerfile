@@ -11,6 +11,10 @@ FROM ${L4T_MULTIMEDIA_IMAGE} AS l4t-multimedia
 
 FROM ${BASE_REGISTRY}/base:bazel-base-${BASE_TAG}-${TARGETARCH}
 
+# Re-declare so it is available in RUN commands within this stage
+# (global ARGs are only usable in FROM instructions without re-declaration).
+ARG TARGETARCH=amd64
+
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

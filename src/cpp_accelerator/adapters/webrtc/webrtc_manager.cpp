@@ -33,6 +33,19 @@
 
 namespace jrb::adapters::webrtc {
 
+using cuda_learning::ACCELERATOR_TYPE_CUDA;
+using cuda_learning::AcceleratorType;
+using cuda_learning::ControlRequest;
+using cuda_learning::ControlResponse;
+using cuda_learning::DetectionFrame;
+using cuda_learning::FILTER_TYPE_NONE;
+using cuda_learning::GetCapabilitiesResponse;
+using cuda_learning::GetVersionInfoResponse;
+using cuda_learning::ListFiltersResponse;
+using cuda_learning::ProcessImageRequest;
+using cuda_learning::ProcessImageResponse;
+using cuda_learning::ProcessingStatsFrame;
+using jrb::adapters::image::ImageWriter;
 using jrb::adapters::webrtc::protocol::CopyProcessMetadata;
 using jrb::adapters::webrtc::protocol::ParseDataChannelRequest;
 using jrb::adapters::webrtc::protocol::ResolveGenericSelectionsInPlace;
@@ -41,24 +54,12 @@ using jrb::adapters::webrtc::sdp::FindOutboundVideoConfig;
 using jrb::adapters::webrtc::sdp::MakeSsrc;
 using jrb::adapters::webrtc::sdp::StripRtpHeaderExtensions;
 using jrb::adapters::webrtc::sdp::WaitForSdpAnswer;
-using jrb::adapters::image::ImageWriter;
-using cuda_learning::ProcessingStatsFrame;
-using cuda_learning::DetectionFrame;
-using cuda_learning::ControlRequest;
-using cuda_learning::ControlResponse;
-using cuda_learning::ListFiltersResponse;
-using cuda_learning::GetVersionInfoResponse;
-using cuda_learning::AcceleratorType;
-using cuda_learning::GetCapabilitiesResponse;
-using cuda_learning::ACCELERATOR_TYPE_CUDA;
-using cuda_learning::FILTER_TYPE_NONE;
-using cuda_learning::ProcessImageRequest;
-using cuda_learning::ProcessImageResponse;
 
 WebRTCManager::WebRTCManager(WebRTCManagerConfig config)
     : engine_(std::move(config.engine)),
       camera_hub_(std::move(config.camera_hub)),
-      server_info_(std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
+      server_info_(
+          std::make_unique<jrb::application::server_info::ServerInfoProvider>(engine_.get())),
       image_sink_(config.image_sink ? std::move(config.image_sink)
                                     : std::make_shared<ImageWriter>()),
       captures_dir_(std::move(config.captures_dir)),
@@ -156,17 +157,20 @@ void WebRTCManager::Shutdown() {
 bool WebRTCManager::CreateSession(const std::string& session_id, const std::string& sdp_offer_str,
                                   std::string* sdp_answer_str, std::string* error_message) {
   if (!initialized_) {
-    if (error_message) *error_message = "WebRTC manager not initialized";
+    if (error_message)
+      *error_message = "WebRTC manager not initialized";
     return false;
   }
   if (session_id.empty() || sdp_offer_str.empty()) {
-    if (error_message) *error_message = "session_id and sdp_offer are required";
+    if (error_message)
+      *error_message = "session_id and sdp_offer are required";
     return false;
   }
 
   std::lock_guard<std::mutex> lock(sessions_mutex_);
   if (sessions_.count(session_id)) {
-    if (error_message) *error_message = "Session with ID " + session_id + " already exists";
+    if (error_message)
+      *error_message = "Session with ID " + session_id + " already exists";
     return false;
   }
 
@@ -178,17 +182,15 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     session->peer_connection = std::make_shared<rtc::PeerConnection>(*config_);
     // Create memory pool before LiveVideoProcessor so the pool pointer is valid.
     session->memory_pool = std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>();
-    session->live_video_processor =
-        std::make_unique<LiveVideoProcessor>(engine_.get(), session->memory_pool.get(),
-                                              image_sink_.get());
+    session->live_video_processor = std::make_unique<LiveVideoProcessor>(
+        engine_.get(), session->memory_pool.get(), image_sink_.get());
     session->live_filter_state.set_accelerator(ACCELERATOR_TYPE_CUDA);
     session->live_filter_state.add_filters(FILTER_TYPE_NONE);
     session->live_filter_state.set_api_version("1.1");
     spdlog::info("[WebRTC:{}] Created dedicated CUDA memory pool for session", session_id);
 
     // 2. Build manual ICE candidate SDP (reads env vars; may return empty string).
-    auto manual_candidate_ptr =
-        std::make_shared<std::string>(BuildManualCandidateSdp(session_id));
+    auto manual_candidate_ptr = std::make_shared<std::string>(BuildManualCandidateSdp(session_id));
 
     // 3. Register peer connection and media track callbacks.
     auto answer_future =
@@ -198,16 +200,14 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     SetupDataChannels(session_id, session);
 
     // 5. Parse, sanitize, and apply the remote SDP offer.
-    const bool has_fingerprint =
-        sdp_offer_str.find("fingerprint:") != std::string::npos ||
-        sdp_offer_str.find("a=fingerprint:") != std::string::npos;
+    const bool has_fingerprint = sdp_offer_str.find("fingerprint:") != std::string::npos ||
+                                 sdp_offer_str.find("a=fingerprint:") != std::string::npos;
     spdlog::debug("[WebRTC:{}] Parsing SDP offer (length: {}, fingerprint: {})", session_id,
                   sdp_offer_str.length(), has_fingerprint);
     if (!has_fingerprint) {
       spdlog::warn("[WebRTC:{}] SDP offer missing fingerprint - DTLS handshake may fail",
                    session_id);
-      spdlog::debug("[WebRTC:{}] SDP offer preview: {}", session_id,
-                    sdp_offer_str.substr(0, 300));
+      spdlog::debug("[WebRTC:{}] SDP offer preview: {}", session_id, sdp_offer_str.substr(0, 300));
     }
     const std::string sanitized_sdp = StripRtpHeaderExtensions(sdp_offer_str);
     spdlog::debug("[WebRTC:{}] SDP offer sanitized (extmap stripped, length: {})", session_id,
@@ -219,7 +219,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     } catch (const std::exception& e) {
       spdlog::error("[WebRTC:{}] Failed to set remote description: {}", session_id, e.what());
       spdlog::error("[WebRTC:{}] Full SDP offer that failed:\n{}", session_id, sanitized_sdp);
-      if (error_message) *error_message = std::string("Failed to set remote description: ") + e.what();
+      if (error_message)
+        *error_message = std::string("Failed to set remote description: ") + e.what();
       return false;
     }
 
@@ -231,8 +232,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
         if (media) {
           const auto ssrcs = media->getSSRCs();
           spdlog::debug("[WebRTC:{}] SDP mid={} dir={} has {} SSRCs: {}", session_id, media->mid(),
-                       static_cast<int>(media->direction()), ssrcs.size(),
-                       ssrcs.empty() ? "(none)" : std::to_string(*ssrcs.begin()));
+                        static_cast<int>(media->direction()), ssrcs.size(),
+                        ssrcs.empty() ? "(none)" : std::to_string(*ssrcs.begin()));
         }
       }
     }
@@ -242,8 +243,8 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
       return false;
     }
     spdlog::debug("[WebRTC:{}] After addTrack: inbound_track={} outbound_track={}", session_id,
-                 session->inbound_video_track != nullptr,
-                 session->outbound_video_track != nullptr);
+                  session->inbound_video_track != nullptr,
+                  session->outbound_video_track != nullptr);
 
     // Apply any ICE candidates that arrived before the remote description was set.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -264,16 +265,17 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     if (!WaitForSdpAnswer(session_id, answer_future, *session->peer_connection, sdp_answer_str)) {
       try {
         std::lock_guard<std::mutex> sl(session->mutex);
-        if (session->data_channel) session->data_channel->close();
-        if (session->peer_connection) session->peer_connection->close();
+        if (session->data_channel)
+          session->data_channel->close();
+        if (session->peer_connection)
+          session->peer_connection->close();
       } catch (const std::exception& e) {
         spdlog::warn("[WebRTC:{}] Error cleaning up failed session: {}", session_id, e.what());
       }
       RemoveSession(session_id);
       if (error_message) {
-        *error_message =
-            "Timeout waiting for SDP answer after " +
-            std::to_string(std::chrono::seconds(10).count()) + " seconds";
+        *error_message = "Timeout waiting for SDP answer after " +
+                         std::to_string(std::chrono::seconds(10).count()) + " seconds";
       }
       return false;
     }
@@ -281,15 +283,16 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
     spdlog::info("[WebRTC:{}] Session created successfully (answer length: {})", session_id,
                  sdp_answer_str ? sdp_answer_str->length() : 0);
     spdlog::debug("[WebRTC:{}] SDP answer preview: {}", session_id,
-                  sdp_answer_str ? sdp_answer_str->substr(
-                                       0, std::min(size_t(500), sdp_answer_str->length()))
-                                 : "");
+                  sdp_answer_str
+                      ? sdp_answer_str->substr(0, std::min(size_t(500), sdp_answer_str->length()))
+                      : "");
 
     // 8. Commit the session.
     sessions_[session_id] = session;
     return true;
   } catch (const std::exception& e) {
-    if (error_message) *error_message = "Failed to create WebRTC session: " + std::string(e.what());
+    if (error_message)
+      *error_message = "Failed to create WebRTC session: " + std::string(e.what());
     spdlog::error("[WebRTC:{}] Failed to create session: {}", session_id, e.what());
     RemoveSession(session_id);
     return false;
@@ -300,21 +303,24 @@ bool WebRTCManager::CreateSession(const std::string& session_id, const std::stri
 // CreateCameraSession — like CreateSession but wires GstCameraSource output.
 // ---------------------------------------------------------------------------
 bool WebRTCManager::CreateCameraSession(const std::string& session_id,
-                                         const std::string& sdp_offer_str,
-                                         int sensor_id, int width, int height, int fps,
-                                         std::string* sdp_answer_str, std::string* error_message) {
+                                        const std::string& sdp_offer_str, int sensor_id, int width,
+                                        int height, int fps, std::string* sdp_answer_str,
+                                        std::string* error_message) {
   if (!initialized_) {
-    if (error_message) *error_message = "WebRTC manager not initialized";
+    if (error_message)
+      *error_message = "WebRTC manager not initialized";
     return false;
   }
   if (session_id.empty() || sdp_offer_str.empty()) {
-    if (error_message) *error_message = "session_id and sdp_offer are required";
+    if (error_message)
+      *error_message = "session_id and sdp_offer are required";
     return false;
   }
 
   std::lock_guard<std::mutex> lock(sessions_mutex_);
   if (sessions_.count(session_id)) {
-    if (error_message) *error_message = "Session with ID " + session_id + " already exists";
+    if (error_message)
+      *error_message = "Session with ID " + session_id + " already exists";
     return false;
   }
 
@@ -324,8 +330,7 @@ bool WebRTCManager::CreateCameraSession(const std::string& session_id,
     session->last_heartbeat = std::chrono::steady_clock::now();
     session->peer_connection = std::make_shared<rtc::PeerConnection>(*config_);
 
-    auto manual_candidate_ptr =
-        std::make_shared<std::string>(BuildManualCandidateSdp(session_id));
+    auto manual_candidate_ptr = std::make_shared<std::string>(BuildManualCandidateSdp(session_id));
 
     auto answer_future =
         SetupPeerConnectionCallbacks(session_id, session, manual_candidate_ptr, sdp_answer_str);
@@ -360,7 +365,8 @@ bool WebRTCManager::CreateCameraSession(const std::string& session_id,
     }
 
     if (!WaitForSdpAnswer(session_id, answer_future, *session->peer_connection, sdp_answer_str)) {
-      if (error_message) *error_message = "Timeout waiting for SDP answer";
+      if (error_message)
+        *error_message = "Timeout waiting for SDP answer";
       return false;
     }
 
@@ -368,10 +374,13 @@ bool WebRTCManager::CreateCameraSession(const std::string& session_id,
     session->gst_camera_source->SetFrameCallback(
         [weak_self = weak_from_this(), sid = session_id](rtc::binary data, rtc::FrameInfo info) {
           auto mgr = weak_self.lock();
-          if (!mgr) return;
+          if (!mgr)
+            return;
           auto s = mgr->GetSession(sid);
-          if (!s || !s->outbound_video_track) return;
-          if (!s->outbound_video_track->isOpen()) return;
+          if (!s || !s->outbound_video_track)
+            return;
+          if (!s->outbound_video_track->isOpen())
+            return;
           try {
             s->outbound_video_track->sendFrame(std::move(data), info);
           } catch (const std::exception& e) {
@@ -381,14 +390,15 @@ bool WebRTCManager::CreateCameraSession(const std::string& session_id,
 
     std::string cam_err;
     if (!session->gst_camera_source->Start(sensor_id, width, height, fps, &cam_err)) {
-      if (error_message) *error_message = "Failed to start camera: " + cam_err;
-      spdlog::error("[WebRTC:{}] Failed to start camera sensor_id={}: {}", session_id,
-                    sensor_id, cam_err);
+      if (error_message)
+        *error_message = "Failed to start camera: " + cam_err;
+      spdlog::error("[WebRTC:{}] Failed to start camera sensor_id={}: {}", session_id, sensor_id,
+                    cam_err);
       return false;
     }
 
-    spdlog::info("[WebRTC:{}] Camera session created (sensor_id={}, {}x{}@{}fps)",
-                 session_id, sensor_id, width, height, fps);
+    spdlog::info("[WebRTC:{}] Camera session created (sensor_id={}, {}x{}@{}fps)", session_id,
+                 sensor_id, width, height, fps);
 
     sessions_[session_id] = session;
     return true;
@@ -407,7 +417,8 @@ bool WebRTCManager::CreateCameraSession(const std::string& session_id,
 bool WebRTCManager::StopCameraSession(const std::string& session_id, std::string* error_message) {
   auto session = GetSession(session_id);
   if (!session) {
-    if (error_message) *error_message = "Session not found: " + session_id;
+    if (error_message)
+      *error_message = "Session not found: " + session_id;
     return false;
   }
   if (session->gst_camera_source) {
@@ -416,128 +427,143 @@ bool WebRTCManager::StopCameraSession(const std::string& session_id, std::string
   return CloseSession(session_id, error_message);
 }
 
-
 std::shared_future<std::string> WebRTCManager::SetupPeerConnectionCallbacks(
-    const std::string& session_id,
-    std::shared_ptr<SessionState> session,
-    std::shared_ptr<std::string> manual_candidate_sdp,
-    std::string* sdp_answer_out) {
+    const std::string& session_id, std::shared_ptr<SessionState> session,
+    std::shared_ptr<std::string> manual_candidate_sdp, std::string* sdp_answer_out) {
   auto answer_promise = std::make_shared<std::promise<std::string>>();
   std::shared_future<std::string> answer_future = answer_promise->get_future();
 
-  session->peer_connection->onStateChange(
-      [session_id](rtc::PeerConnection::State state) {
-        std::string state_str;
-        switch (state) {
-          case rtc::PeerConnection::State::New:          state_str = "New"; break;
-          case rtc::PeerConnection::State::Connecting:   state_str = "Connecting"; break;
-          case rtc::PeerConnection::State::Connected:    state_str = "Connected"; break;
-          case rtc::PeerConnection::State::Disconnected:
-            state_str = "Disconnected";
-            spdlog::warn("[WebRTC:{}] Peer connection disconnected", session_id);
-            break;
-          case rtc::PeerConnection::State::Failed:
-            state_str = "Failed";
-            spdlog::error("[WebRTC:{}] Peer connection failed", session_id);
-            break;
-          case rtc::PeerConnection::State::Closed:
-            state_str = "Closed";
-            spdlog::info("[WebRTC:{}] Peer connection closed", session_id);
-            break;
-          default: state_str = "Unknown"; break;
-        }
-        spdlog::debug("[WebRTC:{}] Peer connection state changed: {} ({})", session_id, state_str,
-                     static_cast<int>(state));
-      });
+  session->peer_connection->onStateChange([session_id](rtc::PeerConnection::State state) {
+    std::string state_str;
+    switch (state) {
+      case rtc::PeerConnection::State::New:
+        state_str = "New";
+        break;
+      case rtc::PeerConnection::State::Connecting:
+        state_str = "Connecting";
+        break;
+      case rtc::PeerConnection::State::Connected:
+        state_str = "Connected";
+        break;
+      case rtc::PeerConnection::State::Disconnected:
+        state_str = "Disconnected";
+        spdlog::warn("[WebRTC:{}] Peer connection disconnected", session_id);
+        break;
+      case rtc::PeerConnection::State::Failed:
+        state_str = "Failed";
+        spdlog::error("[WebRTC:{}] Peer connection failed", session_id);
+        break;
+      case rtc::PeerConnection::State::Closed:
+        state_str = "Closed";
+        spdlog::info("[WebRTC:{}] Peer connection closed", session_id);
+        break;
+      default:
+        state_str = "Unknown";
+        break;
+    }
+    spdlog::debug("[WebRTC:{}] Peer connection state changed: {} ({})", session_id, state_str,
+                  static_cast<int>(state));
+  });
 
   session->peer_connection->onGatheringStateChange(
       [session_id](rtc::PeerConnection::GatheringState state) {
         std::string state_str;
         switch (state) {
-          case rtc::PeerConnection::GatheringState::New:        state_str = "New"; break;
-          case rtc::PeerConnection::GatheringState::InProgress: state_str = "InProgress"; break;
-          case rtc::PeerConnection::GatheringState::Complete:   state_str = "Complete"; break;
-          default:                                              state_str = "Unknown"; break;
+          case rtc::PeerConnection::GatheringState::New:
+            state_str = "New";
+            break;
+          case rtc::PeerConnection::GatheringState::InProgress:
+            state_str = "InProgress";
+            break;
+          case rtc::PeerConnection::GatheringState::Complete:
+            state_str = "Complete";
+            break;
+          default:
+            state_str = "Unknown";
+            break;
         }
         spdlog::debug("[WebRTC:{}] ICE gathering state changed: {} ({})", session_id, state_str,
-                     static_cast<int>(state));
+                      static_cast<int>(state));
       });
 
-  session->peer_connection->onIceStateChange(
-      [session_id](rtc::PeerConnection::IceState state) {
-        std::string state_str;
-        switch (state) {
-          case rtc::PeerConnection::IceState::New:     state_str = "New"; break;
-          case rtc::PeerConnection::IceState::Checking: state_str = "Checking"; break;
-          case rtc::PeerConnection::IceState::Connected:
-            state_str = "Connected";
-            spdlog::info("[WebRTC:{}] ICE connection established", session_id);
-            break;
-          case rtc::PeerConnection::IceState::Completed:
-            state_str = "Completed";
-            spdlog::info("[WebRTC:{}] ICE connection completed", session_id);
-            break;
-          case rtc::PeerConnection::IceState::Failed:
-            state_str = "Failed";
-            spdlog::error("[WebRTC:{}] ICE connection failed", session_id);
-            break;
-          case rtc::PeerConnection::IceState::Disconnected:
-            state_str = "Disconnected";
-            spdlog::warn("[WebRTC:{}] ICE connection disconnected", session_id);
-            break;
-          case rtc::PeerConnection::IceState::Closed:
-            state_str = "Closed";
-            spdlog::info("[WebRTC:{}] ICE connection closed", session_id);
-            break;
-          default: state_str = "Unknown"; break;
-        }
-        spdlog::debug("[WebRTC:{}] ICE state changed: {} ({})", session_id, state_str,
-                     static_cast<int>(state));
-      });
+  session->peer_connection->onIceStateChange([session_id](rtc::PeerConnection::IceState state) {
+    std::string state_str;
+    switch (state) {
+      case rtc::PeerConnection::IceState::New:
+        state_str = "New";
+        break;
+      case rtc::PeerConnection::IceState::Checking:
+        state_str = "Checking";
+        break;
+      case rtc::PeerConnection::IceState::Connected:
+        state_str = "Connected";
+        spdlog::info("[WebRTC:{}] ICE connection established", session_id);
+        break;
+      case rtc::PeerConnection::IceState::Completed:
+        state_str = "Completed";
+        spdlog::info("[WebRTC:{}] ICE connection completed", session_id);
+        break;
+      case rtc::PeerConnection::IceState::Failed:
+        state_str = "Failed";
+        spdlog::error("[WebRTC:{}] ICE connection failed", session_id);
+        break;
+      case rtc::PeerConnection::IceState::Disconnected:
+        state_str = "Disconnected";
+        spdlog::warn("[WebRTC:{}] ICE connection disconnected", session_id);
+        break;
+      case rtc::PeerConnection::IceState::Closed:
+        state_str = "Closed";
+        spdlog::info("[WebRTC:{}] ICE connection closed", session_id);
+        break;
+      default:
+        state_str = "Unknown";
+        break;
+    }
+    spdlog::debug("[WebRTC:{}] ICE state changed: {} ({})", session_id, state_str,
+                  static_cast<int>(state));
+  });
 
-  session->peer_connection->onLocalDescription(
-      [session_id, sdp_answer_out, answer_promise, manual_candidate_sdp](
-          rtc::Description description) {
-        spdlog::debug("[WebRTC:{}] Local description created (type: {})", session_id,
-                     description.typeString());
-        if (description.type() != rtc::Description::Type::Answer) {
-          spdlog::warn("[WebRTC:{}] Local description is not Answer type: {}", session_id,
-                       description.typeString());
-          return;
-        }
-        std::string sdp = description.generateSdp();
+  session->peer_connection->onLocalDescription([session_id, sdp_answer_out, answer_promise,
+                                                manual_candidate_sdp](
+                                                   rtc::Description description) {
+    spdlog::debug("[WebRTC:{}] Local description created (type: {})", session_id,
+                  description.typeString());
+    if (description.type() != rtc::Description::Type::Answer) {
+      spdlog::warn("[WebRTC:{}] Local description is not Answer type: {}", session_id,
+                   description.typeString());
+      return;
+    }
+    std::string sdp = description.generateSdp();
 
-        // Inject manual ICE candidate into SDP if configured.
-        if (!manual_candidate_sdp->empty()) {
-          spdlog::info("[WebRTC:{}] Injecting manual ICE candidate into SDP", session_id);
-          const size_t media_pos = sdp.find("m=");
-          if (media_pos != std::string::npos) {
-            // Insert before the second media section (or at end) so the candidate
-            // becomes its own properly delimited line that Chrome will accept.
-            const size_t next_media = sdp.find("\r\nm=", media_pos + 2);
-            const size_t insert_pos =
-                (next_media == std::string::npos) ? sdp.size() : next_media + 2;
-            sdp.insert(insert_pos, *manual_candidate_sdp);
-            spdlog::info("[WebRTC:{}] Manual ICE candidate injected (SDP length: {} -> {})",
-                         session_id, description.generateSdp().length(), sdp.length());
-          } else {
-            spdlog::warn(
-                "[WebRTC:{}] Could not find media section in SDP, candidate not injected",
-                session_id);
-          }
-        }
+    // Inject manual ICE candidate into SDP if configured.
+    if (!manual_candidate_sdp->empty()) {
+      spdlog::info("[WebRTC:{}] Injecting manual ICE candidate into SDP", session_id);
+      const size_t media_pos = sdp.find("m=");
+      if (media_pos != std::string::npos) {
+        // Insert before the second media section (or at end) so the candidate
+        // becomes its own properly delimited line that Chrome will accept.
+        const size_t next_media = sdp.find("\r\nm=", media_pos + 2);
+        const size_t insert_pos = (next_media == std::string::npos) ? sdp.size() : next_media + 2;
+        sdp.insert(insert_pos, *manual_candidate_sdp);
+        spdlog::info("[WebRTC:{}] Manual ICE candidate injected (SDP length: {} -> {})", session_id,
+                     description.generateSdp().length(), sdp.length());
+      } else {
+        spdlog::warn("[WebRTC:{}] Could not find media section in SDP, candidate not injected",
+                     session_id);
+      }
+    }
 
-        if (sdp_answer_out != nullptr && sdp_answer_out->empty()) {
-          *sdp_answer_out = sdp;
-        }
-        try {
-          answer_promise->set_value(sdp);
-          spdlog::debug("[WebRTC:{}] SDP answer generated and stored (length: {})", session_id,
-                       sdp.length());
-        } catch (const std::future_error& e) {
-          spdlog::warn("[WebRTC:{}] Promise already set: {}", session_id, e.what());
-        }
-      });
+    if (sdp_answer_out != nullptr && sdp_answer_out->empty()) {
+      *sdp_answer_out = sdp;
+    }
+    try {
+      answer_promise->set_value(sdp);
+      spdlog::debug("[WebRTC:{}] SDP answer generated and stored (length: {})", session_id,
+                    sdp.length());
+    } catch (const std::future_error& e) {
+      spdlog::warn("[WebRTC:{}] Promise already set: {}", session_id, e.what());
+    }
+  });
 
   session->peer_connection->onLocalCandidate([session_id, session](rtc::Candidate candidate) {
     spdlog::debug("[WebRTC:{}] Local ICE candidate: {}", session_id, candidate.candidate());
@@ -550,43 +576,43 @@ std::shared_future<std::string> WebRTCManager::SetupPeerConnectionCallbacks(
 
   // Register the onTrack callback before setRemoteDescription so that both the
   // pre-captured outbound SendOnly track and the inbound RecvOnly track are handled.
-  session->peer_connection->onTrack(
-      [weak_self = weak_from_this(), session_id, session](std::shared_ptr<rtc::Track> track) {
-        if (track == nullptr) {
-          return;
-        }
-        const auto description = track->description();
-        spdlog::debug("[WebRTC:{}] Remote track received (mid={}, type={}, direction={})",
-                     session_id, track->mid(), description.type(),
-                     static_cast<int>(description.direction()));
+  session->peer_connection->onTrack([weak_self = weak_from_this(), session_id,
+                                     session](std::shared_ptr<rtc::Track> track) {
+    if (track == nullptr) {
+      return;
+    }
+    const auto description = track->description();
+    spdlog::debug("[WebRTC:{}] Remote track received (mid={}, type={}, direction={})", session_id,
+                  track->mid(), description.type(), static_cast<int>(description.direction()));
 
-        if (description.type() != "video") {
-          return;
-        }
+    if (description.type() != "video") {
+      return;
+    }
 
-        std::lock_guard<std::mutex> lock(session->mutex);
+    std::lock_guard<std::mutex> lock(session->mutex);
 
-        // SendOnly from C++'s perspective = outbound processed video track (browser recvonly).
-        // Pre-capture the shared_ptr here so the impl::Track weak_ptr in mTracks stays valid
-        // when addTrack() is called, allowing openTracks() to find and open the track.
-        if (description.direction() == rtc::Description::Direction::SendOnly) {
-          if (session->outbound_video_track == nullptr) {
-            session->outbound_video_track = track;
-            spdlog::debug("[WebRTC:{}] Outbound video track pre-captured in onTrack (mid={})",
-                         session_id, track->mid());
-          }
-          return;
-        }
+    // SendOnly from C++'s perspective = outbound processed video track (browser recvonly).
+    // Pre-capture the shared_ptr here so the impl::Track weak_ptr in mTracks stays valid
+    // when addTrack() is called, allowing openTracks() to find and open the track.
+    if (description.direction() == rtc::Description::Direction::SendOnly) {
+      if (session->outbound_video_track == nullptr) {
+        session->outbound_video_track = track;
+        spdlog::debug("[WebRTC:{}] Outbound video track pre-captured in onTrack (mid={})",
+                      session_id, track->mid());
+      }
+      return;
+    }
 
-        if (session->inbound_video_track != nullptr) {
-          spdlog::warn("[WebRTC:{}] Ignoring additional inbound video track with mid={}",
-                       session_id, track->mid());
-          return;
-        }
+    if (session->inbound_video_track != nullptr) {
+      spdlog::warn("[WebRTC:{}] Ignoring additional inbound video track with mid={}", session_id,
+                   track->mid());
+      return;
+    }
 
-        auto self = weak_self.lock();
-        if (self) self->SetupInboundTrackCallbacks(session_id, session, track);
-      });
+    auto self = weak_self.lock();
+    if (self)
+      self->SetupInboundTrackCallbacks(session_id, session, track);
+  });
 
   return answer_future;
 }
@@ -596,8 +622,7 @@ std::shared_future<std::string> WebRTCManager::SetupPeerConnectionCallbacks(
 // ---------------------------------------------------------------------------
 bool WebRTCManager::SetupMediaTracks(const std::string& session_id,
                                      std::shared_ptr<SessionState> session,
-                                     const rtc::Description& offer,
-                                     std::string* error_message) {
+                                     const rtc::Description& offer, std::string* error_message) {
   const auto outbound_video_config = FindOutboundVideoConfig(offer);
   if (!outbound_video_config.has_value()) {
     spdlog::warn(
@@ -618,8 +643,7 @@ bool WebRTCManager::SetupMediaTracks(const std::string& session_id,
 
     session->outbound_video_track = session->peer_connection->addTrack(media);
     session->outbound_rtp_config = std::make_shared<rtc::RtpPacketizationConfig>(
-        ssrc, kProcessedVideoTrackLabel,
-        static_cast<uint8_t>(outbound_video_config->payload_type),
+        ssrc, kProcessedVideoTrackLabel, static_cast<uint8_t>(outbound_video_config->payload_type),
         rtc::H264RtpPacketizer::ClockRate);
     session->outbound_packetizer = std::make_shared<rtc::H264RtpPacketizer>(
         rtc::NalUnit::Separator::StartSequence, session->outbound_rtp_config);
@@ -630,23 +654,18 @@ bool WebRTCManager::SetupMediaTracks(const std::string& session_id,
     session->outbound_packetizer->addToChain(session->outbound_nack_responder);
     session->outbound_video_track->setMediaHandler(session->outbound_packetizer);
 
-    session->outbound_video_track->onOpen(
-        [session_id, mid = outbound_video_config->mid]() {
-          spdlog::info("[WebRTC:{}] Outbound processed video track opened (mid={})", session_id,
-                       mid);
-        });
-    session->outbound_video_track->onClosed(
-        [session_id, mid = outbound_video_config->mid]() {
-          spdlog::warn("[WebRTC:{}] Outbound processed video track closed (mid={})", session_id,
-                       mid);
-        });
+    session->outbound_video_track->onOpen([session_id, mid = outbound_video_config->mid]() {
+      spdlog::info("[WebRTC:{}] Outbound processed video track opened (mid={})", session_id, mid);
+    });
+    session->outbound_video_track->onClosed([session_id, mid = outbound_video_config->mid]() {
+      spdlog::warn("[WebRTC:{}] Outbound processed video track closed (mid={})", session_id, mid);
+    });
     return true;
   } catch (const std::exception& e) {
     spdlog::error("[WebRTC:{}] Failed to create outbound processed video track: {}", session_id,
                   e.what());
     if (error_message) {
-      *error_message =
-          std::string("Failed to create outbound processed video track: ") + e.what();
+      *error_message = std::string("Failed to create outbound processed video track: ") + e.what();
     }
     return false;
   }
@@ -658,17 +677,21 @@ bool WebRTCManager::SetupMediaTracks(const std::string& session_id,
 void WebRTCManager::SetupDataChannels(const std::string& session_id,
                                       std::shared_ptr<SessionState> session) {
   session->peer_connection->onDataChannel(
-      [weak_self = weak_from_this(), session_id, session](
-          std::shared_ptr<rtc::DataChannel> dc) {
+      [weak_self = weak_from_this(), session_id, session](std::shared_ptr<rtc::DataChannel> dc) {
         spdlog::debug("[WebRTC:{}] Remote data channel received: {}", session_id, dc->label());
         auto self = weak_self.lock();
-        if (!self) return;
+        if (!self)
+          return;
 
         const std::string& label = dc->label();
-        if (label == kDetectionChannelLabel) self->SetupDetectionChannel(session_id, session, dc);
-        else if (label == kControlChannelLabel) self->SetupControlChannel(session_id, session, dc);
-        else if (label == kStatsChannelLabel)   self->SetupStatsChannel(session_id, session, dc);
-        else                                    self->SetupMainChannel(session_id, session, dc);
+        if (label == kDetectionChannelLabel)
+          self->SetupDetectionChannel(session_id, session, dc);
+        else if (label == kControlChannelLabel)
+          self->SetupControlChannel(session_id, session, dc);
+        else if (label == kStatsChannelLabel)
+          self->SetupStatsChannel(session_id, session, dc);
+        else
+          self->SetupMainChannel(session_id, session, dc);
       });
 }
 
@@ -682,9 +705,7 @@ void WebRTCManager::SetupDetectionChannel(const std::string& session_id,
     std::lock_guard<std::mutex> lock(session->mutex);
     session->detection_channel = dc;
   }
-  dc->onOpen([session_id]() {
-    spdlog::debug("[WebRTC:{}] Detection channel opened", session_id);
-  });
+  dc->onOpen([session_id]() { spdlog::debug("[WebRTC:{}] Detection channel opened", session_id); });
   dc->onClosed([session_id, session]() {
     spdlog::warn("[WebRTC:{}] Detection channel closed", session_id);
     std::lock_guard<std::mutex> lock(session->mutex);
@@ -705,9 +726,7 @@ void WebRTCManager::SetupControlChannel(const std::string& session_id,
     std::lock_guard<std::mutex> lock(session->mutex);
     session->control_channel = dc;
   }
-  dc->onOpen([session_id]() {
-    spdlog::debug("[WebRTC:{}] Control channel opened", session_id);
-  });
+  dc->onOpen([session_id]() { spdlog::debug("[WebRTC:{}] Control channel opened", session_id); });
   dc->onClosed([session_id, session]() {
     spdlog::warn("[WebRTC:{}] Control channel closed", session_id);
     std::lock_guard<std::mutex> lock(session->mutex);
@@ -717,17 +736,18 @@ void WebRTCManager::SetupControlChannel(const std::string& session_id,
     spdlog::error("[WebRTC:{}] Control channel error: {}", session_id, err);
   });
   std::weak_ptr<rtc::DataChannel> weak_dc = dc;
-  dc->onMessage([weak_self = weak_from_this(), weak_dc, session_id, session](
-                    rtc::message_variant data) {
-    auto self = weak_self.lock();
-    auto ch = weak_dc.lock();
-    if (!self || !ch) return;
-    if (!std::holds_alternative<rtc::binary>(data)) {
-      spdlog::warn("[WebRTC:{}] Control channel: ignoring non-binary message", session_id);
-      return;
-    }
-    self->HandleControlMessage(session_id, *session, std::get<rtc::binary>(data), *ch);
-  });
+  dc->onMessage(
+      [weak_self = weak_from_this(), weak_dc, session_id, session](rtc::message_variant data) {
+        auto self = weak_self.lock();
+        auto ch = weak_dc.lock();
+        if (!self || !ch)
+          return;
+        if (!std::holds_alternative<rtc::binary>(data)) {
+          spdlog::warn("[WebRTC:{}] Control channel: ignoring non-binary message", session_id);
+          return;
+        }
+        self->HandleControlMessage(session_id, *session, std::get<rtc::binary>(data), *ch);
+      });
 }
 
 // ---------------------------------------------------------------------------
@@ -740,9 +760,7 @@ void WebRTCManager::SetupStatsChannel(const std::string& session_id,
     std::lock_guard<std::mutex> lock(session->mutex);
     session->stats_channel = dc;
   }
-  dc->onOpen([session_id]() {
-    spdlog::debug("[WebRTC:{}] Stats channel opened", session_id);
-  });
+  dc->onOpen([session_id]() { spdlog::debug("[WebRTC:{}] Stats channel opened", session_id); });
   dc->onClosed([session_id, session]() {
     spdlog::warn("[WebRTC:{}] Stats channel closed", session_id);
     std::lock_guard<std::mutex> lock(session->mutex);
@@ -766,7 +784,8 @@ void WebRTCManager::SetupMainChannel(const std::string& session_id,
   dc->onOpen([weak_self = weak_from_this(), weak_dc, session_id, label, session]() {
     auto self = weak_self.lock();
     auto ch = weak_dc.lock();
-    if (!self || !ch) return;
+    if (!self || !ch)
+      return;
     {
       std::lock_guard<std::mutex> lock(session->mutex);
       session->last_heartbeat = std::chrono::steady_clock::now();
@@ -776,20 +795,22 @@ void WebRTCManager::SetupMainChannel(const std::string& session_id,
     }
     spdlog::info("[WebRTC:{}] Main data channel opened (isOpen={})", session_id, ch->isOpen());
   });
-  dc->onMessage([weak_self = weak_from_this(), weak_dc, session_id, session](
-                    rtc::message_variant data) {
-    auto self = weak_self.lock();
-    auto ch = weak_dc.lock();
-    if (!self || !ch) return;
-    if (!std::holds_alternative<rtc::binary>(data)) {
-      spdlog::warn("[WebRTC:{}] Ignoring non-binary data channel message", session_id);
-      return;
-    }
-    self->HandleProcessingMessage(session_id, *session, std::get<rtc::binary>(data), *ch);
-  });
+  dc->onMessage(
+      [weak_self = weak_from_this(), weak_dc, session_id, session](rtc::message_variant data) {
+        auto self = weak_self.lock();
+        auto ch = weak_dc.lock();
+        if (!self || !ch)
+          return;
+        if (!std::holds_alternative<rtc::binary>(data)) {
+          spdlog::warn("[WebRTC:{}] Ignoring non-binary data channel message", session_id);
+          return;
+        }
+        self->HandleProcessingMessage(session_id, *session, std::get<rtc::binary>(data), *ch);
+      });
   dc->onClosed([weak_self = weak_from_this(), session_id, label]() {
     auto self = weak_self.lock();
-    if (!self) return;
+    if (!self)
+      return;
     if (ShouldRegisterSessionChannel(session_id, label)) {
       self->UnregisterSessionChannel(session_id);
     }
@@ -820,12 +841,13 @@ void WebRTCManager::SetupInboundTrackCallbacks(const std::string& session_id,
   track->onClosed([session_id, mid = track->mid()]() {
     spdlog::warn("[WebRTC:{}] Inbound video track closed (mid={})", session_id, mid);
   });
-  track->onFrame([weak_self = weak_from_this(), session_id, session](
-                     rtc::binary frame, rtc::FrameInfo info) {
-    auto self = weak_self.lock();
-    if (!self) return;
-    self->HandleVideoFrame(session_id, *session, std::move(frame), info);
-  });
+  track->onFrame(
+      [weak_self = weak_from_this(), session_id, session](rtc::binary frame, rtc::FrameInfo info) {
+        auto self = weak_self.lock();
+        if (!self)
+          return;
+        self->HandleVideoFrame(session_id, *session, std::move(frame), info);
+      });
 }
 
 // ---------------------------------------------------------------------------
@@ -839,15 +861,15 @@ void WebRTCManager::EmitProcessingStats(const std::string& session_id, SessionSt
     std::lock_guard<std::mutex> lock(state.mutex);
     stats_ch = state.stats_channel;
   }
-  if (!stats_ch || !stats_ch->isOpen()) return;
+  if (!stats_ch || !stats_ch->isOpen())
+    return;
 
   ProcessingStatsFrame stats_frame;
   stats_frame.set_session_id(session_id);
   stats_frame.set_frame_id(frame_id);
-  stats_frame.set_capture_ts_unix_ms(
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
+  stats_frame.set_capture_ts_unix_ms(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                         std::chrono::system_clock::now().time_since_epoch())
+                                         .count());
 
   auto* total_ms = stats_frame.add_metrics();
   total_ms->set_key("pipeline.total.ms");
@@ -872,15 +894,17 @@ void WebRTCManager::EmitProcessingStats(const std::string& session_id, SessionSt
 // ForwardDetections
 // ---------------------------------------------------------------------------
 void WebRTCManager::ForwardDetections(const std::string& session_id, SessionState& state,
-                                       const DetectionFrame& frame) {
-  if (frame.detections_size() == 0) return;
+                                      const DetectionFrame& frame) {
+  if (frame.detections_size() == 0)
+    return;
 
   std::shared_ptr<rtc::DataChannel> det_ch;
   {
     std::lock_guard<std::mutex> lock(state.mutex);
     det_ch = state.detection_channel;
   }
-  if (!det_ch || !det_ch->isOpen()) return;
+  if (!det_ch || !det_ch->isOpen())
+    return;
 
   std::string payload;
   if (frame.SerializeToString(&payload)) {
@@ -894,8 +918,7 @@ void WebRTCManager::ForwardDetections(const std::string& session_id, SessionStat
 // ---------------------------------------------------------------------------
 // HandleControlMessage
 // ---------------------------------------------------------------------------
-void WebRTCManager::HandleControlMessage(const std::string& session_id,
-                                         SessionState& state,
+void WebRTCManager::HandleControlMessage(const std::string& session_id, SessionState& state,
                                          const rtc::binary& raw_chunk,
                                          rtc::DataChannel& response_channel) {
   const auto raw_span = std::span<const std::byte>(raw_chunk.data(), raw_chunk.size());
@@ -971,9 +994,11 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       auto weak_mgr = weak_from_this();
       auto frame_cb = [weak_mgr, sid](const rtc::binary& data, const rtc::FrameInfo& info) {
         auto mgr = weak_mgr.lock();
-        if (!mgr) return;
+        if (!mgr)
+          return;
         auto s = mgr->GetSession(sid);
-        if (!s) return;
+        if (!s)
+          return;
         // Route the camera's H.264 access unit through the live video processor
         // (decode → apply filters → re-encode) before sending on the outbound
         // track. This mirrors HandleVideoFrame so filters apply uniformly.
@@ -1010,15 +1035,15 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
         break;
       }
       auto now = std::chrono::system_clock::now();
-      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    now.time_since_epoch()) % 1000;
+      auto ms =
+          std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
       std::time_t t = std::chrono::system_clock::to_time_t(now);
       std::tm tm_info{};
       localtime_r(&t, &tm_info);
       char ts[32];
       std::strftime(ts, sizeof(ts), "%Y%m%d_%H%M%S", &tm_info);
-      std::string filename = std::string("capture_") + ts + "_" +
-                             std::to_string(ms.count()) + ".bmp";
+      std::string filename =
+          std::string("capture_") + ts + "_" + std::to_string(ms.count()) + ".bmp";
       std::error_code ec;
       std::filesystem::create_directories(captures_dir_, ec);
       if (ec) {
@@ -1045,7 +1070,7 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
       std::error_code ec;
       for (const auto& entry : std::filesystem::directory_iterator(captures_dir_, ec)) {
         const auto fname = entry.path().filename().string();
-        if (entry.path().extension() == ".bmp" && fname.rfind("capture_", 0) == 0) {
+        if (entry.path().extension() == ".bmp") {
           files.push_back(entry.path());
         }
       }
@@ -1091,7 +1116,7 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
           break;
         }
         const std::string bytes((std::istreambuf_iterator<char>(f)),
-                                 std::istreambuf_iterator<char>());
+                                std::istreambuf_iterator<char>());
         resp->set_found(true);
         resp->set_image_data(bytes);
         resp->set_format(cuda_learning::CAPTURED_IMAGE_FORMAT_BMP);
@@ -1101,8 +1126,8 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
         std::vector<uint8_t> img_data;
         int w = 0;
         int h = 0;
-        if (!image_sink_->readAsPng(filepath.c_str(), &img_data, &w, &h,
-                                      req.max_width(), req.max_height())) {
+        if (!image_sink_->readAsPng(filepath.c_str(), &img_data, &w, &h, req.max_width(),
+                                    req.max_height())) {
           resp->set_found(false);
           resp->set_reason("image not found or conversion failed: " + req.id());
           spdlog::warn("[WebRTC:{}] GetCapturedImage(PNG) not found: {}", session_id, req.id());
@@ -1113,8 +1138,8 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
         resp->set_width(w);
         resp->set_height(h);
         resp->set_format(cuda_learning::CAPTURED_IMAGE_FORMAT_PNG);
-        spdlog::info("[WebRTC:{}] GetCapturedImage(PNG) {} {}×{} {} bytes", session_id, req.id(),
-                     w, h, img_data.size());
+        spdlog::info("[WebRTC:{}] GetCapturedImage(PNG) {} {}×{} {} bytes", session_id, req.id(), w,
+                     h, img_data.size());
       }
       break;
     }
@@ -1161,8 +1186,7 @@ void WebRTCManager::HandleControlMessage(const std::string& session_id,
 // ---------------------------------------------------------------------------
 // HandleProcessingMessage
 // ---------------------------------------------------------------------------
-void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
-                                            SessionState& state,
+void WebRTCManager::HandleProcessingMessage(const std::string& session_id, SessionState& state,
                                             const rtc::binary& raw_chunk,
                                             rtc::DataChannel& response_channel) {
   {
@@ -1195,7 +1219,7 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
   }
 
   const bool is_control_update = request.image_data().empty() && request.width() == 0 &&
-                                  request.height() == 0 && request.channels() == 0;
+                                 request.height() == 0 && request.channels() == 0;
   if (is_control_update) {
     if (state.live_video_processor == nullptr) {
       spdlog::error("[WebRTC:{}] Cannot apply live filter update: video processor missing",
@@ -1232,13 +1256,12 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
   // static images never call ProcessAccessUnit so the capture would otherwise be lost.
   if (state.live_video_processor != nullptr) {
     const std::string capture_path = state.live_video_processor->ConsumePendingCapture();
-    if (!capture_path.empty() && !response.image_data().empty() &&
-        response.width() > 0 && response.height() > 0) {
+    if (!capture_path.empty() && !response.image_data().empty() && response.width() > 0 &&
+        response.height() > 0) {
       const auto& img = response.image_data();
       const int channels = response.channels() > 0 ? response.channels() : 3;
-      image_sink_->writeBmp(capture_path.c_str(),
-                              reinterpret_cast<const uint8_t*>(img.data()),
-                              response.width(), response.height(), channels);
+      image_sink_->writeBmp(capture_path.c_str(), reinterpret_cast<const uint8_t*>(img.data()),
+                            response.width(), response.height(), channels);
       spdlog::info("[WebRTC:{}] CaptureFrame(static) saved: {}", session_id, capture_path);
     }
   }
@@ -1255,10 +1278,10 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
   SendFramed(response_channel, output,
              state.outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U);
 
-  const auto elapsed_ms =
-      std::chrono::duration_cast<std::chrono::microseconds>(
-          std::chrono::steady_clock::now() - process_started)
-          .count() / 1000.0;
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(
+                              std::chrono::steady_clock::now() - process_started)
+                              .count() /
+                          1000.0;
   EmitProcessingStats(session_id, state, elapsed_ms, response.detections_size(),
                       request.frame_id());
 
@@ -1275,10 +1298,8 @@ void WebRTCManager::HandleProcessingMessage(const std::string& session_id,
 // ---------------------------------------------------------------------------
 // HandleVideoFrame
 // ---------------------------------------------------------------------------
-void WebRTCManager::HandleVideoFrame(const std::string& session_id,
-                                     SessionState& state,
-                                     rtc::binary frame,
-                                     rtc::FrameInfo info) {
+void WebRTCManager::HandleVideoFrame(const std::string& session_id, SessionState& state,
+                                     rtc::binary frame, rtc::FrameInfo info) {
   {
     std::lock_guard<std::mutex> heartbeat_lock(state.mutex);
     state.last_heartbeat = std::chrono::steady_clock::now();
@@ -1288,21 +1309,21 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
 
   const int frame_num = ++state.frame_count;
   if (frame_num <= 5) {
-    spdlog::info(
-        "[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}", session_id,
-        frame_num, frame.size(), state.live_video_processor != nullptr,
-        state.outbound_video_track != nullptr,
-        state.outbound_video_track ? state.outbound_video_track->isOpen() : false);
+    spdlog::info("[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}",
+                 session_id, frame_num, frame.size(), state.live_video_processor != nullptr,
+                 state.outbound_video_track != nullptr,
+                 state.outbound_video_track ? state.outbound_video_track->isOpen() : false);
   } else {
-    SPDLOG_TRACE(
-        "[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}", session_id,
-        frame_num, frame.size(), state.live_video_processor != nullptr,
-        state.outbound_video_track != nullptr,
-        state.outbound_video_track ? state.outbound_video_track->isOpen() : false);
+    SPDLOG_TRACE("[WebRTC:{}] onFrame fired (#{}) size={} processor={} outbound={} open={}",
+                 session_id, frame_num, frame.size(), state.live_video_processor != nullptr,
+                 state.outbound_video_track != nullptr,
+                 state.outbound_video_track ? state.outbound_video_track->isOpen() : false);
   }
 
-  if (state.live_video_processor == nullptr || state.outbound_video_track == nullptr) return;
-  if (!state.outbound_video_track->isOpen()) return;
+  if (state.live_video_processor == nullptr || state.outbound_video_track == nullptr)
+    return;
+  if (!state.outbound_video_track->isOpen())
+    return;
 
   const auto process_started = std::chrono::steady_clock::now();
   std::vector<EncodedAccessUnit> encoded_units;
@@ -1332,10 +1353,10 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
     }
   }
 
-  const auto elapsed_ms =
-      std::chrono::duration_cast<std::chrono::microseconds>(
-          std::chrono::steady_clock::now() - process_started)
-          .count() / 1000.0;
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::microseconds>(
+                              std::chrono::steady_clock::now() - process_started)
+                              .count() /
+                          1000.0;
   EmitProcessingStats(session_id, state, elapsed_ms, detection_frame.detections_size(), 0);
   ForwardDetections(session_id, state, detection_frame);
 }
@@ -1346,7 +1367,8 @@ void WebRTCManager::HandleVideoFrame(const std::string& session_id,
 bool WebRTCManager::CloseSession(const std::string& session_id, std::string* error_message) {
   auto session = GetSession(session_id);
   if (!session) {
-    if (error_message) *error_message = "Session with ID " + session_id + " not found";
+    if (error_message)
+      *error_message = "Session with ID " + session_id + " not found";
     return false;
   }
 
@@ -1363,7 +1385,8 @@ bool WebRTCManager::CloseSession(const std::string& session_id, std::string* err
     spdlog::info("[WebRTC:{}] Session closed successfully", session_id);
     return true;
   } catch (const std::exception& e) {
-    if (error_message) *error_message = "Failed to close session: " + std::string(e.what());
+    if (error_message)
+      *error_message = "Failed to close session: " + std::string(e.what());
     spdlog::error("[WebRTC:{}] Failed to close session: {}", session_id, e.what());
     RemoveSession(session_id);
     return false;
@@ -1372,12 +1395,12 @@ bool WebRTCManager::CloseSession(const std::string& session_id, std::string* err
 
 bool WebRTCManager::HandleRemoteCandidate(const std::string& session_id,
                                           const std::string& candidate_str,
-                                          const std::string& sdp_mid,
-                                          int /* sdp_mline_index */,
+                                          const std::string& sdp_mid, int /* sdp_mline_index */,
                                           std::string* error_message) {
   auto session = GetSession(session_id);
   if (!session) {
-    if (error_message) *error_message = "Session with ID " + session_id + " not found";
+    if (error_message)
+      *error_message = "Session with ID " + session_id + " not found";
     return false;
   }
 
@@ -1389,9 +1412,8 @@ bool WebRTCManager::HandleRemoteCandidate(const std::string& session_id,
     // libdatachannel/juice resetting the ICE agent and tearing down the transport.
     const auto pc_state = session->peer_connection->state();
     if (pc_state == rtc::PeerConnection::State::Connected) {
-      spdlog::debug(
-          "[WebRTC:{}] Ignoring late remote ICE candidate (peer already connected): {}",
-          session_id, candidate_str);
+      spdlog::debug("[WebRTC:{}] Ignoring late remote ICE candidate (peer already connected): {}",
+                    session_id, candidate_str);
       return true;
     }
 
@@ -1405,7 +1427,8 @@ bool WebRTCManager::HandleRemoteCandidate(const std::string& session_id,
     }
     return true;
   } catch (const std::exception& e) {
-    if (error_message) *error_message = "Failed to add remote ICE candidate: " + std::string(e.what());
+    if (error_message)
+      *error_message = "Failed to add remote ICE candidate: " + std::string(e.what());
     spdlog::error("[WebRTC:{}] Failed to add candidate: {}", session_id, e.what());
     return false;
   }
@@ -1453,9 +1476,8 @@ void WebRTCManager::SendToSession(const std::string& session_id, const std::stri
   }
 
   auto session = GetSession(session_id);
-  const uint32_t msg_id = session
-      ? session->outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U
-      : 1U;
+  const uint32_t msg_id =
+      session ? session->outgoing_message_id.fetch_add(1, std::memory_order_relaxed) + 1U : 1U;
   SendFramed(*channel, bytes, msg_id);
 
   if (session) {
@@ -1483,14 +1505,18 @@ void WebRTCManager::RemoveSession(const std::string& session_id) {
   spdlog::info("[WebRTC:{}] Session removed", session_id);
 }
 
-void WebRTCManager::CloseSessionTransport(const std::string& session_id,
-                                          SessionState& session) {
+void WebRTCManager::CloseSessionTransport(const std::string& session_id, SessionState& session) {
   try {
-    if (session.data_channel)      session.data_channel->close();
-    if (session.detection_channel) session.detection_channel->close();
-    if (session.stats_channel)     session.stats_channel->close();
-    if (session.control_channel)   session.control_channel->close();
-    if (session.peer_connection)   session.peer_connection->close();
+    if (session.data_channel)
+      session.data_channel->close();
+    if (session.detection_channel)
+      session.detection_channel->close();
+    if (session.stats_channel)
+      session.stats_channel->close();
+    if (session.control_channel)
+      session.control_channel->close();
+    if (session.peer_connection)
+      session.peer_connection->close();
   } catch (const std::exception& e) {
     spdlog::error("[WebRTC:{}] Error closing session transport: {}", session_id, e.what());
   }
@@ -1524,9 +1550,8 @@ void WebRTCManager::CleanupInactiveSessions(int timeout_seconds) {
   }
 }
 
-void WebRTCManager::RegisterSessionChannel(
-    const std::string& session_id,
-    const std::shared_ptr<rtc::DataChannel>& data_channel) {
+void WebRTCManager::RegisterSessionChannel(const std::string& session_id,
+                                           const std::shared_ptr<rtc::DataChannel>& data_channel) {
   std::lock_guard<std::mutex> lock(session_channels_mutex_);
   session_channels_[session_id] = data_channel;
   spdlog::debug("[WebRTC:{}] Registered routable browser data channel", session_id);

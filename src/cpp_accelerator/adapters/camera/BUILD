@@ -46,6 +46,7 @@ cc_library(
     deps = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
             "//third_party/glib-config:glibconfig",
+            "//third_party/gstreamer:gstreamer",
             "//third_party/nvbufsurface:nvbufsurface",
             "@spdlog",
         ],
@@ -53,9 +54,6 @@ cc_library(
     }),
     linkopts = select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-lgstreamer-1.0",
-            "-lgobject-2.0",
-            "-lglib-2.0",
             "-lnvbuf_utils",
         ],
         "//conditions:default": [],
@@ -84,14 +82,7 @@ cc_library(
     ] + select({
         "//bazel/flags:nvidia_argus_camera_enabled": [
             "//third_party/glib-config:glibconfig",
-        ],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "//bazel/flags:nvidia_argus_camera_enabled": [
-            "-lgstreamer-1.0",
-            "-lgobject-2.0",
-            "-lglib-2.0",
+            "//third_party/gstreamer:gstreamer",
         ],
         "//conditions:default": [],
     }),

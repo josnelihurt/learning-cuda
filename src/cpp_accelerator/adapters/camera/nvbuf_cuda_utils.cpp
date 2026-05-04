@@ -21,16 +21,18 @@ bool MapNvmmBuffer(GstBuffer* buf, GstMapInfo* map_info, NvmmFrame* out) {
     return false;
   }
 
-  // Map the surface planes into CPU/GPU address space.
-  // On Jetson iGPU (unified DRAM) this does not trigger a DMA copy.
+  // Map the surface planes into CPU address space (mmap on the DMA-BUF fd).
   if (NvBufSurfaceMap(surface, 0, -1, NVBUF_MAP_READ_WRITE) != 0) {
     spdlog::error("[NvBufCuda] NvBufSurfaceMap failed");
     gst_buffer_unmap(buf, map_info);
     return false;
   }
 
-  // Flush CPU cache so the GPU sees the latest sensor data.
-  NvBufSurfaceSyncForDevice(surface, 0, -1);
+  // Argus/ISP wrote the frame data to the NVMM buffer.  Invalidate the CPU
+  // cache so that subsequent CPU reads see the device-written pixel data.
+  // SyncForCpu = device→CPU direction.  SyncForDevice (CPU→device) would be
+  // needed only after CPU writes, which we never do here.
+  NvBufSurfaceSyncForCpu(surface, 0, -1);
 
   const NvBufSurfaceParams& params = surface->surfaceList[0];
   out->y_ptr   = static_cast<uint8_t*>(params.mappedAddr.addr[0]);
@@ -46,8 +48,8 @@ void UnmapNvmmBuffer(GstBuffer* buf, GstMapInfo* map_info) {
   if (map_info && map_info->data) {
     auto* surface = reinterpret_cast<NvBufSurface*>(map_info->data);
     if (surface && surface->numFilled > 0) {
-      // Ensure CPU cache is coherent before unmapping.
-      NvBufSurfaceSyncForCpu(surface, 0, -1);
+      // We only read from the CPU-mapped buffer (no CPU writes), so no sync
+      // is required before unmapping.
       NvBufSurfaceUnMap(surface, 0, -1);
     }
   }

@@ -39,17 +39,6 @@ RUN echo "Detected TARGETARCH: $TARGETARCH" && \
     echo "Available CPUs: $NPROC, RAM: ${MEM_GB}GB" && \
     echo "$NPROC $MEM_GB" > /tmp/resources.txt
 
-# ARM64 CI stub: create a minimal libnvbuf_utils.so so Bazel can link the
-# Argus-enabled build.  JetPack provides the real library on actual Jetson.
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-    printf 'int NvBufSurfaceMap(void*s,int a,int b,int c){(void)s;(void)a;(void)b;(void)c;return -1;}\n\
-int NvBufSurfaceUnMap(void*s,int a,int b){(void)s;(void)a;(void)b;return -1;}\n\
-int NvBufSurfaceSyncForDevice(void*s,int a,int b){(void)s;(void)a;(void)b;return -1;}\n\
-int NvBufSurfaceSyncForCpu(void*s,int a,int b){(void)s;(void)a;(void)b;return -1;}\n' > /tmp/nvbuf_stub.c && \
-    gcc -shared -fPIC -o /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so /tmp/nvbuf_stub.c && \
-    echo "Created stub libnvbuf_utils.so for CI ARM64 build"; \
-fi
-
 RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     MEM_GB=$(cat /tmp/resources.txt | awk '{print $2}') && \
     CACHE_FLAGS="" && \

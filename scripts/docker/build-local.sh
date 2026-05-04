@@ -267,6 +267,14 @@ run_cpp_dependencies() {
     exit 1
   fi
 
+  # On arm64, if L4T_MULTIMEDIA_IMAGE is set, pass it through so the deps image
+  # bundles the real libnvbuf_utils.so from NVIDIA's JetPack image instead of
+  # the linker stub.  Leave unset in CI (the stub is sufficient for compilation).
+  local l4t_image_arg=()
+  if [[ "${ARCH}" == "arm64" ]] && [[ -n "${L4T_MULTIMEDIA_IMAGE:-}" ]]; then
+    l4t_image_arg=("--build-arg" "L4T_MULTIMEDIA_IMAGE=${L4T_MULTIMEDIA_IMAGE}")
+  fi
+
   print_stage_header "Building cpp-dependencies intermediate (${version})"
   build_and_tag \
     "${version_tag}" \
@@ -275,7 +283,8 @@ run_cpp_dependencies() {
     "true" \
     "--build-arg" "BASE_REGISTRY=${IMAGE_BASE}" \
     "--build-arg" "BASE_TAG=latest" \
-    "--build-arg" "TARGETARCH=${TARGETARCH}"
+    "--build-arg" "TARGETARCH=${TARGETARCH}" \
+    "${l4t_image_arg[@]+"${l4t_image_arg[@]}"}"
 }
 
 run_cuda_runtime() {

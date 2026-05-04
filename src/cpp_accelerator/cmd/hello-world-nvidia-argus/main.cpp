@@ -1,5 +1,8 @@
-// hello-world-nvidia-argus: validates NVIDIA Argus camera framework on Jetson.
-// Probes sensors via nvarguscamerasrc, then captures H.264 frames from each.
+// hello-world-nvidia-argus: validates NVIDIA Argus camera + NvBufSurface on Jetson.
+// Phase 1: probes sensors via nvarguscamerasrc.
+// Phase 2: captures H.264 frames via nvvidconv path.
+// Phase 3: captures raw NVMM frames and exercises NvBufSurfaceMap — validates
+//           that the NvBufSurface struct layout matches the runtime library.
 
 #include <cstdio>
 #include <cstdlib>
@@ -10,6 +13,7 @@
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
+#include <nvbufsurface.h>
 
 static const int kMaxSensorId = 9;
 static const int kDefaultFrameCount = 10;
@@ -259,9 +263,137 @@ static void PrintUsage(const char* prog) {
           "  --height <N>       Capture height (default %d)\n"
           "  --fps <N>          Capture framerate (default %d)\n"
           "  --detect-only      Only detect cameras, don't stream\n"
+          "  --nvmm-test        Run NvBufSurface NVMM mapping test (default after H.264 test)\n"
           "  --help             Show this help\n",
           prog, kMaxSensorId, kDefaultFrameCount, kDefaultWidth, kDefaultHeight,
           kDefaultFps);
+}
+
+// Phase 3: Test NvBufSurface mapping on raw NVMM frames from the proc_sink branch.
+// This replicates exactly what MapNvmmBuffer() does in nvbuf_cuda_utils.cpp.
+static bool TestNvmmMapping(int sensor_id, int width, int height, int fps) {
+  printf("\n--- Phase 3: NvBufSurface NVMM Mapping Test (sensor-id=%d) ---\n", sensor_id);
+
+  printf("  sizeof(NvBufSurface)=%zu\n", sizeof(NvBufSurface));
+  printf("  sizeof(NvBufSurfaceParams)=%zu\n", sizeof(NvBufSurfaceParams));
+  printf("  sizeof(NvBufSurfaceMappedAddr)=%zu\n", sizeof(NvBufSurfaceMappedAddr));
+  printf("  sizeof(NvBufSurfacePlaneParams)=%zu\n", sizeof(NvBufSurfacePlaneParams));
+
+  // Capture one NVMM frame via proc_sink (no nvvidconv → stays as NVMM).
+  char pipeline_str[1024];
+  snprintf(pipeline_str, sizeof(pipeline_str),
+           "nvarguscamerasrc sensor-id=%d num-buffers=3 ! "
+           "video/x-raw(memory:NVMM),width=%d,height=%d,framerate=%d/1,format=NV12 ! "
+           "appsink name=nvmm_sink emit-signals=true max-buffers=2 drop=false sync=false",
+           sensor_id, width, height, fps);
+
+  printf("  [nvmm] pipeline: %s\n", pipeline_str);
+
+  GError* err = nullptr;
+  GstElement* pipeline = gst_parse_launch(pipeline_str, &err);
+  if (!pipeline || err) {
+    fprintf(stderr, "  [FAIL] pipeline parse failed: %s\n", err ? err->message : "unknown");
+    if (err) g_error_free(err);
+    return false;
+  }
+
+  GstElement* appsink = gst_bin_get_by_name(GST_BIN(pipeline), "nvmm_sink");
+  if (!appsink) {
+    fprintf(stderr, "  [FAIL] nvmm_sink not found\n");
+    gst_object_unref(pipeline);
+    return false;
+  }
+
+  if (gst_element_set_state(pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
+    fprintf(stderr, "  [FAIL] pipeline failed to start\n");
+    gst_object_unref(appsink);
+    gst_object_unref(pipeline);
+    return false;
+  }
+
+  gst_element_get_state(pipeline, nullptr, nullptr, 8 * GST_SECOND);
+
+  bool success = false;
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), 5 * GST_SECOND);
+    if (!sample) {
+      fprintf(stderr, "  [FAIL] timeout pulling NVMM sample\n");
+      break;
+    }
+
+    GstBuffer* buf = gst_sample_get_buffer(sample);
+    if (!buf) {
+      gst_sample_unref(sample);
+      continue;
+    }
+
+    GstMapInfo map_info;
+    if (!gst_buffer_map(buf, &map_info, GST_MAP_READ)) {
+      fprintf(stderr, "  [FAIL] gst_buffer_map failed\n");
+      gst_sample_unref(sample);
+      break;
+    }
+
+    printf("  [nvmm] gst_buffer_map: data=%p size=%zu\n", map_info.data, map_info.size);
+
+    auto* surface = reinterpret_cast<NvBufSurface*>(map_info.data);
+    printf("  [nvmm] surface=%p gpuId=%u batchSize=%u numFilled=%u memType=%d\n",
+           (void*)surface,
+           surface ? surface->gpuId : 0,
+           surface ? surface->batchSize : 0,
+           surface ? surface->numFilled : 0,
+           surface ? (int)surface->memType : -1);
+
+    if (!surface || surface->numFilled == 0) {
+      fprintf(stderr, "  [FAIL] NvBufSurface is null or empty\n");
+      gst_buffer_unmap(buf, &map_info);
+      gst_sample_unref(sample);
+      break;
+    }
+
+    printf("  [nvmm] surfaceList=%p\n", (void*)surface->surfaceList);
+
+    int ret = NvBufSurfaceMap(surface, 0, -1, NVBUF_MAP_READ_WRITE);
+    printf("  [nvmm] NvBufSurfaceMap returned %d\n", ret);
+
+    if (ret != 0) {
+      fprintf(stderr, "  [FAIL] NvBufSurfaceMap failed (ret=%d)\n", ret);
+      gst_buffer_unmap(buf, &map_info);
+      gst_sample_unref(sample);
+      break;
+    }
+
+    NvBufSurfaceSyncForDevice(surface, 0, -1);
+
+    const NvBufSurfaceParams& params = surface->surfaceList[0];
+    printf("  [nvmm] params: width=%u height=%u pitch=%u\n",
+           params.width, params.height, params.pitch);
+    printf("  [nvmm] planeParams.pitch[0]=%u planeParams.pitch[1]=%u\n",
+           params.planeParams.pitch[0], params.planeParams.pitch[1]);
+    printf("  [nvmm] mappedAddr.addr[0]=%p mappedAddr.addr[1]=%p\n",
+           params.mappedAddr.addr[0], params.mappedAddr.addr[1]);
+
+    if (!params.mappedAddr.addr[0]) {
+      fprintf(stderr, "  [FAIL] mappedAddr.addr[0] is NULL after NvBufSurfaceMap\n");
+    } else {
+      printf("  [nvmm] SUCCESS — NVMM buffer mapped correctly\n");
+      success = true;
+    }
+
+    NvBufSurfaceSyncForCpu(surface, 0, -1);
+    NvBufSurfaceUnMap(surface, 0, -1);
+    gst_buffer_unmap(buf, &map_info);
+    gst_sample_unref(sample);
+    if (success) break;
+  }
+
+  gst_object_unref(appsink);
+  gst_element_set_state(pipeline, GST_STATE_NULL);
+  GstBus* bus = gst_element_get_bus(pipeline);
+  gst_bus_set_flushing(bus, true);
+  gst_object_unref(bus);
+  gst_object_unref(pipeline);
+  return success;
 }
 
 int main(int argc, char* argv[]) {
@@ -271,6 +403,7 @@ int main(int argc, char* argv[]) {
   int height = kDefaultHeight;
   int fps = kDefaultFps;
   bool detect_only = false;
+  bool nvmm_test = true;
 
   for (int i = 1; i < argc; ++i) {
     if (strcmp(argv[i], "--max-sensor") == 0 && i + 1 < argc) {
@@ -285,6 +418,9 @@ int main(int argc, char* argv[]) {
       fps = atoi(argv[++i]);
     } else if (strcmp(argv[i], "--detect-only") == 0) {
       detect_only = true;
+      nvmm_test = false;
+    } else if (strcmp(argv[i], "--nvmm-test") == 0) {
+      nvmm_test = true;
     } else if (strcmp(argv[i], "--help") == 0) {
       PrintUsage(argv[0]);
       return 0;
@@ -348,7 +484,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Phase 2: Stream and capture frames from each camera.
-  printf("\n--- Phase 2: Frame Capture ---\n");
+  printf("\n--- Phase 2: Frame Capture (H.264 path) ---\n");
   int total_failures = 0;
 
   for (const auto& cam : cameras) {
@@ -372,6 +508,14 @@ int main(int argc, char* argv[]) {
     if (static_cast<int>(frames.size()) < frame_count) {
       fprintf(stderr, "  [WARN] Expected %d frames, got %zu\n",
               frame_count, frames.size());
+    }
+  }
+
+  // Phase 3: NvBufSurface NVMM mapping test.
+  if (nvmm_test && !cameras.empty()) {
+    if (!TestNvmmMapping(cameras[0].sensor_id, 1280, 720, fps)) {
+      fprintf(stderr, "  [FAIL] NvBufSurface NVMM mapping test failed\n");
+      total_failures++;
     }
   }
 

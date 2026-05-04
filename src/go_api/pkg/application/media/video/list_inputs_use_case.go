@@ -54,8 +54,8 @@ func (uc *ListInputsUseCase) Execute(ctx context.Context, _ ListInputsUseCaseInp
 
 	sources := []InputSource{
 		{
-			ID:          "lena",
-			DisplayName: "Lena",
+			ID:          "gallery",
+			DisplayName: "Gallery",
 			Type:        "static",
 			ImagePath:   "/data/static_images/lena.png",
 			IsDefault:   false,

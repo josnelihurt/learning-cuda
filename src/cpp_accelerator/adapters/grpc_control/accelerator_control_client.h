@@ -13,8 +13,8 @@
 #include <grpcpp/grpcpp.h>
 #pragma GCC diagnostic pop
 
-#include "proto/_virtual_imports/accelerator_control_proto/accelerator_control.pb.h"
 #include "proto/_virtual_imports/accelerator_control_proto/accelerator_control.grpc.pb.h"
+#include "proto/_virtual_imports/accelerator_control_proto/accelerator_control.pb.h"
 #include "src/cpp_accelerator/adapters/grpc_control/processor_engine_provider.h"
 #include "src/cpp_accelerator/adapters/webrtc/webrtc_manager.h"
 #include "src/cpp_accelerator/ports/control/i_control_port.h"
@@ -46,7 +46,7 @@ struct AcceleratorControlClientConfig {
 //
 // Run() blocks until Stop() is called or a fatal error occurs.
 class AcceleratorControlClient : public jrb::ports::control::IControlPort {
- public:
+public:
   AcceleratorControlClient(AcceleratorControlClientConfig config,
                            std::shared_ptr<ProcessorEngineProvider> engine,
                            std::shared_ptr<jrb::adapters::webrtc::WebRTCManager> webrtc_manager);
@@ -58,7 +58,7 @@ class AcceleratorControlClient : public jrb::ports::control::IControlPort {
   // Signals Run() to return.
   void Stop();
 
- private:
+private:
   // Executes one connect-register-dispatch cycle. Returns true if the cycle
   // ended cleanly (i.e., Stop() was called); false on any error.
   bool RunOnce();
@@ -90,8 +90,8 @@ class AcceleratorControlClient : public jrb::ports::control::IControlPort {
   std::mutex write_mutex_;
   grpc::ClientContext* ctx_{nullptr};
 
-  using BidiStream = grpc::ClientReaderWriter<cuda_learning::ConnectRequest,
-                                              cuda_learning::ConnectResponse>;
+  using BidiStream =
+      grpc::ClientReaderWriter<cuda_learning::ConnectRequest, cuda_learning::ConnectResponse>;
   BidiStream* stream_{nullptr};
 
   // Set of active WebRTC session IDs (for candidate pump).

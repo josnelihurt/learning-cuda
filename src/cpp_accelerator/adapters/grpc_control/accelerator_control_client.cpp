@@ -21,14 +21,14 @@
 namespace jrb::adapters::grpc_control {
 
 using cuda_learning::AcceleratorControlService;
-using cuda_learning::ConnectResponse;
 using cuda_learning::AcceleratorMessage;
-using cuda_learning::ConnectRequest;
-using cuda_learning::SignalingMessage;
-using cuda_learning::Register;
-using cuda_learning::GetCapabilitiesResponse;
 using cuda_learning::AcceleratorType;
-
+using cuda_learning::ConnectRequest;
+using cuda_learning::ConnectResponse;
+using cuda_learning::GetCapabilitiesResponse;
+using cuda_learning::Register;
+using cuda_learning::SignalingMessage;
+using jrb::adapters::webrtc::WebRTCManager;
 namespace {
 
 std::string ReadFile(const std::string& path) {
@@ -51,25 +51,33 @@ std::string NewCommandId() {
   hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
   lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
   char buf[37];
-  snprintf(buf, sizeof(buf),
-           "%08x-%04x-%04x-%04x-%012llx",
-           static_cast<uint32_t>(hi >> 32),
-           static_cast<uint16_t>(hi >> 16),
-           static_cast<uint16_t>(hi),
+  snprintf(buf, sizeof(buf), "%08x-%04x-%04x-%04x-%012llx", static_cast<uint32_t>(hi >> 32),
+           static_cast<uint16_t>(hi >> 16), static_cast<uint16_t>(hi),
            static_cast<uint16_t>(lo >> 48),
            static_cast<unsigned long long>(lo & 0x0000FFFFFFFFFFFFULL));
   return buf;
 }
 
+void Log(const AcceleratorControlClientConfig& cfg) {
+  spdlog::info(
+      "[AcceleratorControlClientConfig] control_addr={} device_id={} display_name={} "
+      "accelerator_version={} client_cert_file={} client_key_file={} ca_cert_file={} "
+      "max_reconnect_delay_s={} camera_count={}",
+      cfg.control_addr, cfg.device_id, cfg.display_name, cfg.accelerator_version,
+      cfg.client_cert_file, cfg.client_key_file, cfg.ca_cert_file, cfg.max_reconnect_delay_s,
+      cfg.cameras.size());
+}
+
 }  // namespace
 
-AcceleratorControlClient::AcceleratorControlClient(
-    AcceleratorControlClientConfig config,
-    std::shared_ptr<ProcessorEngineProvider> engine,
-    std::shared_ptr<jrb::adapters::webrtc::WebRTCManager> webrtc_manager)
+AcceleratorControlClient::AcceleratorControlClient(AcceleratorControlClientConfig config,
+                                                   std::shared_ptr<ProcessorEngineProvider> engine,
+                                                   std::shared_ptr<WebRTCManager> webrtc_manager)
     : config_(std::move(config)),
       engine_(std::move(engine)),
-      webrtc_manager_(std::move(webrtc_manager)) {}
+      webrtc_manager_(std::move(webrtc_manager)) {
+  Log(config_);
+}
 
 AcceleratorControlClient::~AcceleratorControlClient() {
   Stop();
@@ -85,10 +93,11 @@ void AcceleratorControlClient::Run() {
   int delay_s = 1;
   while (!stop_requested_) {
     if (RunOnce()) {
-      // Clean shutdown.
+      spdlog::info("[AcceleratorControl] Connection loop exited due to RunOnce() returning true");
       break;
     }
     if (stop_requested_) {
+      spdlog::info("[AcceleratorControl] Connection loop exited due to stop request");
       break;
     }
     spdlog::warn("[AcceleratorControl] Reconnecting in {}s...", delay_s);
@@ -106,16 +115,16 @@ bool AcceleratorControlClient::RunOnce() {
   if (!config_.client_cert_file.empty() && !config_.client_key_file.empty() &&
       !config_.ca_cert_file.empty()) {
     std::string cert = ReadFile(config_.client_cert_file);
-    std::string key  = ReadFile(config_.client_key_file);
-    std::string ca   = ReadFile(config_.ca_cert_file);
+    std::string key = ReadFile(config_.client_key_file);
+    std::string ca = ReadFile(config_.ca_cert_file);
     if (cert.empty() || key.empty() || ca.empty()) {
       spdlog::error("[AcceleratorControl] Failed to read mTLS credential files");
       return false;
     }
     grpc::SslCredentialsOptions opts;
-    opts.pem_root_certs    = ca;
-    opts.pem_cert_chain    = cert;
-    opts.pem_private_key   = key;
+    opts.pem_root_certs = ca;
+    opts.pem_cert_chain = cert;
+    opts.pem_private_key = key;
     creds = grpc::SslCredentials(opts);
     spdlog::info("[AcceleratorControl] mTLS credentials loaded");
   } else {
@@ -132,13 +141,13 @@ bool AcceleratorControlClient::RunOnce() {
   // Stash pointers so Send() can use them (cleared on exit).
   {
     std::lock_guard<std::mutex> lk(write_mutex_);
-    ctx_    = &ctx;
+    ctx_ = &ctx;
     stream_ = stream.get();
   }
 
   auto cleanup = [&]() {
     std::lock_guard<std::mutex> lk(write_mutex_);
-    ctx_    = nullptr;
+    ctx_ = nullptr;
     stream_ = nullptr;
   };
 
@@ -197,8 +206,8 @@ bool AcceleratorControlClient::RunOnce() {
   stream->WritesDone();
   auto status = stream->Finish();
   if (!status.ok() && !stop_requested_) {
-    spdlog::warn("[AcceleratorControl] Stream ended: {} {}",
-                 static_cast<int>(status.error_code()), status.error_message());
+    spdlog::warn("[AcceleratorControl] Stream ended: {} {}", static_cast<int>(status.error_code()),
+                 status.error_message());
   }
   cleanup();
   return stop_requested_;
@@ -233,8 +242,8 @@ void AcceleratorControlClient::Dispatch(const AcceleratorMessage& msg) {
   }
 }
 
-void AcceleratorControlClient::HandleSignalingMessage(
-    const std::string& command_id, const SignalingMessage& msg) {
+void AcceleratorControlClient::HandleSignalingMessage(const std::string& command_id,
+                                                      const SignalingMessage& msg) {
   if (!webrtc_manager_ || !webrtc_manager_->IsInitialized()) {
     spdlog::warn("[AcceleratorControl] WebRTCManager unavailable — dropping signaling message");
     return;
@@ -247,8 +256,8 @@ void AcceleratorControlClient::HandleSignalingMessage(
       const auto& req = msg.start_session();
       std::string answer;
       std::string error;
-      const bool ok = webrtc_manager_->CreateSession(req.session_id(), req.sdp_offer(),
-                                                     &answer, &error);
+      const bool ok =
+          webrtc_manager_->CreateSession(req.session_id(), req.sdp_offer(), &answer, &error);
       auto* resp = response.mutable_start_session_response();
       resp->set_session_id(req.session_id());
       if (ok) {
@@ -300,8 +309,7 @@ void AcceleratorControlClient::HandleSignalingMessage(
       {
         std::lock_guard<std::mutex> lk(session_ids_mutex_);
         active_session_ids_.erase(
-            std::remove(active_session_ids_.begin(), active_session_ids_.end(),
-                        req.session_id()),
+            std::remove(active_session_ids_.begin(), active_session_ids_.end(), req.session_id()),
             active_session_ids_.end());
       }
 
@@ -384,8 +392,7 @@ AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage() const {
             }
           }
           if (!already_added) {
-            reg.add_supported_accelerator_types(
-                static_cast<AcceleratorType>(acc));
+            reg.add_supported_accelerator_types(static_cast<AcceleratorType>(acc));
           }
         }
       }

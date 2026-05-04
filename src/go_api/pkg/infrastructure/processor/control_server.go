@@ -156,12 +156,15 @@ func (s *ControlServer) Connect(stream grpc.BidiStreamingServer[gen.ConnectReque
 		Msg("accelerator connected")
 
 	defer func() {
-		s.registry.Remove(sess.DeviceID)
+		deviceID := sess.DeviceID
+		assignedSessionID := sess.AssignedSession
+		s.registry.Remove(deviceID)
 		sess.cancel()
 		sess.pending.cancelAll()
 		sess.closeAllSignaling()
 		s.log.Info().
-			Str("device_id", sess.DeviceID).
+			Str("device_id", deviceID).
+			Str("assigned_session_id", assignedSessionID).
 			Msg("accelerator disconnected")
 	}()
 

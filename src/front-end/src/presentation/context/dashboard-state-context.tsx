@@ -39,7 +39,7 @@ export function useDashboardState(): DashboardState {
 export function DashboardStateProvider({ children }: { children: ReactNode }): ReactNode {
   const { container, ready } = useAppServices();
   const [selectedSourceNumber, setSelectedSourceNumber] = useState(1);
-  const [selectedSourceName, setSelectedSourceName] = useState('Lena');
+  const [selectedSourceName, setSelectedSourceName] = useState('Gallery');
   const [selectedAccelerator, setSelectedAccelerator] = useState<AcceleratorType>(AcceleratorType.CUDA);
   const [selectedResolution, setSelectedResolution] = useState('original');
   const [activeFilters, setActiveFiltersState] = useState<ActiveFilterState[]>([]);

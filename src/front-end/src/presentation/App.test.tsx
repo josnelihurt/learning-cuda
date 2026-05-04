@@ -24,7 +24,7 @@ vi.mock('./providers/app-services-provider', () => ({
 vi.mock('./context/dashboard-state-context', () => ({
   useDashboardState: () => ({
     selectedSourceNumber: 1,
-    selectedSourceName: 'Lena',
+    selectedSourceName: 'Gallery',
     selectedAccelerator: AcceleratorType.CUDA,
     selectedResolution: 'original',
     activeFilters: [],

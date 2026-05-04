@@ -6,7 +6,7 @@ High-performance image processing library implementing Clean Architecture princi
 
 The CUDA Accelerator Library provides a production-grade image processing framework with GPU-accelerated filters. The architecture uses a **pluggable filter factory** pattern: `ProcessorEngine` is decoupled from concrete filter implementations via `IFilterFactory`, with one factory registered per accelerator backend (CUDA, CPU, OpenCL). New backends are added by implementing `IFilterFactory` and registering it at startup — no engine changes required. The library also includes remote camera capture via GStreamer/Jetson camera sources, streamed over WebRTC peer connections.
 
-**Version**: See `VERSION` file (currently 4.1.0)
+**Version**: See `VERSION` file (currently 4.7.2)
 
 **Features**:
 - Multi-backend GPU acceleration: **CUDA**, **OpenCL**, and CPU fallback
@@ -25,7 +25,7 @@ The CUDA Accelerator Library provides a production-grade image processing framew
 
 ### Component Overview
 
-The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream used exclusively for registration, WebRTC signaling, and keepalives. All image processing occurs over **WebRTC peer connections** established through that signaling. The Go server negotiates WebRTC sessions; once connected, video frames flow over RTP media tracks while still-image processing, detection results, and control requests flow over dedicated data channels. Remote camera streams from Jetson-attached sensors flow through `CameraHub` → `GstCameraSource` → WebRTC outbound track. All processing converges at the `ProcessorEngine` which orchestrates image processing through the filter pipeline.
+The library uses the **Accelerator Control Client** as the primary integration path. The client dials outbound to a Go cloud server via mTLS and establishes a multiplexed bidirectional stream used exclusively for registration, WebRTC signaling, and keepalives. All image processing occurs over **WebRTC peer connections** established through that signaling. The Go server negotiates WebRTC sessions; once connected, video frames flow over RTP media tracks while still-image processing, detection results, and control requests flow over dedicated data channels. Remote camera streams from Jetson-attached sensors flow through `CameraHub` → camera backends (Argus/V4L2) → WebRTC outbound track. On Jetson, a `GpuFrameProcessor` provides a GPU-side NV12→RGBA tap for the `BirdWatcher` background detection service, which runs YOLO inference alongside the WebRTC stream without requiring a separate H.264 decode round-trip. All processing converges at the `ProcessorEngine` which orchestrates image processing through the filter pipeline.
 
 ```mermaid
 graph TB
@@ -41,6 +41,7 @@ graph TB
 
     subgraph "WebRTC Sessions"
         WebRTCMgr[WebRTCManager]
+        CtrlDisp[ControlMessageDispatcher<br/>Control channel routing]
         LiveVP[LiveVideoProcessor<br/>H264 decode/encode]
         DataChannels[Data Channels<br/>control / detections / stats]
         MediaTracks[Media Tracks<br/>inbound/outbound H264 RTP]
@@ -48,14 +49,18 @@ graph TB
 
     subgraph "Camera Adapter"
         CameraHub[CameraHub]
-        GstSource[GstCameraSource<br/>nvarguscamerasrc]
-        CameraDetector[CameraDetector<br/>Probe + advertise]
+        Backends[Camera Backends<br/>NvidiaArgus / V4L2 / Stub]
+        GpuProc[GpuFrameProcessor<br/>NV12 NVMM → RGBA]
     end
 
     subgraph "C++ Core Processing"
         ProcessorEngine[ProcessorEngine]
         FilterPipeline[FilterPipeline]
         BufferPool[BufferPool]
+    end
+
+    subgraph "Background Detection"
+        BirdWatcher[BirdWatcher<br/>Idle/Alert state machine]
     end
 
     subgraph "Domain Interfaces"
@@ -78,13 +83,18 @@ graph TB
     AccelClient --> BidiStream
     AccelClient --> WebRTCMgr
 
+    WebRTCMgr --> CtrlDisp
     WebRTCMgr --> LiveVP
     WebRTCMgr --> DataChannels
     WebRTCMgr --> MediaTracks
     WebRTCMgr --> CameraHub
     LiveVP --> ProcessorEngine
-    CameraHub --> GstSource
-    GstSource -->|H264 AUs| WebRTCMgr
+    CameraHub --> Backends
+    CameraHub --> GpuProc
+    Backends -->|H264 AUs| WebRTCMgr
+    CameraHub -->|H.264 fan-out| BirdWatcher
+    GpuProc -->|RGBA frames| BirdWatcher
+    BirdWatcher --> ProcessorEngine
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -119,10 +129,12 @@ graph TB
         AccelClient[adapters/grpc_control<br/>AcceleratorControlClient]
         Provider[ProcessorEngineAdapter]
         WebRTCPort[adapters/webrtc<br/>WebRTCManager]
+        CtrlDisp[ControlMessageDispatcher]
         DataChannelFraming[DataChannelFraming]
         LiveVideoProcessor[LiveVideoProcessor]
         CameraAdapter[adapters/camera<br/>CameraHub + GstCameraSource]
-        CameraDetector[CameraDetector]
+        CameraBackends[Camera Backends<br/>NvidiaArgus / V4L2 / Stub]
+        GpuFrameProcessor[GpuFrameProcessor]
     end
 
     subgraph "C++ Application Layer"
@@ -132,6 +144,7 @@ graph TB
         FilterPipeline[FilterPipeline]
         BufferPool[BufferPool]
         CommandFactory[CommandFactory]
+        BirdWatcher[bird_watch<br/>BirdWatcher]
     end
 
     subgraph "C++ Domain Layer"
@@ -163,10 +176,12 @@ graph TB
     AccelClient --> Provider
     Provider --> ProcessorEngine
     AccelClient --> WebRTCPort
+    WebRTCPort --> CtrlDisp
     WebRTCPort --> ServerInfo
     WebRTCPort --> CameraAdapter
-    CameraAdapter --> GstSource[GstCameraSource]
-    AccelClient --> CameraDetector
+    CameraAdapter --> CameraBackends
+    CameraBackends --> GpuFrameProcessor
+    AccelClient --> CameraAdapter
 
     ProcessorEngine --> FilterPipeline
     FilterPipeline --> BufferPool
@@ -184,6 +199,10 @@ graph TB
     CommandFactory --> ConfigManager
     ProcessorEngine --> Logger
     ProcessorEngine --> Telemetry
+
+    CameraAdapter -->|H.264 fan-out| BirdWatcher
+    GpuFrameProcessor -->|RGBA callback| BirdWatcher
+    BirdWatcher --> ProcessorEngine
 ```
 
 ### Initialization Sequence
@@ -198,10 +217,11 @@ sequenceDiagram
     participant CameraHub as CameraHub
     participant CameraDet as CameraDetector
     participant WebRTC as WebRTCManager
+    participant BirdWatcher as BirdWatcher (optional)
     participant Signal as SignalHandler
     participant Client as AcceleratorControlClient
 
-    Main->>Flags: Parse flags (control_addr, device_id, mTLS paths, cameras)
+    Main->>Flags: Parse flags (control_addr, device_id, mTLS paths, cameras, bird_watch)
     Flags-->>Main: Configuration
 
     Main->>Engine: Create ProcessorEngine("accelerator-client")
@@ -218,6 +238,13 @@ sequenceDiagram
     Main->>WebRTC: Initialize()
     WebRTC-->>Main: ready
     Main->>Client: Create AcceleratorControlClient(config, provider, webrtc)
+
+    opt bird_watch_enabled
+        Main->>BirdWatcher: Create BirdWatcher(engine, camera_hub, config)
+        Main->>BirdWatcher: Start()
+        BirdWatcher->>CameraHub: Subscribe(sensor_id)
+    end
+
     Main->>Signal: Initialize(shutdown callback → client.Stop())
     Main->>Client: Run()
 
@@ -309,23 +336,44 @@ sequenceDiagram
 
 #### Control Requests (WebRTC Data Channel)
 
-Filter discovery and version queries are handled on a dedicated "control" data channel.
+Filter discovery, version queries, camera stream control, and capture management are handled on a dedicated "control" data channel. The `ControlMessageDispatcher` routes each request type to a typed handler.
 
 ```mermaid
 sequenceDiagram
     participant Peer as Remote Peer (via Go)
     participant WRTC as WebRTCManager
+    participant Disp as ControlMessageDispatcher
     participant Info as ServerInfoProvider
+    participant Engine as ProcessorEngine
+    participant CamHub as CameraHub
 
     Peer->>WRTC: ControlRequest(kListFilters) on "control" channel
-    WRTC->>Info: PopulateListFiltersResponse()
-    Info-->>WRTC: filter definitions
+    WRTC->>Disp: Dispatch(request)
+    Disp->>Info: HandleListFilters()
+    Info-->>Disp: filter definitions
+    Disp-->>WRTC: ControlResponse
     WRTC->>Peer: ControlResponse(ListFiltersResponse)
 
     Peer->>WRTC: ControlRequest(kGetVersion) on "control" channel
-    WRTC->>Info: PopulateVersionResponse()
-    Info-->>WRTC: version + build info
+    WRTC->>Disp: Dispatch(request)
+    Disp->>Info: HandleGetVersion()
+    Info-->>Disp: version + build info
+    Disp-->>WRTC: ControlResponse
     WRTC->>Peer: ControlResponse(GetVersionInfoResponse)
+
+    Peer->>WRTC: ControlRequest(kStartCameraStream) on "control" channel
+    WRTC->>Disp: Dispatch(request)
+    Disp->>CamHub: HandleStartCameraStream(sensor, dimensions)
+    CamHub-->>Disp: stream started
+    Disp-->>WRTC: ControlResponse
+    WRTC->>Peer: ControlResponse(camera stream active)
+
+    Peer->>WRTC: ControlRequest(kCaptureFrame) on "control" channel
+    WRTC->>Disp: Dispatch(request)
+    Disp->>CamHub: HandleCaptureFrame(sensor)
+    CamHub-->>Disp: captured image data
+    Disp-->>WRTC: ControlResponse
+    WRTC->>Peer: ControlResponse(captured image)
 ```
 
 ## Directory Structure
@@ -337,9 +385,11 @@ cpp_accelerator/
 ├── cmd/
 │   ├── accelerator_control_client/
 │   │   ├── main.cpp            # Binary entry point
+│   │   ├── BUILD_CONFIG.md     # Backend/camera build configuration docs
 │   │   └── BUILD
-│   ├── spike_multi_gpu_backend/  # Experimental multi-backend abstraction spike
-│   └── [hello-world examples]    # See "Hello World Examples" section below
+│   ├── hello-world-opencl/     # Minimal OpenCL vector-add example
+│   ├── hello-world-vulkan/     # Minimal Vulkan compute vector-add example
+│   └── hello-world-nvidia-argus/ # Jetson Argus camera probe example
 ├── core/                       # Cross-cutting utilities (no deps on other layers)
 │   ├── logger.h/cpp
 │   ├── telemetry.h/cpp
@@ -349,8 +399,10 @@ cpp_accelerator/
 │   └── version.h               # Build-time version + git hash (generated)
 ├── domain/                     # Pure domain — no infrastructure deps
 │   ├── interfaces/
-│   │   ├── filters/i_filter.h
-│   │   ├── processors/i_image_processor.h
+│   │   ├── filters/
+│   │   │   └── i_filter.h      # Core filter interface
+│   │   ├── processors/
+│   │   │   └── i_image_processor.h
 │   │   ├── i_yolo_detector.h   # YOLO detector interface (extends IFilter)
 │   │   ├── image_buffer.h, image_sink.h, image_source.h, i_pixel_getter.h
 │   │   └── grayscale_algorithm.h
@@ -363,6 +415,7 @@ cpp_accelerator/
 │   │   ├── filter_descriptor.h      # FilterDescriptor, FilterCreationParams, BlurBorderMode
 │   │   ├── filter_factory_registry.h/cpp  # Registry: AcceleratorType → IFilterFactory
 │   │   ├── filter_creation_dispatch.hpp   # Shared Strategy Pattern dispatch helper
+│   │   ├── README.md            # Engine filter dispatch pattern docs
 │   │   └── BUILD
 │   ├── pipeline/
 │   │   ├── filter_pipeline.h/cpp
@@ -372,6 +425,13 @@ cpp_accelerator/
 │   │   ├── server_info_provider.h/cpp   # Implementation (reads VERSION, queries engine caps)
 │   │   ├── filter_parameter_mapping.h/cpp  # Engine FilterParameter → wire GenericFilterParameter
 │   │   └── accelerator_label.h/cpp         # AcceleratorType → human-readable label
+│   ├── bird_watch/              # Background bird detection service
+│   │   ├── bird_watcher.h/cpp            # Detection loop, state machine, FFmpeg decode
+│   │   ├── bird_watcher_gpu_argus.cpp    # Jetson GPU NV12→RGBA path wiring
+│   │   ├── bird_watcher_gpu_stub.cpp     # No-op stub for non-Argus builds
+│   │   ├── README.md                     # Architecture, state machine, config docs
+│   │   ├── README_STILLS.md              # High-res still capture + regression postmortem
+│   │   └── BUILD
 │   └── commands/               # CommandFactory (not wired into main pipeline)
 ├── ports/                      # Abstract port interfaces ONLY
 │   ├── control/
@@ -385,6 +445,8 @@ cpp_accelerator/
 │   │   └── processor_engine_provider.h       # service provider interface
 │   ├── webrtc/                 # WebRTC media path
 │   │   ├── webrtc_manager.h/cpp              # implements IMediaSession
+│   │   ├── control_message_dispatcher.h/cpp  # Control channel request routing
+│   │   ├── webrtc_session_state.h            # SessionState struct (per-session state)
 │   │   ├── live_video_processor.h/cpp        # H.264 decode → ProcessorEngine → encode
 │   │   ├── data_channel_framing.h/cpp        # chunked binary framing + SendFramed over SCTP
 │   │   ├── channel_labels.h                  # channel name constants, session prefixes
@@ -396,11 +458,23 @@ cpp_accelerator/
 │   │       └── sdp_utils.h/cpp               # Codec negotiation, extmap strip, ICE injection
 │   ├── camera/                 # Camera capture and streaming
 │   │   ├── camera_hub.h/cpp                 # Owns GstCameraSource per sensor, fans out H264 AUs
-│   │   ├── camera_detector.h/cpp            # Probe sensors via nvarguscamerasrc, advertise cameras
-│   │   ├── gst_camera_source.h              # GStreamer nvarguscamerasrc capture interface
-│   │   ├── gst_camera_source_jetson.cpp      # Jetson platform implementation
-│   │   ├── gst_camera_source_v4l2.cpp        # V4L2 platform implementation
-│   │   └── gst_camera_source_stub.cpp        # Stub for builds without GStreamer
+│   │   ├── camera_detector.h/cpp            # Camera detection facade
+│   │   ├── camera_detector_impl.h/cpp       # Platform-specific detection dispatch
+│   │   ├── camera_detector_impl_argus.cpp   # Argus sensor probe
+│   │   ├── camera_detector_impl_v4l2.cpp    # V4L2 device probe
+│   │   ├── gst_camera_source.h              # Camera source interface
+│   │   ├── gst_camera_source_impl.h/cpp     # Platform dispatch for implementations
+│   │   ├── gst_camera_source_impl_argus.cpp # Jetson Argus pipeline
+│   │   ├── gst_camera_source_impl_v4l2.cpp  # V4L2/USB pipeline
+│   │   ├── gst_camera_source_impl_gpu_argus.cpp # Argus + GPU NV12→RGBA tap
+│   │   ├── gpu_frame_processor.h/cpp        # NV12 NVMM → RGBA via CUDA (Jetson)
+│   │   ├── nvbuf_cuda_utils.h/cpp           # NvBufSurface mapping wrapper
+│   │   └── backends/            # Pluggable camera backends
+│   │       ├── camera_backend.h             # Common backend interface
+│   │       ├── nvidia_argus_backend.h/cpp    # Jetson CSI (nvarguscamerasrc)
+│   │       ├── v4l2_backend.h/cpp            # USB/V4L2 cameras
+│   │       ├── stub_backend.h/cpp            # No-op fallback
+│   │       └── README.md                    # Jetson camera ops guide
 │   ├── compute/
 │   │   ├── cpu/                # CPU filter implementations
 │   │   │   ├── grayscale_filter.h/cpp
@@ -411,10 +485,11 @@ cpp_accelerator/
 │   │   │   ├── kernels/        # Kernel launchers (.h) and CUDA source (.cu)
 │   │   │   │   ├── grayscale_kernel.h/cu
 │   │   │   │   ├── letterbox_kernel.h/cu
+│   │   │   │   ├── nv12_utils_kernel.h/cu  # NV12→RGBA + NV12 letterbox (Jetson)
 │   │   │   │   ├── blur_kernel.h           # Launcher header for blur variants
 │   │   │   │   └── blur/       # Blur kernel implementations
 │   │   │   │       ├── device_utils.cuh    # Shared border-clamp helpers
-│   │   │   │       ├── non_separable.cu    # Naïve 2D convolution (reference)
+│   │   │   │       ├── non_separable.cu    # Naive 2D convolution (reference)
 │   │   │   │       ├── separable_basic.cu  # Two 1D passes (algorithmic win)
 │   │   │   │       └── separable_tiled.cu  # Tiled + constant mem (production)
 │   │   │   ├── filters/        # C++ wrappers: grayscale_filter, blur_filter
@@ -459,8 +534,8 @@ cpp_accelerator/
 │       ├── platform_support_cuda.cpp       # CUDA-only build
 │       ├── platform_support_opencl.cpp     # OpenCL-only build
 │       ├── platform_support_vulkan.cpp     # Vulkan-only build
-│       ├── platform_support_full.cpp       # All backends
-│       ├── platform_support_all.cpp        # Alias: all backends
+│       ├── platform_support_full.cpp       # CUDA + OpenCL
+│       ├── platform_support_all.cpp        # All backends
 │       ├── platform_support_cuda_vulkan.cpp
 │       ├── platform_support_opencl_vulkan.cpp
 │       ├── cpu/
@@ -512,6 +587,16 @@ See [docs/uml/README.md](../../docs/uml/README.md) for full documentation, viewi
 
 - **[application/engine/README.md](application/engine/README.md)** — Describes the Strategy Pattern dispatch used in `IFilterFactory::CreateFilter` and the `DispatchCreateFilter` shared helper.
 
+- **[adapters/camera/backends/README.md](adapters/camera/backends/README.md)** — End-to-end guide for Jetson camera backends (Argus/V4L2), Docker runtime dependencies, device mappings, operational diagnostics, and postmortem of the Orin Nano incident.
+
+- **[application/bird_watch/README.md](application/bird_watch/README.md)** — BirdWatcher background detection service architecture, state machine, frame pipeline, rate gating, and Jetson/Argus integration.
+
+- **[application/bird_watch/README_STILLS.md](application/bird_watch/README_STILLS.md)** — High-resolution still capture on Jetson, the NV12 GPU pipeline, and regression postmortem for the WebRTC frame corruption bug.
+
+- **[cmd/accelerator_control_client/BUILD_CONFIG.md](cmd/accelerator_control_client/BUILD_CONFIG.md)** — Bazel build configuration for backend selection (`--config=cuda`, `--config=full`, etc.) and camera feature flags (`--config=v4l2-camera`, `--config=nvidia-argus-camera`).
+
+- **[lessons_learned.md](lessons_learned.md)** — WebRTC pipeline debugging: libdatachannel weak_ptr track lifetime, MediaHandler chain execution order, and diagnostic methodology.
+
 ## Hello World Examples
 
 The `cmd/` folder contains several minimal examples for learning GPU programming concepts. These are standalone programs that demonstrate specific compute APIs without the full accelerator architecture:
@@ -520,7 +605,7 @@ The `cmd/` folder contains several minimal examples for learning GPU programming
 
 - **[Vulkan Compute Hello World](cmd/hello-world-vulkan/README.md)** — Minimal Vulkan compute shader example for vector addition. Demonstrates Vulkan instance/device setup, compute pipeline creation, and embedded SPIR-V shaders.
 
-- **[Spike Multi-GPU Backend](cmd/spike_multi_gpu_backend/)** — Experimental spike exploring a unified backend abstraction for CUDA/OpenCL with a grayscale filter demo.
+- **[NVIDIA Argus Hello World](cmd/hello-world-nvidia-argus/)** — Minimal Jetson Argus camera probe example. Standalone Makefile + cross-compile Dockerfile for testing camera availability on Jetson targets.
 
 These examples are intentionally kept separate from the production codebase and serve as learning resources for understanding the underlying compute APIs.
 
@@ -560,13 +645,13 @@ The client sends and receives messages through the `AcceleratorMessage` envelope
 **WebRTC Data Channel Message Types** (after peer connection established):
 
 - **ProcessImageRequest**: Image processing and live filter control updates (default data channel)
-- **ControlRequest**: `ListFilters` and `GetVersion` queries ("control" data channel)
+- **ControlRequest**: `ListFilters`, `GetVersion`, `GetAcceleratorCapabilities`, `StartCameraStream`, `StopCameraStream`, `CaptureFrame`, `ListCapturedImages`, `GetCapturedImage`, `DeleteCapturedImage` ("control" data channel)
 - **DetectionFrame**: Detection results from YOLO inference ("detections" data channel)
 - **ProcessingStatsFrame**: Per-frame timing metrics ("cpp-processor-stats" data channel)
 
 **Architecture**:
 
-The `AcceleratorControlClient` holds a `ProcessorEngineProvider` interface for local processing and a `WebRTCManager` for WebRTC peer connections. The client:
+The `AcceleratorControlClient` holds a `ProcessorEngineProvider` interface for local processing and a `WebRTCManager` for WebRTC peer connections. The `WebRTCManager` delegates control channel messages to a `ControlMessageDispatcher`. The client:
 1. Dials the Go control server with mTLS credentials
 2. Opens a bidirectional stream via `Connect()`
 3. Sends `Register` message with device metadata
@@ -581,7 +666,9 @@ The library provides WebRTC-based real-time video streaming capabilities through
 
 **Components**:
 
-- **WebRTCManager** (`adapters/webrtc/webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, session lifecycle, and per-session CUDA memory pools
+- **WebRTCManager** (`adapters/webrtc/webrtc_manager.h/cpp`): Manages WebRTC peer connections, ICE candidate exchange, session lifecycle, and per-session CUDA memory pools. Delegates control channel messages to `ControlMessageDispatcher`.
+- **ControlMessageDispatcher** (`adapters/webrtc/control_message_dispatcher.h/cpp`): Routes incoming `ControlRequest` messages to typed handlers (ListFilters, GetVersion, GetAcceleratorCapabilities, StartCameraStream, StopCameraStream, CaptureFrame, ListCapturedImages, GetCapturedImage, DeleteCapturedImage).
+- **SessionState** (`adapters/webrtc/webrtc_session_state.h`): Per-session state struct holding peer connection, data channels, RTP handlers, memory pool, live video processor, camera subscription, and synchronization primitives.
 - **LiveVideoProcessor** (`adapters/webrtc/live_video_processor.h/cpp`): Real-time video frame processing pipeline — FFmpeg H.264 decode → RGB → ProcessorEngine → RGB → FFmpeg H.264 encode
 - **DataChannelFraming** (`adapters/webrtc/data_channel_framing.h/cpp`): Binary chunking/reassembly protocol for large protobuf messages over SCTP data channels, plus `SendFramed()` helper
 - **Channel labels & routing** (`adapters/webrtc/channel_labels.h`, `session_routing.h/cpp`): Channel name constants, Go-video session prefix detection, session channel registration logic
@@ -595,7 +682,7 @@ The library provides WebRTC-based real-time video streaming capabilities through
 | Inbound video track | Peer → C++ | H.264 RTP live camera frames |
 | Outbound video track | C++ → Peer | H.264 RTP processed video |
 | Default data channel | Bidirectional | `ProcessImageRequest`/`Response` for still images + live filter state updates |
-| `control` | Bidirectional | `ListFilters`, `GetVersion` queries |
+| `control` | Bidirectional | Filter/version queries, camera stream control, capture management |
 | `detections` | C++ → Peer | `DetectionFrame` with YOLO bounding boxes |
 | `cpp-processor-stats` | C++ → Peer | `ProcessingStatsFrame` with per-frame timing metrics |
 
@@ -603,9 +690,10 @@ The library provides WebRTC-based real-time video streaming capabilities through
 
 1. Go server sends `SignalingMessage(StartSession)` with SDP offer via gRPC bidi stream
 2. AcceleratorControlClient dispatches to WebRTCManager
-3. WebRTCManager creates PeerConnection, sets up track/channel handlers, generates SDP answer
+3. WebRTCManager creates PeerConnection, sets up track/channel handlers, creates `ControlMessageDispatcher` for the session, generates SDP answer
 4. ICE candidates exchanged via `SignalingMessage(IceCandidate)` through the bidi stream
 5. Direct WebRTC peer connection established — all subsequent data flows over RTP/data channels
+6. Control channel messages routed through `ControlMessageDispatcher` to typed handlers
 
 ### YOLO Object Detection
 
@@ -619,18 +707,40 @@ The library includes YOLO object detection via TensorRT for GPU-accelerated infe
 - **ModelManager** (`adapters/compute/cuda/tensorrt/model_manager.h/cpp`): Model loading & session management
 - **ModelRegistry** (`adapters/compute/cuda/tensorrt/model_registry.h/cpp`): Model path resolution
 - **LetterboxKernel** (`adapters/compute/cuda/kernels/letterbox_kernel.cu/h`): GPU-accelerated resize + pad + NCHW conversion
+- **NV12 Utils** (`adapters/compute/cuda/kernels/nv12_utils_kernel.cu/h`): GPU-accelerated NV12→RGBA conversion and NV12 letterbox for Jetson camera pipeline
+- **GpuFrameProcessor** (`adapters/camera/gpu_frame_processor.h/cpp`): Maps NV12 NVMM GstBuffer to CUDA and runs the NV12→RGBA kernel for BirdWatcher GPU path
 
 ### Camera Adapter
 
-The camera adapter provides Jetson-attached camera capture and streaming over WebRTC. Camera sources are probed at startup via `CameraDetector` and advertised as remote cameras in the registration message.
+The camera adapter provides Jetson-attached and USB camera capture and streaming over WebRTC. Camera sources are probed at startup via platform-specific detector implementations and advertised as remote cameras in the registration message.
 
 **Components**:
 
-- **CameraHub** (`adapters/camera/camera_hub.h/cpp`): Owns one `GstCameraSource` per sensor ID. Fans out encoded H.264 access units to multiple WebRTC session subscribers via RAII `Subscription` handles. Devices are lazily opened on first subscribe and held open until process shutdown to avoid `EBUSY` on rapid open/close cycles.
-- **GstCameraSource** (`adapters/camera/gst_camera_source.h`): GStreamer `nvarguscamerasrc` capture interface. Platform-specific implementations: `gst_camera_source_jetson.cpp` (Jetson), `gst_camera_source_v4l2.cpp` (V4L2), `gst_camera_source_stub.cpp` (no-op for builds without GStreamer).
-- **CameraDetector** (`adapters/camera/camera_detector.h/cpp`): Probes sensor IDs via `nvarguscamerasrc` and returns `RemoteCameraInfo` protobuf for each detected camera. On non-Jetson platforms returns an empty list.
+- **CameraHub** (`adapters/camera/camera_hub.h/cpp`): Owns one `GstCameraSource` per sensor ID. Fans out encoded H.264 access units to multiple WebRTC session subscribers via RAII `Subscription` handles. Also provides `GrabStillFrame()` for high-resolution captures and `GetGpuFrameProcessor()` for GPU-side NV12→RGBA tap. Devices are lazily opened on first subscribe and held open until process shutdown to avoid `EBUSY` on rapid open/close cycles.
+- **GstCameraSource** (`adapters/camera/gst_camera_source.h`): Camera source interface. Platform dispatch through `gst_camera_source_impl.h/cpp` routes to Argus, V4L2, or GPU-Argus implementations based on build configuration.
+- **CameraDetector** (`adapters/camera/camera_detector.h/cpp`): Facade that delegates to platform-specific `CameraDetectorImpl` variants (Argus, V4L2) to probe sensor IDs and return `RemoteCameraInfo` protobuf for each detected camera.
+- **GpuFrameProcessor** (`adapters/camera/gpu_frame_processor.h/cpp`): Maps NV12 NVMM `GstBuffer` to CUDA, runs `nv12_to_rgba` kernel, forwards RGBA to an optional consumer (e.g., BirdWatcher YOLO). Does no work when no `RgbCallback` is registered.
+- **Camera Backends** (`adapters/camera/backends/`): Pluggable backend implementations selected at compile time via Bazel `select()`:
+  - **NvidiaArgusBackend** (`nvidia_argus_backend.h/cpp`): Jetson CSI cameras via `nvarguscamerasrc`. Supports hardware NVENC and software x264enc fallback. Three-branch `tee` pipeline: `still_sink` (full-res NV12), `raw_sink` (720p NVMM for GPU tap), `stream_sink` (720p H.264 for WebRTC).
+  - **V4l2Backend** (`v4l2_backend.h/cpp`): USB/V4L2 cameras via GStreamer.
+  - **StubBackend** (`stub_backend.h/cpp`): No-op fallback when no camera backend is compiled in.
 
-**Integration**: `WebRTCManager` receives a `CameraHub` instance and uses `CreateCameraSession()` to establish a WebRTC peer connection that streams H.264 from a `GstCameraSource` to the remote peer. The camera registration data flows through `AcceleratorControlClient` → `Register` message → Go server.
+See **[adapters/camera/backends/README.md](adapters/camera/backends/README.md)** for the full Jetson operations guide, Docker requirements, and debugging postmortems.
+
+**Integration**: `WebRTCManager` receives a `CameraHub` instance and uses `CreateCameraSession()` to establish a WebRTC peer connection that streams H.264 from a camera backend to the remote peer. `BirdWatcher` subscribes to the same `CameraHub` fan-out for background detection. On Jetson, `GpuFrameProcessor` provides a GPU-side NV12→RGBA tap that bypasses the H.264 decode round-trip for YOLO inference. The camera registration data flows through `AcceleratorControlClient` → `Register` message → Go server.
+
+### BirdWatcher Background Detection
+
+The BirdWatcher (`application/bird_watch/`) is an optional background service that runs autonomous bird detection alongside the WebRTC live-streaming stack. It subscribes to the same `CameraHub` fan-out as browser clients, decodes H.264 frames with FFmpeg (or receives GPU NV12→RGBA frames on Jetson), runs YOLO inference via `ProcessorEngine`, and saves BMP captures of detected birds.
+
+**Key design points**:
+
+- **WebRTC-independent**: Standalone `CameraHub` subscriber. Camera stays alive even with zero WebRTC clients.
+- **Two-state machine** (Idle/Alert): Idle mode throttles YOLO to once every N seconds; Alert mode runs inference on every frame.
+- **Rate gating**: Captures are constrained by configurable per-minute and minimum-interval limits.
+- **Jetson GPU path**: On Argus builds, bypasses the H.264 decode round-trip by receiving NV12 frames directly from `GpuFrameProcessor` via `cuda_nv12_to_rgba_device` kernel.
+
+See **[application/bird_watch/README.md](application/bird_watch/README.md)** for full architecture, configuration flags, and **[application/bird_watch/README_STILLS.md](application/bird_watch/README_STILLS.md)** for the high-resolution still capture pipeline and regression postmortem.
 
 ### Command Pattern
 
@@ -665,9 +775,13 @@ The domain layer defines core abstractions used throughout the library:
 
 **GrayscaleAlgorithm Enum**: `BT601` (SDTV), `BT709` (HDTV), `Average`, `Lightness`, `Luminosity`
 
+**IFilter Interface** (`domain/interfaces/filters/i_filter.h`): Core filter contract with `Apply()` method.
+
+**IYoloDetector Interface** (`domain/interfaces/i_yolo_detector.h`): YOLO detector interface extending `IFilter`.
+
 **FilterContext Structure**: Contains `ImageBuffer` (input) and `ImageBufferMut` (output), passed to filters during `Apply()` operations.
 
-**IImageProcessor Interface**: Defines contract for image processors that work with `IImageSource` and `IImageSink`.
+**IImageProcessor Interface** (`domain/interfaces/processors/i_image_processor.h`): Defines contract for image processors that work with `IImageSource` and `IImageSink`.
 
 ## Code Quality & Compiler Warnings
 
@@ -681,7 +795,7 @@ All code in `cpp_accelerator/` compiles without warnings when `-Werror` is enabl
 
 The library previously exposed a C API through `processor_api.h`. The shared library build target (`libcuda_processor.so`) has been removed. The `processor_engine` wrapper in the application layer is now used directly by the gRPC and WebRTC adapters.
 
-**API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.1.0).
+**API Version**: The C API version was defined as `PROCESSOR_API_VERSION "2.1.0"`. This is separate from the library version (4.7.2).
 
 ## Adding New Filters or Backends
 
@@ -694,10 +808,15 @@ The library previously exposed a C API through `processor_api.h`. The shared lib
 ### Adding a new accelerator backend
 
 1. **Adapters**: Create `adapters/compute/<backend>/` with filter implementations and an `<backend>_filter_factory.h/cpp` implementing `IFilterFactory`
-2. **Engine**: Register the factory in `ProcessorEngine` constructor: `factory_registry_.Register(std::make_unique<NewBackendFilterFactory>())`
-3. **Protocol buffer**: Add the new `AcceleratorType` enum value in `image_processor_service.proto`
+2. **Platform registration**: Create `composition/platform/<backend>/<backend>_platform.h/cpp` with `RegisterFactories()` function
+3. **Composition**: Create a new `composition/platform/platform_support_<backend>.cpp` that includes `cpu` + the new backend
+4. **Bazel flags**: Add `bool_flag` and `config_setting` in `bazel/flags/BUILD`, add `--config` shorthand in `.bazelrc`
+5. **Composition BUILD**: Add entries to the `select()` blocks in `composition/BUILD` for the new backend and its combinations
+6. **Protocol buffer**: Add the new `AcceleratorType` enum value in `image_processor_service.proto`
 
 The `FilterFactoryRegistry` handles the rest — no engine logic changes needed.
+
+See **[cmd/accelerator_control_client/BUILD_CONFIG.md](cmd/accelerator_control_client/BUILD_CONFIG.md)** for full details on the build configuration system.
 
 The FilterPipeline automatically handles filter composition and execution order.
 
@@ -719,6 +838,10 @@ bazel test //src/cpp_accelerator/adapters/compute/cuda/filters:grayscale_filter_
 bazel test //src/cpp_accelerator/adapters/compute/cuda/filters:blur_filter_test
 bazel test //src/cpp_accelerator/adapters/compute/cpu:grayscale_filter_test
 bazel test //src/cpp_accelerator/adapters/compute/cpu:blur_filter_test
+bazel test //src/cpp_accelerator/adapters/compute/opencl/filters:grayscale_filter_test
+bazel test //src/cpp_accelerator/adapters/compute/opencl/filters:blur_filter_test
+bazel test //src/cpp_accelerator/adapters/compute/vulkan/filters:grayscale_filter_test
+bazel test //src/cpp_accelerator/adapters/compute/vulkan/filters:blur_filter_test
 bazel test //src/cpp_accelerator/adapters/image_io:image_loader_test
 bazel test //src/cpp_accelerator/adapters/image_io:image_writer_test
 bazel test //src/cpp_accelerator/adapters/config:config_manager_test

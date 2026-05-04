@@ -88,6 +88,7 @@ RUN mkdir -p /artifacts/lib /artifacts/bin && \
 FROM ${CUDA_RUNTIME_REGISTRY}/base:cuda-runtime-${CUDA_RUNTIME_VERSION}-${TARGETARCH} AS cpp-accelerator
 
 ARG ENABLE_TENSORRT=false
+ARG TARGETARCH=amd64
 
 WORKDIR /opt/cuda/grpc
 
@@ -96,6 +97,16 @@ COPY --from=cpp-builder /artifacts/bin/accelerator_control_client ./bin/accelera
 # ONNX at runtime only (TensorRT engine generated lazily at run).
 RUN mkdir -p /opt/cuda/grpc/data/models
 COPY --from=yolo-model-gen /models/yolov10n.onnx /opt/cuda/grpc/data/models/yolov10n.onnx
+
+# Placeholder files for JetPack Multimedia libs mounted from the Jetson host at
+# runtime (see docker-compose.yml volumes).  Docker bind-mounting a host file
+# over a non-existent path creates a directory instead of a file, which causes
+# EISDIR (Error 21) from the dynamic linker.  A plain touch ensures the path
+# exists as a file so the host mount overlays it correctly.
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        touch /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so \
+              /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2; \
+    fi
 
 # Copy VERSION file for GetVersionInfo endpoint
 COPY src/cpp_accelerator/VERSION ./src/cpp_accelerator/VERSION

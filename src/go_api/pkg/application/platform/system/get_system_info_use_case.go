@@ -45,7 +45,6 @@ func (uc *GetSystemInfoUseCase) Execute(ctx context.Context, _ GetSystemInfoUseC
 	systemInfo := &domain.SystemInfo{
 		Version: domain.SystemVersion{
 			GoVersion:    uc.versionRepo.GetGoVersion(),
-			CppVersion:   uc.versionRepo.GetCppVersion(),
 			ProtoVersion: uc.versionRepo.GetProtoVersion(),
 			Branch:       uc.buildInfoRepo.GetBranch(),
 			BuildTime:    uc.buildInfoRepo.GetBuildTime(),
@@ -56,7 +55,6 @@ func (uc *GetSystemInfoUseCase) Execute(ctx context.Context, _ GetSystemInfoUseC
 
 	span.SetAttributes(
 		attribute.String("version.go", systemInfo.Version.GoVersion),
-		attribute.String("version.cpp", systemInfo.Version.CppVersion),
 		attribute.String("version.proto", systemInfo.Version.ProtoVersion),
 		attribute.String("version.branch", systemInfo.Version.Branch),
 		attribute.String("version.build_time", systemInfo.Version.BuildTime),

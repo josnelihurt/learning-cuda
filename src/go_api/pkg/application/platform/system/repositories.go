@@ -19,7 +19,6 @@ type buildInfoRepository interface {
 
 type versionRepository interface {
 	GetGoVersion() string
-	GetCppVersion() string
 	GetProtoVersion() string
 }
 

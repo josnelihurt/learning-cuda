@@ -29,7 +29,7 @@ class IServerInfoProvider;
 namespace jrb::adapters::webrtc {
 
 class ControlMessageDispatcher {
- public:
+public:
   struct Config {
     jrb::application::server_info::IServerInfoProvider* server_info;
     std::shared_ptr<jrb::application::engine::ProcessorEngine> engine;
@@ -38,6 +38,7 @@ class ControlMessageDispatcher {
     std::string device_id;
     std::string display_name;
     std::string captures_dir;
+    std::string accelerator_version;
     // Wraps the manager's camera frame routing — constructed in Initialize() via lambda.
     // Signature omits SessionState because the manager resolves the session internally.
     std::function<void(const std::string&, rtc::binary, rtc::FrameInfo)> video_frame_handler;
@@ -45,12 +46,10 @@ class ControlMessageDispatcher {
 
   explicit ControlMessageDispatcher(Config config);
 
-  void Dispatch(const cuda_learning::ControlRequest& request,
-                const std::string& session_id,
-                SessionState& state,
-                cuda_learning::ControlResponse* response);
+  void Dispatch(const cuda_learning::ControlRequest& request, const std::string& session_id,
+                SessionState& state, cuda_learning::ControlResponse* response);
 
- private:
+private:
   void HandleListFilters(const cuda_learning::ControlRequest& request,
                          cuda_learning::ControlResponse* response);
 
@@ -61,16 +60,13 @@ class ControlMessageDispatcher {
                                         cuda_learning::ControlResponse* response);
 
   void HandleStartCameraStream(const cuda_learning::ControlRequest& request,
-                               const std::string& session_id,
-                               SessionState& state,
+                               const std::string& session_id, SessionState& state,
                                cuda_learning::ControlResponse* response);
 
-  void HandleStopCameraStream(const std::string& session_id,
-                              SessionState& state,
+  void HandleStopCameraStream(const std::string& session_id, SessionState& state,
                               cuda_learning::ControlResponse* response);
 
-  void HandleCaptureFrame(const std::string& session_id,
-                          SessionState& state,
+  void HandleCaptureFrame(const std::string& session_id, SessionState& state,
                           cuda_learning::ControlResponse* response);
 
   void HandleListCapturedImages(const cuda_learning::ControlRequest& request,
@@ -85,10 +81,8 @@ class ControlMessageDispatcher {
                                  const std::string& session_id,
                                  cuda_learning::ControlResponse* response);
 
-  using HandlerFn = std::function<void(const cuda_learning::ControlRequest&,
-                                       const std::string&,
-                                       SessionState&,
-                                       cuda_learning::ControlResponse*)>;
+  using HandlerFn = std::function<void(const cuda_learning::ControlRequest&, const std::string&,
+                                       SessionState&, cuda_learning::ControlResponse*)>;
   std::unordered_map<int, HandlerFn> handlers_;
 
   jrb::application::server_info::IServerInfoProvider* server_info_;
@@ -98,6 +92,7 @@ class ControlMessageDispatcher {
   std::string device_id_;
   std::string display_name_;
   std::string captures_dir_;
+  std::string accelerator_version_;
   std::function<void(const std::string&, rtc::binary, rtc::FrameInfo)> video_frame_handler_;
 };
 

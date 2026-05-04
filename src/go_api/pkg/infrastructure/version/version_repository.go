@@ -60,10 +60,6 @@ func (r *RepositoryImpl) GetGoVersion() string {
 	return r.readVersionFile(r.goVersionPath)
 }
 
-func (r *RepositoryImpl) GetCppVersion() string {
-	return r.readVersionFile(r.cppVersionPath)
-}
-
 func (r *RepositoryImpl) GetProtoVersion() string {
 	return r.readVersionFile(r.protoVersionPath)
 }

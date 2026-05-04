@@ -76,6 +76,7 @@ class LiveVideoProcessor {
   std::atomic<bool> capture_pending_{false};
   std::string capture_filepath_;
   std::mutex capture_mutex_;
+  AVCodecParserContext* parser_context_;
   AVCodecContext* decoder_context_;
   AVCodecContext* encoder_context_;
   SwsContext* decode_to_rgb_context_;

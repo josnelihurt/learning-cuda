@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 )
 
@@ -63,6 +64,17 @@ func NewControlServer(cfg config.ProcessorConfig, registry *Registry) (*ControlS
 		grpc.Creds(creds),
 		grpc.MaxRecvMsgSize(64<<20),
 		grpc.MaxSendMsgSize(64<<20),
+		// Ping idle connections every 30s so NAT/firewall middleboxes don't
+		// silently drop the long-lived stream from the Jetson.
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    30 * time.Second,
+			Timeout: 10 * time.Second,
+		}),
+		// Allow the C++ client to send pings even when no RPC is in flight.
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
 	)
 
 	srv := &ControlServer{

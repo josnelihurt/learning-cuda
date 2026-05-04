@@ -53,8 +53,6 @@ func main() {
 		EvaluateFFStringUC:    di.EvaluateFeatureFlagStringUseCase,
 		FeatureFlagRepo:       di.FeatureFlagRepo,
 		ListInputsUC:          di.ListInputsUseCase,
-		StartVideoPlaybackUC:  di.StartVideoPlaybackUseCase,
-		StopVideoPlaybackUC:   di.StopVideoPlaybackUseCase,
 		ListAvailableImagesUC: di.ListAvailableImagesUseCase,
 		UploadImageUC:         di.UploadImageUseCase,
 		ListVideosUC:          di.ListVideosUseCase,

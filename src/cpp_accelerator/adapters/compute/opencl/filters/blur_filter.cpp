@@ -2,33 +2,41 @@
 
 #include <cstddef>
 #include <cstring>
+#include <string_view>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/opencl/kernels/cl_blur_blob.h"
 #include "src/cpp_accelerator/adapters/compute/opencl/context/context.h"
+#include "src/cpp_accelerator/adapters/compute/opencl/kernels/cl_blur_blob.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::adapters::compute::opencl {
+namespace {
+constexpr std::string_view kLogPrefix = "[OpenCLBlur]";
+}
 
 GaussianBlurFilter::GaussianBlurFilter()
     : kernel_ready_(false), program_(nullptr), kernel_h_(nullptr), kernel_v_(nullptr) {}
 
 GaussianBlurFilter::~GaussianBlurFilter() {
-  if (kernel_h_) clReleaseKernel(kernel_h_);
-  if (kernel_v_) clReleaseKernel(kernel_v_);
-  if (program_) clReleaseProgram(program_);
+  if (kernel_h_)
+    clReleaseKernel(kernel_h_);
+  if (kernel_v_)
+    clReleaseKernel(kernel_v_);
+  if (program_)
+    clReleaseProgram(program_);
 }
 
 bool GaussianBlurFilter::EnsureKernels() {
-  if (kernel_ready_) return true;
+  if (kernel_ready_)
+    return true;
 
   auto& ctx = Context::GetInstance();
   if (!ctx.available()) {
-    spdlog::error("[OpenCLBlur] context unavailable: {}", ctx.error_message());
+    spdlog::error("{} context unavailable: {}", kLogPrefix, ctx.error_message());
     return false;
   }
 
@@ -40,7 +48,8 @@ bool GaussianBlurFilter::EnsureKernels() {
   const size_t il_size = cl_blur_blob::spirv_size_bytes();
   if (il_ptr && il_size > 0 && (il_size % sizeof(cl_uint)) == 0) {
     program_ = clCreateProgramWithIL(ctx.context(), il_ptr, il_size, &err);
-    if (err != CL_SUCCESS || !program_) program_ = nullptr;
+    if (err != CL_SUCCESS || !program_)
+      program_ = nullptr;
   }
 
   if (!program_) {
@@ -48,7 +57,7 @@ bool GaussianBlurFilter::EnsureKernels() {
     const size_t src_len = cl_blur_blob::cl_src_size_bytes();
     program_ = clCreateProgramWithSource(ctx.context(), 1, &src, &src_len, &err);
     if (err != CL_SUCCESS || !program_) {
-      spdlog::error("[OpenCLBlur] clCreateProgramWithSource failed ({})", err);
+      spdlog::error("{} clCreateProgramWithSource failed ({})", kLogPrefix, err);
       return false;
     }
   }
@@ -60,7 +69,7 @@ bool GaussianBlurFilter::EnsureKernels() {
     if (log_size > 1) {
       std::string log(log_size, '\0');
       clGetProgramBuildInfo(program_, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
-      spdlog::error("[OpenCLBlur] build error: {}", log);
+      spdlog::error("{} build error: {}", kLogPrefix, log);
     }
     clReleaseProgram(program_);
     program_ = nullptr;
@@ -69,7 +78,7 @@ bool GaussianBlurFilter::EnsureKernels() {
 
   kernel_h_ = clCreateKernel(program_, "gaussian_blur_h", &err);
   if (err != CL_SUCCESS || !kernel_h_) {
-    spdlog::error("[OpenCLBlur] clCreateKernel (h) failed ({})", err);
+    spdlog::error("{} clCreateKernel (h) failed ({})", kLogPrefix, err);
     clReleaseProgram(program_);
     program_ = nullptr;
     return false;
@@ -77,7 +86,7 @@ bool GaussianBlurFilter::EnsureKernels() {
 
   kernel_v_ = clCreateKernel(program_, "gaussian_blur_v", &err);
   if (err != CL_SUCCESS || !kernel_v_) {
-    spdlog::error("[OpenCLBlur] clCreateKernel (v) failed ({})", err);
+    spdlog::error("{} clCreateKernel (v) failed ({})", kLogPrefix, err);
     clReleaseKernel(kernel_h_);
     kernel_h_ = nullptr;
     clReleaseProgram(program_);
@@ -90,7 +99,8 @@ bool GaussianBlurFilter::EnsureKernels() {
 }
 
 bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
-  if (!EnsureKernels()) return false;
+  if (!EnsureKernels())
+    return false;
 
   auto& ctx = Context::GetInstance();
   const int width = context.input.width;
@@ -101,11 +111,10 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
 
   cl_int err = CL_SUCCESS;
 
-  cl_mem d_src = clCreateBuffer(ctx.context(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                pixel_bytes,
+  cl_mem d_src = clCreateBuffer(ctx.context(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, pixel_bytes,
                                 const_cast<unsigned char*>(context.input.data), &err);
   if (err != CL_SUCCESS) {
-    spdlog::error("[OpenCLBlur] clCreateBuffer (src) failed ({})", err);
+    spdlog::error("{} clCreateBuffer (src) failed ({})", kLogPrefix, err);
     return false;
   }
 
@@ -113,7 +122,7 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
   cl_mem d_tmp = clCreateBuffer(ctx.context(), CL_MEM_READ_WRITE, pixel_bytes, nullptr, &err);
   if (err != CL_SUCCESS) {
     clReleaseMemObject(d_src);
-    spdlog::error("[OpenCLBlur] clCreateBuffer (tmp) failed ({})", err);
+    spdlog::error("{} clCreateBuffer (tmp) failed ({})", kLogPrefix, err);
     return false;
   }
 
@@ -121,7 +130,7 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
   if (err != CL_SUCCESS) {
     clReleaseMemObject(d_src);
     clReleaseMemObject(d_tmp);
-    spdlog::error("[OpenCLBlur] clCreateBuffer (dst) failed ({})", err);
+    spdlog::error("{} clCreateBuffer (dst) failed ({})", kLogPrefix, err);
     return false;
   }
 
@@ -133,13 +142,13 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
   clSetKernelArg(kernel_h_, 2, sizeof(int), &width);
   clSetKernelArg(kernel_h_, 3, sizeof(int), &height);
   clSetKernelArg(kernel_h_, 4, sizeof(int), &channels);
-  err = clEnqueueNDRangeKernel(ctx.queue(), kernel_h_, 2, nullptr, global_work, nullptr, 0,
-                               nullptr, nullptr);
+  err = clEnqueueNDRangeKernel(ctx.queue(), kernel_h_, 2, nullptr, global_work, nullptr, 0, nullptr,
+                               nullptr);
   if (err != CL_SUCCESS) {
     clReleaseMemObject(d_src);
     clReleaseMemObject(d_tmp);
     clReleaseMemObject(d_dst);
-    spdlog::error("[OpenCLBlur] horizontal pass enqueue failed ({})", err);
+    spdlog::error("{} horizontal pass enqueue failed ({})", kLogPrefix, err);
     return false;
   }
 
@@ -149,13 +158,13 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
   clSetKernelArg(kernel_v_, 2, sizeof(int), &width);
   clSetKernelArg(kernel_v_, 3, sizeof(int), &height);
   clSetKernelArg(kernel_v_, 4, sizeof(int), &channels);
-  err = clEnqueueNDRangeKernel(ctx.queue(), kernel_v_, 2, nullptr, global_work, nullptr, 0,
-                               nullptr, nullptr);
+  err = clEnqueueNDRangeKernel(ctx.queue(), kernel_v_, 2, nullptr, global_work, nullptr, 0, nullptr,
+                               nullptr);
   if (err != CL_SUCCESS) {
     clReleaseMemObject(d_src);
     clReleaseMemObject(d_tmp);
     clReleaseMemObject(d_dst);
-    spdlog::error("[OpenCLBlur] vertical pass enqueue failed ({})", err);
+    spdlog::error("{} vertical pass enqueue failed ({})", kLogPrefix, err);
     return false;
   }
 
@@ -167,7 +176,7 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
   clReleaseMemObject(d_dst);
 
   if (err != CL_SUCCESS) {
-    spdlog::error("[OpenCLBlur] clEnqueueReadBuffer failed ({})", err);
+    spdlog::error("{} clEnqueueReadBuffer failed ({})", kLogPrefix, err);
     return false;
   }
 

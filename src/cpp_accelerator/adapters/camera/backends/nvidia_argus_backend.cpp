@@ -1,13 +1,14 @@
 #include "src/cpp_accelerator/adapters/camera/backends/nvidia_argus_backend.h"
 
+#include <unistd.h>
 #include <cstdlib>
 #include <mutex>
 #include <set>
 #include <string>
-#include <unistd.h>
+#include <string_view>
 
-#include <gst/gst.h>
 #include <gst/app/gstappsink.h>
+#include <gst/gst.h>
 #include <spdlog/spdlog.h>
 
 #include "src/cpp_accelerator/adapters/camera/gpu_frame_processor.h"
@@ -15,6 +16,8 @@
 namespace jrb::adapters::camera {
 
 namespace {
+
+constexpr std::string_view kLogPrefix = "[NvidiaArgusBackend]";
 
 // Process-wide registry of sensor IDs currently being streamed by any
 // NvidiaArgusBackend instance.  Argus allows only one CaptureSession per
@@ -74,12 +77,12 @@ bool HasGstElement(const char* element_name) {
 constexpr GstClockTime kArgusPlayingWait = 10 * GST_SECOND;
 
 // IMX477 full-sensor mode dimensions and fps.
-constexpr int kSensorWidth  = 4056;
+constexpr int kSensorWidth = 4056;
 constexpr int kSensorHeight = 3040;
-constexpr int kSensorFps    = 15;
+constexpr int kSensorFps = 15;
 
 // Default encode resolution when the caller passes 0×0.
-constexpr int kDefaultEncodeWidth  = 1280;
+constexpr int kDefaultEncodeWidth = 1280;
 constexpr int kDefaultEncodeHeight = 720;
 
 std::string ConsumeNextBusError(GstElement* pipeline, GstClockTime timeout) {
@@ -88,8 +91,7 @@ std::string ConsumeNextBusError(GstElement* pipeline, GstClockTime timeout) {
     return {};
   }
 
-  GstMessage* msg =
-      gst_bus_timed_pop_filtered(bus, timeout, GST_MESSAGE_ERROR);
+  GstMessage* msg = gst_bus_timed_pop_filtered(bus, timeout, GST_MESSAGE_ERROR);
   gst_object_unref(bus);
   if (!msg) {
     return {};
@@ -126,7 +128,8 @@ bool ProbeSensor(int sensor_id) {
   GError* err = nullptr;
   GstElement* pipeline = gst_parse_launch(pipeline_str, &err);
   if (!pipeline) {
-    if (err) g_error_free(err);
+    if (err)
+      g_error_free(err);
     return false;
   }
   if (err) {
@@ -148,18 +151,17 @@ bool ProbeSensor(int sensor_id) {
 
   while (!done) {
     GstMessage* msg = gst_bus_timed_pop_filtered(
-        bus,
-        5 * GST_SECOND,
+        bus, 5 * GST_SECOND,
         static_cast<GstMessageType>(GST_MESSAGE_STATE_CHANGED | GST_MESSAGE_ERROR |
                                     GST_MESSAGE_EOS));
-    if (!msg) break;
+    if (!msg)
+      break;
 
     GstMessageType type = GST_MESSAGE_TYPE(msg);
     if (type == GST_MESSAGE_STATE_CHANGED) {
       GstState old_state, new_state, pending;
       gst_message_parse_state_changed(msg, &old_state, &new_state, &pending);
-      if (GST_MESSAGE_SRC(msg) == GST_OBJECT(pipeline) &&
-          new_state == GST_STATE_PLAYING) {
+      if (GST_MESSAGE_SRC(msg) == GST_OBJECT(pipeline) && new_state == GST_STATE_PLAYING) {
         success = true;
         done = true;
       }
@@ -170,8 +172,10 @@ bool ProbeSensor(int sensor_id) {
       GError* gerr = nullptr;
       gchar* debug = nullptr;
       gst_message_parse_error(msg, &gerr, &debug);
-      if (gerr) g_error_free(gerr);
-      if (debug) g_free(debug);
+      if (gerr)
+        g_error_free(gerr);
+      if (debug)
+        g_free(debug);
       done = true;
     }
     gst_message_unref(msg);
@@ -205,10 +209,12 @@ struct NvidiaArgusBackend::Impl {
   // the buffer, so this branch is essentially free for the streaming path.
   static GstFlowReturn OnRawSample(GstAppSink* sink, gpointer user_data) {
     auto* impl = static_cast<Impl*>(user_data);
-    if (!impl->running.load()) return GST_FLOW_OK;
+    if (!impl->running.load())
+      return GST_FLOW_OK;
 
     GstSample* sample = gst_app_sink_pull_sample(sink);
-    if (!sample) return GST_FLOW_OK;
+    if (!sample)
+      return GST_FLOW_OK;
 
     GstBuffer* buf = gst_sample_get_buffer(sample);
     if (!buf) {
@@ -217,9 +223,7 @@ struct NvidiaArgusBackend::Impl {
     }
 
     const GstClockTime pts = GST_BUFFER_PTS(buf);
-    const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts)
-                                ? static_cast<uint32_t>(pts / 1000u)
-                                : 0u;
+    const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts) ? static_cast<uint32_t>(pts / 1000u) : 0u;
 
     if (impl->gpu_processor) {
       impl->gpu_processor->Process(buf, rtp_ts);
@@ -233,10 +237,12 @@ struct NvidiaArgusBackend::Impl {
   // (CameraHub fan-out -> WebRTC LiveVideoProcessor).
   static GstFlowReturn OnStreamSample(GstAppSink* sink, gpointer user_data) {
     auto* impl = static_cast<Impl*>(user_data);
-    if (!impl->running.load()) return GST_FLOW_OK;
+    if (!impl->running.load())
+      return GST_FLOW_OK;
 
     GstSample* sample = gst_app_sink_pull_sample(sink);
-    if (!sample) return GST_FLOW_OK;
+    if (!sample)
+      return GST_FLOW_OK;
 
     GstBuffer* buf = gst_sample_get_buffer(sample);
     if (!buf) {
@@ -254,9 +260,7 @@ struct NvidiaArgusBackend::Impl {
                      reinterpret_cast<const std::byte*>(map.data) + map.size);
 
     const GstClockTime pts = GST_BUFFER_PTS(buf);
-    const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts)
-                                ? static_cast<uint32_t>(pts / 1000u)
-                                : 0u;
+    const uint32_t rtp_ts = GST_CLOCK_TIME_IS_VALID(pts) ? static_cast<uint32_t>(pts / 1000u) : 0u;
     rtc::FrameInfo info{rtp_ts};
 
     gst_buffer_unmap(buf, &map);
@@ -266,7 +270,7 @@ struct NvidiaArgusBackend::Impl {
       try {
         impl->cb(std::move(data), info);
       } catch (const std::exception& e) {
-        spdlog::warn("[NvidiaArgusBackend] Stream callback threw: {}", e.what());
+        spdlog::warn("{} Stream callback threw: {}", kLogPrefix, e.what());
       }
     }
     return GST_FLOW_OK;
@@ -276,23 +280,23 @@ struct NvidiaArgusBackend::Impl {
     GstBus* bus = gst_element_get_bus(pipeline);
     while (running.load()) {
       GstMessage* msg = gst_bus_timed_pop_filtered(
-          bus,
-          100 * GST_MSECOND,
-          static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
-      if (!msg) continue;
+          bus, 100 * GST_MSECOND, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+      if (!msg)
+        continue;
       GstMessageType type = GST_MESSAGE_TYPE(msg);
       if (type == GST_MESSAGE_ERROR) {
         GError* err = nullptr;
         gchar* debug = nullptr;
         gst_message_parse_error(msg, &err, &debug);
-        spdlog::error("[NvidiaArgusBackend] Pipeline error: {} ({})",
-                      err ? err->message : "unknown",
+        spdlog::error("{} Pipeline error: {} ({})", kLogPrefix, err ? err->message : "unknown",
                       debug ? debug : "");
-        if (err) g_error_free(err);
-        if (debug) g_free(debug);
+        if (err)
+          g_error_free(err);
+        if (debug)
+          g_free(debug);
         running = false;
       } else if (type == GST_MESSAGE_EOS) {
-        spdlog::info("[NvidiaArgusBackend] Pipeline EOS");
+        spdlog::info("{} Pipeline EOS", kLogPrefix);
         running = false;
       }
       gst_message_unref(msg);
@@ -342,7 +346,7 @@ bool NvidiaArgusBackend::IsAvailable() const {
   std::string reason;
   const bool available = IsNvargusAvailable(&reason);
   if (!available) {
-    spdlog::warn("[NvidiaArgusBackend] Backend unavailable: {}", reason);
+    spdlog::warn("{} Backend unavailable: {}", kLogPrefix, reason);
   }
   return available;
 }
@@ -353,7 +357,7 @@ std::vector<cuda_learning::RemoteCameraInfo> NvidiaArgusBackend::DetectCameras(
 
   std::string availability_reason;
   if (!IsNvargusAvailable(&availability_reason)) {
-    spdlog::warn("[NvidiaArgusBackend] Skipping detection: {}", availability_reason);
+    spdlog::warn("{} Skipping detection: {}", kLogPrefix, availability_reason);
     return result;
   }
 
@@ -363,21 +367,19 @@ std::vector<cuda_learning::RemoteCameraInfo> NvidiaArgusBackend::DetectCameras(
       // process), skip the probe — Argus only allows one CaptureSession per
       // sensor and a second attempt segfaults the process.
       if (IsSensorActive(sensor_id)) {
-        spdlog::info("[NvidiaArgusBackend] sensor-id={} already active, skipping probe",
-                     sensor_id);
+        spdlog::info("{} sensor-id={} already active, skipping probe", kLogPrefix, sensor_id);
       } else {
-        spdlog::info("[NvidiaArgusBackend] Probing sensor-id={}", sensor_id);
+        spdlog::info("{} Probing sensor-id={}", kLogPrefix, sensor_id);
         if (!ProbeSensor(sensor_id)) {
-          spdlog::warn("[NvidiaArgusBackend] sensor-id={} probe failed", sensor_id);
+          spdlog::warn("{} sensor-id={} probe failed", kLogPrefix, sensor_id);
           continue;
         }
       }
 
       cuda_learning::RemoteCameraInfo info;
       info.set_sensor_id(sensor_id);
-      const std::string display_name =
-          "Argus: CAM" + std::to_string(sensor_id) +
-          " (sensor-id=" + std::to_string(sensor_id) + ")";
+      const std::string display_name = "Argus: CAM" + std::to_string(sensor_id) +
+                                       " (sensor-id=" + std::to_string(sensor_id) + ")";
       info.set_display_name(display_name);
       info.set_model("");
 
@@ -394,12 +396,12 @@ std::vector<cuda_learning::RemoteCameraInfo> NvidiaArgusBackend::DetectCameras(
       mode_stream->set_height(kDefaultEncodeHeight);
       mode_stream->set_fps(static_cast<double>(kSensorFps));
 
-      spdlog::info("[NvidiaArgusBackend] sensor-id={} detected: {}", sensor_id, display_name);
+      spdlog::info("{} sensor-id={} detected: {}", kLogPrefix, sensor_id, display_name);
       result.push_back(std::move(info));
     } catch (const std::exception& e) {
-      spdlog::warn("[NvidiaArgusBackend] Exception probing sensor-id={}: {}", sensor_id, e.what());
+      spdlog::warn("{} Exception probing sensor-id={}: {}", kLogPrefix, sensor_id, e.what());
     } catch (...) {
-      spdlog::warn("[NvidiaArgusBackend] Unknown exception probing sensor-id={}", sensor_id);
+      spdlog::warn("{} Unknown exception probing sensor-id={}", kLogPrefix, sensor_id);
     }
   }
 
@@ -416,14 +418,14 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
 
   // Encode-branch resolution: what gets H.264-encoded and delivered to subscribers.
   // The Argus source always captures at full sensor resolution (4056×3040@15fps).
-  const int encode_w = width  > 0 ? width  : kDefaultEncodeWidth;
+  const int encode_w = width > 0 ? width : kDefaultEncodeWidth;
   const int encode_h = height > 0 ? height : kDefaultEncodeHeight;
 
   if (width <= 0 || height <= 0) {
     spdlog::warn(
-        "[NvidiaArgusBackend] Invalid encode params {}x{} for sensor-id={}; "
+        "{} Invalid encode params {}x{} for sensor-id={}; "
         "using defaults {}x{}",
-        width, height, sensor_id, encode_w, encode_h);
+        kLogPrefix, width, height, sensor_id, encode_w, encode_h);
   }
   // fps is informational only; the sensor drives the clock at kSensorFps.
   (void)fps;
@@ -454,8 +456,9 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   const bool has_h264parse = HasGstElement("h264parse");
   if (!has_h264parse) {
     spdlog::warn(
-        "[NvidiaArgusBackend] GStreamer element 'h264parse' not found; "
-        "stream_sink will emit raw x264enc output without AU framing");
+        "{} GStreamer element 'h264parse' not found; stream_sink will emit raw x264enc output "
+        "without AU framing",
+        kLogPrefix);
   }
 
   std::string pipeline;
@@ -464,8 +467,8 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   pipeline += "nvarguscamerasrc sensor-id=" + std::to_string(sensor_id);
   pipeline += " wbmode=" + std::to_string(wbmode) + " ! ";
   pipeline += "video/x-raw(memory:NVMM)";
-  pipeline += ",width="     + std::to_string(kSensorWidth);
-  pipeline += ",height="    + std::to_string(kSensorHeight);
+  pipeline += ",width=" + std::to_string(kSensorWidth);
+  pipeline += ",height=" + std::to_string(kSensorHeight);
   pipeline += ",framerate=" + std::to_string(kSensorFps) + "/1";
   pipeline += ",format=NV12 ! ";
   pipeline += "tee name=cam_tee ";
@@ -485,7 +488,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   pipeline += "cam_tee. ! queue leaky=2 max-size-buffers=2 ! ";
   pipeline += "nvvidconv ! ";
   pipeline += "video/x-raw(memory:NVMM)";
-  pipeline += ",width="  + std::to_string(encode_w);
+  pipeline += ",width=" + std::to_string(encode_w);
   pipeline += ",height=" + std::to_string(encode_h);
   pipeline += ",format=NV12 ! ";
   pipeline += "appsink name=raw_sink emit-signals=true max-buffers=2 drop=true ";
@@ -496,7 +499,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   pipeline += "cam_tee. ! queue leaky=2 max-size-buffers=2 ! ";
   pipeline += "nvvidconv ! ";
   pipeline += "video/x-raw,format=I420";
-  pipeline += ",width="  + std::to_string(encode_w);
+  pipeline += ",width=" + std::to_string(encode_w);
   pipeline += ",height=" + std::to_string(encode_h);
   pipeline += " ! ";
   pipeline += "x264enc tune=zerolatency speed-preset=ultrafast bitrate=2000 ";
@@ -508,16 +511,18 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   }
   pipeline += "appsink name=stream_sink emit-signals=true max-buffers=2 drop=true";
 
-  spdlog::info("[NvidiaArgusBackend] Launching pipeline: {}", pipeline);
+  spdlog::info("{} Launching pipeline: {}", kLogPrefix, pipeline);
 
   GError* err = nullptr;
   impl_->pipeline = gst_parse_launch(pipeline.c_str(), &err);
   if (!impl_->pipeline) {
     const std::string msg = err ? std::string("Failed to parse pipeline: ") + err->message
                                 : "Failed to parse pipeline (unknown error)";
-    if (err) g_error_free(err);
-    if (error_message) *error_message = msg;
-    spdlog::error("[NvidiaArgusBackend] {}", msg);
+    if (err)
+      g_error_free(err);
+    if (error_message)
+      *error_message = msg;
+    spdlog::error("{} {}", kLogPrefix, msg);
     return false;
   }
   if (err) {
@@ -526,21 +531,21 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
 
   impl_->stream_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "stream_sink");
   if (!impl_->stream_sink) {
-    if (error_message) *error_message = "Failed to find stream_sink element";
-    spdlog::error("[NvidiaArgusBackend] stream_sink element not found");
+    if (error_message)
+      *error_message = "Failed to find stream_sink element";
+    spdlog::error("{} stream_sink element not found", kLogPrefix);
     impl_->Cleanup();
     return false;
   }
 
   impl_->raw_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "raw_sink");
   if (!impl_->raw_sink) {
-    spdlog::warn(
-        "[NvidiaArgusBackend] raw_sink element not found; BirdWatcher GPU RGBA tap unavailable");
+    spdlog::warn("{} raw_sink element not found; BirdWatcher GPU RGBA tap unavailable", kLogPrefix);
   }
 
   impl_->still_sink = gst_bin_get_by_name(GST_BIN(impl_->pipeline), "still_sink");
   if (!impl_->still_sink) {
-    spdlog::warn("[NvidiaArgusBackend] still_sink element not found; still capture unavailable");
+    spdlog::warn("{} still_sink element not found; still capture unavailable", kLogPrefix);
   }
 
   GstAppSinkCallbacks stream_callbacks{};
@@ -551,8 +556,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
   if (impl_->raw_sink) {
     GstAppSinkCallbacks raw_callbacks{};
     raw_callbacks.new_sample = &Impl::OnRawSample;
-    gst_app_sink_set_callbacks(GST_APP_SINK(impl_->raw_sink), &raw_callbacks, impl_.get(),
-                               nullptr);
+    gst_app_sink_set_callbacks(GST_APP_SINK(impl_->raw_sink), &raw_callbacks, impl_.get(), nullptr);
   }
 
   GstStateChangeReturn ret = gst_element_set_state(impl_->pipeline, GST_STATE_PLAYING);
@@ -566,7 +570,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
     if (error_message) {
       *error_message = msg;
     }
-    spdlog::error("[NvidiaArgusBackend] {} (sensor-id={})", msg, sensor_id);
+    spdlog::error("{} {} (sensor-id={})", kLogPrefix, msg, sensor_id);
     impl_->Cleanup();
     return false;
   }
@@ -591,7 +595,7 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
     if (error_message) {
       *error_message = msg;
     }
-    spdlog::error("[NvidiaArgusBackend] {} (sensor-id={})", msg, sensor_id);
+    spdlog::error("{} {} (sensor-id={})", kLogPrefix, msg, sensor_id);
     impl_->Cleanup();
     return false;
   }
@@ -601,32 +605,33 @@ bool NvidiaArgusBackend::Start(int sensor_id, int width, int height, int fps,
 
   // GpuFrameProcessor is the BirdWatcher RGBA tap.  Idle (no-op) until
   // BirdWatcher registers an RgbCallback via GetGpuFrameProcessor().
-  impl_->encode_width  = encode_w;
+  impl_->encode_width = encode_w;
   impl_->encode_height = encode_h;
   impl_->gpu_processor = std::make_unique<GpuFrameProcessor>();
   {
     std::string gfp_err;
     if (!impl_->gpu_processor->Start(encode_w, encode_h, &gfp_err)) {
-      spdlog::error("[NvidiaArgusBackend] GpuFrameProcessor::Start failed: {}", gfp_err);
+      spdlog::error("{} GpuFrameProcessor::Start failed: {}", kLogPrefix, gfp_err);
       impl_->running = false;
-      if (impl_->bus_thread.joinable()) impl_->bus_thread.join();
+      if (impl_->bus_thread.joinable())
+        impl_->bus_thread.join();
       impl_->Cleanup();
-      if (error_message) *error_message = "GpuFrameProcessor failed: " + gfp_err;
+      if (error_message)
+        *error_message = "GpuFrameProcessor failed: " + gfp_err;
       return false;
     }
   }
 
   impl_->active_sensor_id = sensor_id;
   MarkSensorActive(sensor_id);
-  spdlog::info(
-      "[NvidiaArgusBackend] Started sensor-id={} full-sensor {}x{}@{}fps, "
-      "encode branch {}x{}",
-      sensor_id, kSensorWidth, kSensorHeight, kSensorFps, encode_w, encode_h);
+  spdlog::info("{} Started sensor-id={} full-sensor {}x{}@{}fps, encode branch {}x{}", kLogPrefix,
+               sensor_id, kSensorWidth, kSensorHeight, kSensorFps, encode_w, encode_h);
   return true;
 }
 
 void NvidiaArgusBackend::Stop() {
-  if (!impl_->running.load() && impl_->pipeline == nullptr) return;
+  if (!impl_->running.load() && impl_->pipeline == nullptr)
+    return;
 
   impl_->running = false;
 
@@ -635,7 +640,7 @@ void NvidiaArgusBackend::Stop() {
   }
 
   impl_->Cleanup();
-  spdlog::info("[NvidiaArgusBackend] Pipeline stopped and released");
+  spdlog::info("{} Pipeline stopped and released", kLogPrefix);
 }
 
 bool NvidiaArgusBackend::IsRunning() const {
@@ -652,16 +657,16 @@ GpuFrameProcessor* NvidiaArgusBackend::GetGpuFrameProcessor() {
 
 rtc::binary NvidiaArgusBackend::GrabStillFrame(int* out_width, int* out_height) {
   if (!impl_->running.load() || !impl_->still_sink) {
-    spdlog::warn("[NvidiaArgusBackend] GrabStillFrame: pipeline not running or still_sink absent");
+    spdlog::warn("{} GrabStillFrame: pipeline not running or still_sink absent", kLogPrefix);
     return {};
   }
 
   // Wait up to 500 ms for the leaky queue to have a fresh frame (at 15fps, a
   // new frame arrives every ~67 ms so 500 ms is more than enough).
-  GstSample* sample = gst_app_sink_try_pull_sample(
-      GST_APP_SINK(impl_->still_sink), 500 * GST_MSECOND);
+  GstSample* sample =
+      gst_app_sink_try_pull_sample(GST_APP_SINK(impl_->still_sink), 500 * GST_MSECOND);
   if (!sample) {
-    spdlog::warn("[NvidiaArgusBackend] GrabStillFrame: timed out waiting for still frame");
+    spdlog::warn("{} GrabStillFrame: timed out waiting for still frame", kLogPrefix);
     return {};
   }
 
@@ -672,8 +677,10 @@ rtc::binary NvidiaArgusBackend::GrabStillFrame(int* out_width, int* out_height) 
       int w = 0, h = 0;
       gst_structure_get_int(s, "width", &w);
       gst_structure_get_int(s, "height", &h);
-      if (out_width)  *out_width  = w;
-      if (out_height) *out_height = h;
+      if (out_width)
+        *out_width = w;
+      if (out_height)
+        *out_height = h;
     }
   }
 

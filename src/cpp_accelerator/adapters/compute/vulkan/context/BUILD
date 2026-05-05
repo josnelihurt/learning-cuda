@@ -2,7 +2,10 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
     name = "context",
-    srcs = ["context.cpp"],
+    srcs = [
+        "compute_utils.cpp",
+        "context.cpp",
+    ],
     hdrs = [
         "context.h",
         "compute_utils.h",

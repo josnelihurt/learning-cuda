@@ -5,13 +5,16 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include <spdlog/spdlog.h>
 
 namespace jrb::adapters::webrtc {
 
 namespace {
+constexpr std::string_view kLogPrefix = "[ChunkReassembler]";
 
 // Envelope layout (little-endian, 17 bytes):
 //   0-3   magic       "CKDC" = {0x43, 0x4B, 0x44, 0x43}
@@ -39,40 +42,35 @@ void WriteU16LE(std::byte* dst, uint16_t v) {
 }
 
 uint32_t ReadU32LE(const std::byte* src) {
-  return static_cast<uint32_t>(src[0]) |
-         (static_cast<uint32_t>(src[1]) << 8u) |
-         (static_cast<uint32_t>(src[2]) << 16u) |
-         (static_cast<uint32_t>(src[3]) << 24u);
+  return static_cast<uint32_t>(src[0]) | (static_cast<uint32_t>(src[1]) << 8u) |
+         (static_cast<uint32_t>(src[2]) << 16u) | (static_cast<uint32_t>(src[3]) << 24u);
 }
 
 uint16_t ReadU16LE(const std::byte* src) {
   return static_cast<uint16_t>(static_cast<uint16_t>(src[0]) |
-                                (static_cast<uint16_t>(src[1]) << 8u));
+                               (static_cast<uint16_t>(src[1]) << 8u));
 }
 
 }  // namespace
 
-std::vector<std::vector<std::byte>> PackMessage(
-    uint32_t message_id, std::span<const std::byte> payload) {
+std::vector<std::vector<std::byte>> PackMessage(uint32_t message_id,
+                                                std::span<const std::byte> payload) {
   if (payload.size() > kMaxMessageBytes) {
-    throw std::invalid_argument(
-        "PackMessage: payload too large (" + std::to_string(payload.size()) +
-        " bytes), max is " + std::to_string(kMaxMessageBytes));
+    throw std::invalid_argument("PackMessage: payload too large (" +
+                                std::to_string(payload.size()) + " bytes), max is " +
+                                std::to_string(kMaxMessageBytes));
   }
 
   const uint32_t total = static_cast<uint32_t>(payload.size());
   const uint16_t chunk_count =
-      total == 0u
-          ? 1u
-          : static_cast<uint16_t>((total + kChunkPayloadMax - 1u) / kChunkPayloadMax);
+      total == 0u ? 1u : static_cast<uint16_t>((total + kChunkPayloadMax - 1u) / kChunkPayloadMax);
 
   std::vector<std::vector<std::byte>> chunks;
   chunks.reserve(chunk_count);
 
   for (uint16_t i = 0; i < chunk_count; ++i) {
     const uint32_t start = static_cast<uint32_t>(i) * kChunkPayloadMax;
-    const uint32_t len =
-        (total == 0u) ? 0u : std::min(kChunkPayloadMax, total - start);
+    const uint32_t len = (total == 0u) ? 0u : std::min(kChunkPayloadMax, total - start);
 
     std::vector<std::byte> chunk(kHeaderSize + len);
 
@@ -92,8 +90,7 @@ std::vector<std::vector<std::byte>> PackMessage(
   return chunks;
 }
 
-ChunkReassembler::ChunkReassembler(std::chrono::milliseconds timeout)
-    : timeout_(timeout) {}
+ChunkReassembler::ChunkReassembler(std::chrono::milliseconds timeout) : timeout_(timeout) {}
 
 void ChunkReassembler::EvictTimedOut() {
   const auto now = std::chrono::steady_clock::now();
@@ -101,17 +98,16 @@ void ChunkReassembler::EvictTimedOut() {
 
   for (const auto& [id, msg] : in_flight_) {
     if (now - msg.first_chunk_at > timeout_) {
-      spdlog::warn("[framing] Timeout for message_id={}: received {}/{} chunks",
-                   id, msg.received, msg.chunk_count);
+      spdlog::warn("{} Timeout for message_id={}: received {}/{} chunks", kLogPrefix, id,
+                   msg.received, msg.chunk_count);
       to_evict.push_back(id);
     }
   }
 
   for (const uint32_t id : to_evict) {
     in_flight_.erase(id);
-    in_flight_order_.erase(
-        std::remove(in_flight_order_.begin(), in_flight_order_.end(), id),
-        in_flight_order_.end());
+    in_flight_order_.erase(std::remove(in_flight_order_.begin(), in_flight_order_.end(), id),
+                           in_flight_order_.end());
   }
 }
 
@@ -122,27 +118,26 @@ void ChunkReassembler::EvictOldestIfFull() {
   const uint32_t oldest = in_flight_order_.front();
   in_flight_order_.erase(in_flight_order_.begin());
   in_flight_.erase(oldest);
-  spdlog::warn("[framing] Evicted oldest in-flight message_id={} (cap={})",
-               oldest, kMaxInFlightMessages);
+  spdlog::warn("{} Evicted oldest in-flight message_id={} (cap={})", kLogPrefix, oldest,
+               kMaxInFlightMessages);
 }
 
-std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(
-    std::span<const std::byte> raw) {
+std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(std::span<const std::byte> raw) {
   EvictTimedOut();
 
   if (raw.size() < kHeaderSize) {
-    spdlog::warn("[framing] Chunk too small ({} bytes), dropping", raw.size());
+    spdlog::warn("{} Chunk too small ({} bytes), dropping", kLogPrefix, raw.size());
     return std::nullopt;
   }
 
   if (std::memcmp(raw.data(), kMagic, 4) != 0) {
-    spdlog::warn("[framing] Bad magic bytes, dropping chunk");
+    spdlog::warn("{} Bad magic bytes, dropping chunk", kLogPrefix);
     return std::nullopt;
   }
 
   const uint8_t version = static_cast<uint8_t>(raw[4]);
   if (version != kVersion) {
-    spdlog::warn("[framing] Unknown version {}, dropping chunk", version);
+    spdlog::warn("{} Unknown version {}, dropping chunk", kLogPrefix, version);
     return std::nullopt;
   }
 
@@ -152,19 +147,19 @@ std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(
   const uint32_t payload_len = ReadU32LE(raw.data() + 13);
 
   if (chunk_count < 1u || chunk_count > kMaxChunks) {
-    spdlog::warn("[framing] Invalid chunk_count={}, dropping", chunk_count);
+    spdlog::warn("{} Invalid chunk_count={}, dropping", kLogPrefix, chunk_count);
     return std::nullopt;
   }
 
   if (kHeaderSize + payload_len > raw.size()) {
-    spdlog::warn("[framing] payload_len={} exceeds buffer size={}, dropping",
-                 payload_len, raw.size());
+    spdlog::warn("{} payload_len={} exceeds buffer size={}, dropping", kLogPrefix, payload_len,
+                 raw.size());
     return std::nullopt;
   }
 
   if (chunk_index >= chunk_count) {
-    spdlog::warn("[framing] chunk_index={} >= chunk_count={}, dropping",
-                 chunk_index, chunk_count);
+    spdlog::warn("{} chunk_index={} >= chunk_count={}, dropping", kLogPrefix, chunk_index,
+                 chunk_count);
     return std::nullopt;
   }
 
@@ -184,8 +179,7 @@ std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(
   InFlightMessage& msg = it->second;
 
   if (msg.chunk_count != chunk_count) {
-    spdlog::warn("[framing] chunk_count mismatch for message_id={}, dropping",
-                 message_id);
+    spdlog::warn("{} chunk_count mismatch for message_id={}, dropping", kLogPrefix, message_id);
     return std::nullopt;
   }
 
@@ -194,8 +188,7 @@ std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(
   }
 
   const auto* payload_ptr = raw.data() + kHeaderSize;
-  msg.chunks[chunk_index] =
-      std::vector<std::byte>(payload_ptr, payload_ptr + payload_len);
+  msg.chunks[chunk_index] = std::vector<std::byte>(payload_ptr, payload_ptr + payload_len);
   ++msg.received;
 
   if (msg.received < msg.chunk_count) {
@@ -213,24 +206,23 @@ std::optional<std::vector<std::byte>> ChunkReassembler::PushChunk(
     result.insert(result.end(), c->begin(), c->end());
   }
 
-  spdlog::debug("[framing] Message {} complete: {} bytes in {} chunks",
-                message_id, total, chunk_count);
+  spdlog::debug("{} Message {} complete: {} bytes in {} chunks", kLogPrefix, message_id, total,
+                chunk_count);
 
   in_flight_.erase(it);
-  in_flight_order_.erase(
-      std::remove(in_flight_order_.begin(), in_flight_order_.end(), message_id),
-      in_flight_order_.end());
+  in_flight_order_.erase(std::remove(in_flight_order_.begin(), in_flight_order_.end(), message_id),
+                         in_flight_order_.end());
 
   return result;
 }
 
 void SendFramed(rtc::DataChannel& dc, const std::string& payload, uint32_t message_id) {
-  const auto span = std::span<const std::byte>(
-      reinterpret_cast<const std::byte*>(payload.data()), payload.size());
+  const auto span = std::span<const std::byte>(reinterpret_cast<const std::byte*>(payload.data()),
+                                               payload.size());
   auto chunks = PackMessage(message_id, span);
   for (auto& chunk : chunks) {
     if (!dc.send(std::move(chunk))) {
-      spdlog::error("[framing] Failed to send chunk for message_id={}", message_id);
+      spdlog::error("{} Failed to send chunk for message_id={}", kLogPrefix, message_id);
       return;
     }
   }

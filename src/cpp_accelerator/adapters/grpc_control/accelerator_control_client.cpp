@@ -5,6 +5,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -34,6 +35,8 @@ using cuda_learning::Register;
 using cuda_learning::SignalingMessage;
 using jrb::adapters::webrtc::WebRTCManager;
 namespace {
+
+constexpr std::string_view kLogPrefix = "[AcceleratorControl]";
 
 std::string ReadFile(const std::string& path) {
   std::ifstream f(path);
@@ -92,25 +95,24 @@ void AcceleratorControlClient::Stop() {
 }
 
 void AcceleratorControlClient::Run() {
-  spdlog::info("[AcceleratorControl] Starting outbound connection loop to {}",
-               config_.control_addr);
+  spdlog::info("{} Starting outbound connection loop to {}", kLogPrefix, config_.control_addr);
   int delay_s = 1;
   while (!stop_requested_) {
     if (RunOnce()) {
-      spdlog::info("[AcceleratorControl] Connection loop exited due to RunOnce() returning true");
+      spdlog::info("{} Connection loop exited due to RunOnce() returning true", kLogPrefix);
       break;
     }
     if (stop_requested_) {
-      spdlog::info("[AcceleratorControl] Connection loop exited due to stop request");
+      spdlog::info("{} Connection loop exited due to stop request", kLogPrefix);
       break;
     }
-    spdlog::warn("[AcceleratorControl] Reconnecting in {}s...", delay_s);
+    spdlog::warn("{} Reconnecting in {}s...", kLogPrefix, delay_s);
     for (int i = 0; i < delay_s * 10 && !stop_requested_; ++i) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     delay_s = std::min(delay_s * 2, config_.max_reconnect_delay_s);
   }
-  spdlog::info("[AcceleratorControl] Connection loop exited");
+  spdlog::info("{} Connection loop exited", kLogPrefix);
 }
 
 bool AcceleratorControlClient::RunOnce() {
@@ -122,7 +124,7 @@ bool AcceleratorControlClient::RunOnce() {
     std::string key = ReadFile(config_.client_key_file);
     std::string ca = ReadFile(config_.ca_cert_file);
     if (cert.empty() || key.empty() || ca.empty()) {
-      spdlog::error("[AcceleratorControl] Failed to read mTLS credential files");
+      spdlog::error("{} Failed to read mTLS credential files", kLogPrefix);
       return false;
     }
     grpc::SslCredentialsOptions opts;
@@ -130,9 +132,9 @@ bool AcceleratorControlClient::RunOnce() {
     opts.pem_cert_chain = cert;
     opts.pem_private_key = key;
     creds = grpc::SslCredentials(opts);
-    spdlog::info("[AcceleratorControl] mTLS credentials loaded");
+    spdlog::info("{} mTLS credentials loaded", kLogPrefix);
   } else {
-    spdlog::warn("[AcceleratorControl] No mTLS certs configured — using insecure channel");
+    spdlog::warn("{} No mTLS certs configured — using insecure channel", kLogPrefix);
     creds = grpc::InsecureChannelCredentials();
   }
 
@@ -163,10 +165,9 @@ bool AcceleratorControlClient::RunOnce() {
   // Send Register.
   if (!Send(BuildRegisterMessage())) {
     if (ctx_ != nullptr) {
-      spdlog::error("[AcceleratorControl] Failed to send Register — {}",
-                    ctx_->debug_error_string());
+      spdlog::error("{} Failed to send Register — {}", kLogPrefix, ctx_->debug_error_string());
     } else {
-      spdlog::error("[AcceleratorControl] Failed to send Register");
+      spdlog::error("{} Failed to send Register", kLogPrefix);
     }
     cleanup();
     return stop_requested_;
@@ -175,23 +176,23 @@ bool AcceleratorControlClient::RunOnce() {
   // Wait for RegisterAck.
   ConnectResponse ack_resp;
   if (!stream->Read(&ack_resp)) {
-    spdlog::error("[AcceleratorControl] Stream closed before RegisterAck");
+    spdlog::error("{} Stream closed before RegisterAck", kLogPrefix);
     cleanup();
     return stop_requested_;
   }
   const auto& ack_msg = ack_resp.message();
   if (!ack_msg.has_register_ack()) {
-    spdlog::error("[AcceleratorControl] Expected RegisterAck, got something else");
+    spdlog::error("{} Expected RegisterAck, got something else", kLogPrefix);
     cleanup();
     return stop_requested_;
   }
   if (!ack_msg.register_ack().accepted()) {
-    spdlog::error("[AcceleratorControl] Registration rejected: {}",
+    spdlog::error("{} Registration rejected: {}", kLogPrefix,
                   ack_msg.register_ack().reject_reason());
     cleanup();
     return false;
   }
-  spdlog::info("[AcceleratorControl] Registered, session_id={}",
+  spdlog::info("{} Registered, session_id={}", kLogPrefix,
                ack_msg.register_ack().assigned_session_id());
 
   // Start candidate pump thread.
@@ -215,7 +216,7 @@ bool AcceleratorControlClient::RunOnce() {
   stream->WritesDone();
   auto status = stream->Finish();
   if (!status.ok() && !stop_requested_) {
-    spdlog::warn("[AcceleratorControl] Stream ended: {} {}", static_cast<int>(status.error_code()),
+    spdlog::warn("{} Stream ended: {} {}", kLogPrefix, static_cast<int>(status.error_code()),
                  status.error_message());
   }
   cleanup();
@@ -242,11 +243,10 @@ void AcceleratorControlClient::Dispatch(const AcceleratorMessage& msg) {
       HandleSignalingMessage(cmd_id, msg.signaling_message());
       break;
     case AcceleratorMessage::kKeepalive:
-      spdlog::debug("[AcceleratorControl] Keepalive received");
+      spdlog::debug("{} Keepalive received", kLogPrefix);
       break;
     default:
-      spdlog::warn("[AcceleratorControl] Unknown payload type: {}",
-                   static_cast<int>(msg.payload_case()));
+      spdlog::warn("{} Unknown payload type: {}", kLogPrefix, static_cast<int>(msg.payload_case()));
       break;
   }
 }
@@ -254,7 +254,7 @@ void AcceleratorControlClient::Dispatch(const AcceleratorMessage& msg) {
 void AcceleratorControlClient::HandleSignalingMessage(const std::string& command_id,
                                                       const SignalingMessage& msg) {
   if (!webrtc_manager_ || !webrtc_manager_->IsInitialized()) {
-    spdlog::warn("[AcceleratorControl] WebRTCManager unavailable — dropping signaling message");
+    spdlog::warn("{} WebRTCManager unavailable — dropping signaling message", kLogPrefix);
     return;
   }
 
@@ -284,7 +284,7 @@ void AcceleratorControlClient::HandleSignalingMessage(const std::string& command
         active_session_ids_.push_back(req.session_id());
       }
 
-      spdlog::info("[AcceleratorControl] WebRTC session started: {}", req.session_id());
+      spdlog::info("{} WebRTC session started: {}", kLogPrefix, req.session_id());
       break;
     }
 
@@ -322,16 +322,16 @@ void AcceleratorControlClient::HandleSignalingMessage(const std::string& command
             active_session_ids_.end());
       }
 
-      spdlog::info("[AcceleratorControl] WebRTC session closed: {}", req.session_id());
+      spdlog::info("{} WebRTC session closed: {}", kLogPrefix, req.session_id());
       break;
     }
 
     case SignalingMessage::kKeepAlive:
-      spdlog::debug("[AcceleratorControl] Signaling keepalive");
+      spdlog::debug("{} Signaling keepalive", kLogPrefix);
       return;
 
     default:
-      spdlog::warn("[AcceleratorControl] Unknown signaling message type: {}",
+      spdlog::warn("{} Unknown signaling message type: {}", kLogPrefix,
                    static_cast<int>(msg.message_case()));
       return;
   }
@@ -340,8 +340,7 @@ void AcceleratorControlClient::HandleSignalingMessage(const std::string& command
   out.set_command_id(command_id);
   *out.mutable_signaling_message() = std::move(response);
   if (!Send(std::move(out))) {
-    spdlog::warn("[AcceleratorControl] Failed to send SignalingMessage response cmd={}",
-                 command_id);
+    spdlog::warn("{} Failed to send SignalingMessage response cmd={}", kLogPrefix, command_id);
   }
 }
 
@@ -369,8 +368,7 @@ void AcceleratorControlClient::CandidatePumpLoop() {
       AcceleratorMessage out;
       *out.mutable_signaling_message() = std::move(signaling);
       if (!Send(std::move(out))) {
-        spdlog::warn("[AcceleratorControl] Failed to send local candidate for session {}",
-                     session_id);
+        spdlog::warn("{} Failed to send local candidate for session {}", kLogPrefix, session_id);
         break;
       }
     }

@@ -4,8 +4,12 @@
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
+#include <mutex>
 #include <optional>
 #include <sstream>
+#include <string>
+#include <string_view>
+#include <thread>
 #include <utility>
 
 extern "C" {
@@ -17,14 +21,22 @@ extern "C" {
 
 #include <spdlog/spdlog.h>
 
-#include "src/cpp_accelerator/core/logger.h"
+#include "proto/_virtual_imports/common_proto/common.pb.h"
 #include "proto/_virtual_imports/image_processor_service_proto/image_processor_service.pb.h"
 #include "src/cpp_accelerator/application/engine/processor_engine.h"
+#include "src/cpp_accelerator/core/logger.h"
 #include "src/cpp_accelerator/domain/interfaces/image_sink.h"
 
 namespace jrb::application::bird_watch {
 
 namespace {
+constexpr std::string_view kLogPrefix = "[BirdWatcher]";
+
+std::string CurrentThreadIdString() {
+  std::ostringstream oss;
+  oss << std::this_thread::get_id();
+  return oss.str();
+}
 
 using cuda_learning::ACCELERATOR_TYPE_CUDA;
 using cuda_learning::FILTER_TYPE_MODEL_INFERENCE;
@@ -48,17 +60,22 @@ BirdWatcher::BirdWatcher(BirdWatcherConfig config,
       camera_hub_(std::move(camera_hub)),
       engine_(engine),
       image_sink_(image_sink),
-      cuda_memory_pool_(std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>()) {}
+      cuda_memory_pool_(std::make_unique<jrb::adapters::compute::cuda::CudaMemoryPool>()) {
+  spdlog::info("{} BirdWatcher ctor", kLogPrefix);
+}
 
 BirdWatcher::~BirdWatcher() {
   Stop();
+  spdlog::info("{} BirdWatcher dtor", kLogPrefix);
 }
 
 void BirdWatcher::Start() {
   if (!config_.enabled) {
+    spdlog::info("{} BirdWatcher not enabled", kLogPrefix);
     return;
   }
   if (running_.exchange(true)) {
+    spdlog::info("{} BirdWatcher already running", kLogPrefix);
     return;
   }
   last_idle_check_ =
@@ -75,18 +92,21 @@ void BirdWatcher::Start() {
       [this](const rtc::binary& data, const rtc::FrameInfo& info) { OnH264Frame(data, info); },
       &sub_err);
   if (!subscription_.IsActive()) {
-    spdlog::error("[BirdWatcher] CameraHub subscribe failed: {}", sub_err);
+    spdlog::error("{} CameraHub subscribe failed: {}", kLogPrefix, sub_err);
     running_ = false;
     DestroyDecoder();
     return;
   }
-
+  spdlog::info("{} CameraHub subscribed to sensor_id={} {}x{}@{}fps successfully", kLogPrefix,
+               config_.camera_sensor_id, config_.capture_width, config_.capture_height,
+               config_.capture_fps);
   ConnectGpuPath();
 
   worker_thread_ = std::thread([this] { WorkerLoop(); });
 }
 
 void BirdWatcher::Stop() {
+  spdlog::info("{} BirdWatcher stopping", kLogPrefix);
   if (!running_.exchange(false)) {
     subscription_.Reset();
     DestroyDecoder();
@@ -99,6 +119,7 @@ void BirdWatcher::Stop() {
   }
   subscription_.Reset();
   DestroyDecoder();
+  spdlog::info("{} BirdWatcher stopped", kLogPrefix);
 }
 
 void BirdWatcher::OnH264Frame(const rtc::binary& data, const rtc::FrameInfo& info) {
@@ -130,15 +151,18 @@ void BirdWatcher::OnRgbaFrame(const std::vector<uint8_t>& rgba, int width, int h
 }
 
 void BirdWatcher::WorkerLoop() {
+  spdlog::info("{} BirdWatcher worker loop started thread_id={}", kLogPrefix,
+               CurrentThreadIdString());
   while (running_.load()) {
     std::optional<std::pair<rtc::binary, rtc::FrameInfo>> h264_item;
     std::optional<RgbaItem> rgba_item;
     {
       std::unique_lock<std::mutex> lk(queue_mutex_);
-      queue_cv_.wait(lk, [&] {
-        return !running_.load() || !frame_queue_.empty() || !rgba_queue_.empty();
-      });
+      queue_cv_.wait(
+          lk, [&] { return !running_.load() || !frame_queue_.empty() || !rgba_queue_.empty(); });
       if (!running_.load()) {
+        spdlog::info("{} BirdWatcher worker loop exiting thread_id={}", kLogPrefix,
+                     CurrentThreadIdString());
         break;
       }
       if (!rgba_queue_.empty()) {
@@ -179,7 +203,7 @@ void BirdWatcher::ProcessQueuedFrame(rtc::binary data, rtc::FrameInfo info) {
   int w = 0;
   int h = 0;
   if (!FeedDecoderAndExtractRgb(data, want_rgb, &rgb, &w, &h)) {
-    spdlog::debug("[BirdWatcher] decoder warming up (au {} bytes)", data.size());
+    spdlog::debug("{} decoder warming up (au {} bytes)", kLogPrefix, data.size());
     return;
   }
   if (!want_rgb) {
@@ -188,9 +212,9 @@ void BirdWatcher::ProcessQueuedFrame(rtc::binary data, rtc::FrameInfo info) {
 
   const bool bird = DetectBird(rgb, w, h);
   if (state_ == State::Idle) {
-    spdlog::debug("[BirdWatcher] idle check {}x{} bird={}", w, h, bird);
+    spdlog::debug("{} idle check {}x{} bird={}", kLogPrefix, w, h, bird);
     if (bird) {
-      spdlog::info("[BirdWatcher] IDLE -> ALERT (bird detected)");
+      spdlog::info("{} IDLE -> ALERT (bird detected)", kLogPrefix);
       state_ = State::Alert;
       consecutive_bird_frames_ = 0;
       consecutive_no_bird_frames_ = 0;
@@ -209,13 +233,13 @@ void BirdWatcher::ProcessQueuedFrame(rtc::binary data, rtc::FrameInfo info) {
     consecutive_bird_frames_ = 0;
     consecutive_no_bird_frames_++;
     if (consecutive_no_bird_frames_ >= config_.alert_frames) {
-      spdlog::info("[BirdWatcher] ALERT -> IDLE (no bird)");
+      spdlog::info("{} ALERT -> IDLE (no bird)", kLogPrefix);
       state_ = State::Idle;
       consecutive_no_bird_frames_ = 0;
       last_idle_check_ = std::chrono::steady_clock::now();
     }
   }
-  spdlog::debug("[BirdWatcher] alert frame {}x{} bird={} bird_streak={} no_bird_streak={}", w, h,
+  spdlog::debug("{} alert frame {}x{} bird={} bird_streak={} no_bird_streak={}", kLogPrefix, w, h,
                 bird, consecutive_bird_frames_, consecutive_no_bird_frames_);
 }
 
@@ -237,9 +261,9 @@ void BirdWatcher::ProcessRgbaFrame(std::vector<uint8_t> rgba, int width, int hei
 
   const bool bird = DetectBird(rgb, width, height);
   if (state_ == State::Idle) {
-    spdlog::debug("[BirdWatcher] GPU idle check {}x{} bird={}", width, height, bird);
+    spdlog::debug("{} GPU idle check {}x{} bird={}", kLogPrefix, width, height, bird);
     if (bird) {
-      spdlog::info("[BirdWatcher] IDLE -> ALERT (bird detected via GPU path)");
+      spdlog::info("{} IDLE -> ALERT (bird detected via GPU path)", kLogPrefix);
       state_ = State::Alert;
       consecutive_bird_frames_ = 0;
       consecutive_no_bird_frames_ = 0;
@@ -258,13 +282,13 @@ void BirdWatcher::ProcessRgbaFrame(std::vector<uint8_t> rgba, int width, int hei
     consecutive_bird_frames_ = 0;
     consecutive_no_bird_frames_++;
     if (consecutive_no_bird_frames_ >= config_.alert_frames) {
-      spdlog::info("[BirdWatcher] ALERT -> IDLE (no bird)");
+      spdlog::info("{} ALERT -> IDLE (no bird)", kLogPrefix);
       state_ = State::Idle;
       consecutive_no_bird_frames_ = 0;
       last_idle_check_ = std::chrono::steady_clock::now();
     }
   }
-  spdlog::debug("[BirdWatcher] GPU alert frame {}x{} bird={} bird_streak={} no_bird_streak={}",
+  spdlog::debug("{} GPU alert frame {}x{} bird={} bird_streak={} no_bird_streak={}", kLogPrefix,
                 width, height, bird, consecutive_bird_frames_, consecutive_no_bird_frames_);
 }
 
@@ -284,23 +308,23 @@ void BirdWatcher::InitDecoder() {
     decode_packet_ = av_packet_alloc();
   }
   if (!decoded_frame_ || !rgb_input_frame_ || !decode_packet_) {
-    spdlog::error("[BirdWatcher] FFmpeg alloc failed");
+    spdlog::error("{} FFmpeg alloc failed", kLogPrefix);
     return;
   }
 
   const AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
   if (decoder == nullptr) {
-    spdlog::error("[BirdWatcher] H264 decoder not available");
+    spdlog::error("{} H264 decoder not available", kLogPrefix);
     return;
   }
   decoder_context_ = avcodec_alloc_context3(decoder);
   if (decoder_context_ == nullptr) {
-    spdlog::error("[BirdWatcher] avcodec_alloc_context3 failed");
+    spdlog::error("{} avcodec_alloc_context3 failed", kLogPrefix);
     return;
   }
   const int open_result = avcodec_open2(decoder_context_, decoder, nullptr);
   if (open_result < 0) {
-    spdlog::error("[BirdWatcher] avcodec_open2: {}", AvErrorToString(open_result));
+    spdlog::error("{} avcodec_open2: {}", kLogPrefix, AvErrorToString(open_result));
     avcodec_free_context(&decoder_context_);
     decoder_context_ = nullptr;
     return;
@@ -338,7 +362,7 @@ bool BirdWatcher::FeedDecoderAndExtractRgb(const rtc::binary& access_unit, bool 
 
   const int send_result = avcodec_send_packet(decoder_context_, decode_packet_);
   if (send_result < 0) {
-    spdlog::debug("[BirdWatcher] avcodec_send_packet: {}", AvErrorToString(send_result));
+    spdlog::debug("{} avcodec_send_packet: {}", kLogPrefix, AvErrorToString(send_result));
     return false;
   }
 
@@ -349,12 +373,12 @@ bool BirdWatcher::FeedDecoderAndExtractRgb(const rtc::binary& access_unit, bool 
       break;
     }
     if (recv < 0) {
-      spdlog::debug("[BirdWatcher] avcodec_receive_frame: {}", AvErrorToString(recv));
+      spdlog::debug("{} avcodec_receive_frame: {}", kLogPrefix, AvErrorToString(recv));
       av_frame_unref(decoded_frame_);
       break;
     }
     if (!first_decode_logged_) {
-      spdlog::info("[BirdWatcher] first H264 frame decoded {}x{}", decoded_frame_->width,
+      spdlog::info("{} first H264 frame decoded {}x{}", kLogPrefix, decoded_frame_->width,
                    decoded_frame_->height);
       first_decode_logged_ = true;
     }
@@ -388,14 +412,14 @@ bool BirdWatcher::RgbFromDecodedFrame(std::vector<uint8_t>* rgb, int* width, int
     rgb_input_frame_->width = w;
     rgb_input_frame_->height = h;
     if (av_frame_get_buffer(rgb_input_frame_, 32) < 0) {
-      spdlog::error("[BirdWatcher] av_frame_get_buffer RGB failed");
+      spdlog::error("{} av_frame_get_buffer RGB failed", kLogPrefix);
       return false;
     }
     decode_to_rgb_context_ =
         sws_getCachedContext(nullptr, w, h, static_cast<AVPixelFormat>(input_format), w, h,
                              AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
     if (decode_to_rgb_context_ == nullptr) {
-      spdlog::error("[BirdWatcher] sws_getCachedContext failed");
+      spdlog::error("{} sws_getCachedContext failed", kLogPrefix);
       return false;
     }
     frame_width_ = w;
@@ -439,7 +463,7 @@ bool BirdWatcher::DetectBird(const std::vector<uint8_t>& rgb, int width, int hei
 
   ProcessImageResponse resp;
   if (!engine_->ProcessImage(req, &resp, cuda_memory_pool_.get()) || resp.code() != 0) {
-    spdlog::warn("[BirdWatcher] ProcessImage failed: {}", resp.message());
+    spdlog::warn("{} ProcessImage failed: {}", kLogPrefix, resp.message());
     return false;
   }
   bool hit = false;
@@ -449,7 +473,7 @@ bool BirdWatcher::DetectBird(const std::vector<uint8_t>& rgb, int width, int hei
       break;
     }
   }
-  spdlog::debug("[BirdWatcher] YOLO {}x{} threshold={:.2f} raw_dets={} bird_hit={}", width, height,
+  spdlog::debug("{} YOLO {}x{} threshold={:.2f} raw_dets={} bird_hit={}", kLogPrefix, width, height,
                 config_.confidence_threshold, resp.detections_size(), hit);
   return hit;
 }
@@ -476,21 +500,20 @@ void BirdWatcher::MaybeSave(const std::vector<uint8_t>& rgb, int width, int heig
   SaveCapture(rgb, width, height);
 }
 
-void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/,
-                              int /*height*/) {
+void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/, int /*height*/) {
   if (image_sink_ == nullptr || config_.captures_dir.empty()) {
     return;
   }
+  spdlog::info("{} Saving capture to {}", kLogPrefix, config_.captures_dir);
 
   // Pull a full-resolution NV12 frame from the still_sink branch of the Argus
   // pipeline (4056×3040 @ 15fps). This is a blocking pull (≤500 ms) and does a
   // synchronous DMA transfer from NVMM to system memory (~5 ms for a 4K frame).
   int still_w = 0, still_h = 0;
-  rtc::binary nv12 = camera_hub_->GrabStillFrame(
-      config_.camera_sensor_id, &still_w, &still_h);
+  rtc::binary nv12 = camera_hub_->GrabStillFrame(config_.camera_sensor_id, &still_w, &still_h);
 
   if (nv12.empty() || still_w <= 0 || still_h <= 0) {
-    spdlog::warn("[BirdWatcher] GrabStillFrame returned empty; skipping save");
+    spdlog::warn("{} GrabStillFrame returned empty; skipping save", kLogPrefix);
     return;
   }
 
@@ -498,18 +521,16 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/
   // NV12 layout: Y plane (w×h bytes) followed by interleaved UV plane (w×h/2 bytes).
   const auto* y_plane = reinterpret_cast<const uint8_t*>(nv12.data());
   const uint8_t* src_data[4] = {y_plane, y_plane + still_w * still_h, nullptr, nullptr};
-  const int src_linesize[4]  = {still_w, still_w, 0, 0};
+  const int src_linesize[4] = {still_w, still_w, 0, 0};
 
   std::vector<uint8_t> rgb(static_cast<size_t>(still_w) * still_h * 3);
-  uint8_t* dst_data[4]   = {rgb.data(), nullptr, nullptr, nullptr};
+  uint8_t* dst_data[4] = {rgb.data(), nullptr, nullptr, nullptr};
   const int dst_linesize[4] = {still_w * 3, 0, 0, 0};
 
-  SwsContext* sws = sws_getContext(
-      still_w, still_h, AV_PIX_FMT_NV12,
-      still_w, still_h, AV_PIX_FMT_RGB24,
-      SWS_BILINEAR, nullptr, nullptr, nullptr);
+  SwsContext* sws = sws_getContext(still_w, still_h, AV_PIX_FMT_NV12, still_w, still_h,
+                                   AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr, nullptr);
   if (!sws) {
-    spdlog::error("[BirdWatcher] sws_getContext failed for NV12→RGB24 conversion");
+    spdlog::error("{} sws_getContext failed for NV12→RGB24 conversion", kLogPrefix);
     return;
   }
   sws_scale(sws, src_data, src_linesize, 0, still_h, dst_data, dst_linesize);
@@ -518,7 +539,7 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/
   std::error_code ec;
   std::filesystem::create_directories(config_.captures_dir, ec);
   if (ec) {
-    spdlog::error("[BirdWatcher] create_directories {}: {}", config_.captures_dir, ec.message());
+    spdlog::error("{} create_directories {}: {}", kLogPrefix, config_.captures_dir, ec.message());
     return;
   }
 
@@ -531,7 +552,7 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/
   const std::string path = config_.captures_dir + "/" + name.str() + ".bmp";
 
   if (!image_sink_->writeBmp(path.c_str(), rgb.data(), still_w, still_h, 3)) {
-    spdlog::error("[BirdWatcher] writeBmp failed: {}", path);
+    spdlog::error("{} writeBmp failed: {}", kLogPrefix, path);
     return;
   }
 
@@ -539,7 +560,7 @@ void BirdWatcher::SaveCapture(const std::vector<uint8_t>& /*rgb*/, int /*width*/
   had_capture_ = true;
   last_capture_time_ = now;
   capture_times_.push_back(now);
-  spdlog::info("[BirdWatcher] Saved {}x{} still capture: {}", still_w, still_h, path);
+  spdlog::info("{} Saved {}x{} still capture: {}", kLogPrefix, still_w, still_h, path);
 }
 
 }  // namespace jrb::application::bird_watch

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include <string_view>
 #include "src/cpp_accelerator/domain/interfaces/filters/i_filter.h"
 #include "src/cpp_accelerator/adapters/compute/cuda/kernels/letterbox_kernel.h"
 
@@ -48,6 +49,12 @@ static_assert(sizeof(kCocoClassNames) / sizeof(kCocoClassNames[0]) == 80,
 
 namespace jrb::adapters::compute::cuda {
 
+namespace {
+
+constexpr std::string_view kLogPrefix = "[TRT]";
+
+}
+
 // TensorRT Logger
 class TRTLogger : public nvinfer1::ILogger {
 public:
@@ -55,16 +62,16 @@ public:
     switch (severity) {
       case Severity::kINTERNAL_ERROR:
       case Severity::kERROR:
-        spdlog::error("[TRT] {}", msg);
+        spdlog::error("{} {}", kLogPrefix, msg);
         break;
       case Severity::kWARNING:
-        spdlog::warn("[TRT] {}", msg);
+        spdlog::warn("{} {}", kLogPrefix, msg);
         break;
       case Severity::kINFO:
-        spdlog::info("[TRT] {}", msg);
+        spdlog::info("{} {}", kLogPrefix, msg);
         break;
       case Severity::kVERBOSE:
-        spdlog::debug("[TRT] {}", msg);
+        spdlog::debug("{} {}", kLogPrefix, msg);
         break;
     }
   }
@@ -122,7 +129,7 @@ private:
     // Try to load cached engine
     std::ifstream engine_file(engine_path, std::ios::binary);
     if (engine_file.good()) {
-      spdlog::info("[TRT] Loading cached engine from: {} ...", engine_path);
+      spdlog::info("{} Loading cached engine from: {} ...", kLogPrefix, engine_path);
       auto t0 = std::chrono::steady_clock::now();
       engine_file.seekg(0, std::ios::end);
       size_t engine_size = engine_file.tellg();
@@ -137,7 +144,7 @@ private:
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                            std::chrono::steady_clock::now() - t0)
                            .count();
-        spdlog::info("[TRT] Cached engine loaded in {}ms", elapsed);
+        spdlog::info("{} Cached engine loaded in {}ms", kLogPrefix, elapsed);
         context_ = engine_->createExecutionContext();
         if (!context_) {
           throw std::runtime_error("Failed to create execution context");
@@ -145,12 +152,12 @@ private:
         PrepareBuffers();
         return;
       }
-      spdlog::warn("[TRT] Cached engine deserialization failed — rebuilding from ONNX");
+      spdlog::warn("{} Cached engine deserialization failed — rebuilding from ONNX", kLogPrefix);
     }
 
     // No cached engine or load failed, build from ONNX
-    spdlog::info("[TRT] No cached engine found, building from ONNX: {}", model_path_);
-    spdlog::info("[TRT] *** First-time engine build — this takes ~60-90s on x86, ~120s on Jetson ***");
+    spdlog::info("{} No cached engine found, building from ONNX: {}", kLogPrefix, model_path_);
+    spdlog::info("{} *** First-time engine build — this takes ~60-90s on x86, ~120s on Jetson ***", kLogPrefix);
     BuildEngineFromOnnx(engine_path);
   }
 
@@ -226,7 +233,7 @@ private:
     }
     config->addOptimizationProfile(profile);
 
-    spdlog::info("[TRT] Starting engine compilation (see TRT logs for per-layer progress)...");
+    spdlog::info("{} Starting engine compilation (see TRT logs for per-layer progress)...", kLogPrefix);
     auto build_t0 = std::chrono::steady_clock::now();
 
     auto plan = builder->buildSerializedNetwork(*network, *config);
@@ -236,14 +243,14 @@ private:
     auto build_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                              std::chrono::steady_clock::now() - build_t0)
                              .count();
-    spdlog::info("[TRT] Engine compilation finished in {}s", build_elapsed);
+    spdlog::info("{} Engine compilation finished in {}s", kLogPrefix, build_elapsed);
 
     engine_ = runtime_->deserializeCudaEngine(plan->data(), plan->size());
     if (!engine_) {
       throw std::runtime_error("Failed to build TensorRT engine");
     }
 
-    spdlog::info("[TRT] Successfully built TensorRT engine from ONNX");
+    spdlog::info("{} Successfully built TensorRT engine from ONNX", kLogPrefix);
     context_ = engine_->createExecutionContext();
     if (!context_) {
       throw std::runtime_error("Failed to create execution context");
@@ -252,7 +259,7 @@ private:
     PrepareBuffers();
     SaveEngine(engine_path, plan);
 
-    spdlog::info("[TRT] *** Engine build complete and cached — future startups will be fast ***");
+    spdlog::info("{} *** Engine build complete and cached — future startups will be fast ***", kLogPrefix);
   }
 
   void PrepareBuffers() {
@@ -274,7 +281,7 @@ private:
         }
         // Bind the fixed shape to the execution context so enqueueV3 knows tensor sizes
         context_->setInputShape(name, fixed);
-        spdlog::info("[TRT] Input tensor '{}': {} floats", name, input_size_);
+        spdlog::info("{} Input tensor '{}': {} floats", kLogPrefix, name, input_size_);
       } else {
         output_name_ = name;
         auto dims = context_->getTensorShape(name);  // context gives resolved shape
@@ -289,7 +296,7 @@ private:
           if (j > 0) shape_str += ",";
           shape_str += std::to_string(output_shape_[j]);
         }
-        spdlog::info("[TRT] Output tensor '{}': {} floats, shape=[{}]", name, output_size_,
+        spdlog::info("{} Output tensor '{}': {} floats, shape=[{}]", kLogPrefix, name, output_size_,
                      shape_str);
       }
     }
@@ -314,7 +321,7 @@ private:
                                cudaGetErrorString(err));
     }
     h_output_.resize(output_size_);
-    spdlog::info("[TRT] GPU buffers allocated: input={}B output={}B",
+    spdlog::info("{} GPU buffers allocated: input={}B output={}B", kLogPrefix,
                  input_size_ * sizeof(float), output_size_ * sizeof(float));
   }
 

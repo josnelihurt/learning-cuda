@@ -3,9 +3,13 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <spdlog/spdlog.h>
+#include <string_view>
 #pragma GCC diagnostic pop
 
 namespace jrb::adapters::compute::opencl {
+namespace {
+constexpr std::string_view kLogPrefix = "[OpenCLContext]";
+}
 
 Context& Context::GetInstance() {
   static Context instance;
@@ -22,7 +26,7 @@ Context::Context()
   cl_int err = clGetPlatformIDs(1, &platform_, nullptr);
   if (err != CL_SUCCESS || !platform_) {
     error_message_ = "clGetPlatformIDs failed — no OpenCL platform found";
-    spdlog::warn("[Context] {}", error_message_);
+    spdlog::warn("{} {}", kLogPrefix, error_message_);
     return;
   }
 
@@ -33,14 +37,14 @@ Context::Context()
   }
   if (err != CL_SUCCESS || !device_) {
     error_message_ = "clGetDeviceIDs failed — no OpenCL device found";
-    spdlog::warn("[Context] {}", error_message_);
+    spdlog::warn("{} {}", kLogPrefix, error_message_);
     return;
   }
 
   context_ = clCreateContext(nullptr, 1, &device_, nullptr, nullptr, &err);
   if (err != CL_SUCCESS || !context_) {
     error_message_ = "clCreateContext failed";
-    spdlog::warn("[Context] {}", error_message_);
+    spdlog::warn("{} {}", kLogPrefix, error_message_);
     return;
   }
 
@@ -49,18 +53,20 @@ Context::Context()
     clReleaseContext(context_);
     context_ = nullptr;
     error_message_ = "clCreateCommandQueueWithProperties failed";
-    spdlog::warn("[Context] {}", error_message_);
+    spdlog::warn("{} {}", kLogPrefix, error_message_);
     return;
   }
 
   available_ = true;
   error_message_ = "ok";
-  spdlog::info("[Context] OpenCL context ready");
+  spdlog::info("{} OpenCL context ready", kLogPrefix);
 }
 
 Context::~Context() {
-  if (queue_) clReleaseCommandQueue(queue_);
-  if (context_) clReleaseContext(context_);
+  if (queue_)
+    clReleaseCommandQueue(queue_);
+  if (context_)
+    clReleaseContext(context_);
 }
 
 bool Context::available() const {

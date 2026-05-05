@@ -1,6 +1,7 @@
 #include "src/cpp_accelerator/adapters/compute/vulkan/filters/grayscale_filter.h"
 
 #include <cstddef>
+#include <string_view>
 #include <vector>
 
 #pragma GCC diagnostic push
@@ -8,24 +9,29 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/vulkan/kernels/vk_grayscale_blob.h"
 #include "src/cpp_accelerator/adapters/compute/vulkan/context/compute_utils.h"
 #include "src/cpp_accelerator/adapters/compute/vulkan/context/context.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/kernels/vk_grayscale_blob.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::adapters::compute::vulkan {
+namespace {
+constexpr std::string_view kLogPrefix = "[VulkanGrayscale]";
+}
 
-GrayscaleFilter::GrayscaleFilter()
-    : pipeline_ready_(false) {}
+GrayscaleFilter::GrayscaleFilter() : pipeline_ready_(false) {}
 
-GrayscaleFilter::~GrayscaleFilter() { DestroyPipeline(); }
+GrayscaleFilter::~GrayscaleFilter() {
+  DestroyPipeline();
+}
 
 bool GrayscaleFilter::EnsurePipeline() {
-  if (pipeline_ready_) return true;
+  if (pipeline_ready_)
+    return true;
 
   auto& ctx = Context::GetInstance();
   if (!ctx.available()) {
-    spdlog::error("[VulkanGrayscale] context unavailable: {}", ctx.error_message());
+    spdlog::error("{} context unavailable: {}", kLogPrefix, ctx.error_message());
     return false;
   }
 
@@ -35,13 +41,13 @@ bool GrayscaleFilter::EnsurePipeline() {
   const auto* spirv = reinterpret_cast<const uint32_t*>(vk_grayscale_blob::spirv());
   size_t spirv_size = vk_grayscale_blob::spirv_size_bytes();
   if (spirv == nullptr || spirv_size == 0 || spirv_size % sizeof(uint32_t) != 0) {
-    spdlog::error("[VulkanGrayscale] invalid embedded SPIR-V");
+    spdlog::error("{} invalid embedded SPIR-V", kLogPrefix, kLogPrefix);
     return false;
   }
   try {
     shader_module_ = device.createShaderModule(vk::ShaderModuleCreateInfo({}, spirv_size, spirv));
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanGrayscale] createShaderModule failed: {}", e.what());
+    spdlog::error("{} createShaderModule failed: {}", kLogPrefix, e.what());
     return false;
   }
 
@@ -54,7 +60,7 @@ bool GrayscaleFilter::EnsurePipeline() {
     descriptor_set_layout_ =
         device.createDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo({}, bindings));
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanGrayscale] createDescriptorSetLayout failed: {}", e.what());
+    spdlog::error("{} createDescriptorSetLayout failed: {}", kLogPrefix, e.what());
     DestroyPipeline();
     return false;
   }
@@ -65,7 +71,7 @@ bool GrayscaleFilter::EnsurePipeline() {
     pipeline_layout_ = device.createPipelineLayout(
         vk::PipelineLayoutCreateInfo({}, 1, &descriptor_set_layout_, 1, &push_range));
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanGrayscale] createPipelineLayout failed: {}", e.what());
+    spdlog::error("{} createPipelineLayout failed: {}", kLogPrefix, e.what());
     DestroyPipeline();
     return false;
   }
@@ -77,7 +83,7 @@ bool GrayscaleFilter::EnsurePipeline() {
         nullptr, vk::ComputePipelineCreateInfo({}, stage, pipeline_layout_));
     pipeline_ = result.value;
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanGrayscale] createComputePipeline failed: {}", e.what());
+    spdlog::error("{} createComputePipeline failed: {}", kLogPrefix, e.what());
     DestroyPipeline();
     return false;
   }
@@ -88,7 +94,8 @@ bool GrayscaleFilter::EnsurePipeline() {
 
 void GrayscaleFilter::DestroyPipeline() {
   auto& ctx = Context::GetInstance();
-  if (!ctx.available()) return;
+  if (!ctx.available())
+    return;
   vk::Device device = ctx.device();
   if (pipeline_) {
     device.destroyPipeline(pipeline_);
@@ -110,7 +117,8 @@ void GrayscaleFilter::DestroyPipeline() {
 }
 
 bool GrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
-  if (!EnsurePipeline()) return false;
+  if (!EnsurePipeline())
+    return false;
 
   auto& ctx = Context::GetInstance();
   vk::Device device = ctx.device();
@@ -120,7 +128,7 @@ bool GrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   const int channels = context.input.channels;
 
   if (channels != 3) {
-    spdlog::error("[VulkanGrayscale] expected 3-channel input, got {}", channels);
+    spdlog::error("{} expected 3-channel input, got {}", kLogPrefix, channels);
     return false;
   }
 
@@ -157,7 +165,7 @@ bool GrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
         vk::CommandBufferAllocateInfo(ctx.command_pool(), vk::CommandBufferLevel::ePrimary, 1));
     cmd = cmds[0];
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanGrayscale] allocateCommandBuffers failed: {}", e.what());
+    spdlog::error("{} allocateCommandBuffers failed: {}", kLogPrefix, e.what());
     device.destroyBuffer(in_buf);
     device.freeMemory(in_mem);
     device.destroyBuffer(out_buf);
@@ -177,7 +185,7 @@ bool GrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
         vk::DescriptorSetAllocateInfo(desc_pool, 1, &descriptor_set_layout_));
     desc_set = sets[0];
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanGrayscale] descriptor allocation failed: {}", e.what());
+    spdlog::error("{} descriptor allocation failed: {}", kLogPrefix, e.what());
     device.freeCommandBuffers(ctx.command_pool(), cmd);
     device.destroyBuffer(in_buf);
     device.freeMemory(in_mem);
@@ -209,7 +217,7 @@ bool GrayscaleFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
   uint32_t gy = (static_cast<uint32_t>(height) + 15u) / 16u;
   cmd.dispatch(gx, gy, 1);
 
-  bool ok = SubmitAndWait(device, ctx.queue(), cmd, "VulkanGrayscale");
+  bool ok = SubmitAndWait(device, ctx.queue(), cmd, kLogPrefix.data());
 
   // Readback: narrow floats to bytes.
   if (ok) {
@@ -232,6 +240,8 @@ jrb::domain::interfaces::FilterType GrayscaleFilter::GetType() const {
   return jrb::domain::interfaces::FilterType::GRAYSCALE;
 }
 
-bool GrayscaleFilter::IsInPlace() const { return false; }
+bool GrayscaleFilter::IsInPlace() const {
+  return false;
+}
 
 }  // namespace jrb::adapters::compute::vulkan

@@ -1,6 +1,7 @@
 #include "src/cpp_accelerator/adapters/compute/vulkan/filters/blur_filter.h"
 
 #include <cstddef>
+#include <string_view>
 #include <vector>
 
 #pragma GCC diagnostic push
@@ -8,23 +9,29 @@
 #include <spdlog/spdlog.h>
 #pragma GCC diagnostic pop
 
-#include "src/cpp_accelerator/adapters/compute/vulkan/kernels/vk_blur_blob.h"
 #include "src/cpp_accelerator/adapters/compute/vulkan/context/compute_utils.h"
 #include "src/cpp_accelerator/adapters/compute/vulkan/context/context.h"
+#include "src/cpp_accelerator/adapters/compute/vulkan/kernels/vk_blur_blob.h"
 #include "src/cpp_accelerator/domain/interfaces/image_buffer.h"
 
 namespace jrb::adapters::compute::vulkan {
+namespace {
+constexpr std::string_view kLogPrefix = "[VulkanBlur]";
+}
 
 GaussianBlurFilter::GaussianBlurFilter() : pipeline_ready_(false) {}
 
-GaussianBlurFilter::~GaussianBlurFilter() { DestroyPipeline(); }
+GaussianBlurFilter::~GaussianBlurFilter() {
+  DestroyPipeline();
+}
 
 bool GaussianBlurFilter::EnsurePipeline() {
-  if (pipeline_ready_) return true;
+  if (pipeline_ready_)
+    return true;
 
   auto& ctx = Context::GetInstance();
   if (!ctx.available()) {
-    spdlog::error("[VulkanBlur] context unavailable: {}", ctx.error_message());
+    spdlog::error("{} context unavailable: {}", kLogPrefix, ctx.error_message());
     return false;
   }
 
@@ -33,13 +40,13 @@ bool GaussianBlurFilter::EnsurePipeline() {
   const auto* spirv = reinterpret_cast<const uint32_t*>(vk_blur_blob::spirv());
   size_t spirv_size = vk_blur_blob::spirv_size_bytes();
   if (spirv == nullptr || spirv_size == 0 || spirv_size % sizeof(uint32_t) != 0) {
-    spdlog::error("[VulkanBlur] invalid embedded SPIR-V");
+    spdlog::error("{} invalid embedded SPIR-V", kLogPrefix, kLogPrefix);
     return false;
   }
   try {
     shader_module_ = device.createShaderModule(vk::ShaderModuleCreateInfo({}, spirv_size, spirv));
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanBlur] createShaderModule failed: {}", e.what());
+    spdlog::error("{} createShaderModule failed: {}", kLogPrefix, e.what());
     return false;
   }
 
@@ -51,7 +58,7 @@ bool GaussianBlurFilter::EnsurePipeline() {
     descriptor_set_layout_ =
         device.createDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo({}, bindings));
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanBlur] createDescriptorSetLayout failed: {}", e.what());
+    spdlog::error("{} createDescriptorSetLayout failed: {}", kLogPrefix, e.what());
     DestroyPipeline();
     return false;
   }
@@ -62,7 +69,7 @@ bool GaussianBlurFilter::EnsurePipeline() {
     pipeline_layout_ = device.createPipelineLayout(
         vk::PipelineLayoutCreateInfo({}, 1, &descriptor_set_layout_, 1, &push_range));
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanBlur] createPipelineLayout failed: {}", e.what());
+    spdlog::error("{} createPipelineLayout failed: {}", kLogPrefix, e.what());
     DestroyPipeline();
     return false;
   }
@@ -74,7 +81,7 @@ bool GaussianBlurFilter::EnsurePipeline() {
         nullptr, vk::ComputePipelineCreateInfo({}, stage, pipeline_layout_));
     pipeline_ = result.value;
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanBlur] createComputePipeline failed: {}", e.what());
+    spdlog::error("{} createComputePipeline failed: {}", kLogPrefix, e.what());
     DestroyPipeline();
     return false;
   }
@@ -85,7 +92,8 @@ bool GaussianBlurFilter::EnsurePipeline() {
 
 void GaussianBlurFilter::DestroyPipeline() {
   auto& ctx = Context::GetInstance();
-  if (!ctx.available()) return;
+  if (!ctx.available())
+    return;
   vk::Device device = ctx.device();
   if (pipeline_) {
     device.destroyPipeline(pipeline_);
@@ -121,7 +129,7 @@ static bool RunBlurPass(vk::Device device, vk::Queue queue, vk::CommandPool cmd_
         vk::DescriptorSetAllocateInfo(desc_pool, 1, &desc_set_layout));
     desc_set = sets[0];
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanBlur] allocateDescriptorSets pass={} failed: {}", pass, e.what());
+    spdlog::error("{} allocateDescriptorSets pass={} failed: {}", kLogPrefix, pass, e.what());
     return false;
   }
 
@@ -145,7 +153,7 @@ static bool RunBlurPass(vk::Device device, vk::Queue queue, vk::CommandPool cmd_
         vk::CommandBufferAllocateInfo(cmd_pool, vk::CommandBufferLevel::ePrimary, 1));
     cmd = cmds[0];
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanBlur] allocateCommandBuffers pass={} failed: {}", pass, e.what());
+    spdlog::error("{} allocateCommandBuffers pass={} failed: {}", kLogPrefix, pass, e.what());
     return false;
   }
 
@@ -163,7 +171,8 @@ static bool RunBlurPass(vk::Device device, vk::Queue queue, vk::CommandPool cmd_
 }
 
 bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) {
-  if (!EnsurePipeline()) return false;
+  if (!EnsurePipeline())
+    return false;
 
   auto& ctx = Context::GetInstance();
   vk::Device device = ctx.device();
@@ -179,9 +188,18 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
   vk::DeviceMemory src_mem, tmp_mem, dst_mem;
 
   auto cleanup = [&]() {
-    if (src_buf) { device.destroyBuffer(src_buf); device.freeMemory(src_mem); }
-    if (tmp_buf) { device.destroyBuffer(tmp_buf); device.freeMemory(tmp_mem); }
-    if (dst_buf) { device.destroyBuffer(dst_buf); device.freeMemory(dst_mem); }
+    if (src_buf) {
+      device.destroyBuffer(src_buf);
+      device.freeMemory(src_mem);
+    }
+    if (tmp_buf) {
+      device.destroyBuffer(tmp_buf);
+      device.freeMemory(tmp_mem);
+    }
+    if (dst_buf) {
+      device.destroyBuffer(dst_buf);
+      device.freeMemory(dst_mem);
+    }
   };
 
   if (!AllocateHostBuffer(device, ctx.physical_device(), buf_bytes,
@@ -210,7 +228,7 @@ bool GaussianBlurFilter::Apply(jrb::domain::interfaces::FilterContext& context) 
         vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 2,
                                      pool_sizes.size(), pool_sizes.data()));
   } catch (const vk::SystemError& e) {
-    spdlog::error("[VulkanBlur] createDescriptorPool failed: {}", e.what());
+    spdlog::error("{} createDescriptorPool failed: {}", kLogPrefix, e.what());
     cleanup();
     return false;
   }
@@ -239,6 +257,8 @@ jrb::domain::interfaces::FilterType GaussianBlurFilter::GetType() const {
   return jrb::domain::interfaces::FilterType::BLUR;
 }
 
-bool GaussianBlurFilter::IsInPlace() const { return false; }
+bool GaussianBlurFilter::IsInPlace() const {
+  return false;
+}
 
 }  // namespace jrb::adapters::compute::vulkan

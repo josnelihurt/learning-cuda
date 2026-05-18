@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	gen "github.com/jrb/cuda-learning/proto/gen"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -20,13 +21,16 @@ type AcceleratorSession struct {
 	SupportedTypes  []gen.AcceleratorType
 	Cameras         []*gen.RemoteCameraInfo
 
-	stream  grpc.BidiStreamingServer[gen.ConnectRequest, gen.ConnectResponse]
-	sendMu  sync.Mutex // gRPC bidi requires single-writer; serialize sends.
-	lastSeen time.Time
+	stream             grpc.BidiStreamingServer[gen.ConnectRequest, gen.ConnectResponse]
+	sendMu             sync.Mutex // gRPC bidi requires single-writer; serialize sends.
+	lastSeenMu         sync.RWMutex
+	lastSeen           time.Time
+	keepaliveInterval  time.Duration
+	keepaliveTimeout   time.Duration
 
-	pending   *pendingMap
-	signalingMu   sync.RWMutex
-	signalingChs  map[string]chan *gen.AcceleratorMessage // key: subscriber id
+	pending      *pendingMap
+	signalingMu  sync.RWMutex
+	signalingChs map[string]chan *gen.AcceleratorMessage // key: subscriber id
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -37,23 +41,95 @@ func newAcceleratorSession(
 	assignedID string,
 	reg *gen.Register,
 	stream grpc.BidiStreamingServer[gen.ConnectRequest, gen.ConnectResponse],
+	keepaliveInterval time.Duration,
+	keepaliveTimeout time.Duration,
 	log zerolog.Logger,
 ) *AcceleratorSession {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &AcceleratorSession{
-		DeviceID:        reg.DeviceId,
-		DisplayName:     reg.DisplayName,
-		AssignedSession: assignedID,
-		Capabilities:    reg.Capabilities,
-		SupportedTypes:  reg.SupportedAcceleratorTypes,
-		Cameras:         reg.Cameras,
-		stream:          stream,
-		lastSeen:        time.Now(),
-		pending:         newPendingMap(),
-		signalingChs:    make(map[string]chan *gen.AcceleratorMessage),
-		ctx:             ctx,
-		cancel:          cancel,
-		log:             log,
+		DeviceID:          reg.DeviceId,
+		DisplayName:       reg.DisplayName,
+		AssignedSession:   assignedID,
+		Capabilities:      reg.Capabilities,
+		SupportedTypes:    reg.SupportedAcceleratorTypes,
+		Cameras:           reg.Cameras,
+		stream:            stream,
+		lastSeen:          time.Now(),
+		keepaliveInterval: keepaliveInterval,
+		keepaliveTimeout:  keepaliveTimeout,
+		pending:           newPendingMap(),
+		signalingChs:      make(map[string]chan *gen.AcceleratorMessage),
+		ctx:               ctx,
+		cancel:            cancel,
+		log:               log,
+	}
+}
+
+func (s *AcceleratorSession) touch() {
+	s.lastSeenMu.Lock()
+	s.lastSeen = time.Now()
+	s.lastSeenMu.Unlock()
+}
+
+func (s *AcceleratorSession) timeSinceLastSeen() time.Duration {
+	s.lastSeenMu.RLock()
+	defer s.lastSeenMu.RUnlock()
+	return time.Since(s.lastSeen)
+}
+
+func (s *AcceleratorSession) isStale() bool {
+	return s.timeSinceLastSeen() > s.keepaliveTimeout
+}
+
+func (s *AcceleratorSession) runKeepaliveSender() {
+	ticker := time.NewTicker(s.keepaliveInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			msg := &gen.AcceleratorMessage{
+				CommandId: uuid.NewString(),
+				Payload: &gen.AcceleratorMessage_Keepalive{
+					Keepalive: &gen.Keepalive{
+						SenderUnixMs: time.Now().UnixMilli(),
+					},
+				},
+			}
+			if err := s.Send(msg); err != nil {
+				s.log.Warn().Err(err).Msg("failed to send keepalive to accelerator")
+				s.cancel()
+				return
+			}
+			s.log.Debug().Msg("keepalive sent to accelerator")
+		}
+	}
+}
+
+func (s *AcceleratorSession) runStaleWatchdog() {
+	tick := s.keepaliveInterval / 2
+	if tick < time.Second {
+		tick = time.Second
+	}
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			if s.isStale() {
+				s.log.Warn().
+					Dur("since_last_seen", s.timeSinceLastSeen()).
+					Dur("timeout", s.keepaliveTimeout).
+					Msg("accelerator keepalive timeout")
+				s.cancel()
+				return
+			}
+		}
 	}
 }
 

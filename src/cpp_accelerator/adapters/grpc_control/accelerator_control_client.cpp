@@ -1,5 +1,6 @@
 #include "src/cpp_accelerator/adapters/grpc_control/accelerator_control_client.h"
 
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <random>
@@ -38,6 +39,12 @@ namespace {
 
 constexpr std::string_view kLogPrefix = "[AcceleratorControl]";
 
+int64_t SteadyNowMs() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+
 std::string ReadFile(const std::string& path) {
   std::ifstream f(path);
   if (!f.is_open()) {
@@ -69,10 +76,10 @@ void Log(const AcceleratorControlClientConfig& cfg) {
   spdlog::info(
       "[AcceleratorControlClientConfig] control_addr={} device_id={} display_name={} "
       "accelerator_version={} client_cert_file={} client_key_file={} ca_cert_file={} "
-      "max_reconnect_delay_s={} camera_count={}",
+      "max_reconnect_delay_s={} keepalive_interval_s={} keepalive_timeout_s={} camera_count={}",
       cfg.control_addr, cfg.device_id, cfg.display_name, cfg.accelerator_version,
       cfg.client_cert_file, cfg.client_key_file, cfg.ca_cert_file, cfg.max_reconnect_delay_s,
-      cfg.cameras.size());
+      cfg.keepalive_interval_s, cfg.keepalive_timeout_s, cfg.cameras.size());
 }
 
 }  // namespace
@@ -92,13 +99,30 @@ AcceleratorControlClient::~AcceleratorControlClient() {
 
 void AcceleratorControlClient::Stop() {
   stop_requested_ = true;
+  CancelStream();
+}
+
+void AcceleratorControlClient::CancelStream() {
+  std::lock_guard<std::mutex> lk(write_mutex_);
+  if (ctx_ != nullptr) {
+    ctx_->TryCancel();
+  }
+}
+
+void AcceleratorControlClient::TouchLastRx() {
+  last_rx_ms_.store(SteadyNowMs());
+}
+
+bool AcceleratorControlClient::IsRxStale() const {
+  const int64_t elapsed_ms = SteadyNowMs() - last_rx_ms_.load();
+  return elapsed_ms > static_cast<int64_t>(config_.keepalive_timeout_s) * 1000;
 }
 
 void AcceleratorControlClient::Run() {
   spdlog::info("{} Starting outbound connection loop to {}", kLogPrefix, config_.control_addr);
   int delay_s = 1;
   while (!stop_requested_) {
-    if (RunOnce()) {
+    if (RunOnce(&delay_s)) {
       spdlog::info("{} Connection loop exited due to RunOnce() returning true", kLogPrefix);
       break;
     }
@@ -115,7 +139,10 @@ void AcceleratorControlClient::Run() {
   spdlog::info("{} Connection loop exited", kLogPrefix);
 }
 
-bool AcceleratorControlClient::RunOnce() {
+bool AcceleratorControlClient::RunOnce(int* reconnect_delay_s) {
+  stream_failed_ = false;
+  TouchLastRx();
+
   // Build channel credentials.
   std::shared_ptr<grpc::ChannelCredentials> creds;
   if (!config_.client_cert_file.empty() && !config_.client_key_file.empty() &&
@@ -157,7 +184,11 @@ bool AcceleratorControlClient::RunOnce() {
   }
 
   auto cleanup = [&]() {
+    TeardownLocalSessions();
     std::lock_guard<std::mutex> lk(write_mutex_);
+    if (ctx_ != nullptr) {
+      ctx_->TryCancel();
+    }
     ctx_ = nullptr;
     stream_ = nullptr;
   };
@@ -180,6 +211,8 @@ bool AcceleratorControlClient::RunOnce() {
     cleanup();
     return stop_requested_;
   }
+  TouchLastRx();
+
   const auto& ack_msg = ack_resp.message();
   if (!ack_msg.has_register_ack()) {
     spdlog::error("{} Expected RegisterAck, got something else", kLogPrefix);
@@ -195,10 +228,16 @@ bool AcceleratorControlClient::RunOnce() {
   spdlog::info("{} Registered, session_id={}", kLogPrefix,
                ack_msg.register_ack().assigned_session_id());
 
-  // Start candidate pump thread.
-  std::atomic<bool> pump_stop{false};
+  if (reconnect_delay_s != nullptr) {
+    *reconnect_delay_s = 1;
+  }
+
+  std::atomic<bool> connection_stop{false};
+
+  std::thread keepalive_thread([&]() { KeepaliveLoop(connection_stop); });
+
   std::thread pump_thread([&]() {
-    while (!pump_stop.load() && !stop_requested_.load()) {
+    while (!connection_stop.load() && !stop_requested_.load()) {
       CandidatePumpLoop();
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -206,11 +245,24 @@ bool AcceleratorControlClient::RunOnce() {
 
   // Dispatch loop.
   ConnectResponse resp;
-  while (!stop_requested_ && stream->Read(&resp)) {
+  while (!stop_requested_ && !stream_failed_.load() && stream->Read(&resp)) {
+    if (IsRxStale()) {
+      spdlog::warn("{} Inbound keepalive timeout ({}s) during read", kLogPrefix,
+                   config_.keepalive_timeout_s);
+      stream_failed_ = true;
+      CancelStream();
+      break;
+    }
+    TouchLastRx();
     Dispatch(resp.message());
   }
 
-  pump_stop = true;
+  if (stream_failed_.load() && !stop_requested_) {
+    spdlog::warn("{} Stream failed — reconnecting", kLogPrefix);
+  }
+
+  connection_stop = true;
+  keepalive_thread.join();
   pump_thread.join();
 
   stream->WritesDone();
@@ -237,6 +289,7 @@ bool AcceleratorControlClient::Send(AcceleratorMessage msg) {
 }
 
 void AcceleratorControlClient::Dispatch(const AcceleratorMessage& msg) {
+  TouchLastRx();
   const std::string& cmd_id = msg.command_id();
   switch (msg.payload_case()) {
     case AcceleratorMessage::kSignalingMessage:
@@ -248,6 +301,62 @@ void AcceleratorControlClient::Dispatch(const AcceleratorMessage& msg) {
     default:
       spdlog::warn("{} Unknown payload type: {}", kLogPrefix, static_cast<int>(msg.payload_case()));
       break;
+  }
+}
+
+void AcceleratorControlClient::KeepaliveLoop(std::atomic<bool>& connection_stop) {
+  const auto tick = std::chrono::milliseconds(100);
+  const int ticks_per_interval = std::max(1, config_.keepalive_interval_s * 10);
+
+  while (!connection_stop.load() && !stop_requested_.load()) {
+    for (int i = 0; i < ticks_per_interval && !connection_stop.load() && !stop_requested_.load();
+         ++i) {
+      if (IsRxStale()) {
+        spdlog::warn("{} No inbound message for {}s — reconnecting", kLogPrefix,
+                     config_.keepalive_timeout_s);
+        stream_failed_ = true;
+        CancelStream();
+        connection_stop = true;
+        return;
+      }
+      std::this_thread::sleep_for(tick);
+    }
+
+    if (connection_stop.load() || stop_requested_.load()) {
+      return;
+    }
+
+    if (!Send(BuildKeepaliveMessage())) {
+      spdlog::warn("{} Keepalive send failed — reconnecting", kLogPrefix);
+      stream_failed_ = true;
+      CancelStream();
+      connection_stop = true;
+      return;
+    }
+    spdlog::debug("{} Keepalive sent", kLogPrefix);
+  }
+}
+
+void AcceleratorControlClient::TeardownLocalSessions() {
+  std::vector<std::string> session_ids;
+  {
+    std::lock_guard<std::mutex> lk(session_ids_mutex_);
+    session_ids = std::move(active_session_ids_);
+    active_session_ids_.clear();
+  }
+
+  if (!webrtc_manager_) {
+    return;
+  }
+
+  for (const auto& session_id : session_ids) {
+    std::string error;
+    webrtc_manager_->CloseSession(session_id, &error);
+    if (!error.empty()) {
+      spdlog::warn("{} CloseSession({}) during teardown: {}", kLogPrefix, session_id, error);
+    } else {
+      spdlog::info("{} Closed WebRTC session {} on disconnect", kLogPrefix, session_id);
+    }
   }
 }
 
@@ -278,7 +387,6 @@ void AcceleratorControlClient::HandleSignalingMessage(const std::string& command
         resp->set_sdp_answer("");
       }
 
-      // Track session id for candidate pump.
       {
         std::lock_guard<std::mutex> lk(session_ids_mutex_);
         active_session_ids_.push_back(req.session_id());
@@ -373,6 +481,16 @@ void AcceleratorControlClient::CandidatePumpLoop() {
       }
     }
   }
+}
+
+AcceleratorMessage AcceleratorControlClient::BuildKeepaliveMessage() const {
+  AcceleratorMessage msg;
+  msg.set_command_id(NewCommandId());
+  const auto unix_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count();
+  msg.mutable_keepalive()->set_sender_unix_ms(unix_ms);
+  return msg;
 }
 
 AcceleratorMessage AcceleratorControlClient::BuildRegisterMessage() const {

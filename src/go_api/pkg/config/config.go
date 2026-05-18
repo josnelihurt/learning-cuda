@@ -62,6 +62,9 @@ func New(configFile string) *Manager {
 
 	setDefaults(v)
 
+	_ = v.BindEnv("processor.keepalive_interval", "PROCESSOR_KEEPALIVE_INTERVAL")
+	_ = v.BindEnv("processor.keepalive_timeout", "PROCESSOR_KEEPALIVE_TIMEOUT")
+
 	if err := v.ReadInConfig(); err != nil {
 		log.Printf("Warning: Config file not found: %v, using defaults", err)
 	}
@@ -104,8 +107,10 @@ func setDefaults(v *viper.Viper) {
 		"logging.remote_enabled":     false,
 		"logging.remote_environment": "development",
 
-		"processor.library_base_path":  ".ignore/lib/cuda_learning",
-		"processor.listen_address":     ":60062",
+		"processor.library_base_path":   ".ignore/lib/cuda_learning",
+		"processor.listen_address":      ":60062",
+		"processor.keepalive_interval":  "15s",
+		"processor.keepalive_timeout":   "45s",
 		"processor.tls.cert_file":       ".secrets/accelerator-server.pem",
 		"processor.tls.key_file":        ".secrets/accelerator-server-key.pem",
 		"processor.tls.client_ca_file":  ".secrets/accelerator-ca.pem",

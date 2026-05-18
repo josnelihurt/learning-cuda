@@ -30,6 +30,8 @@ logging:
 
 processor:
   library_base_path: "/app/lib"
+  keepalive_interval: 15s
+  keepalive_timeout: 45s
 
 static_images:
   directory: "/app/data/static_images"

@@ -144,7 +144,10 @@ func (s *ControlServer) Connect(stream grpc.BidiStreamingServer[gen.ConnectReque
 
 	// 2. Construct session; let the registry enforce the v1 single-accelerator policy.
 	assignedID := uuid.NewString()
-	sess := newAcceleratorSession(assignedID, reg.Register, stream, *logger.Global())
+	keepaliveInterval, keepaliveTimeout := s.keepaliveSettings()
+	sess := newAcceleratorSession(
+		assignedID, reg.Register, stream, keepaliveInterval, keepaliveTimeout, *logger.Global(),
+	)
 
 	if err := s.registry.Add(sess); err != nil {
 		ack := &gen.ConnectResponse{Message: &gen.AcceleratorMessage{
@@ -194,32 +197,71 @@ func (s *ControlServer) Connect(stream grpc.BidiStreamingServer[gen.ConnectReque
 		return err
 	}
 
-	// 4. Receive loop.
-	for {
-		msg, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
+	go sess.runKeepaliveSender()
+	go sess.runStaleWatchdog()
 
-		env := msg.Message
-		switch env.GetPayload().(type) {
-		case *gen.AcceleratorMessage_Keepalive:
-			sess.lastSeen = time.Now()
-		case *gen.AcceleratorMessage_Register:
-			return status.Error(codes.FailedPrecondition, "re-register on existing stream")
-		case *gen.AcceleratorMessage_SignalingMessage:
-			sess.deliverSignaling(env)
-		case *gen.AcceleratorMessage_Error:
-			if !sess.pending.deliver(env.GetCommandId(), env) {
-				s.log.Warn().
-					Str("command_id", env.GetCommandId()).
-					Msg("response without matching pending command")
+	// 4. Receive loop — Recv runs in a goroutine so session cancel can unblock Connect.
+	type recvResult struct {
+		msg *gen.ConnectRequest
+		err error
+	}
+	recvCh := make(chan recvResult, 1)
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			select {
+			case recvCh <- recvResult{msg: msg, err: err}:
+			case <-sess.ctx.Done():
+				return
 			}
-		default:
-			s.log.Debug().Msg("unexpected message type from accelerator")
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-sess.ctx.Done():
+			return status.Error(codes.Unavailable, "accelerator session terminated")
+		case result := <-recvCh:
+			if result.err == io.EOF {
+				return nil
+			}
+			if result.err != nil {
+				return result.err
+			}
+
+			env := result.msg.Message
+			sess.touch()
+			switch env.GetPayload().(type) {
+			case *gen.AcceleratorMessage_Keepalive:
+				s.log.Debug().Msg("keepalive received from accelerator")
+			case *gen.AcceleratorMessage_Register:
+				return status.Error(codes.FailedPrecondition, "re-register on existing stream")
+			case *gen.AcceleratorMessage_SignalingMessage:
+				sess.deliverSignaling(env)
+			case *gen.AcceleratorMessage_Error:
+				if !sess.pending.deliver(env.GetCommandId(), env) {
+					s.log.Warn().
+						Str("command_id", env.GetCommandId()).
+						Msg("response without matching pending command")
+				}
+			default:
+				s.log.Debug().Msg("unexpected message type from accelerator")
+			}
 		}
 	}
+}
+
+func (s *ControlServer) keepaliveSettings() (interval, timeout time.Duration) {
+	interval = s.cfg.KeepaliveInterval
+	timeout = s.cfg.KeepaliveTimeout
+	if interval <= 0 {
+		interval = 15 * time.Second
+	}
+	if timeout <= 0 {
+		timeout = 45 * time.Second
+	}
+	return interval, timeout
 }

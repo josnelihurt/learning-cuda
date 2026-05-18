@@ -1,10 +1,14 @@
 package config
 
+import "time"
+
 type ProcessorConfig struct {
-	LibraryBasePath string       `mapstructure:"library_base_path"`
-	DefaultLibrary  string       `mapstructure:"default_library"`
-	ListenAddress   string       `mapstructure:"listen_address"`  // control-stream server address
-	TLS             ProcessorTLS `mapstructure:"tls"`
+	LibraryBasePath    string        `mapstructure:"library_base_path"`
+	DefaultLibrary     string        `mapstructure:"default_library"`
+	ListenAddress      string        `mapstructure:"listen_address"` // control-stream server address
+	KeepaliveInterval  time.Duration `mapstructure:"keepalive_interval"`
+	KeepaliveTimeout   time.Duration `mapstructure:"keepalive_timeout"`
+	TLS                ProcessorTLS  `mapstructure:"tls"`
 }
 
 type ProcessorTLS struct {

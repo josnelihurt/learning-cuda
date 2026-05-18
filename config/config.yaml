@@ -32,6 +32,8 @@ logging:
 
 processor:
   library_base_path: ".ignore/lib/cuda_learning"
+  keepalive_interval: 15s
+  keepalive_timeout: 45s
 
 mqtt:
   broker: ""

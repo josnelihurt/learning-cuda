@@ -16,7 +16,11 @@ services:
       - ./config/config.dev.yaml:/app/config/config.yaml:ro
     
     working_dir: /app
-    
+
+    environment:
+      - PROCESSOR_KEEPALIVE_INTERVAL=${PROCESSOR_KEEPALIVE_INTERVAL:-15s}
+      - PROCESSOR_KEEPALIVE_TIMEOUT=${PROCESSOR_KEEPALIVE_TIMEOUT:-45s}
+
     command: ["/app/server", "-config=/app/config/config.yaml"]
     
     networks:

@@ -24,6 +24,9 @@ services:
       # locking to a fixed preset corrects it. Override per-deploy without
       # rebuilding the image.
       - NVARGUS_WBMODE=1
+      - CONTROL_KEEPALIVE_INTERVAL_S=${CONTROL_KEEPALIVE_INTERVAL_S:-15}
+      - CONTROL_KEEPALIVE_TIMEOUT_S=${CONTROL_KEEPALIVE_TIMEOUT_S:-45}
+      - CONTROL_MAX_RECONNECT_DELAY_S=${CONTROL_MAX_RECONNECT_DELAY_S:-60}
 
     command:
       - accelerator_control_client
@@ -33,6 +36,9 @@ services:
       - --client_cert=/secrets/client.pem
       - --client_key=/secrets/client-key.pem
       - --ca_cert=/secrets/ca.pem
+      - --max_reconnect_delay_s=${CONTROL_MAX_RECONNECT_DELAY_S:-60}
+      - --keepalive_interval_s=${CONTROL_KEEPALIVE_INTERVAL_S:-15}
+      - --keepalive_timeout_s=${CONTROL_KEEPALIVE_TIMEOUT_S:-45}
       - --captures_dir=/app/captures
       - "--bird_watch_enabled=${BIRD_WATCH_ENABLED:-true}"
       - "--bird_watch_confidence=${BIRD_WATCH_CONFIDENCE:-0.4}"
@@ -41,7 +47,7 @@ services:
       - "--bird_watch_max_per_minute=${BIRD_WATCH_MAX_PER_MINUTE:-5}"
       - "--bird_watch_min_interval_s=${BIRD_WATCH_MIN_INTERVAL_S:-5}"
       - "--bird_watch_camera_id=${BIRD_WATCH_CAMERA_ID:-0}"
-      - "--cameras=0"
+      - "--cameras=0,1"
 
     # Camera device pass-through for Jetson Argus camera framework.
     # nvarguscamerasrc requires access to Tegra platform devices in addition to
@@ -49,11 +55,11 @@ services:
     # covers JetPack 6 / R36.
     devices:
       - /dev/video0:/dev/video0   # CAM0 — IMX477
-      # - /dev/video1:/dev/video1   # CAM1 — IMX519 (disabled because it's not working with IMX477)
+      - /dev/video1:/dev/video1   # CAM1 — IMX477 Motorized
       - /dev/v4l-subdev0:/dev/v4l-subdev0
       - /dev/v4l-subdev1:/dev/v4l-subdev1
       - /dev/v4l-subdev2:/dev/v4l-subdev2
-      # - /dev/v4l-subdev3:/dev/v4l-subdev3
+      - /dev/v4l-subdev3:/dev/v4l-subdev3
       - /dev/media0:/dev/media0
       - /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu
       - /dev/nvhost-ctrl-isp:/dev/nvhost-ctrl-isp

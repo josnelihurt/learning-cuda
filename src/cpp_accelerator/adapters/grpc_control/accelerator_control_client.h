@@ -1,7 +1,7 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -36,6 +36,10 @@ struct AcceleratorControlClientConfig {
   std::string ca_cert_file;
   // Backoff ceiling for reconnect attempts (seconds).
   int max_reconnect_delay_s{60};
+  // Application keepalive ping interval (seconds).
+  int keepalive_interval_s{15};
+  // Reconnect if no inbound stream message for this long (seconds).
+  int keepalive_timeout_s{45};
   // Cameras detected at startup, populated from CLI --cameras flag.
   std::vector<cuda_learning::RemoteCameraInfo> cameras;
 };
@@ -61,7 +65,8 @@ public:
 private:
   // Executes one connect-register-dispatch cycle. Returns true if the cycle
   // ended cleanly (i.e., Stop() was called); false on any error.
-  bool RunOnce();
+  // Resets *reconnect_delay_s to 1 after a successful RegisterAck when non-null.
+  bool RunOnce(int* reconnect_delay_s);
 
   // Sends a ConnectRequest envelope with the given AcceleratorMessage.
   // Thread-safe via write_mutex_.
@@ -77,8 +82,16 @@ private:
   // Thread that polls WebRTCManager for local ICE candidates and sends them.
   void CandidatePumpLoop();
 
-  // Builds the Register message from engine capabilities.
+  // Sends periodic Keepalive messages and enforces inbound timeout.
+  void KeepaliveLoop(std::atomic<bool>& connection_stop);
+
+  void TouchLastRx();
+  bool IsRxStale() const;
+  void CancelStream();
+  void TeardownLocalSessions();
+
   cuda_learning::AcceleratorMessage BuildRegisterMessage() const;
+  cuda_learning::AcceleratorMessage BuildKeepaliveMessage() const;
 
   AcceleratorControlClientConfig config_;
   std::shared_ptr<ProcessorEngineProvider> engine_;
@@ -93,6 +106,9 @@ private:
   using BidiStream =
       grpc::ClientReaderWriter<cuda_learning::ConnectRequest, cuda_learning::ConnectResponse>;
   BidiStream* stream_{nullptr};
+
+  std::atomic<bool> stream_failed_{false};
+  std::atomic<int64_t> last_rx_ms_{0};
 
   // Set of active WebRTC session IDs (for candidate pump).
   std::mutex session_ids_mutex_;

@@ -17,6 +17,8 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+      - PROCESSOR_KEEPALIVE_INTERVAL=${PROCESSOR_KEEPALIVE_INTERVAL:-15s}
+      - PROCESSOR_KEEPALIVE_TIMEOUT=${PROCESSOR_KEEPALIVE_TIMEOUT:-45s}
     
     volumes:
       - ./data:/data:ro

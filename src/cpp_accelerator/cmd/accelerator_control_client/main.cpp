@@ -35,6 +35,10 @@ ABSL_FLAG(std::string, client_key, ".secrets/dev-accelerator-client-key.pem",
 ABSL_FLAG(std::string, ca_cert, ".secrets/accelerator-ca.pem",
           "Path to CA certificate used to verify the server (PEM).");
 ABSL_FLAG(int, max_reconnect_delay_s, 60, "Maximum reconnect back-off in seconds.");
+ABSL_FLAG(int, keepalive_interval_s, 15,
+          "Application keepalive ping interval on the control stream (seconds).");
+ABSL_FLAG(int, keepalive_timeout_s, 45,
+          "Reconnect if no inbound control-stream message for this long (seconds).");
 ABSL_FLAG(std::string, cameras, "0,1",
           "Comma-separated sensor IDs to probe and advertise as remote cameras.");
 ABSL_FLAG(std::string, captures_dir, "/tmp/cuda-captures",
@@ -141,6 +145,8 @@ int main(int argc, char** argv) {
   cfg.client_key_file = absl::GetFlag(FLAGS_client_key);
   cfg.ca_cert_file = absl::GetFlag(FLAGS_ca_cert);
   cfg.max_reconnect_delay_s = absl::GetFlag(FLAGS_max_reconnect_delay_s);
+  cfg.keepalive_interval_s = absl::GetFlag(FLAGS_keepalive_interval_s);
+  cfg.keepalive_timeout_s = absl::GetFlag(FLAGS_keepalive_timeout_s);
 
   // Parse comma-separated sensor IDs and detect cameras.
   {

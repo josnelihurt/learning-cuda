@@ -33,6 +33,8 @@ logging:
 processor:
   library_base_path: "/app/lib"
   listen_address: ":60062"
+  keepalive_interval: 15s
+  keepalive_timeout: 45s
   tls:
     cert_file: "/app/secrets/server.pem"
     key_file: "/app/secrets/server-key.pem"

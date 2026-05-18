@@ -82,8 +82,15 @@ RUN NPROC=$(cat /tmp/resources.txt | awk '{print $1}') && \
     echo "${BUILD_DONE_MSG}. Duration: ${BUILD_DURATION_MMSS}. Log: $(wc -l < /tmp/bazel-build.log) lines" && \
     tail -n 60 /tmp/bazel-build.log
 
-RUN mkdir -p /artifacts/lib /artifacts/bin && \
-    cp -L bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client /artifacts/bin/accelerator_control_client
+RUN mkdir -p /artifacts/lib /artifacts/bin /artifacts/nvbuf-stubs && \
+    cp -L bazel-bin/src/cpp_accelerator/cmd/accelerator_control_client/accelerator_control_client /artifacts/bin/accelerator_control_client && \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        cp /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so /artifacts/nvbuf-stubs/ && \
+        (cp -P /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2 /artifacts/nvbuf-stubs/ 2>/dev/null || \
+         cp /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so /artifacts/nvbuf-stubs/libnvbuf_utils.so.2); \
+    else \
+        touch /artifacts/nvbuf-stubs/.skip; \
+    fi
 
 FROM ${CUDA_RUNTIME_REGISTRY}/base:cuda-runtime-${CUDA_RUNTIME_VERSION}-${TARGETARCH} AS cpp-accelerator
 
@@ -102,11 +109,11 @@ COPY --from=yolo-model-gen /models/yolov10n.onnx /opt/cuda/grpc/data/models/yolo
 # real file at the mount target.  On Jetson, docker-compose.yml overlays these
 # with the real JetPack library at runtime.  Without a file here Docker creates
 # a directory at the mount path, causing EISDIR (Error 21) from the linker.
-RUN --mount=type=bind,from=cpp-builder,source=/usr/lib/aarch64-linux-gnu,target=/l4t-libs,ro \
-    if [ "$TARGETARCH" = "arm64" ]; then \
-        cp /l4t-libs/libnvbuf_utils.so /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so && \
-        (cp -P /l4t-libs/libnvbuf_utils.so.2 /usr/lib/aarch64-linux-gnu/ 2>/dev/null || \
-         cp /l4t-libs/libnvbuf_utils.so /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2); \
+COPY --from=cpp-builder /artifacts/nvbuf-stubs/ /tmp/nvbuf-stubs/
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        cp /tmp/nvbuf-stubs/libnvbuf_utils.so /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so && \
+        (cp -P /tmp/nvbuf-stubs/libnvbuf_utils.so.2 /usr/lib/aarch64-linux-gnu/ 2>/dev/null || \
+         cp /tmp/nvbuf-stubs/libnvbuf_utils.so /usr/lib/aarch64-linux-gnu/libnvbuf_utils.so.2); \
     fi
 
 # Copy VERSION file for GetVersionInfo endpoint
